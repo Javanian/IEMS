@@ -1,0 +1,9 @@
+services:
+  machine_heartbeat_sync:
+    build:
+      context: .
+      dockerfile: Dockerfile.heartbeat
+    container_name: machine-heartbeat-sync
+    restart: unless-stopped
+    env_file:
+      - ../../.env

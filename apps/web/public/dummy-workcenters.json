@@ -1,0 +1,62 @@
+[
+  {
+    "workcentercode": "WC-001",
+    "workcenterdescription": "CNC Milling Machine A1"
+  },
+  {
+    "workcentercode": "WC-002",
+    "workcenterdescription": "CNC Milling Machine A2"
+  },
+  {
+    "workcentercode": "WC-003",
+    "workcenterdescription": "CNC Lathe Machine B1"
+  },
+  {
+    "workcentercode": "WC-004",
+    "workcenterdescription": "CNC Lathe Machine B2"
+  },
+  {
+    "workcentercode": "WC-005",
+    "workcenterdescription": "Grinding Machine C1"
+  },
+  {
+    "workcentercode": "WC-006",
+    "workcenterdescription": "Grinding Machine C2"
+  },
+  {
+    "workcentercode": "WC-007",
+    "workcenterdescription": "Welding Station D1"
+  },
+  {
+    "workcentercode": "WC-008",
+    "workcenterdescription": "Welding Station D2"
+  },
+  {
+    "workcentercode": "WC-009",
+    "workcenterdescription": "Assembly Line E1"
+  },
+  {
+    "workcentercode": "WC-010",
+    "workcenterdescription": "Assembly Line E2"
+  },
+  {
+    "workcentercode": "WC-011",
+    "workcenterdescription": "Quality Control Station F1"
+  },
+  {
+    "workcentercode": "WC-012",
+    "workcenterdescription": "Quality Control Station F2"
+  },
+  {
+    "workcentercode": "WC-013",
+    "workcenterdescription": "Packaging Area G1"
+  },
+  {
+    "workcentercode": "WC-014",
+    "workcenterdescription": "Packaging Area G2"
+  },
+  {
+    "workcentercode": "WC-015",
+    "workcenterdescription": "Material Handling H1"
+  }
+]

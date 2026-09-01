@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Travel Card</title>
+    <style>
+      @page {
+        size: A4 portrait;
+        margin: 8mm;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'IBM Plex Mono', 'Courier New', monospace;
+        background: #ffffff;
+        width: 210mm;
+        min-height: 281mm;
+        display: flex;
+        flex-direction: column;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .card {
+        background: #ffffff;
+        border: 1px solid #0a0a0a;
+        width: 100%;
+      }
+
+      .container {
+        width: 210mm;
+        /*height: 281mm;*/
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        /*break-after: page;*/
+        /*page-break-after: always;*/
+      }
+
+      /* ── Card 1: Header band ── */
+      .container:last-child {
+        break-after: auto;
+        page-break-after: auto;
+      }
+
+      .card:last-of-type {
+        margin-top: auto;
+        flex-shrink: 0;
+      }
+
+      .title-text {
+        font-size: 16pt;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        color: #0a0a0a;
+        text-transform: uppercase;
+        text-align: center;
+      }
+
+      .title-brand {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 2.5mm;
+        margin-top: 2mm;
+      }
+
+      .brand-logo {
+        width: 11mm;
+        height: 11mm;
+        object-fit: contain;
+        flex-shrink: 0;
+        display: block;
+      }
+
+      .brand-name {
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 9.5pt;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        color: #0a0a0a;
+        line-height: 1.15;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .brand-name .red {
+        color: #0300c0;
+      }
+
+      .meta-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 6.5pt;
+      }
+
+      .meta-table tr {
+        border-bottom: 1px solid #ddd;
+        height: 4mm;
+      }
+      .meta-table tr:last-child {
+        border-bottom: none;
+      }
+
+      .meta-table td {
+        padding: 0.6mm 2mm;
+        color: #1a1a1a;
+        vertical-align: middle;
+      }
+
+      .meta-table .meta-label {
+        width: 26mm;
+        font-weight: 600;
+        border-right: 1px solid #ddd;
+        white-space: nowrap;
+      }
+
+      .meta-table .meta-value {
+      }
+
+      /* ── Card 1: Identity body ── */
+      .id-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      /* each <tr> is one field row — borders align perfectly across all 3 columns */
+      .id-table tbody tr {
+        border-bottom: 1px solid #ccc;
+        height: 7mm;
+      }
+
+      .id-table tbody tr:last-child {
+        border-bottom: none;
+      }
+
+      .id-lbl {
+        font-size: 6.5pt;
+        font-weight: 600;
+        color: #555;
+        padding: 1mm 2mm;
+        border-right: 1px solid #ccc;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+
+      /* heavy divider between column groups */
+      .id-lbl.grp {
+        border-left: 1px solid #0a0a0a;
+      }
+
+      .id-val {
+        font-size: 8pt;
+        font-weight: 600;
+        color: #1a1a1a;
+        padding: 1mm 2mm;
+        vertical-align: middle;
+        word-break: break-word;
+      }
+
+      .colon {
+        color: #999;
+        margin-right: 1mm;
+      }
+      .dim {
+        color: #999;
+      }
+
+      /* ── Card 2: Planned Work ── */
+      .section-hdr-dark {
+        background: #0a0a0a;
+        color: #f5f4f0;
+        font-size: 7pt;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        padding: 1.5mm 3mm;
+        border-bottom: 1px solid #0a0a0a;
+      }
+
+      .work-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 7.5pt;
+        table-layout: fixed;
+      }
+
+      .work-table thead {
+        display: table-header-group;
+      }
+
+      .work-table tr,
+      .work-table td,
+      .work-table th {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .work-table th {
+        border: 1px solid #888;
+        padding: 1.5mm;
+        font-size: 7pt;
+        font-weight: 700;
+        word-break: break-word;
+        background: #d9d9d9;
+      }
+
+      .work-table td {
+        border: 1px solid #ccc;
+        padding: 1.5mm;
+        word-break: break-word;
+        min-height: 8mm;
+      }
+
+      .row-even {
+        background: #ffffff;
+      }
+      .row-odd {
+        background: #f4f3f0;
+      }
+      .tc {
+        text-align: center;
+      }
+      .ops-no {
+        text-align: center;
+        font-weight: 600;
+        color: #0a0a0a;
+      }
+
+      /* ── Card 3: Footer ── */
+      .ftr-hdr {
+        background: #d9d9d9;
+        padding: 1mm 2.5mm;
+        font-weight: 700;
+        border-bottom: 1px solid #bbb;
+        color: #0a0a0a;
+        font-size: 7pt;
+      }
+
+      .ftr-body {
+        padding: 1.5mm 2.5mm;
+        display: flex;
+        flex-direction: column;
+        gap: 1mm;
+        font-size: 7pt;
+      }
+
+      .ftr-field {
+        display: flex;
+        align-items: flex-end;
+        gap: 1mm;
+        margin-bottom: 0.5mm;
+      }
+      .ftr-lbl {
+        color: #444;
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+      .ftr-sep {
+        color: #999;
+        flex-shrink: 0;
+      }
+      .write-line {
+        flex: 1;
+        border-bottom: 1px solid #aaa;
+        min-width: 16mm;
+      }
+
+      .ftr-table {
+        width: 100%;
+        border-collapse: collapse;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .ftr-table > tbody > tr > td {
+        vertical-align: top;
+        border-right: 1px solid #bbb;
+      }
+
+      .ftr-table > tbody > tr > td:last-child {
+        border-right: none;
+      }
+
+      .total-hrs-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 14mm;
+        max-width: 55mm;
+      }
+
+      .total-hrs-val {
+        font-size: 15pt;
+        font-weight: 700;
+        color: #0a0a0a;
+        letter-spacing: 0.02em;
+      }
+
+      .confidential {
+        padding: 2mm 4mm;
+        text-align: center;
+        font-size: 6.5pt;
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-style: italic;
+        color: #555;
+        line-height: 1.6;
+        border-top: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- ══ Card 1: Header + Identity ══ -->
+      <div class="card">
+        <!-- Header band — colgroup matches id-table for perfect column alignment -->
+        <table
+          style="
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border-bottom: 1px solid #0a0a0a;
+          "
+        >
+          <colgroup>
+            <col style="width: 12mm" />
+            <col />
+            <col style="width: 26mm" />
+            <col />
+            <col style="width: 18mm" />
+            <col />
+          </colgroup>
+          <tbody>
+            <tr>
+              <!-- QR — col group 1 -->
+              <td
+                colspan="2"
+                style="
+                  border-right: 1px solid #0a0a0a;
+                  text-align: center;
+                  vertical-align: middle;
+                  padding: 1.5mm;
+                  height: 20mm;
+                "
+              >
+                <img
+                  src="{{qrCodeDataUrl}}"
+                  alt="QR"
+                  style="width: 20mm; height: 20mm; object-fit: contain"
+                />
+              </td>
+              <!-- Title / Logo — col group 2 -->
+              <td
+                colspan="2"
+                style="
+                  border-right: 1px solid #0a0a0a;
+                  text-align: center;
+                  vertical-align: middle;
+                  padding: 0mm 0mm;
+                "
+              >
+                <div class="title-text">Travel Card</div>
+                <div class="title-brand">
+                  <img src="../assets/ssb.png" alt="SSB" class="brand-logo" />
+                  <div class="brand-name">
+                    <span class="red">SANGGAR</span>
+                    <span>SARANA BAJA</span>
+                  </div>
+                </div>
+              </td>
+              <!-- Meta — col group 3 -->
+              <td colspan="2" style="vertical-align: top; padding: 0">
+                <table class="meta-table">
+                  <tbody>
+                    <tr>
+                      <td class="meta-label">Document No.</td>
+                      <td class="meta-value">—</td>
+                    </tr>
+                    <tr>
+                      <td class="meta-label">Revision</td>
+                      <td class="meta-value">—</td>
+                    </tr>
+                    <tr>
+                      <td class="meta-label">Date</td>
+                      <td class="meta-value">{{dateStr}}</td>
+                    </tr>
+                    <tr>
+                      <td class="meta-label">Responsibility</td>
+                      <td class="meta-value">Prod. Engineering</td>
+                    </tr>
+                    <tr>
+                      <td class="meta-label">Page</td>
+                      <td class="meta-value">1 of 1</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <!-- /header-band -->
+
+        <!-- Identity body: 6-col table — each <tr> is one field row so borders align perfectly -->
+        <table class="id-table">
+          <colgroup>
+            <col style="width: 12mm" />
+            <!-- col1 label -->
+            <col />
+            <!-- col1 value -->
+            <col style="width: 26mm" />
+            <!-- col2 label -->
+            <col />
+            <!-- col2 value -->
+            <col style="width: 18mm" />
+            <!-- col3 label -->
+            <col />
+            <!-- col3 value -->
+          </colgroup>
+          <tbody>
+            <tr>
+              <td class="id-lbl">No.</td>
+              <td class="id-val"><span class="colon"></span> 1 of 1</td>
+              <td class="id-lbl grp">Prod Order</td>
+              <td class="id-val"><span class="colon"></span> {{productionOrder}}</td>
+              <td class="id-lbl grp">Part Name</td>
+              <td class="id-val"><span class="colon"></span> {{partName}}</td>
+            </tr>
+            <tr>
+              <td class="id-lbl">Job No</td>
+              <td class="id-val"><span class="colon"></span> <span class="dim">—</span></td>
+              <td class="id-lbl grp">Customer</td>
+              <td class="id-val"><span class="colon"></span> {{customer}}</td>
+              <td class="id-lbl grp">Model</td>
+              <td class="id-val"><span class="colon"></span> {{model}}</td>
+            </tr>
+            <tr>
+              <td class="id-lbl">Ident</td>
+              <td class="id-val"><span class="colon"></span> {{ident}}</td>
+              <td class="id-lbl grp">Location</td>
+              <td class="id-val"><span class="colon"></span> {{location}}</td>
+              <td class="id-lbl grp">Part No.</td>
+              <td class="id-val"><span class="colon"></span> {{partNumber}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- /Card 1 -->
+
+      <!-- ══ Card 2: Planned Work ══ -->
+      <div class="card" style="margin-top: 0mm">
+        <div class="section-hdr-dark">Planned Work</div>
+
+        <table class="work-table">
+          <colgroup>
+            <col style="width: 14mm" />
+            <!-- Ops No -->
+            <col />
+            <!-- Description — auto -->
+            <col style="width: 22mm" />
+            <!-- Workcenter -->
+            <col style="width: 13mm" />
+            <!-- Est Hrs -->
+            <col style="width: 18mm" />
+            <!-- Operator Sign -->
+            <col style="width: 18mm" />
+            <!-- Inspector Sign -->
+            <col style="width: 37mm" />
+            <!-- Remarks -->
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="tc">Ops No</th>
+              <th style="text-align: left">Description</th>
+              <th class="tc">Workcenter</th>
+              <th class="tc">Est Hrs</th>
+              <th class="tc">Operator Sign</th>
+              <th class="tc">Inspector Sign</th>
+              <th style="text-align: left">Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- {{#each operations}} -->
+            <tr class="{{rowClass}}">
+              <td class="ops-no">{{operation_no}}</td>
+              <td>{{operation_text}}</td>
+              <td class="tc">{{machineid}}</td>
+              <td class="tc">{{std_hours}}</td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <!-- {{/each}} -->
+          </tbody>
+        </table>
+      </div>
+      <!-- /Card 2 -->
+
+      <!-- ══ Card 3: Footer ══ -->
+      <div class="card" style="margin-top: 0mm">
+        <!-- Single unified table for all footer rows -->
+        <!-- cols: 83mm | 28mm | 55mm | 28mm = 194mm                              -->
+        <!-- Row1: Check&Understand(c1) | FinalInsp(c2+c3 colspan) | TotalHrs(c4) -->
+        <!-- Row2: IssuedBy(c1)         | Signature(c2)            | Note(c3+c4 colspan) -->
+        <table class="ftr-table" style="border-bottom: 1px solid #bbb">
+          <colgroup>
+            <col style="width: 83mm" />
+            <col style="width: 28mm" />
+            <col style="width: 55mm" />
+            <col style="width: 28mm" />
+          </colgroup>
+          <tbody>
+            <!-- Row 1 -->
+            <tr style="border-bottom: 1px solid #bbb">
+              <td style="vertical-align: top; border-right: 1px solid #bbb">
+                <div class="ftr-hdr">Check &amp; Understand By (Production Area)</div>
+                <div class="ftr-body">
+                  <div class="ftr-field">
+                    <span class="ftr-lbl" style="min-width: 14mm">Name</span>
+                    <span class="ftr-sep">:</span>
+                    <span class="write-line"></span>
+                  </div>
+                  <div class="ftr-field">
+                    <span class="ftr-lbl" style="min-width: 14mm">Date</span>
+                    <span class="ftr-sep">:</span>
+                    <span class="write-line"></span>
+                  </div>
+                </div>
+              </td>
+              <td colspan="2" style="vertical-align: top; border-right: 1px solid #bbb">
+                <div class="ftr-hdr" style="text-align: center">Final Inspection</div>
+                <div class="ftr-body">
+                  <div class="ftr-field">
+                    <span class="ftr-lbl" style="min-width: 14mm">Name</span>
+                    <span class="ftr-sep">:</span>
+                    <span class="write-line"></span>
+                  </div>
+                  <div class="ftr-field">
+                    <span class="ftr-lbl" style="min-width: 14mm">Date</span>
+                    <span class="ftr-sep">:</span>
+                    <span class="write-line"></span>
+                  </div>
+                </div>
+              </td>
+              <td style="vertical-align: top">
+                <div class="ftr-hdr" style="text-align: center">Total Hours</div>
+                <div class="total-hrs-box">
+                  <span class="total-hrs-val">{{totalHours}}</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Row 2 -->
+            <tr>
+              <td style="vertical-align: top; border-right: 1px solid #bbb">
+                <div class="ftr-hdr">Issued by (Prod. Eng.)</div>
+                <div class="ftr-body" style="min-height: 13mm">
+                  <div class="ftr-field">
+                    <span class="ftr-lbl" style="min-width: 14mm">Name</span>
+                    <span class="ftr-sep">:</span>
+                    <span class="write-line"></span>
+                  </div>
+                  <div class="ftr-field">
+                    <span class="ftr-lbl" style="min-width: 14mm">Date</span>
+                    <span class="ftr-sep">:</span>
+                    <span class="write-line"></span>
+                  </div>
+                </div>
+              </td>
+              <td style="vertical-align: top; border-right: 1px solid #bbb">
+                <div class="ftr-hdr" style="text-align: center">Signature</div>
+                <div style="min-height: 13mm"></div>
+              </td>
+              <td colspan="2" style="vertical-align: top">
+                <div class="ftr-hdr">NOTE :</div>
+                <div style="min-height: 13mm; padding: 1.5mm 2.5mm"></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Confidentiality -->
+        <div class="confidential">
+          <div>
+            The Information contained in this document is confidential and proprietary to PT.SANGGAR
+            SARANA BAJA and it's affiliates (collectively called *SSB*)
+          </div>
+          <div>
+            No part of this document may be distribute or disclosed in any form to any third party
+            without written permission of SSB
+          </div>
+        </div>
+      </div>
+      <!-- /Card 3 -->
+    </div>
+  </body>
+</html>

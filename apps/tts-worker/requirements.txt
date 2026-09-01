@@ -1,0 +1,6 @@
+psycopg2-binary==2.9.11
+pydub==0.25.1
+python-dotenv==1.2.1
+piper-tts==1.3.0
+# pydub butuh audioop; Python 3.13+ menghapusnya dari stdlib -> pakai backport.
+audioop-lts; python_version >= "3.13"

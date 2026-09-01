@@ -1,0 +1,11 @@
+services:
+  timesheet_sap_etl:
+    build:
+      context: .
+      dockerfile: Dockerfile.etl
+    container_name: timesheet-sap-etl
+    env_file:
+      - ../../.env
+    volumes:
+      - ./:/app
+    restart: unless-stopped

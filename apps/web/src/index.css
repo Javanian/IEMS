@@ -1,0 +1,225 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes hm-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes hm-in {
+  from { opacity: 0; transform: translateY(5px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    background: #f5f5f5;
+    font-family: Arial, sans-serif;
+  }
+}
+
+@layer components {
+  .sow-order-list {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    gap: 0.25rem !important;
+  }
+
+  .sow-order-list > * {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .tablet-page {
+      gap: 0.5rem;
+      padding: 0.375rem;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    .tablet-card {
+      padding: 0.5rem;
+    }
+
+    .tablet-heading {
+      font-size: 1.05rem;
+      line-height: 1.35rem;
+    }
+
+    .tablet-subheading {
+      font-size: 0.875rem;
+      line-height: 1.15rem;
+    }
+
+    .tablet-body {
+      font-size: 0.6875rem;
+      line-height: 0.9rem;
+    }
+
+    .tablet-mono {
+      font-size: 0.95rem;
+      line-height: 1.2rem;
+    }
+
+    .tablet-gap {
+      gap: 0.25rem;
+    }
+
+    .tablet-header-title {
+      max-width: 38%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tablet-panel {
+      min-height: 0;
+      max-height: calc(100dvh - 5.75rem);
+    }
+
+    .tablet-machine-card {
+      padding: 0.45rem;
+      border-radius: 0.5rem;
+    }
+
+    .tablet-machine-picker-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .tablet-machine-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
+      gap: 0.25rem;
+    }
+
+    .tablet-zone-grid {
+      gap: 0.25rem;
+    }
+
+    .tablet-zone-grid > section {
+      min-height: 8rem;
+    }
+
+    .tablet-queue-section {
+      max-height: 8.5rem;
+      overflow: hidden;
+      padding: 0.375rem;
+    }
+
+    .tablet-machine-buffer-preview {
+      gap: 0.25rem;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 899px) {
+    .tablet-buffer-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+      height: calc(100dvh - 5.75rem);
+    }
+
+    .tablet-panel {
+      max-height: calc(100dvh - 5.75rem);
+    }
+  }
+
+  @media (orientation: landscape) and (min-width: 768px) and (max-width: 1366px) {
+    .tablet-page {
+      gap: 0.5rem;
+      padding: 0.375rem;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    .tablet-buffer-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) !important;
+      grid-template-rows: none !important;
+      height: calc(100dvh - 5.75rem);
+      align-items: stretch;
+    }
+
+    .tablet-panel {
+      min-height: 0;
+      max-height: calc(100dvh - 5.75rem);
+      overflow: hidden;
+    }
+
+    .tablet-heading {
+      font-size: 1.05rem;
+      line-height: 1.35rem;
+    }
+
+    .tablet-subheading {
+      font-size: 0.875rem;
+      line-height: 1.15rem;
+    }
+
+    .tablet-body {
+      font-size: 0.7rem;
+      line-height: 0.95rem;
+    }
+
+    .tablet-mono {
+      font-size: 0.95rem;
+      line-height: 1.2rem;
+    }
+
+    .tablet-card {
+      padding: 0.5rem;
+    }
+
+    .tablet-gap {
+      gap: 0.25rem;
+    }
+
+    .tablet-machine-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: start;
+      gap: 0.25rem;
+    }
+
+    .tablet-machine-card {
+      padding: 0.45rem;
+      border-radius: 0.5rem;
+    }
+
+    .tablet-zone-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.25rem;
+    }
+
+    .tablet-zone-grid > section {
+      min-height: 8rem;
+    }
+  }
+
+  @media (min-width: 900px) and (max-width: 1024px) {
+    .tablet-buffer-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+      height: calc(100dvh - 5.75rem);
+    }
+
+    .tablet-machine-picker-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .tablet-machine-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .tablet-zone-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+}

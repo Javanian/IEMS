@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Workshop Job Monitoring Layout - Fixed Grid</title>
+    <style>
+      :root {
+        --bg: #f3f5f8;
+        --panel: #ffffff;
+        --line: #cfd6df;
+        --text: #111827;
+        --muted: #6b7280;
+        --job: #eaf3ff;
+        --warehouse: #f1f5f9;
+        --blast: #fff3cd;
+        --blast-line: #b45309;
+        --accent: #2563eb;
+        --bayw: 34px;
+        --gap: 4px;
+        --labelh: 20px;
+        --boxh: 96px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      header {
+        padding: 14px 18px;
+        background: #111827;
+        color: white;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 18px;
+      }
+      header p {
+        margin: 4px 0 0;
+        color: #cbd5e1;
+        font-size: 12px;
+      }
+      .page {
+        padding: 16px;
+        overflow: auto;
+      }
+      .workshop {
+        display: grid;
+        grid-template-columns: 150px max-content;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .building {
+        background: var(--blast);
+        border: 2px solid var(--blast-line);
+        border-radius: 12px;
+        height: 310px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+      }
+      .layout {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      }
+
+      /* FIXED 38-column map. No item may wrap to next row. */
+      .lane {
+        display: grid;
+        grid-template-columns: repeat(38, var(--bayw));
+        column-gap: var(--gap);
+        align-items: start;
+        width: calc((38 * var(--bayw)) + (37 * var(--gap)));
+      }
+      .aisle {
+        height: 34px;
+        margin: 8px 0;
+        border-radius: 8px;
+        background: #eef0f3;
+        border: 1px dashed #9ca3af;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 800;
+        color: #4b5563;
+        letter-spacing: 0.06em;
+        width: calc((38 * var(--bayw)) + (37 * var(--gap)));
+      }
+      .bay-group {
+        display: grid;
+        grid-template-rows: var(--labelh) var(--boxh) var(--labelh);
+        gap: 0;
+        min-width: 0;
+      }
+      .bay-shell {
+        height: var(--boxh);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 5px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+      .labels {
+        height: var(--labelh);
+        display: grid;
+        gap: 0;
+        font-size: 10px;
+        font-weight: 800;
+        color: #374151;
+        text-align: center;
+        align-items: center;
+      }
+      .labels span {
+        white-space: nowrap;
+        line-height: 1;
+      }
+      .cells {
+        display: grid;
+        gap: 3px;
+        height: 100%;
+      }
+      .cell {
+        min-height: 0;
+        border-radius: 6px;
+        background: var(--job);
+        padding: 4px;
+        font-size: 10px;
+        border: 1px solid #bfdbfe;
+        overflow: hidden;
+      }
+      .job {
+        background: white;
+        border-left: 3px solid var(--accent);
+        border-radius: 4px;
+        padding: 3px;
+        line-height: 1.18;
+        min-height: 54px;
+      }
+      .empty {
+        opacity: 0.42;
+      }
+      .empty:after {
+        content: 'Ready';
+        color: #64748b;
+        font-size: 9px;
+      }
+      .cols-1 {
+        grid-template-columns: repeat(1, 1fr);
+      }
+      .cols-2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .cols-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .cols-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .cols-8 {
+        grid-template-columns: repeat(8, 1fr);
+      }
+      .cols-9 {
+        grid-template-columns: repeat(9, 1fr);
+      }
+
+      /* Road: one fixed bay-column wide, no job box, only label aligned with A/B label row. */
+      .road-marker {
+        display: grid;
+        grid-template-rows: var(--labelh) var(--boxh) var(--labelh);
+        width: var(--bayw);
+        min-width: var(--bayw);
+      }
+      .road-label {
+        font-size: 9px;
+        font-weight: 900;
+        text-align: center;
+        color: #6b7280;
+        line-height: 1;
+        align-self: center;
+        white-space: nowrap;
+      }
+      .road-body {
+        position: relative;
+        height: var(--boxh);
+      }
+      .road-body:before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 4px;
+        bottom: 4px;
+        border-left: 2px dashed #9ca3af;
+        transform: translateX(-50%);
+      }
+
+      .warehouse-box {
+        display: grid;
+        grid-template-rows: var(--labelh) var(--boxh) var(--labelh);
+        min-width: 0;
+      }
+      .warehouse-shell {
+        height: var(--boxh);
+        background: var(--warehouse);
+        border: 1px dashed #94a3b8;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #475569;
+        font-weight: 900;
+        font-size: 12px;
+        padding: 8px;
+        opacity: 0.88;
+      }
+      .legend {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+        font-size: 12px;
+        color: #374151;
+      }
+      .legend span {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .box {
+        width: 18px;
+        height: 12px;
+        border: 1px solid var(--line);
+        border-radius: 3px;
+      }
+      .jobbox {
+        background: var(--job);
+        border-color: #bfdbfe;
+      }
+      .roadbox {
+        background: white;
+        border-style: dashed;
+      }
+      .whbox {
+        background: var(--warehouse);
+        border-style: dashed;
+      }
+      .blastbox {
+        background: var(--blast);
+        border-color: var(--blast-line);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Workshop Cikupa — Job Monitoring Layout</h1>
+      <p>
+        Fixed 38-column grid. A1 berada di kanan. Label A di atas, label B di bawah. Jalan tidak
+        memakai box job.
+      </p>
+    </header>
+    <div class="page">
+      <div class="workshop">
+        <aside class="building">BLASTING & PRIME BUILDING</aside>
+        <main class="layout">
+          <div id="laneA" class="lane"></div>
+          <div class="aisle">MAIN AISLE / JALUR AKSES TENGAH</div>
+          <div id="laneB" class="lane"></div>
+        </main>
+      </div>
+      <div class="legend">
+        <span><i class="box jobbox"></i>Area Job</span>
+        <span><i class="box roadbox"></i>Jalan / akses, tanpa box job</span>
+        <span><i class="box whbox"></i>Gudang / disabled</span>
+        <span><i class="box blastbox"></i>Blasting Building</span>
+      </div>
+    </div>
+    <script>
+      const jobs = {
+        A1: { jobNo: 'JOB-001', title: 'Fitting SDT', progress: 45 },
+        A7: { jobNo: 'JOB-009', title: 'Pre Assembly', progress: 30 },
+        A12: { jobNo: 'JOB-017', title: 'Body Assy', progress: 20 },
+        A28: { jobNo: 'JOB-022', title: 'Subframe', progress: 70 },
+        B12: { jobNo: 'JOB-031', title: 'Repair Bucket', progress: 55 },
+        B24: { jobNo: 'JOB-044', title: 'Canopy Assy', progress: 15 },
+        B37: { jobNo: 'JOB-052', title: 'Pre Cutting', progress: 80 },
+      };
+
+      function jobCell(code) {
+        const j = jobs[code];
+        return `<div class="cell ${j ? '' : 'empty'}">${j ? `<div class="job"><b>${j.jobNo}</b><br>${j.title}<br>${j.progress}%</div>` : ''}</div>`;
+      }
+
+      function bayGroup(codes, labelPosition = 'top') {
+        const el = document.createElement('section');
+        el.className = 'bay-group';
+        el.style.gridColumn = `span ${codes.length}`;
+        const cols = `cols-${codes.length}`;
+        const labelHtml = `<div class="labels ${cols}">${codes.map((c) => `<span>${c}</span>`).join('')}</div>`;
+        const shellHtml = `<div class="bay-shell"><div class="cells ${cols}">${codes.map(jobCell).join('')}</div></div>`;
+        el.innerHTML =
+          labelPosition === 'top'
+            ? labelHtml + shellHtml + '<div></div>'
+            : '<div></div>' + shellHtml + labelHtml;
+        return el;
+      }
+
+      function road(code, labelPosition = 'top') {
+        const el = document.createElement('div');
+        el.className = 'road-marker';
+        el.style.gridColumn = 'span 1';
+        const label = `<div class="road-label">${code}<br>JLN</div>`;
+        const body = '<div class="road-body"></div>';
+        el.innerHTML =
+          labelPosition === 'top' ? label + body + '<div></div>' : '<div></div>' + body + label;
+        return el;
+      }
+
+      function warehouse() {
+        const el = document.createElement('div');
+        el.className = 'warehouse-box';
+        el.style.gridColumn = 'span 8';
+        el.innerHTML = `
+      <div></div>
+      <div class="warehouse-shell">GUDANG<br>B1–B8<br><small>B9 = jalan</small></div>
+      <div class="labels cols-8">${['B8', 'B7', 'B6', 'B5', 'B4', 'B3', 'B2', 'B1'].map((c) => `<span>${c}</span>`).join('')}</div>
+    `;
+        return el;
+      }
+
+      function append(parent, nodes) {
+        nodes.forEach((n) => parent.appendChild(n));
+      }
+
+      // Visual kiri ke kanan = A38 ... A1, sehingga A1 tetap di ujung kanan.
+      append(document.getElementById('laneA'), [
+        bayGroup(['A38', 'A37', 'A36', 'A35'], 'top'),
+        bayGroup(['A34', 'A33', 'A32'], 'top'),
+        road('A31', 'top'),
+        bayGroup(['A30', 'A29', 'A28', 'A27'], 'top'),
+        bayGroup(['A26', 'A25', 'A24', 'A23'], 'top'),
+        bayGroup(['A22', 'A21', 'A20', 'A19'], 'top'),
+        bayGroup(['A18', 'A17', 'A16', 'A15'], 'top'),
+        bayGroup(['A14', 'A13', 'A12', 'A11'], 'top'),
+        road('A10', 'top'),
+        bayGroup(['A9', 'A8', 'A7', 'A6', 'A5', 'A4', 'A3', 'A2', 'A1'], 'top'),
+      ]);
+
+      append(document.getElementById('laneB'), [
+        bayGroup(['B38', 'B37', 'B36', 'B35'], 'bottom'),
+        bayGroup(['B34', 'B33', 'B32'], 'bottom'),
+        road('B31', 'bottom'),
+        bayGroup(['B30', 'B29', 'B28', 'B27'], 'bottom'),
+        bayGroup(['B26', 'B25', 'B24', 'B23'], 'bottom'),
+        bayGroup(['B22', 'B21', 'B20', 'B19'], 'bottom'),
+        road('B18', 'bottom'),
+        bayGroup(['B17', 'B16', 'B15', 'B14'], 'bottom'),
+        bayGroup(['B13', 'B12', 'B11', 'B10'], 'bottom'),
+        road('B9', 'bottom'),
+        warehouse(),
+      ]);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,443 @@
+x-sap-env: &sap-env
+  DB_HOST: pgbouncer
+  DB_PORT: 6432
+  DB_NAME: ${DB_NAME}
+  DB_USER: ${DB_USER}
+  DB_PASSWORD: ${DB_PASSWORD}
+  PLANT_SSB: ${PLANT_SSB}
+  TIMEZONE: ${TIMEZONE}
+  TZ: ${TIMEZONE}
+  SAP_INBOUND_URL: ${SAP_INBOUND_URL}
+  SAP_INBOUND_USERNAME: ${SAP_INBOUND_USERNAME}
+  SAP_INBOUND_PASSWORD: ${SAP_INBOUND_PASSWORD}
+  TGT_TABLE: ${TGT_TABLE}
+  SAP_STAGE_INTERVAL: ${SAP_STAGE_INTERVAL:-900}
+  SAP_POST_INTERVAL: ${SAP_POST_INTERVAL:-1800}
+  SAP_POST_LIMIT: ${SAP_POST_LIMIT:-500}
+  SAP_POST_WORKERS: ${SAP_POST_WORKERS:-5}
+  SAP_OPS_INTERVAL: ${SAP_OPS_INTERVAL:-10}
+  SAP_STAGING_DB_HOST: ${SAP_STAGING_DB_HOST:-}
+  SAP_STAGING_DB_PORT: ${SAP_STAGING_DB_PORT:-}
+  SAP_STAGING_DB_NAME: ${SAP_STAGING_DB_NAME:-}
+  SAP_STAGING_DB_USER: ${SAP_STAGING_DB_USER:-}
+  SAP_STAGING_DB_PASSWORD: ${SAP_STAGING_DB_PASSWORD:-}
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: timesheet-db
+    shm_size: 1gb
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: '-E UTF8'
+      TZ: ${TIMEZONE}
+      PGTZ: ${TIMEZONE}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - '5433:5432'
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER} -d ${DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - timesheet-network
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: timesheet-api
+    expose:
+      - '3001'
+    environment:
+      - DB_HOST=pgbouncer
+      - DB_PORT=6432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_POOL_MAX=${DB_POOL_MAX:-5}
+      - SAP_STAGING_DB_HOST=${SAP_STAGING_DB_HOST:-}
+      - SAP_STAGING_DB_PORT=${SAP_STAGING_DB_PORT:-}
+      - SAP_STAGING_DB_NAME=${SAP_STAGING_DB_NAME:-}
+      - SAP_STAGING_DB_USER=${SAP_STAGING_DB_USER:-}
+      - SAP_STAGING_DB_PASSWORD=${SAP_STAGING_DB_PASSWORD:-}
+      - PORT=${PORT}
+      - NODE_ENV=${NODE_ENV}
+      - PLANT_SSB=${PLANT_SSB}
+      - APP_VARIANT=${VITE_APP_VARIANT:-salvaging}
+      - TIMEZONE=${TIMEZONE}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - TZ=${TIMEZONE}
+      - SAP_INBOUND_URL=${SAP_INBOUND_URL}
+      - SAP_INBOUND_USERNAME=${SAP_INBOUND_USERNAME}
+      - SAP_INBOUND_PASSWORD=${SAP_INBOUND_PASSWORD}
+      - ID_TIMESHEET=${ID_TIMESHEET}
+      - TGT_TABLE=${TGT_TABLE}
+      - SQLSERVER_HOST=${SQLSERVER_HOST}
+      - SQLSERVER_PORT=${SQLSERVER_PORT}
+      - SQLSERVER_DATABASE=${SQLSERVER_DATABASE}
+      - SQLSERVER_USER=${SQLSERVER_USER}
+      - SQLSERVER_PASSWORD=${SQLSERVER_PASSWORD}
+      - EWS_SNAPSHOT_TARGETS=${EWS_SNAPSHOT_TARGETS:-today}
+      - EWS_JOB_INTERVAL_MS=${EWS_JOB_INTERVAL_MS:-60000}
+      - EWS_SNAPSHOT_STALE_MS=${EWS_SNAPSHOT_STALE_MS:-120000}
+      - EWS_SSE_HEARTBEAT_MS=${EWS_SSE_HEARTBEAT_MS:-25000}
+      - EWS_SSE_SNAPSHOT_POLL_MS=${EWS_SSE_SNAPSHOT_POLL_MS:-15000}
+      - EWS_REFRESH_DEBOUNCE_MS=${EWS_REFRESH_DEBOUNCE_MS:-1500}
+      - EWS_SSE_MAX_CLIENTS=${EWS_SSE_MAX_CLIENTS:-1500}
+      - EWS_ADOPTION_SOURCE=${EWS_ADOPTION_SOURCE:-machine}
+      - EWS_DB_HOST=db
+      - EWS_DB_PORT=5432
+      - EWS_LISTENER_DB_POOL_MAX=${EWS_LISTENER_DB_POOL_MAX:-1}
+    volumes:
+      - ./apps/api/uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  pgbouncer:
+    image: bitnamilegacy/pgbouncer:latest
+    container_name: timesheet-pgbouncer
+    environment:
+      - POSTGRESQL_HOST=db
+      - POSTGRESQL_PORT=5432
+      - POSTGRESQL_DATABASE=${DB_NAME}
+      - POSTGRESQL_USERNAME=${DB_USER}
+      - POSTGRESQL_PASSWORD=${DB_PASSWORD}
+      - PGBOUNCER_DATABASE=${DB_NAME}
+      - PGBOUNCER_PORT=6432
+      - PGBOUNCER_POOL_MODE=transaction
+      - PGBOUNCER_DEFAULT_POOL_SIZE=${PGBOUNCER_DEFAULT_POOL_SIZE:-15}
+      - PGBOUNCER_RESERVE_POOL_SIZE=${PGBOUNCER_RESERVE_POOL_SIZE:-5}
+      - PGBOUNCER_MAX_CLIENT_CONN=${PGBOUNCER_MAX_CLIENT_CONN:-200}
+      - PGBOUNCER_SERVER_IDLE_TIMEOUT=${PGBOUNCER_SERVER_IDLE_TIMEOUT:-600}
+      - PGBOUNCER_IGNORE_STARTUP_PARAMETERS=extra_float_digits,options,statement_timeout,idle_in_transaction_session_timeout
+      - TZ=${TIMEZONE}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  ews-snapshot-job:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: ews-snapshot-job
+    command: ['npm', 'run', 'ews:snapshot']
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - NODE_ENV=${NODE_ENV}
+      - TIMEZONE=${TIMEZONE}
+      - TZ=${TIMEZONE}
+      - EWS_SNAPSHOT_TARGETS=${EWS_SNAPSHOT_TARGETS:-today}
+      - EWS_JOB_DEBOUNCE_MS=${EWS_JOB_DEBOUNCE_MS:-2500}
+      - EWS_JOB_INTERVAL_MS=${EWS_JOB_INTERVAL_MS:-60000}
+      - EWS_JOB_ADVISORY_LOCK_KEY=${EWS_JOB_ADVISORY_LOCK_KEY:-27112026}
+      - EWS_JOB_DB_POOL_MAX=${EWS_JOB_DB_POOL_MAX:-4}
+      - EWS_JOB_PROGRESS_LOG_MS=${EWS_JOB_PROGRESS_LOG_MS:-15000}
+      - EWS_JOB_QUERY_TIMEOUT_MS=${EWS_JOB_QUERY_TIMEOUT_MS:-120000}
+      - EWS_JOB_STATEMENT_TIMEOUT_MS=${EWS_JOB_STATEMENT_TIMEOUT_MS:-120000}
+      - EWS_CALCULATE_ADOPTION_IN_MAIN=${EWS_CALCULATE_ADOPTION_IN_MAIN:-0}
+      - EWS_ADOPTION_SOURCE=${EWS_ADOPTION_SOURCE:-machine}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  ews-adoption-job:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: ews-adoption-job
+    command: ['npm', 'run', 'ews:adoption']
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - NODE_ENV=${NODE_ENV}
+      - TIMEZONE=${TIMEZONE}
+      - TZ=${TIMEZONE}
+      - EWS_ADOPTION_JOB_INTERVAL_MS=${EWS_ADOPTION_JOB_INTERVAL_MS:-600000}
+      - EWS_ADOPTION_JOB_DEBOUNCE_MS=${EWS_ADOPTION_JOB_DEBOUNCE_MS:-5000}
+      - EWS_ADOPTION_JOB_PROGRESS_LOG_MS=${EWS_ADOPTION_JOB_PROGRESS_LOG_MS:-15000}
+      - EWS_ADOPTION_JOB_QUERY_TIMEOUT_MS=${EWS_ADOPTION_JOB_QUERY_TIMEOUT_MS:-300000}
+      - EWS_ADOPTION_JOB_STATEMENT_TIMEOUT_MS=${EWS_ADOPTION_JOB_STATEMENT_TIMEOUT_MS:-300000}
+      - EWS_ADOPTION_JOB_ADVISORY_LOCK_KEY=${EWS_ADOPTION_JOB_ADVISORY_LOCK_KEY:-27112027}
+      - EWS_ADOPTION_JOB_DB_POOL_MAX=${EWS_ADOPTION_JOB_DB_POOL_MAX:-3}
+      - EWS_ADOPTION_SOURCE=${EWS_ADOPTION_SOURCE:-machine}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  ews-roster-job:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: ews-roster-job
+    command: ['npm', 'run', 'ews:roster']
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - NODE_ENV=${NODE_ENV}
+      - TIMEZONE=${TIMEZONE}
+      - TZ=${TIMEZONE}
+      - EWS_ROSTER_FORWARD_DAYS=${EWS_ROSTER_FORWARD_DAYS:-14}
+      - EWS_ROSTER_JOB_INTERVAL_MS=${EWS_ROSTER_JOB_INTERVAL_MS:-86400000}
+      - EWS_ROSTER_JOB_DB_POOL_MAX=${EWS_ROSTER_JOB_DB_POOL_MAX:-2}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  sap-stage-worker:
+    build:
+      context: ./jobs/sap_staging
+      dockerfile: Dockerfile.sap
+    container_name: sap-stage-worker
+    environment: *sap-env
+    volumes:
+      - ./jobs/sap_staging:/app
+    command: >
+      sh -c "while true; do python stage_machinehours.py --catchup || true;
+             sleep $${SAP_STAGE_INTERVAL}; done"
+    depends_on:
+      db:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  sap-post-worker:
+    build:
+      context: ./jobs/sap_staging
+      dockerfile: Dockerfile.sap
+    container_name: sap-post-worker
+    environment: *sap-env
+    volumes:
+      - ./jobs/sap_staging:/app
+    command: >
+      sh -c "while true; do
+               python post_sap_staging.py --limit $${SAP_POST_LIMIT} --workers $${SAP_POST_WORKERS} || true;
+               sleep $${SAP_POST_INTERVAL}; done"
+    depends_on:
+      db:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  sap-ops-worker:
+    build:
+      context: ./jobs/sap_staging
+      dockerfile: Dockerfile.sap
+    container_name: sap-ops-worker
+    environment: *sap-env
+    volumes:
+      - ./jobs/sap_staging:/app
+    command: ['python', 'ops_worker.py', '--loop']
+    depends_on:
+      db:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  frontend:
+    build:
+      context: ./apps/web
+      args:
+        VITE_API_URL: /api
+        VITE_TTS_API_URL: ''
+    container_name: timesheet-frontend
+    expose:
+      - '80'
+    environment:
+      - TZ=${TIMEZONE}
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: timesheet-nginx
+    environment:
+      - TZ=${TIMEZONE}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/ssl:/etc/nginx/ssl:ro
+      - ./apps/api/uploads:/uploads:ro
+    depends_on:
+      - api
+      - frontend
+      - fastapi
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  sow_exporter:
+    build:
+      context: ./jobs
+      dockerfile: sow/Dockerfile
+    container_name: sow-exporter
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+    volumes:
+      - ./export:/data/export
+      - ./jobs:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - timesheet-network
+
+  machine-ping-worker:
+    build:
+      context: .
+      dockerfile: jobs/machine_ping/Dockerfile
+    container_name: machine-ping-worker
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - TZ=${TIMEZONE}
+    depends_on:
+      db:
+        condition: service_healthy
+    cap_add:
+      - NET_RAW
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  fastapi:
+    build:
+      context: ./apps/fastapi-msproject
+      dockerfile: Dockerfile
+    container_name: fastapi
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - PORTFLASK=8000
+      - TTS_UPLOAD_ROOT=/app/uploads
+    volumes:
+      - ./apps/api/uploads:/app/uploads
+    networks:
+      - timesheet-network
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  tts-worker:
+    build:
+      context: ./apps/tts-worker
+      dockerfile: Dockerfile
+    container_name: tts-worker
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - TTS_UPLOAD_ROOT=/uploads
+      - TTS_SERVICE_DIR=/app
+      - PIPER_BIN=piper
+      - PIPER_MODEL_PATH=/app/models/id_ID.onnx
+      - PIPER_CONFIG_PATH=/app/models/id_ID.onnx.json
+      - PIPER_TIMEOUT_SECONDS=30
+      - TTS_WORKER_POLL_SECONDS=3
+      - TTS_WORKER_STUCK_SECONDS=120
+      - TTS_WORKER_MAX_ATTEMPTS=3
+    volumes:
+      - ./apps/tts-worker:/app
+      - ./apps/api/uploads:/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+  ews-tts-worker:
+    build:
+      context: ./apps/tts-worker
+      dockerfile: Dockerfile
+    container_name: ews-tts-worker
+    command: ['python', 'generate_ews_audio.py']
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - TTS_UPLOAD_ROOT=/uploads
+      - TTS_SERVICE_DIR=/app
+      - PIPER_BIN=piper
+      - PIPER_MODEL_PATH=/app/models/id_ID.onnx
+      - PIPER_CONFIG_PATH=/app/models/id_ID.onnx.json
+      - PIPER_TIMEOUT_SECONDS=30
+      - EWS_TTS_POLL_SECONDS=3
+      - EWS_TTS_STUCK_SECONDS=120
+      - EWS_TTS_MAX_ATTEMPTS=3
+    volumes:
+      - ./apps/tts-worker:/app
+      - ./apps/api/uploads:/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - timesheet-network
+
+volumes:
+  postgres_data:
+    driver: local
+networks:
+  timesheet-network:
+    driver: bridge

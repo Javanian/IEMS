@@ -1,0 +1,66 @@
+[
+  {
+    "order_no": "1000116114",
+    "ssbr_id": "SSBR-001",
+    "operationtext": "Mixing Material A with B",
+    "operation_no": "0010",
+    "planhours": "2.5",
+    "workcenter": "WC-MIX-01"
+  },
+  {
+    "order_no": "1000116114",
+    "ssbr_id": "SSBR-002",
+    "operationtext": "Heating Process 180°C",
+    "operation_no": "0020",
+    "planhours": "3.0",
+    "workcenter": "WC-HEAT-02"
+  },
+  {
+    "order_no": "1000116114",
+    "ssbr_id": "SSBR-003",
+    "operationtext": "Molding and Pressing",
+    "operation_no": "0030",
+    "planhours": "4.0",
+    "workcenter": "WC-MOLD-01"
+  },
+  {
+    "order_no": "1000116114",
+    "ssbr_id": "SSBR-004",
+    "operationtext": "Quality Inspection",
+    "operation_no": "0040",
+    "planhours": "1.5",
+    "workcenter": "WC-QC-01"
+  },
+  {
+    "order_no": "1000116114",
+    "ssbr_id": "SSBR-005",
+    "operationtext": "Packaging and Labeling",
+    "operation_no": "0050",
+    "planhours": "2.0",
+    "workcenter": "WC-PACK-01"
+  },
+  {
+    "order_no": "1000116115",
+    "ssbr_id": "SSBR-006",
+    "operationtext": "Material Preparation",
+    "operation_no": "0010",
+    "planhours": "1.5",
+    "workcenter": "WC-PREP-01"
+  },
+  {
+    "order_no": "1000116115",
+    "ssbr_id": "SSBR-007",
+    "operationtext": "Assembly Line Setup",
+    "operation_no": "0020",
+    "planhours": "2.0",
+    "workcenter": "WC-ASSY-01"
+  },
+  {
+    "order_no": "1000116115",
+    "ssbr_id": "SSBR-008",
+    "operationtext": "Component Testing",
+    "operation_no": "0030",
+    "planhours": "3.5",
+    "workcenter": "WC-TEST-01"
+  }
+]

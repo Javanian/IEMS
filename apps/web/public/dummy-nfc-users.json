@@ -1,0 +1,110 @@
+[
+  {
+    "nfcid": "NFC5A7K9X2L",
+    "full_name": "Budi Santoso",
+    "snssb": "EMP001",
+    "machineid": "M-101",
+    "machinename": "Injection Machine A",
+    "workcenter": "WC-MOLDING",
+    "roles": "Operator"
+  },
+  {
+    "nfcid": "NFCX3P8Q1M5",
+    "full_name": "Siti Nurhaliza",
+    "snssb": "EMP002",
+    "machineid": "M-102",
+    "machinename": "Injection Machine B",
+    "workcenter": "WC-MOLDING",
+    "roles": "Operator"
+  },
+  {
+    "nfcid": "NFC9K2L7V4T",
+    "full_name": "Ahmad Wijaya",
+    "snssb": "EMP003",
+    "machineid": "M-201",
+    "machinename": "Assembly Line 1",
+    "workcenter": "WC-ASSEMBLY",
+    "roles": "Supervisor"
+  },
+  {
+    "nfcid": "NFCR6H3N8W1",
+    "full_name": "Dewi Lestari",
+    "snssb": "EMP004",
+    "machineid": "M-202",
+    "machinename": "Assembly Line 2",
+    "workcenter": "WC-ASSEMBLY",
+    "roles": "Operator"
+  },
+  {
+    "nfcid": "NFCB5Y9Z2K4",
+    "full_name": "Eko Prasetyo",
+    "snssb": "EMP005",
+    "machineid": "M-301",
+    "machinename": "Packaging Machine A",
+    "workcenter": "WC-PACKING",
+    "roles": "Technician"
+  },
+  {
+    "nfcid": "NFCJ8F1C6D3",
+    "full_name": "Rina Kusuma",
+    "snssb": "EMP006",
+    "machineid": "M-302",
+    "machinename": "Packaging Machine B",
+    "workcenter": "WC-PACKING",
+    "roles": "Operator"
+  },
+  {
+    "nfcid": "NFCT4G7A2S9",
+    "full_name": "Agus Setiawan",
+    "snssb": "EMP007",
+    "machineid": "M-103",
+    "machinename": "Injection Machine C",
+    "workcenter": "WC-MOLDING",
+    "roles": "Admin"
+  },
+  {
+    "nfcid": "NFCM1Q5E8U2",
+    "full_name": "Linda Sari",
+    "snssb": "EMP008",
+    "machineid": "M-104",
+    "machinename": "Injection Machine D",
+    "workcenter": "WC-MOLDING",
+    "roles": "Operator"
+  },
+  {
+    "nfcid": "NFCO7P3I6Y1",
+    "full_name": "Bambang Haryanto",
+    "snssb": "EMP009",
+    "machineid": "M-401",
+    "machinename": "Quality Check Station",
+    "workcenter": "WC-QC",
+    "roles": "Supervisor"
+  },
+  {
+    "nfcid": "NFCW2V8L4N6",
+    "full_name": "Maya Indah",
+    "snssb": "EMP010",
+    "machineid": "M-402",
+    "machinename": "Quality Inspection",
+    "workcenter": "WC-QC",
+    "roles": "Technician"
+  },
+  {
+    "nfcid": "NFCD9K5F3X7",
+    "full_name": "Joko Susilo",
+    "snssb": "EMP011",
+    "machineid": "M-203",
+    "machinename": "Assembly Line 3",
+    "workcenter": "WC-ASSEMBLY",
+    "roles": "Operator"
+  },
+  {
+    "nfcid": "NFCZ6H2B8Q1",
+    "full_name": "Sri Wahyuni",
+    "snssb": "EMP012",
+    "machineid": "M-303",
+    "machinename": "Packaging Machine C",
+    "workcenter": "WC-PACKING",
+    "roles": "Operator"
+  }
+]

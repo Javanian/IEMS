@@ -1,0 +1,14 @@
+node_modules
+FastAPI
+uploads
+*.log
+*.out.log
+*.err.log
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+npm-debug.log*
+yarn-debug.log*
+coverage

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SSB Operation Card</title>
+
+    <style>
+      @page {
+        size: A4 portrait;
+        margin: 8mm;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        width: 210mm;
+        min-height: 297mm;
+        font-family: Arial, sans-serif;
+        font-size: 10pt;
+      }
+
+      .card {
+        width: 100%;
+        border: 2px solid #000;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      td {
+        vertical-align: middle;
+      }
+
+      .header-table {
+        border-bottom: 2px solid #000;
+      }
+
+      .ops-box {
+        width: 60mm;
+        border-right: 2px solid #000;
+        padding: 3mm;
+        font-weight: bold;
+      }
+
+      .title {
+        text-align: center;
+        font-weight: bold;
+        font-size: 14pt;
+        letter-spacing: 1px;
+      }
+
+      .qr-box {
+        width: 40mm;
+        border-left: 2px solid #000;
+        text-align: center;
+        vertical-align: middle;
+      }
+
+      .qr-box img {
+        width: 30mm;
+        height: 30mm;
+      }
+
+      .label {
+        width: 45mm;
+        padding: 2mm;
+      }
+
+      .colon {
+        width: 5mm;
+        text-align: center;
+      }
+
+      .value {
+        border-bottom: 1px solid #000;
+        padding: 2mm;
+      }
+
+      .main-box {
+        margin: 5mm;
+        border: 2px solid #000;
+        height: 160mm;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .main-box-image {
+        position: absolute;
+        object-fit: contain;
+        display: block;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="card">
+      <!-- HEADER + INFO (FIXED & RAPI) -->
+      <table class="header-table">
+        <tr>
+          <td style="padding: 0">
+            <table style="width: 100%; border-collapse: collapse">
+              <tr>
+                <td style="width: 40mm; padding: 2mm">Ops. No</td>
+                <td style="width: 5mm; text-align: center">:</td>
+                <td style="border-bottom: 1px solid #000; padding: 2mm; font-weight: bold">
+                  {{opsNo}}
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding: 2mm">Operation Text</td>
+                <td style="text-align: center">:</td>
+                <td style="border-bottom: 1px solid #000; padding: 2mm">{{operationText}}</td>
+              </tr>
+
+              <tr>
+                <td style="padding: 2mm">Work Center</td>
+                <td style="text-align: center">:</td>
+                <td style="border-bottom: 1px solid #000; padding: 2mm">{{workCenter}}</td>
+              </tr>
+
+              <tr>
+                <td style="padding: 2mm">Confirmation No</td>
+                <td style="text-align: center">:</td>
+                <td style="padding: 2mm">{{confirmationNo}}</td>
+              </tr>
+            </table>
+          </td>
+
+          <td
+            style="
+              width: 40mm;
+              border-left: 2px solid #000;
+              text-align: center;
+              vertical-align: middle;
+            "
+          >
+            <img src="{{qrCodeDataUrl}}" style="width: 30mm; height: 30mm" />
+          </td>
+        </tr>
+      </table>
+
+      <!-- MAIN BOX -->
+      <div class="main-box">{{mainBoxImages}}</div>
+    </div>
+  </body>
+</html>

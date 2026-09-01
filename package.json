@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "api:local-tunnel": "powershell -ExecutionPolicy Bypass -File scripts/start-api-local-tunnel.ps1",
+    "ping:m5051-machines": "node scripts/ping_m5051_machines.js",
+    "ping:m5051-machines:loop": "node scripts/ping_m5051_machines.js --loop --interval-ms=10000 --retention-days=7",
+    "ping:m5051-machines:tunnel": "node scripts/ping_m5051_machines.js --use-tunnel"
+  },
+  "dependencies": {
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@bytebase/dbhub": "^0.21.2",
+    "xlsx": "^0.18.5"
+  }
+}
