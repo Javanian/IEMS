@@ -158,3 +158,19 @@ jobs/.pycache_legacy/
 
 # Data files
 /workcenter map.csv
+
+# Public repository: keep README files and application source
+*.md
+*.MD
+*.markdown
+!README.md
+!readme.md
+.claude/
+.codex/
+.opencode/
+.cursor/
+.obsidian/
+.mcp.json
+opencode.json
+
+/apps/api/testantri.js
