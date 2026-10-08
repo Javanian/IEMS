@@ -1,4 +1,4 @@
-# MPS — Manufacturing Production System
+# IEMS — Integrated Enterprise Management System
 
 A production planning & execution (PPC) platform for a heavy-equipment
 manufacturing company, used daily across 4 plant sites. It unifies labor
@@ -14,19 +14,8 @@ developer.
 > other non-runtime tooling are excluded.
 
 **Tee San** — Full-Stack Developer & Data Engineer
-[Portfolio](https://t-project-portfolio.vercel.app) · [GitHub](https://github.com/Javanian) · [teesanfajar@gmail.com](mailto:teesanfajar@gmail.com)
+[Portfolio](https://porto.hillteo.com) · [GitHub](https://github.com/Javanian) · [teesanfajar@gmail.com](mailto:teesanfajar@gmail.com)
 
-## Highlights
-
-- **600** users (~500 operators, ~100 admins) across **4 plants**, daily use
-- **394K** automated ETL runs over 5 months at **99.9%** success rate
-- Timesheet validation turnaround: **~3 days → same day**
-- SAP S/4HANA integration via SAP CPI, with anti-double-post protection
-  (unique source keys) — replaced a 3-person manual posting process
-- **97** database migrations (83 application + 14 legacy) via a custom
-  migration runner
-- Offline-first: full stack runs on each plant's local network, no
-  dependency on internet access
 
 ## Features
 
