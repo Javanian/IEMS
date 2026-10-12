@@ -41,7 +41,6 @@ import {
   YAxis,
 } from 'recharts';
 import { STATUS_TOKENS, badgeStyle, statusKey } from '../theme/ewsStatus';
-import { cosmeticizeKpi } from '../theme/ewsCosmetic';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 const DETAIL_TABLE_PAGE_SIZE = 6;
@@ -55,7 +54,7 @@ const KPI_CONFIG = {
     title: 'System Uptime Detail',
     target: 99,
     icon: Wifi,
-    pic: 'IT (Wira)',
+    pic: 'IT',
     errorType: 'Machine Offline',
     action: 'Check the HMI network path and repeated DOWN pings.',
     unit: 'machine',
@@ -106,7 +105,7 @@ const KPI_CONFIG = {
     title: 'Uptime Tablet Detail',
     target: 99,
     icon: Wifi,
-    pic: 'IT (Wira)',
+    pic: 'IT',
     errorType: 'Tablet Offline',
     action: 'Check operator tablet connectivity.',
     unit: 'device',
@@ -116,7 +115,7 @@ const KPI_CONFIG = {
     title: 'Uptime HMI Detail',
     target: 99,
     icon: Wifi,
-    pic: 'IT (Wira)',
+    pic: 'IT',
     errorType: 'HMI Offline',
     action: 'Check the HMI network path and repeated DOWN pings.',
     unit: 'device',
@@ -342,7 +341,30 @@ function buildDiagnosis(kpiType, kpi, kpisByKey) {
 
   const isLow = (val, target) => val !== null && target !== null && val < target;
 
-  if (kpiType === 'uptime') {
+  if (kpiType === 'uptime_tablet') {
+    if (kpi?.value == null) {
+      headline = 'No tablet heartbeat yet';
+      points.push('Uptime stays empty until enrolled kiosk tablets start sending heartbeats.');
+    } else {
+      const offlineNow = Number(kpi?.detail?.devices_offline) || 0;
+      headline = low
+        ? 'Shop-floor tablets are dropping offline'
+        : offlineNow > 0
+          ? `Uptime on target, but ${offlineNow} tablet offline right now`
+          : 'Tablet fleet is online';
+      if (offlineNow > 0)
+        points.push(
+          `${offlineNow} tablet has not sent a heartbeat in the last 3 minutes. Check power, Wi-Fi and that the kiosk app is open.`
+        );
+      if (low)
+        points.push(
+          'Missing heartbeats mean operators cannot clock jobs on that tablet, so Adoption Labour will also drop.'
+        );
+    }
+    points.push(
+      'Each tablet should send one heartbeat per minute. Uptime is received / expected heartbeats per local day.'
+    );
+  } else if (kpiType === 'uptime') {
     headline = low ? 'Machine connectivity degraded' : 'Machine connectivity healthy';
     if (low)
       points.push(
@@ -1542,6 +1564,80 @@ function OeeBreakdown({ kpi }) {
   );
 }
 
+function TabletUptimeBreakdown({ kpi }) {
+  const devices = kpi?.source_detail?.by_device || [];
+  return (
+    <PageCard>
+      <CardHead icon={Wifi} title="Tablet Fleet" tag={`${devices.length}`} />
+      {devices.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50">
+              <tr className="text-xs font-medium text-slate-500">
+                <th className="px-4 py-2.5">Tablet</th>
+                <th className="px-4 py-2.5">Status</th>
+                <th className="px-4 py-2.5">Last heartbeat</th>
+                <th className="px-4 py-2.5 text-right">Battery</th>
+                <th className="px-4 py-2.5 text-right">Heartbeats</th>
+                <th className="px-4 py-2.5 text-right">Uptime</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {devices.map((d) => (
+                <tr key={d.device_id}>
+                  <td className="px-4 py-2.5">
+                    <p className="font-semibold text-slate-800">{d.device_name || d.device_id}</p>
+                    <p className="font-mono text-[11px] text-slate-500">
+                      {[d.model, d.app_version].filter(Boolean).join(' · ') || d.device_id}
+                    </p>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        d.online ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`h-1.5 w-1.5 rounded-full ${d.online ? 'bg-emerald-500' : 'bg-red-500'}`}
+                      />
+                      {d.online ? 'Online' : 'Offline'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-600">{formatDateTime(d.last_seen)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">
+                    {d.battery_pct == null ? '-' : `${d.battery_pct}%${d.charging ? ' (charging)' : ''}`}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">
+                    {formatNumber(d.received_beats)}/{formatNumber(d.expected_beats)}
+                  </td>
+                  <td
+                    className={`px-4 py-2.5 text-right font-semibold tabular-nums ${
+                      numeric(d.uptime_pct) >= 99
+                        ? 'text-emerald-700'
+                        : numeric(d.uptime_pct) >= 98
+                          ? 'text-amber-700'
+                          : 'text-red-700'
+                    }`}
+                  >
+                    {formatFixed2(d.uptime_pct)}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="px-4 py-8 text-center text-sm text-slate-500">
+          No tablet has sent a heartbeat yet. Enroll a kiosk by opening the app once with
+          <span className="mx-1 font-mono text-slate-700">?kiosk=&lt;name&gt;</span>
+          and set DEVICE_HEARTBEAT_TOKEN on the API and the web build.
+        </p>
+      )}
+    </PageCard>
+  );
+}
+
 function OleBreakdown({ kpi }) {
   const sd = kpi?.source_detail || {};
   const byActivity = (sd.by_activity || [])
@@ -1700,7 +1796,26 @@ function ActionSummaryPanel({ rows, config }) {
 function MetricTiles({ kpiType, kpi }) {
   const d = kpi?.detail || {};
   let tiles = [];
-  if (kpiType === 'uptime') {
+  if (kpiType === 'uptime_tablet') {
+    tiles = [
+      {
+        label: 'Tablet Online',
+        value: `${formatNumber(d.devices_online)}/${formatNumber(d.device_count)}`,
+        tone: numeric(d.devices_offline) > 0 ? 'warn' : 'good',
+      },
+      {
+        label: 'Heartbeat Received',
+        value: `${formatNumber(d.received_beats)}/${formatNumber(d.expected_beats)}`,
+        sub: 'expected: 1 per tablet per 60 s',
+        tone: 'neutral',
+      },
+      {
+        label: 'Tablet Offline',
+        value: formatNumber(d.devices_offline),
+        tone: numeric(d.devices_offline) > 0 ? 'bad' : 'good',
+      },
+    ];
+  } else if (kpiType === 'uptime') {
     tiles = [
       {
         label: 'Ping Success',
@@ -2222,6 +2337,7 @@ function KpiBreakdown({ kpiType, kpi }) {
     );
   }
   if (kpiType === 'uptime') return <UptimeBreakdown kpi={kpi} />;
+  if (kpiType === 'uptime_tablet') return <TabletUptimeBreakdown kpi={kpi} />;
   if (kpiType === 'accuracy') return <AccuracyBreakdown kpi={kpi} />;
   if (kpiType === 'accuracy_machine') return <AccuracyMachineBreakdown kpi={kpi} />;
   if (kpiType === 'adoption') return <AdoptionBreakdown kpi={kpi} />;
@@ -2686,7 +2802,7 @@ function EwsDetailPage() {
         throw new Error(detailResult.reason?.message || 'EWS detail data is not available.');
       }
 
-      const nextKpi = cosmeticizeKpi({ key: kpiType, ...fallbackKpi, ...detailPayload?.data });
+      const nextKpi = { key: kpiType, ...fallbackKpi, ...detailPayload?.data };
       const nextMeta = { ...(summaryPayload || {}), ...(detailPayload?.meta || {}) };
 
       setKpi(nextKpi);

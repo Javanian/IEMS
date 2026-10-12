@@ -15,7 +15,7 @@ I designed and built it alone as the company's only internal developer: architec
 | Labor timesheet | NFC-card login, check-in and check-out per job operation, hierarchical validation, Excel export |
 | Machine hours | ETL from factory SQL Server and HMI sources: segment splitting, normalization, bundling per shift, validation |
 | SOW and bay scheduling | Order pool, bay reservations on an area map and timeline, NFC confirmation, sub-operation progress |
-| Early Warning System | Periodic OEE, OLE and adoption snapshots, threshold-based issue detection, real-time notifications over SSE, local text-to-speech voice alerts on the shop floor |
+| Early Warning System | Periodic OEE, OLE and adoption snapshots, tablet uptime from kiosk heartbeats and HMI uptime from ping logs, threshold-based issue detection, real-time notifications over SSE, local text-to-speech voice alerts on the shop floor |
 | SAP integration | Staging of timesheet records and machine-hour bundles, automatic posting, retry, correction and an operations queue UI. Optional Kafka transport for SAP orders into every plant and for confirmations back to SAP |
 | Component tracking | Buffer transactions, receiving and shipment, consumables and tools, kanban |
 | Process control and SPC | Process parameters recorded per job, I-MR control charts with Nelson rules 1 to 3, Cp and Cpk against optional specification limits |

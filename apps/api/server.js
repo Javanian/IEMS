@@ -123,7 +123,14 @@ app.use(
 
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-role', 'x-user-id', 'x-user-name'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-user-role',
+      'x-user-id',
+      'x-user-name',
+      'x-device-token',
+    ],
     credentials: false,
   })
 );

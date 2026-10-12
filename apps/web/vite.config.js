@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
           name: 'IEMS Timesheet',
           short_name: 'IEMS Timesheet',
           description: 'Aplikasi Timesheet untuk Manufacturing',
-          theme_color: '#007bff',
+          theme_color: '#2563EB',
           background_color: '#ffffff',
           display: 'standalone',
           orientation: 'portrait',

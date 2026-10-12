@@ -1098,6 +1098,21 @@ async function buildKpiSourceDetail(type, summary) {
       by_device: Array.isArray(d.devices) ? d.devices : [],
     };
   }
+  if (type === 'uptime_tablet') {
+    const k = (summary.kpis || []).find((x) => x.key === 'uptime_tablet');
+    const d = k?.detail || {};
+    return {
+      source_tables: ['public.device_status', 'ews.device_heartbeat_daily'],
+      basis:
+        'heartbeats received / heartbeats expected per tablet per local day (one beat every interval_sec)',
+      device_count: num(d.device_count),
+      devices_online: num(d.devices_online),
+      devices_offline: num(d.devices_offline),
+      expected_beats: num(d.expected_beats),
+      received_beats: num(d.received_beats),
+      by_device: Array.isArray(d.devices) ? d.devices : [],
+    };
+  }
   if (type === 'accuracy') return buildAccuracySourceDetail(windowStart, windowEnd);
   if (type === 'adoption') return buildAdoptionSourceDetail(windowStart, windowEnd);
   if (type === 'adoption_labour') {

@@ -13,7 +13,6 @@ import {
   Wifi,
 } from 'lucide-react';
 import { badgeStyle, dotStyle, solidColor } from '../../theme/ewsStatus';
-import { cosmeticizeKpi, cosmeticTrendFor } from '../../theme/ewsCosmetic';
 import { isManufacturing } from '../../config/appVariant';
 
 const kpis = [
@@ -107,8 +106,13 @@ function normalizeStatus(value) {
   return 'no_data';
 }
 
+// Number(null) is 0, so a KPI with no data would read "0.0". Treat empty as missing.
+function toNumberOrNaN(value) {
+  return value === null || value === undefined || value === '' ? NaN : Number(value);
+}
+
 function formatPercent(value) {
-  const parsed = Number(value);
+  const parsed = toNumberOrNaN(value);
   return Number.isFinite(parsed) ? parsed.toFixed(1) : '--';
 }
 
@@ -135,7 +139,7 @@ function ageToneKey(ms) {
 }
 
 function AnimatedPercent({ value }) {
-  const numericValue = Number(value);
+  const numericValue = toNumberOrNaN(value);
   const [displayValue, setDisplayValue] = useState(
     Number.isFinite(numericValue) ? numericValue : null
   );
@@ -146,7 +150,9 @@ function AnimatedPercent({ value }) {
       return undefined;
     }
 
-    const from = Number.isFinite(Number(displayValue)) ? Number(displayValue) : numericValue;
+    const from = Number.isFinite(toNumberOrNaN(displayValue))
+      ? Number(displayValue)
+      : numericValue;
     const diff = numericValue - from;
     if (Math.abs(diff) < 0.05) {
       setDisplayValue(numericValue);
@@ -173,8 +179,8 @@ function AnimatedPercent({ value }) {
 
 function TrendIndicator({ comparison }) {
   const direction = comparison?.direction || 'flat';
-  const delta = Number(comparison?.delta);
-  const previousValue = Number(comparison?.previous_value);
+  const delta = toNumberOrNaN(comparison?.delta);
+  const previousValue = toNumberOrNaN(comparison?.previous_value);
   const isUp = direction === 'up';
   const isDown = direction === 'down';
   const colorClass = isUp ? 'text-emerald-700' : isDown ? 'text-red-600' : 'text-slate-400';
@@ -490,7 +496,7 @@ function EwsControlTower() {
       (isManufacturing() ? kpis.filter((item) => item.group !== 'machine') : kpis).map((item) => {
         const apiItem = summary?.kpis?.find((kpi) => kpi.key === item.key);
 
-        return cosmeticizeKpi({
+        return {
           ...item,
           ...apiItem,
           icon: item.icon,
@@ -498,8 +504,8 @@ function EwsControlTower() {
           value: apiItem?.value ?? null,
           status: apiItem?.status || 'no_data',
           helper: apiItem?.helper || 'Waiting for EWS data',
-          trend: cosmeticTrendFor(item.key, trendByKpi) || trendByKpi[item.key] || [],
-        });
+          trend: trendByKpi[item.key] || [],
+        };
       }),
     [summary, trendByKpi]
   );

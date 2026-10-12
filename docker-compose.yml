@@ -77,6 +77,8 @@ services:
       - APP_VARIANT=${VITE_APP_VARIANT:-salvaging}
       - TIMEZONE=${TIMEZONE}
       - CORS_ORIGIN=${CORS_ORIGIN}
+      - DEVICE_HEARTBEAT_TOKEN=${DEVICE_HEARTBEAT_TOKEN:-}
+      - EWS_TABLET_ACTIVE_DAYS=${EWS_TABLET_ACTIVE_DAYS:-7}
       - TZ=${TIMEZONE}
       - SAP_INBOUND_URL=${SAP_INBOUND_URL}
       - SAP_INBOUND_USERNAME=${SAP_INBOUND_USERNAME}
@@ -288,6 +290,7 @@ services:
       args:
         VITE_API_URL: /api
         VITE_TTS_API_URL: ''
+        VITE_DEVICE_HEARTBEAT_TOKEN: ${DEVICE_HEARTBEAT_TOKEN:-}
     container_name: timesheet-frontend
     expose:
       - '80'

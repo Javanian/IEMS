@@ -1,11 +1,12 @@
 const db = global.pool || require('../db');
 const { resolveTimezone } = require('../config/timezone');
+const { calculateUptimeTablet } = require('./tabletUptime');
 
 const KPI_DEFS = {
   uptime_tablet: {
     label: 'Uptime Tablet',
     target: 99,
-    owner: 'IT (Wira)',
+    owner: 'IT',
     group: 'labour',
     dimension: 'health',
   },
@@ -33,7 +34,7 @@ const KPI_DEFS = {
   uptime_hmi: {
     label: 'Uptime HMI',
     target: 99,
-    owner: 'IT (Wira)',
+    owner: 'IT',
     group: 'machine',
     dimension: 'health',
   },
@@ -95,6 +96,8 @@ function intervalForWindow(value) {
 }
 
 function num(value, fallback = null) {
+  // Number(null) and Number('') are 0; a missing value must stay missing.
+  if (value === null || value === undefined || value === '') return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
@@ -1439,10 +1442,6 @@ function buildKpi(key, calculation, thresholds) {
   };
 }
 
-function placeholderCalculation(note) {
-  return { value: null, helper: note, detail: { source: 'placeholder', computed: false } };
-}
-
 function buildIssues(kpis) {
   return kpis
     .filter((kpi) => kpi.status === 'critical' || kpi.status === 'watch')
@@ -1461,8 +1460,8 @@ function buildIssues(kpis) {
 
 function suggestedAction(key) {
   const actions = {
-    uptime_tablet: 'Uptime tablet belum dihitung',
-    uptime_hmi: 'Uptime HMI belum dihitung',
+    uptime_tablet: 'Check tablets that stopped sending heartbeats: power, Wi-Fi, kiosk app closed',
+    uptime_hmi: 'Check the HMI network path and repeated DOWN pings',
     accuracy_labour: 'Review timesheet error breakdown and SAP FAILED rows',
     accuracy_machine: 'Check mch_productiondata rows without mch_transaction',
     adoption_labour: 'Check operator recorded hours vs shift standard',
@@ -1609,7 +1608,13 @@ async function calculateKpisForBounds(bounds, thresholds, options = {}) {
   const ole = await safeCalculation('ole', async () => calculateOle(bounds));
 
   return [
-    buildKpi('uptime_tablet', placeholderCalculation('Uptime tablet not computed yet'), thresholds),
+    buildKpi(
+      'uptime_tablet',
+      await safeCalculation('uptime_tablet', async () =>
+        calculateUptimeTablet(bounds, { tableExists })
+      ),
+      thresholds
+    ),
     buildKpi('accuracy_labour', accuracyLabour, thresholds),
     buildKpi('adoption_labour', adoptionLabour, thresholds),
     buildKpi('ole', ole, thresholds),

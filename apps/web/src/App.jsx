@@ -2,8 +2,11 @@ import React from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import router from './router';
+import useDeviceHeartbeat from './hooks/useDeviceHeartbeat';
 
 function App() {
+  useDeviceHeartbeat();
+
   return (
     <>
       <RouterProvider

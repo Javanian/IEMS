@@ -1,6 +1,6 @@
 INSERT INTO ews.kpi_threshold (kpi_type, normal_min, warning_min, critical_below, owner)
 VALUES
-  ('uptime', 99, 98, 98, 'IT (Wira)'),
+  ('uptime', 99, 98, 98, 'IT'),
   ('accuracy', 98, 95, 95, 'Foreman/Spv'),
   ('adoption', 95, 90, 90, 'Foreman/Spv'),
   ('oee', 80, 65, 65, 'Foreman/Spv/PPIC'),
