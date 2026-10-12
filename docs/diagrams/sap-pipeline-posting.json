@@ -1,0 +1,540 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "IEMS SAP pipeline, part 2: staging queue to SAP",
+    "output": "docs/diagrams/sap-pipeline-posting.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "git@github.com:Javanian/IEMS.git",
+      "link_mode": "local-only",
+      "revision": "8faa6388e60c807d812808ef002e135076133da3"
+    }
+  },
+  "components": [
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "SAP Log page",
+      "sublabel": "admin buttons",
+      "pos": [
+        40,
+        90
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/web/src/pages/SapLogPage.jsx",
+          "line": 1,
+          "end_line": 30
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Express API",
+      "sublabel": "dashboardController",
+      "pos": [
+        290,
+        90
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/api/controllers/dashboardController.js",
+          "line": 1023,
+          "end_line": 1078,
+          "label": "queue a request"
+        },
+        {
+          "path": "apps/api/controllers/dashboardController.js",
+          "line": 354,
+          "end_line": 356,
+          "label": "status counts"
+        }
+      ]
+    },
+    {
+      "id": "opsreq",
+      "type": "database",
+      "label": "sap_ops_request",
+      "sublabel": "requested actions",
+      "pos": [
+        540,
+        90
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/api/controllers/dashboardController.js",
+          "line": 1075,
+          "end_line": 1078
+        }
+      ]
+    },
+    {
+      "id": "opsworker",
+      "type": "backend",
+      "label": "ops_worker.py",
+      "sublabel": "runs post or relay",
+      "pos": [
+        790,
+        90
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/ops_worker.py",
+          "line": 40,
+          "end_line": 57,
+          "label": "action -> script"
+        },
+        {
+          "path": "jobs/sap_staging/ops_worker.py",
+          "line": 114,
+          "end_line": 160,
+          "label": "claim, finish"
+        }
+      ]
+    },
+    {
+      "id": "staging",
+      "type": "database",
+      "label": "sap_timesheet_staging",
+      "sublabel": "PENDING / FAILED rows",
+      "pos": [
+        290,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_staging_common.py",
+          "line": 362,
+          "end_line": 372,
+          "label": "status column"
+        }
+      ]
+    },
+    {
+      "id": "post",
+      "type": "backend",
+      "label": "post_sap_staging.py",
+      "sublabel": "claim, guard, post",
+      "pos": [
+        540,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 91,
+          "end_line": 171,
+          "label": "claim_rows"
+        },
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 414,
+          "end_line": 476,
+          "label": "post_one"
+        },
+        {
+          "path": "docker-compose.yml",
+          "line": 247,
+          "end_line": 257,
+          "label": "sap-post-worker"
+        }
+      ]
+    },
+    {
+      "id": "cpi",
+      "type": "cloud",
+      "label": "SAP CPI",
+      "sublabel": "timesheet API",
+      "pos": [
+        1040,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 67,
+          "end_line": 89,
+          "label": "HTTPS POST"
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "type": "external",
+      "label": "SAP S/4HANA",
+      "sublabel": "order confirmations",
+      "pos": [
+        1290,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 479,
+          "end_line": 490,
+          "label": "order lock"
+        }
+      ]
+    },
+    {
+      "id": "source",
+      "type": "database",
+      "label": "sap_staging_source",
+      "sublabel": "segment POSTED once",
+      "pos": [
+        290,
+        440
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "database/migrations/api/20260714_sap_staging_provenance.sql",
+          "line": 23,
+          "end_line": 46,
+          "label": "unique + trigger"
+        },
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 341,
+          "end_line": 374,
+          "label": "guard: posted segment"
+        }
+      ]
+    },
+    {
+      "id": "log",
+      "type": "database",
+      "label": "log_timesheet_sap",
+      "sublabel": "every SAP response",
+      "pos": [
+        540,
+        440
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 292,
+          "end_line": 340,
+          "label": "write"
+        },
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 375,
+          "end_line": 399,
+          "label": "guard: used ID"
+        }
+      ]
+    },
+    {
+      "id": "tstx",
+      "type": "database",
+      "label": "timesheet_transaction",
+      "sublabel": "rejected rows flagged",
+      "pos": [
+        790,
+        440
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_staging_common.py",
+          "line": 711,
+          "end_line": 726
+        },
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 471,
+          "end_line": 471
+        }
+      ]
+    },
+    {
+      "id": "relay",
+      "type": "backend",
+      "label": "sap_kafka_relay.py",
+      "sublabel": "claim QUEUED, publish",
+      "pos": [
+        40,
+        440
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_kafka_relay.py",
+          "line": 177,
+          "end_line": 185,
+          "label": "relay_once"
+        },
+        {
+          "path": "jobs/sap_staging/sap_kafka_relay.py",
+          "line": 110,
+          "end_line": 140,
+          "label": "requeue stale"
+        }
+      ]
+    },
+    {
+      "id": "topic",
+      "type": "messagebus",
+      "label": "sap.confirmations.v1",
+      "sublabel": "key = order (AUFNR)",
+      "pos": [
+        540,
+        620
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_kafka_relay.py",
+          "line": 6,
+          "end_line": 6
+        }
+      ]
+    },
+    {
+      "id": "poster",
+      "type": "backend",
+      "label": "sap_kafka_poster.py",
+      "sublabel": "hash check, then post_one",
+      "pos": [
+        1040,
+        620
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_kafka_poster.py",
+          "line": 70,
+          "end_line": 84,
+          "label": "claim_queued"
+        },
+        {
+          "path": "jobs/sap_staging/sap_kafka_poster.py",
+          "line": 158,
+          "end_line": 172,
+          "label": "guards + post_one"
+        }
+      ]
+    },
+    {
+      "id": "results",
+      "type": "messagebus",
+      "label": "confirmations.results",
+      "sublabel": "outcome per row",
+      "pos": [
+        1290,
+        620
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_kafka_poster.py",
+          "line": 117,
+          "end_line": 137
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "click",
+      "from": "ui",
+      "to": "api",
+      "label": "button",
+      "variant": "emphasis"
+    },
+    {
+      "id": "enqueue",
+      "from": "api",
+      "to": "opsreq",
+      "label": "insert",
+      "variant": "emphasis"
+    },
+    {
+      "id": "claim-req",
+      "from": "opsworker",
+      "to": "opsreq",
+      "label": "claim"
+    },
+    {
+      "id": "read-status",
+      "from": "api",
+      "to": "staging",
+      "label": "status"
+    },
+    {
+      "id": "runs",
+      "from": "opsworker",
+      "to": "post",
+      "label": "runs",
+      "variant": "dashed"
+    },
+    {
+      "id": "claim",
+      "from": "staging",
+      "to": "post",
+      "label": "claim POSTING",
+      "variant": "emphasis"
+    },
+    {
+      "id": "http",
+      "from": "post",
+      "to": "cpi",
+      "label": "HTTPS POST",
+      "variant": "emphasis"
+    },
+    {
+      "id": "confirm",
+      "from": "cpi",
+      "to": "s4",
+      "label": "confirm",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mark-posted",
+      "from": "staging",
+      "to": "source",
+      "label": "trigger: POSTED",
+      "variant": "security"
+    },
+    {
+      "id": "guard-source",
+      "from": "post",
+      "to": "source",
+      "label": "guard",
+      "variant": "security"
+    },
+    {
+      "id": "write-log",
+      "from": "post",
+      "to": "log",
+      "label": "log + guard"
+    },
+    {
+      "id": "flag-rejected",
+      "from": "post",
+      "to": "tstx",
+      "label": "rejected"
+    },
+    {
+      "id": "relay-claim",
+      "from": "staging",
+      "to": "relay",
+      "label": "claim QUEUED",
+      "variant": "dashed"
+    },
+    {
+      "id": "publish",
+      "from": "relay",
+      "to": "topic",
+      "label": "publish",
+      "variant": "dashed"
+    },
+    {
+      "id": "consume",
+      "from": "topic",
+      "to": "poster",
+      "label": "consume",
+      "variant": "dashed"
+    },
+    {
+      "id": "poster-post",
+      "from": "poster",
+      "to": "cpi",
+      "label": "HTTPS POST",
+      "variant": "dashed"
+    },
+    {
+      "id": "outcome",
+      "from": "poster",
+      "to": "results",
+      "label": "outcome",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Direct path",
+      "items": [
+        "sap-post-worker runs post_sap_staging.py in a loop; one UPDATE claims PENDING rows as POSTING",
+        "Guards skip a row whose segment is already POSTED or whose ZTIMESHEETID SAP already used",
+        "Network errors are retried; SAP business rejections are not"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Kafka path (SAP_TRANSPORT=kafka)",
+      "items": [
+        "The relay claims rows as QUEUED and publishes them keyed by order",
+        "The poster posts only if the row is still QUEUED with the same payload hash, using the same guards and table writes as post_sap_staging.py",
+        "QUEUED rows left too long return to their previous status"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Admin actions",
+      "items": [
+        "UI buttons never call SAP directly: the API only queues a request in sap_ops_request",
+        "ops_worker.py runs the matching script: stage catch-up, retry failed, post corrections, post a date or operator"
+      ]
+    }
+  ]
+}

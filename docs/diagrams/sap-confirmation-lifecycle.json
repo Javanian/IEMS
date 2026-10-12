@@ -9,7 +9,7 @@
     "repository": {
       "url": "git@github.com:Javanian/IEMS.git",
       "link_mode": "local-only",
-      "revision": "c64c128cf6d3c590061b4d4a3ecf41a5c18ca29b"
+      "revision": "8faa6388e60c807d812808ef002e135076133da3"
     }
   },
   "lanes": [
@@ -31,22 +31,22 @@
       "id": "pending",
       "type": "start",
       "label": "PENDING",
-      "sublabel": "staged from timesheets",
+      "sublabel": "staged from machine hours",
       "lane": "main",
       "col": 0,
       "step": "01",
       "sources": [
         {
+          "path": "jobs/sap_staging/stage_machinehours.py",
+          "line": 173,
+          "end_line": 232,
+          "label": "stage worker"
+        },
+        {
           "path": "jobs/sap_staging/sap_staging_common.py",
           "line": 362,
           "end_line": 362,
-          "label": "default status"
-        },
-        {
-          "path": "jobs/sap_staging/stage_sap_timesheet.py",
-          "line": 548,
-          "end_line": 548,
-          "label": "stage_rows"
+          "label": "default PENDING"
         }
       ]
     },

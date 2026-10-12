@@ -475,8 +475,8 @@ svg[data-preset="editorial"][data-animation="trace"] [data-animate="node"] { ani
         </g>
 
         <!-- States -->
-        <g id="node-pending" data-node-id="pending" data-node-label="PENDING" tabindex="0" role="button" aria-label="Focus PENDING, staged from timesheets, Posting path" aria-pressed="false" data-node-kind="start" data-node-sublabel="staged from timesheets" data-node-context="Posting path">
-          <title>PENDING · staged from timesheets · Posting path</title>
+        <g id="node-pending" data-node-id="pending" data-node-label="PENDING" tabindex="0" role="button" aria-label="Focus PENDING, staged from machine hours, Posting path" aria-pressed="false" data-node-kind="start" data-node-sublabel="staged from machine hours" data-node-context="Posting path">
+          <title>PENDING · staged from machine hours · Posting path</title>
           <rect x="60" y="56" width="140" height="64" rx="7" class="c-mask"/>
           <rect x="60" y="56" width="140" height="64" rx="7" class="c-frontend" stroke-width="1.5"/>
           <g aria-hidden="true" data-lifecycle-initial-marker="">
@@ -488,7 +488,7 @@ svg[data-preset="editorial"][data-animation="trace"] [data-animate="node"] { ani
           </g>
         <text x="83" y="70" class="t-frontend" font-size="8" font-weight="700">01</text>
           <text data-node-label="" x="130" y="79" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">PENDING</text>
-          <text x="130" y="96" class="t-muted" font-size="8" text-anchor="middle">staged from timesheets</text>
+          <text x="130" y="96" class="t-muted" font-size="8" text-anchor="middle">staged from machine hours</text>
         </g>
 
         <g id="node-queued" data-node-id="queued" data-node-label="QUEUED" tabindex="0" role="button" aria-label="Focus QUEUED, on sap.confirmations.v1, Kafka transport (optional)" aria-pressed="false" data-node-kind="waiting" data-node-sublabel="on sap.confirmations.v1" data-node-tag="key = order" data-node-context="Kafka transport (optional)">

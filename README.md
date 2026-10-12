@@ -81,7 +81,23 @@ Each staged row moves through these states. The claim into `POSTING` is a single
   <img alt="SAP confirmation lifecycle: PENDING is claimed into POSTING directly or via QUEUED on Kafka; POSTING ends as POSTED, SKIPPED by a guard, or FAILED, which can be retried; editing the source re-stages unposted rows" src="docs/diagrams/sap-confirmation-lifecycle-light.svg">
 </picture>
 
-Diagrams are generated from the specs in [docs/diagrams](docs/diagrams), each pinned to the commit it was traced from.
+### SAP pipeline, script by script
+
+**Part 1, machine data to the staging queue.** `etl_machine_conf.py` copies HMI segments from SQL Server into `mch_productiondata`, `etl_mch_transaction_v3.py` resolves operator, order and status into `mch_transaction`, and the `sap-stage-worker` runs `stage_machinehours.py` to bundle eligible rows per day into `sap_timesheet_staging`, recording which source segments each bundle covers.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sap-pipeline-staging-dark.svg">
+  <img alt="Part 1: SQL Server ProductionData to etl_machine_conf.py to mch_productiondata to etl_mch_transaction_v3.py to mch_transaction to stage_machinehours.py to sap_timesheet_staging, with lookup, override, cursor, exclusion, audit and provenance tables and two database triggers" src="docs/diagrams/sap-pipeline-staging-light.svg">
+</picture>
+
+**Part 2, staging queue to SAP.** `post_sap_staging.py` claims rows, checks two guards against `sap_staging_source` and `log_timesheet_sap`, and posts to SAP CPI. With `SAP_TRANSPORT=kafka`, `sap_kafka_relay.py` and `sap_kafka_poster.py` take that path through `sap.confirmations.v1`. Buttons on the SAP Log page only queue a request; `ops_worker.py` runs the script.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sap-pipeline-posting-dark.svg">
+  <img alt="Part 2: sap_timesheet_staging claimed by post_sap_staging.py, which checks sap_staging_source and log_timesheet_sap, posts to SAP CPI and S/4HANA, and flags rejected timesheet_transaction rows; the Kafka relay, topic and poster form the optional path; UI buttons go through sap_ops_request to ops_worker.py" src="docs/diagrams/sap-pipeline-posting-light.svg">
+</picture>
+
+Diagrams are generated from the specs in [docs/diagrams](docs/diagrams), each pinned to the commit it was traced from. The HTML versions there list the file and line range behind every box; download one and open it in a browser.
 
 ## Tech stack
 

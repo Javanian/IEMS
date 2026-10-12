@@ -1,0 +1,514 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "IEMS SAP pipeline, part 1: machine data to the staging queue",
+    "output": "docs/diagrams/sap-pipeline-staging.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "git@github.com:Javanian/IEMS.git",
+      "link_mode": "local-only",
+      "revision": "8faa6388e60c807d812808ef002e135076133da3"
+    }
+  },
+  "components": [
+    {
+      "id": "sqlserver",
+      "type": "external",
+      "label": "SQL Server",
+      "sublabel": "ProductionData (HMI)",
+      "pos": [
+        40,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/etl_machine_conf.py",
+          "line": 129,
+          "end_line": 129,
+          "label": "connect"
+        },
+        {
+          "path": "jobs/etl/etl_machine_conf.py",
+          "line": 158,
+          "end_line": 158,
+          "label": "read ProductionData"
+        }
+      ]
+    },
+    {
+      "id": "etl_conf",
+      "type": "backend",
+      "label": "etl_machine_conf.py",
+      "sublabel": "pull rows, push JobID back",
+      "pos": [
+        290,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/etl_machine_conf.py",
+          "line": 324,
+          "end_line": 326,
+          "label": "UPDATE JobID"
+        },
+        {
+          "path": "jobs/etl/etl_machine_conf.py",
+          "line": 101,
+          "end_line": 115,
+          "label": "upsert"
+        }
+      ]
+    },
+    {
+      "id": "proddata",
+      "type": "database",
+      "label": "mch_productiondata",
+      "sublabel": "raw machine segments",
+      "pos": [
+        540,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/etl_machine_conf.py",
+          "line": 101,
+          "end_line": 101
+        }
+      ]
+    },
+    {
+      "id": "etl_tx",
+      "type": "backend",
+      "label": "etl_mch_transaction_v3.py",
+      "sublabel": "operator, order, status",
+      "pos": [
+        790,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/etl_mch_transaction_v3.py",
+          "line": 22,
+          "end_line": 25,
+          "label": "source and target"
+        },
+        {
+          "path": "jobs/etl/etl_mch_transaction_v3.py",
+          "line": 43,
+          "end_line": 86,
+          "label": "upsert"
+        }
+      ]
+    },
+    {
+      "id": "lookups",
+      "type": "database",
+      "label": "usernfc, sow, ph3_order",
+      "sublabel": "operator + order lookups",
+      "pos": [
+        540,
+        90
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/etl_mch_transaction_v3.py",
+          "line": 331,
+          "end_line": 331,
+          "label": "usernfc"
+        },
+        {
+          "path": "jobs/etl/etl_mch_transaction_v3.py",
+          "line": 423,
+          "end_line": 423,
+          "label": "ph3_order"
+        }
+      ]
+    },
+    {
+      "id": "override",
+      "type": "database",
+      "label": "mch_transaction_override",
+      "sublabel": "admin job/operator fixes",
+      "pos": [
+        790,
+        90
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/etl_mch_transaction_v3.py",
+          "line": 836,
+          "end_line": 900
+        }
+      ]
+    },
+    {
+      "id": "mchtx",
+      "type": "database",
+      "label": "mch_transaction",
+      "sublabel": "one row per activity",
+      "pos": [
+        1040,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/etl_mch_transaction_v3.py",
+          "line": 43,
+          "end_line": 43
+        }
+      ]
+    },
+    {
+      "id": "blocked",
+      "type": "security",
+      "label": "sap_source_change_blocked",
+      "sublabel": "rejected edits, logged",
+      "pos": [
+        790,
+        440
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "database/migrations/api/20260714_sap_staging_provenance.sql",
+          "line": 48,
+          "end_line": 60
+        },
+        {
+          "path": "database/migrations/api/20260714_sap_staging_provenance.sql",
+          "line": 163,
+          "end_line": 164,
+          "label": "freeze trigger"
+        }
+      ]
+    },
+    {
+      "id": "stage",
+      "type": "backend",
+      "label": "stage_machinehours.py",
+      "sublabel": "eligibility, day bundles",
+      "pos": [
+        1290,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/stage_machinehours.py",
+          "line": 173,
+          "end_line": 232,
+          "label": "run_once"
+        },
+        {
+          "path": "jobs/sap_staging/stage_sap_timesheet.py",
+          "line": 123,
+          "end_line": 127,
+          "label": "fetch_machine_hour_rows"
+        },
+        {
+          "path": "docker-compose.yml",
+          "line": 227,
+          "end_line": 237,
+          "label": "sap-stage-worker"
+        }
+      ]
+    },
+    {
+      "id": "cursor",
+      "type": "database",
+      "label": "sap_stage_cursor",
+      "sublabel": "last staged hour",
+      "pos": [
+        1290,
+        90
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_staging_common.py",
+          "line": 498,
+          "end_line": 530
+        }
+      ]
+    },
+    {
+      "id": "exclusion",
+      "type": "database",
+      "label": "sap_staging_exclusion",
+      "sublabel": "rows never to send",
+      "pos": [
+        1040,
+        440
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/stage_sap_timesheet.py",
+          "line": 299,
+          "end_line": 299
+        }
+      ]
+    },
+    {
+      "id": "staging",
+      "type": "database",
+      "label": "sap_timesheet_staging",
+      "sublabel": "PENDING bundles",
+      "pos": [
+        1540,
+        260
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_staging_common.py",
+          "line": 546,
+          "end_line": 603,
+          "label": "insert_staging_rows"
+        },
+        {
+          "path": "jobs/sap_staging/sap_staging_common.py",
+          "line": 362,
+          "end_line": 362,
+          "label": "default PENDING"
+        }
+      ]
+    },
+    {
+      "id": "provenance",
+      "type": "database",
+      "label": "sap_staging_source",
+      "sublabel": "which segments, per bundle",
+      "pos": [
+        1540,
+        440
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_staging_common.py",
+          "line": 604,
+          "end_line": 644,
+          "label": "insert_provenance"
+        }
+      ]
+    },
+    {
+      "id": "audit",
+      "type": "database",
+      "label": "eligibility_audit",
+      "sublabel": "why a row is not ready",
+      "pos": [
+        1290,
+        440
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_staging_common.py",
+          "line": 645,
+          "end_line": 688,
+          "label": "upsert_eligibility_audit"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "pull",
+      "from": "sqlserver",
+      "to": "etl_conf",
+      "label": "pull rows",
+      "variant": "emphasis"
+    },
+    {
+      "id": "jobid",
+      "from": "etl_conf",
+      "to": "sqlserver",
+      "label": "JobID",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "bottom"
+    },
+    {
+      "id": "w-proddata",
+      "from": "etl_conf",
+      "to": "proddata",
+      "label": "upsert",
+      "variant": "emphasis"
+    },
+    {
+      "id": "r-proddata",
+      "from": "proddata",
+      "to": "etl_tx",
+      "label": "read",
+      "variant": "emphasis"
+    },
+    {
+      "id": "r-lookups",
+      "from": "lookups",
+      "to": "etl_tx",
+      "label": "map"
+    },
+    {
+      "id": "r-override",
+      "from": "override",
+      "to": "etl_tx",
+      "label": "apply"
+    },
+    {
+      "id": "w-mchtx",
+      "from": "etl_tx",
+      "to": "mchtx",
+      "label": "upsert",
+      "variant": "emphasis"
+    },
+    {
+      "id": "freeze",
+      "from": "mchtx",
+      "to": "blocked",
+      "label": "trigger: block",
+      "variant": "security"
+    },
+    {
+      "id": "r-mchtx",
+      "from": "mchtx",
+      "to": "stage",
+      "label": "read",
+      "variant": "emphasis"
+    },
+    {
+      "id": "rw-cursor",
+      "from": "stage",
+      "to": "cursor",
+      "label": "window"
+    },
+    {
+      "id": "r-exclusion",
+      "from": "exclusion",
+      "to": "stage",
+      "label": "skip"
+    },
+    {
+      "id": "w-staging",
+      "from": "stage",
+      "to": "staging",
+      "label": "insert",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "route": "straight"
+    },
+    {
+      "id": "w-audit",
+      "from": "stage",
+      "to": "audit",
+      "label": "audit"
+    },
+    {
+      "id": "w-provenance",
+      "from": "stage",
+      "to": "provenance",
+      "label": "provenance",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "invalidate",
+      "from": "mchtx",
+      "to": "staging",
+      "label": "trigger: delete unposted",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [
+        [
+          1130,
+          50
+        ],
+        [
+          1630,
+          50
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Every hour",
+      "items": [
+        "sap-stage-worker runs stage_machinehours.py --catchup in a loop",
+        "Eligible rows need an operator, a valid time span and a productive or unproductive activity",
+        "Rows are bundled per day, operator, order, operation, machine and activity; bundles under 60 s are dropped"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Database triggers",
+      "items": [
+        "Editing a mch_transaction row that already reached SAP is rejected and logged in sap_source_change_blocked",
+        "Editing a row behind an unposted bundle deletes that bundle, so the next run stages the corrected data"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Normal vs correction",
+      "items": [
+        "A day with no POSTED bundle stages NORMAL bundles that post automatically",
+        "Hours that arrive after a day was posted become correction bundles that an admin sends from the UI"
+      ]
+    }
+  ]
+}
