@@ -34,7 +34,7 @@ Captured from a local run with sample data.
 ## Architecture
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/iems-architecture-dark.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Javanian/IEMS/main/docs/diagrams/iems-architecture-dark.svg">
   <img alt="IEMS architecture: operators reach the per-plant stack through Nginx; the Express API and workers share PostgreSQL behind PgBouncer; SAP workers post confirmations to SAP CPI directly or through Kafka; SAP orders arrive through a compacted Kafka topic" src="docs/diagrams/iems-architecture-light.svg">
 </picture>
 
@@ -77,7 +77,7 @@ docker-compose.yml    Production stack
 Each staged row moves through these states. The claim into `POSTING` is a single `UPDATE`, so two workers never post the same row, and the guards turn a would-be duplicate into `SKIPPED` instead of a second payroll entry.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sap-confirmation-lifecycle-dark.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Javanian/IEMS/main/docs/diagrams/sap-confirmation-lifecycle-dark.svg">
   <img alt="SAP confirmation lifecycle: PENDING is claimed into POSTING directly or via QUEUED on Kafka; POSTING ends as POSTED, SKIPPED by a guard, or FAILED, which can be retried; editing the source re-stages unposted rows" src="docs/diagrams/sap-confirmation-lifecycle-light.svg">
 </picture>
 
@@ -86,14 +86,14 @@ Each staged row moves through these states. The claim into `POSTING` is a single
 **Part 1, machine data to the staging queue.** `etl_machine_conf.py` copies HMI segments from SQL Server into `mch_productiondata`, `etl_mch_transaction_v3.py` resolves operator, order and status into `mch_transaction`, and the `sap-stage-worker` runs `stage_machinehours.py` to bundle eligible rows per day into `sap_timesheet_staging`, recording which source segments each bundle covers.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sap-pipeline-staging-dark.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Javanian/IEMS/main/docs/diagrams/sap-pipeline-staging-dark.svg">
   <img alt="Part 1: SQL Server ProductionData to etl_machine_conf.py to mch_productiondata to etl_mch_transaction_v3.py to mch_transaction to stage_machinehours.py to sap_timesheet_staging, with lookup, override, cursor, exclusion, audit and provenance tables and two database triggers" src="docs/diagrams/sap-pipeline-staging-light.svg">
 </picture>
 
 **Part 2, staging queue to SAP.** `post_sap_staging.py` claims rows, checks two guards against `sap_staging_source` and `log_timesheet_sap`, and posts to SAP CPI. With `SAP_TRANSPORT=kafka`, `sap_kafka_relay.py` and `sap_kafka_poster.py` take that path through `sap.confirmations.v1`. Buttons on the SAP Log page only queue a request; `ops_worker.py` runs the script.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sap-pipeline-posting-dark.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Javanian/IEMS/main/docs/diagrams/sap-pipeline-posting-dark.svg">
   <img alt="Part 2: sap_timesheet_staging claimed by post_sap_staging.py, which checks sap_staging_source and log_timesheet_sap, posts to SAP CPI and S/4HANA, and flags rejected timesheet_transaction rows; the Kafka relay, topic and poster form the optional path; UI buttons go through sap_ops_request to ops_worker.py" src="docs/diagrams/sap-pipeline-posting-light.svg">
 </picture>
 
