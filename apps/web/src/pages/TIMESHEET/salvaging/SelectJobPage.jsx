@@ -286,7 +286,7 @@ const SelectJobPage = () => {
 
           <thead className="sticky top-0 z-10">
             <tr
-              style={{ background: '#e0f2fe', borderBottomColor: '#bae6fd' }}
+              style={{ background: '#DBEAFE', borderBottomColor: '#BFDBFE' }}
               className="border-b-2"
             >
               <th className={`${cellBase} text-center font-semibold text-slate-700`}>Order</th>
@@ -349,7 +349,7 @@ const SelectJobPage = () => {
                     <td
                       className={`${cellBase} text-center ${isOutOfHours ? 'border-l-4 border-red-500' : ''}`}
                     >
-                      <div className="font-semibold font-mono" style={{ color: '#0277b6' }}>
+                      <div className="font-semibold font-mono" style={{ color: '#2563EB' }}>
                         {job.order_no}
                       </div>
                       {job.crn_id && (
@@ -389,7 +389,7 @@ const SelectJobPage = () => {
       {}
       {showScanner && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+          className="fixed inset-0 backdrop-blur-sm bg-slate-950/50 flex items-center justify-center z-50 px-4"
           onClick={closeScanner}
         >
           <div
@@ -399,7 +399,7 @@ const SelectJobPage = () => {
             {}
             <div
               className="px-5 py-3 flex justify-between items-center"
-              style={{ background: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%)' }}
             >
               <h3 className="text-sm font-bold text-white">Scan Barcode</h3>
               <button
@@ -445,7 +445,7 @@ const SelectJobPage = () => {
               <p className="text-xs text-slate-500 text-center mt-2">
                 Arahkan kamera ke barcode order
                 {videoDevices.length > 1 && (
-                  <span className="ml-1" style={{ color: '#0277b6' }}>
+                  <span className="ml-1" style={{ color: '#2563EB' }}>
                     · Kamera {currentDeviceIndex + 1}/{videoDevices.length}
                   </span>
                 )}

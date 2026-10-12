@@ -445,7 +445,7 @@ const TimesheetEditPage = () => {
         <div className="flex flex-col items-center gap-3">
           <div
             className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin"
-            style={{ borderColor: '#0ea5e9', borderTopColor: 'transparent' }}
+            style={{ borderColor: '#3B82F6', borderTopColor: 'transparent' }}
           />
           <span className="text-sm font-medium text-slate-500">Loading…</span>
         </div>

@@ -320,7 +320,7 @@ export default function CorrectionsPanel() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead style={{ background: '#e0f2fe' }}>
+              <thead style={{ background: '#DBEAFE' }}>
                 <tr className="text-[11px] uppercase tracking-wide text-slate-700">
                   <th className="w-10 px-3 py-2">
                     <input

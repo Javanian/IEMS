@@ -21,15 +21,15 @@ import {
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const PALETTE = {
-  deepTwilight: '#082f49',
-  frenchBlue: '#0c4a6e',
-  brightTealBlue: '#0369a1',
-  blueGreen: '#0277b6',
-  turquoiseSurf: '#0ea5e9',
-  skyAqua: '#38bdf8',
-  frostedBlue: '#bae6fd',
-  frostedBlue2: '#bae6fd',
-  lightCyan: '#e0f2fe',
+  deepTwilight: '#172554',
+  frenchBlue: '#1E3A8A',
+  brightTealBlue: '#1D4ED8',
+  blueGreen: '#2563EB',
+  turquoiseSurf: '#3B82F6',
+  skyAqua: '#60A5FA',
+  frostedBlue: '#BFDBFE',
+  frostedBlue2: '#BFDBFE',
+  lightCyan: '#DBEAFE',
 };
 
 const MONTH_SHORT = [

@@ -144,7 +144,7 @@ function DetailDrawer({ row, onClose }) {
   const response = toJsonText(row.sap_response || row.sap_response_text);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-[2px]" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/30 backdrop-blur-[2px]" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -495,7 +495,7 @@ function SapLogPage() {
                 {}
                 <div className="hidden overflow-x-auto md:block">
                   <table className="w-full text-left text-sm">
-                    <thead style={{ background: '#e0f2fe' }}>
+                    <thead style={{ background: '#DBEAFE' }}>
                       <tr className="text-[11px] uppercase tracking-wide text-slate-700">
                         <th className="whitespace-nowrap px-3 py-2 font-semibold">Status</th>
                         <th className="whitespace-nowrap px-3 py-2 font-semibold">ID</th>

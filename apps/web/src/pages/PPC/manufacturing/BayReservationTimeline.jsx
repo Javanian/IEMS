@@ -21,7 +21,7 @@ const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'O
 
 const STATUS_STYLE = {
   RESERVED: {
-    bg: 'linear-gradient(135deg,#0c4a6e,#0369a1)',
+    bg: 'linear-gradient(135deg,#1E3A8A,#1D4ED8)',
     fg: '#ffffff',
     chipBg: 'rgba(255,255,255,0.22)',
     label: 'Reserved',
@@ -145,7 +145,7 @@ function BayRow({ bay, segs, lanes, numDays, todayNum, originNum, onSelect }) {
                 style={{
                   width: DAY_W,
                   borderRight: '1px solid #e2e8f0',
-                  borderLeft: isToday ? '2px solid #bae6fd' : undefined,
+                  borderLeft: isToday ? '2px solid #BFDBFE' : undefined,
                   background: isToday
                     ? 'rgba(173,232,244,0.18)'
                     : weekend
@@ -321,11 +321,11 @@ export default function BayReservationTimeline({
     <div key={key}>
       <div
         className="flex border-b border-brand-200"
-        style={{ width: boardW, background: '#e0f2fe' }}
+        style={{ width: boardW, background: '#DBEAFE' }}
       >
         <div
           className="sticky left-0 z-20 flex shrink-0 items-center gap-2 px-4 py-1.5"
-          style={{ width: LABEL_W, background: '#e0f2fe' }}
+          style={{ width: LABEL_W, background: '#DBEAFE' }}
         >
           <span className="truncate text-xs font-extrabold uppercase tracking-wide text-brand-700">
             {name}
@@ -408,7 +408,7 @@ export default function BayReservationTimeline({
                     style={{
                       width: DAY_W,
                       borderRight: '1px solid #e2e8f0',
-                      borderLeft: isToday ? '2px solid #bae6fd' : undefined,
+                      borderLeft: isToday ? '2px solid #BFDBFE' : undefined,
                       background: isToday
                         ? 'rgba(173,232,244,0.35)'
                         : weekend

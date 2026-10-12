@@ -741,7 +741,7 @@ function EmptyChart({ text }) {
 }
 
 const TILE_TONES = {
-  info: { bg: '#e0f2fe', border: '#bae6fd', text: '#0369a1' },
+  info: { bg: '#DBEAFE', border: '#BFDBFE', text: '#1D4ED8' },
   good: { bg: '#f0fdf4', border: '#bbf7d0', text: '#047857' },
   warn: { bg: '#fffbeb', border: '#fde68a', text: '#b45309' },
   bad: { bg: '#fef2f2', border: '#fecaca', text: '#b91c1c' },
@@ -792,7 +792,7 @@ function RankedList({
         {shown.map((item, idx) => {
           const raw = numeric(valueOf(item));
           const width = Math.max(3, (Math.abs(raw) / max) * 100);
-          const color = colorOf ? colorOf(item) : '#0277b6';
+          const color = colorOf ? colorOf(item) : '#2563EB';
           return (
             <li key={start + idx}>
               <div className="mb-1 flex items-center justify-between gap-2">
@@ -1274,7 +1274,7 @@ function AccuracyBreakdown({ kpi }) {
             valueOf={(m) => numeric(m.error_records)}
             labelOf={(m) => m.machine_id || 'UNKNOWN'}
             valueFmt={(m) => formatNumber(m.error_records)}
-            colorOf={() => '#0277b6'}
+            colorOf={() => '#2563EB'}
             emptyText="No machine with errors."
           />
         </div>
@@ -1287,7 +1287,7 @@ function AccuracyBreakdown({ kpi }) {
             valueOf={(o) => numeric(o.error_records)}
             labelOf={(o) => o.operator_name || o.operator_id || 'UNKNOWN'}
             valueFmt={(o) => formatNumber(o.error_records)}
-            colorOf={() => '#0369a1'}
+            colorOf={() => '#1D4ED8'}
             emptyText="No operator with errors."
           />
         </div>
@@ -1305,7 +1305,7 @@ function AdoptionBreakdown({ kpi }) {
   }));
   const byMachine = (sd.by_machine || []).slice(0, 8);
   const byOperator = (sd.by_operator || []).slice(0, 8);
-  const gapColors = ['#f59e0b', '#dc2626', '#0277b6'];
+  const gapColors = ['#f59e0b', '#dc2626', '#2563EB'];
   return (
     <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <PageCard>
@@ -1357,7 +1357,7 @@ function AdoptionBreakdown({ kpi }) {
             valueOf={(o) => numeric(o.missing_minutes)}
             labelOf={(o) => o.operator_name || o.operator_key || 'UNKNOWN'}
             valueFmt={(o) => `${formatNumber(o.missing_minutes)} min`}
-            colorOf={() => '#0369a1'}
+            colorOf={() => '#1D4ED8'}
             subOf={(o) => `${formatNumber(o.gap_buckets)} bucket`}
             emptyText="No gap per operator."
           />
@@ -1831,7 +1831,7 @@ function MetricTiles({ kpiType, kpi }) {
   );
 }
 
-const ADOPTION_GAP_COLORS = { unidentified: '#0c4a6e', idle: '#0ea5e9' };
+const ADOPTION_GAP_COLORS = { unidentified: '#1E3A8A', idle: '#3B82F6' };
 const SURFACE_GAP_PX = 2;
 
 function GapSegment(props) {
@@ -1986,7 +1986,7 @@ function AdoptionMachineBreakdown({ kpi }) {
 const ACC_MACHINE_REASONS = {
   no_operator: { label: 'Operator not identified', color: '#dc2626' },
   no_job: { label: 'Job not linked', color: '#f59e0b' },
-  no_confirmation: { label: 'SAP confirmation missing', color: '#0277b6' },
+  no_confirmation: { label: 'SAP confirmation missing', color: '#2563EB' },
   other: { label: 'Other', color: '#94a3b8' },
 };
 
@@ -2079,7 +2079,7 @@ function AccuracyMachineBreakdown({ kpi }) {
   );
 }
 
-const ADOPTION_BAR = { timesheet: '#0277b6', hmi: '#bae6fd' };
+const ADOPTION_BAR = { timesheet: '#2563EB', hmi: '#BFDBFE' };
 
 function adoptionTargetHours(o) {
   const expected = o.expected_hours == null ? null : numeric(o.expected_hours);
@@ -2425,7 +2425,7 @@ function AutoIssueLogCard({ rows, loading, onResolve, showHistory, onToggleHisto
       />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="border-b border-brand-200" style={{ background: '#e0f2fe' }}>
+          <thead className="border-b border-brand-200" style={{ background: '#DBEAFE' }}>
             <tr className="font-mono text-[10px] font-black uppercase tracking-[0.12em] text-slate-700">
               <th className="px-3 py-2">Entity</th>
               <th className="px-3 py-2">Description</th>
@@ -2527,7 +2527,7 @@ function AutoIssueLogCard({ rows, loading, onResolve, showHistory, onToggleHisto
 
       {pending ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-0 backdrop-blur-sm md:items-center md:px-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 px-0 backdrop-blur-sm md:items-center md:px-4"
           role="dialog"
           aria-modal="true"
           aria-label="Resolve issue"
@@ -2948,7 +2948,7 @@ function EwsDetailPage() {
                 />
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[720px] text-left text-sm">
-                    <thead className="border-b border-brand-200" style={{ background: '#e0f2fe' }}>
+                    <thead className="border-b border-brand-200" style={{ background: '#DBEAFE' }}>
                       <tr className="font-mono text-[10px] font-black uppercase tracking-[0.12em] text-slate-700">
                         <th className="px-3 py-2">Area</th>
                         <th className="px-3 py-2">Condition</th>

@@ -307,7 +307,7 @@ function ItemDetailPanel({ item, requestedQty, onClose, onAdd }) {
   };
 
   return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/35 p-3 md:p-4">
+    <div className="absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm bg-slate-950/35 p-3 md:p-4">
       <div className="relative flex max-h-[94vh] w-full max-w-xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl md:max-h-[88vh]">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3 md:px-5 md:py-4">
           <div>

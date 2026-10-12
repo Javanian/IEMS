@@ -323,17 +323,17 @@ const CreateEditNfcPage = () => {
                 {}
                 <div
                   className="rounded-xl p-4 mb-3 text-center border"
-                  style={{ background: '#e0f2fe', borderColor: '#bae6fd' }}
+                  style={{ background: '#DBEAFE', borderColor: '#BFDBFE' }}
                 >
                   <div
                     className="text-[10px] font-semibold uppercase tracking-wide mb-1"
-                    style={{ color: '#0369a1' }}
+                    style={{ color: '#1D4ED8' }}
                   >
                     NFC ID
                   </div>
                   <div
                     className="text-xl font-mono font-extrabold tracking-wider"
-                    style={{ color: '#082f49' }}
+                    style={{ color: '#172554' }}
                   >
                     {nfcid || '— NO ID —'}
                   </div>

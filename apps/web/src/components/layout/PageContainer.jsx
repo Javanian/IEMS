@@ -9,12 +9,12 @@ export const AppHeader = ({ title, rightContent, className = '' }) => {
     <div
       className={`
       flex justify-between items-center
-      bg-surface text-ink border border-slate-200
-      px-4 py-2.5 rounded-xl shadow-sm
+      bg-surface/90 text-ink border border-slate-200/80 backdrop-blur
+      px-5 py-3 rounded-2xl shadow-soft
       ${className}
     `}
     >
-      <h2 className="m-0 flex items-center text-lg font-semibold [&_svg]:text-brand-700">{title}</h2>
+      <h2 className="m-0 flex items-center gap-2 text-lg font-bold tracking-tight [&_svg]:text-brand-600">{title}</h2>
       {rightContent && <div>{rightContent}</div>}
     </div>
   );
@@ -25,7 +25,7 @@ export const StatusBar = ({ leftContent, rightContent, className = '' }) => {
     <div
       className={`
       flex justify-between items-center
-      bg-slate-100 border border-slate-200 px-4 py-2.5 rounded-lg
+      bg-white border border-slate-200/80 px-4 py-2.5 rounded-xl shadow-sm
       text-sm text-slate-800
       ${className}
     `}

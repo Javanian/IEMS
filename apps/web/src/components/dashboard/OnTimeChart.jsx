@@ -64,11 +64,11 @@ export default function OnTimeChart() {
             <Bar
               dataKey="on_time"
               stackId="a"
-              fill="#0277b6"
+              fill="#2563EB"
               name="on_time"
               radius={[0, 0, 0, 0]}
             />
-            <Bar dataKey="in_progress" stackId="a" fill="#e0f2fe" name="in_progress" />
+            <Bar dataKey="in_progress" stackId="a" fill="#DBEAFE" name="in_progress" />
             <Bar
               dataKey="overdue"
               stackId="a"

@@ -185,7 +185,7 @@ export default function FloorMapOverview({
           <span
             aria-hidden="true"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white shadow-sm"
-            style={{ background: 'linear-gradient(135deg,#0c4a6e,#0369a1)' }}
+            style={{ background: 'linear-gradient(135deg,#1E3A8A,#1D4ED8)' }}
           >
             <MapPin className="h-4 w-4" />
           </span>

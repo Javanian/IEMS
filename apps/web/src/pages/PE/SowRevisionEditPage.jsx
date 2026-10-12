@@ -827,7 +827,7 @@ export default function SowRevisionEditPage() {
 
       {showPartPicker && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-slate-950/40 px-4"
           onClick={() => setShowPartPicker(false)}
         >
           <div
@@ -858,7 +858,7 @@ export default function SowRevisionEditPage() {
 
       {showInfoPanel && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-slate-950/40 px-4"
           onClick={() => setShowInfoPanel(false)}
         >
           <div

@@ -119,7 +119,7 @@ function LockBadge({ project }) {
 function RevisionHistoryModal({ project, revisions, loading, onClose }) {
   if (!project) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-0 md:items-center md:px-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center backdrop-blur-sm bg-slate-950/30 px-0 md:items-center md:px-4">
       <div className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl md:max-w-lg md:rounded-2xl">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -185,7 +185,7 @@ function RevisionHistoryModal({ project, revisions, loading, onClose }) {
 function ForceCheckinModal({ project, reason, saving, onReasonChange, onClose, onConfirm }) {
   if (!project) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-0 md:items-center md:px-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center backdrop-blur-sm bg-slate-950/30 px-0 md:items-center md:px-4">
       <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl md:max-w-lg md:rounded-2xl">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -271,7 +271,7 @@ function RenameProjectModal({ project, name, saving, error, onNameChange, onClos
   if (!project) return null;
   const canSave = name.trim().length > 0 && !saving;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-0 md:items-center md:px-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center backdrop-blur-sm bg-slate-950/30 px-0 md:items-center md:px-4">
       <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl md:max-w-lg md:rounded-2xl">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -341,7 +341,7 @@ function DeleteProjectModal({ project, busy, error, onClose, onDelete, onForceDe
   if (!project) return null;
   const activeReservations = Number(project.active_reservation_count) || 0;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-0 md:items-center md:px-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center backdrop-blur-sm bg-slate-950/30 px-0 md:items-center md:px-4">
       <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl md:max-w-lg md:rounded-2xl">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -743,7 +743,7 @@ export default function MsProjectHubPage() {
             <div className="h-full overflow-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
-                  <tr style={{ background: '#e0f2fe' }}>
+                  <tr style={{ background: '#DBEAFE' }}>
                     <th className="px-3 py-2 text-left text-xs font-extrabold text-slate-700">
                       Project
                     </th>

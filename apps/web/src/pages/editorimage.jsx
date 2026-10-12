@@ -36,7 +36,7 @@ export default function EditorImage() {
             })
           }
           style={{
-            border: selected ? '2px dashed #0277b6' : '2px dashed transparent',
+            border: selected ? '2px dashed #2563EB' : '2px dashed transparent',
             boxSizing: 'border-box',
           }}
           onClick={() => setSelected(true)}

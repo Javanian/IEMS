@@ -55,7 +55,7 @@ function ForceCheckinModal({ project, reason, saving, onReasonChange, onClose, o
   if (!project) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-0 md:items-center md:px-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center backdrop-blur-sm bg-slate-950/30 px-0 md:items-center md:px-4">
       <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl md:max-w-lg md:rounded-2xl">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -311,7 +311,7 @@ export default function MsProjectAdminPage() {
               <div className="h-full overflow-auto">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 z-10">
-                    <tr style={{ background: '#e0f2fe' }}>
+                    <tr style={{ background: '#DBEAFE' }}>
                       <th className="px-3 py-2 text-left text-xs font-extrabold text-slate-700">
                         Project
                       </th>

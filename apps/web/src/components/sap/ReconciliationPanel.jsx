@@ -22,7 +22,7 @@ function getScrollParent(node) {
 const STATUS = {
   POSTED:  { label: 'Posted',  color: '#059669', text: '#047857', bg: '#ecfdf5', border: '#a7f3d0', Icon: CheckCircle2 },
   PENDING: { label: 'Pending', color: '#f59e0b', text: '#b45309', bg: '#fffbeb', border: '#fde68a', Icon: Clock },
-  POSTING: { label: 'Posting', color: '#0ea5e9', text: '#0369a1', bg: '#eff6ff', border: '#bfdbfe', Icon: Loader2 },
+  POSTING: { label: 'Posting', color: '#3B82F6', text: '#1D4ED8', bg: '#eff6ff', border: '#bfdbfe', Icon: Loader2 },
   FAILED:  { label: 'Failed',  color: '#ef4444', text: '#b91c1c', bg: '#fef2f2', border: '#fecaca', Icon: XCircle },
   SKIPPED: { label: 'Skipped', color: '#94a3b8', text: '#475569', bg: '#f8fafc', border: '#e2e8f0', Icon: XCircle },
 };
@@ -176,7 +176,7 @@ function StatusBadge({ status, size = 'sm' }) {
 function StepCard({ icon, label, hours, tone, children }) {
   const Icon = icon;
   const tones = {
-    blue:   { color: '#0369a1', bg: '#f0f9ff', border: '#bae6fd' },
+    blue:   { color: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE' },
     green:  { color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
     amber:  { color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
   };
@@ -217,7 +217,7 @@ function FilterToggle({ value, onChange }) {
 function OpsStatus({ ops }) {
   const map = {
     QUEUED:  { label: 'Queued',  color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-    RUNNING: { label: 'Running', color: '#0369a1', bg: '#eff6ff', border: '#bfdbfe' },
+    RUNNING: { label: 'Running', color: '#1D4ED8', bg: '#eff6ff', border: '#bfdbfe' },
     DONE:    { label: 'Done',    color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
     ERROR:   { label: 'Failed',  color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
   };
@@ -600,7 +600,7 @@ function ReconciliationPanel() {
           <div className="max-w-full overflow-x-auto">
             <table className="w-full text-xs" style={{ minWidth: 1480 }}>
               <thead>
-                <tr style={{ background: '#e0f2fe' }} className="text-left text-[10px] uppercase tracking-wide text-slate-600">
+                <tr style={{ background: '#DBEAFE' }} className="text-left text-[10px] uppercase tracking-wide text-slate-600">
                   {RECORD_COLS.map((c) => {
                     const I = c.icon;
                     return (
@@ -843,7 +843,7 @@ function ReconciliationPanel() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr style={{ background: '#e0f2fe' }} className="text-left text-[11px] uppercase tracking-wide text-slate-600">
+                      <tr style={{ background: '#DBEAFE' }} className="text-left text-[11px] uppercase tracking-wide text-slate-600">
                         <th className="px-4 py-2 font-semibold">Date</th>
                         <th className="px-3 py-2 text-right font-semibold">Machine hrs</th>
                         <th className="px-3 py-2 text-right font-semibold text-amber-700">Cut (max record)</th>
@@ -920,7 +920,7 @@ function ReconciliationPanel() {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[1040px] text-sm">
                     <thead>
-                      <tr style={{ background: '#e0f2fe' }} className="text-left text-[11px] uppercase tracking-wide text-slate-600">
+                      <tr style={{ background: '#DBEAFE' }} className="text-left text-[11px] uppercase tracking-wide text-slate-600">
                         <th className="px-3 py-2 font-semibold">Order</th>
                         <th className="px-3 py-2 font-semibold">Op</th>
                         <th className="px-3 py-2 font-semibold">Operation text</th>

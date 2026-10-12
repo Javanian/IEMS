@@ -13,7 +13,7 @@ function todayLocalISO(offsetDays = 0) {
   return new Date(d.getTime() - off).toISOString().slice(0, 10);
 }
 
-function Card({ title, subtitle, icon: Icon, accent = '#0369a1', children }) {
+function Card({ title, subtitle, icon: Icon, accent = '#1D4ED8', children }) {
   const IconComponent = Icon;
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
@@ -544,7 +544,7 @@ function EwsRosterConfigPage() {
         </div>
 
         <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
-          <Card title="Shift Composition Preview (7 days)" icon={Eye} accent="#0ea5e9">
+          <Card title="Shift Composition Preview (7 days)" icon={Eye} accent="#3B82F6">
             <button type="button" onClick={loadPreview} disabled={preview.loading}
               className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
               <Eye size={15} /> {preview.loading ? 'Loading…' : 'Load preview'}

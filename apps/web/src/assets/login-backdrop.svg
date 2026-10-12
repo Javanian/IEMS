@@ -9,9 +9,9 @@
       <path d="M160 0H0V160" fill="none" stroke="#1F3150" stroke-width="1.2"/>
     </pattern>
     <radialGradient id="glow" cx="72%" cy="38%" r="60%">
-      <stop offset="0" stop-color="#075985" stop-opacity="0.55"/>
-      <stop offset="0.55" stop-color="#0C4A6E" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#082F49" stop-opacity="0"/>
+      <stop offset="0" stop-color="#1E40AF" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#1E3A8A" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#172554" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#0B1220" stop-opacity="0"/>
@@ -60,14 +60,14 @@
   </g>
 
   <!-- Data flow from machines to the line above (ETL / SAP pipeline motif) -->
-  <g fill="none" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 10" opacity="0.85">
+  <g fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 10" opacity="0.85">
     <path d="M425 690V600H1030V520"/>
     <path d="M710 760V620H1030"/>
     <path d="M1030 700V520"/>
     <path d="M1370 700V600H1030"/>
     <path d="M1610 780V640H1370"/>
   </g>
-  <g fill="#0B1220" stroke="#38BDF8" stroke-width="2.5">
+  <g fill="#0B1220" stroke="#60A5FA" stroke-width="2.5">
     <circle cx="1030" cy="520" r="9"/>
     <circle cx="1030" cy="600" r="6"/>
     <circle cx="1370" cy="600" r="6"/>

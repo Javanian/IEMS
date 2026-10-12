@@ -261,7 +261,7 @@ const BayDetailCell = memo(function BayDetailCell({
   let stateStyle;
   if (dragOver) {
     stateClass = 'border-brand-700 ring-2 ring-brand-500';
-    stateStyle = { background: '#e0f2fe' };
+    stateStyle = { background: '#DBEAFE' };
   } else if (selected) {
     stateClass = 'border-brand-700 ring-2 ring-brand-200';
     stateStyle = { background: '#ffffff' };

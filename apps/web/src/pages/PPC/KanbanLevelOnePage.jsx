@@ -532,7 +532,7 @@ const KanbanCard = memo(function KanbanCard({ card, changed, onClick }) {
         y: 0,
         scale: 1,
         backgroundColor: changed ? '#ecfeff' : '#ffffff',
-        borderColor: changed ? '#38bdf8' : undefined,
+        borderColor: changed ? '#60A5FA' : undefined,
       }}
       exit={{ opacity: 0, y: 8, scale: 0.98 }}
       transition={{ duration: 0.28, ease: 'easeOut' }}
@@ -815,7 +815,7 @@ function KanbanCardDetailModal({ card, payload, loading, error, onClose }) {
     <AnimatePresence>
       {card && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-slate-950/50 p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

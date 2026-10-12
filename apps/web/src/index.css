@@ -4,20 +4,23 @@
 
 /* Design tokens (design-system/iems/MASTER.md). Channels only, so Tailwind can add alpha. */
 :root {
-  --brand-50: 240 249 255;
-  --brand-100: 224 242 254;
-  --brand-200: 186 230 253;
-  --brand-300: 125 211 252;
-  --brand-400: 56 189 248;
-  --brand-500: 14 165 233;
-  --brand-600: 2 119 182;
-  --brand-700: 3 105 161;
-  --brand-800: 7 89 133;
-  --brand-900: 12 74 110;
-  --brand-950: 8 47 73;
-  --canvas: 248 250 252;
+  /* Action blue (Tailwind blue scale). brand-600 #2563EB is the primary action color. */
+  --brand-50: 239 246 255;
+  --brand-100: 219 234 254;
+  --brand-200: 191 219 254;
+  --brand-300: 147 197 253;
+  --brand-400: 96 165 250;
+  --brand-500: 59 130 246;
+  --brand-600: 37 99 235;
+  --brand-700: 29 78 216;
+  --brand-800: 30 64 175;
+  --brand-900: 30 58 138;
+  --brand-950: 23 37 84;
+  --canvas: 244 246 250;
   --surface: 255 255 255;
   --ink: 15 23 42;
+  /* Chrome: deep navy used by the sidebar and the login brand panel. */
+  --chrome: 11 18 32;
 }
 
 @keyframes hm-fade {
@@ -44,6 +47,7 @@
     background: rgb(var(--canvas));
     color: rgb(var(--ink));
     font-family: theme('fontFamily.sans');
+    font-feature-settings: 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }

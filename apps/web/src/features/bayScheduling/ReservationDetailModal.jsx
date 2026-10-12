@@ -69,7 +69,7 @@ export default function ReservationDetailModal({ detail, onClose, onCancel, onEd
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-0 backdrop-blur-sm md:items-center md:px-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 px-0 backdrop-blur-sm md:items-center md:px-4"
       onClick={stableClose}
     >
       <div

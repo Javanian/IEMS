@@ -174,7 +174,7 @@ export const ModalShell = ({ title, subtitle, onClose, size = 'lg', children }) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm p-0 md:p-4"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-950/40 backdrop-blur-sm p-0 md:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

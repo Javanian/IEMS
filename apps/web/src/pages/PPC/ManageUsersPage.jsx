@@ -198,7 +198,7 @@ function UserEditDrawer({ user, apiBase, authHeaders, canManage, onClose, onSave
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div

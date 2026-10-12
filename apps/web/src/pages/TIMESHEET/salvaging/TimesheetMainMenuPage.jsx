@@ -21,7 +21,7 @@ const AvatarCircle = ({ name, className = 'w-10 h-10 text-base' }) => {
     <div
       className={`${className} rounded-full flex-shrink-0 flex items-center justify-center
                   font-extrabold text-white select-none`}
-      style={{ background: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 100%)' }}
+      style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%)' }}
     >
       {initial}
     </div>
@@ -31,7 +31,7 @@ const AvatarCircle = ({ name, className = 'w-10 h-10 text-base' }) => {
 const InfoField = ({ label, value, mono = false }) => (
   <div
     className="flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg border"
-    style={{ background: '#e0f2fe', borderColor: '#bae6fd' }}
+    style={{ background: '#DBEAFE', borderColor: '#BFDBFE' }}
   >
     <span className="text-[11px] font-semibold text-slate-500 leading-none">{label}</span>
     <div
@@ -332,22 +332,26 @@ const TimesheetMainMenuPage = () => {
   };
 
   const btnBase =
-    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-95 min-h-[44px]';
+    'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition-all duration-150 active:scale-95 min-h-[44px]';
   const btnOutline = `${btnBase} bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300`;
 
-  const actionBtn = `flex flex-col items-center justify-center gap-1 sm:gap-2
-    bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl text-sm
-    transition-all duration-150 hover:scale-105 active:scale-95 min-h-0`;
+  const actionBtn = (primary) => `group flex flex-col items-center justify-center gap-2 sm:gap-3
+    rounded-3xl text-sm sm:text-base font-semibold min-h-0 transition duration-200 active:scale-[0.98]
+    ${primary
+      ? 'bg-brand-600 text-white shadow-glow hover:bg-brand-700'
+      : 'bg-white text-slate-800 border border-slate-200/80 shadow-soft hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift'}`;
+  const actionIcon = (primary) => `flex items-center justify-center rounded-2xl h-12 w-12 sm:h-16 sm:w-16 transition-colors
+    ${primary ? 'bg-white/15 text-white' : 'bg-brand-50 text-brand-600 group-hover:bg-brand-100'}`;
 
-  const reworkCls = `flex items-center justify-center gap-1.5 text-sm font-bold text-white
-    bg-amber-500 hover:bg-amber-400 rounded-xl transition-all duration-150
-    active:scale-95 hover:scale-105`;
-  const finishCls = `flex items-center justify-center gap-1.5 text-sm font-bold text-white
-    bg-emerald-600 hover:bg-emerald-500 rounded-xl transition-all duration-150
-    active:scale-95 hover:scale-105`;
+  const reworkCls = `flex items-center justify-center gap-2 text-sm font-semibold text-amber-800
+    bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-2xl transition duration-200
+    active:scale-[0.98]`;
+  const finishCls = `flex items-center justify-center gap-2 text-sm font-semibold text-white
+    bg-emerald-600 hover:bg-emerald-700 rounded-2xl shadow-[0_8px_24px_-6px_rgb(5_150_105/0.45)] transition duration-200
+    active:scale-[0.98]`;
 
   const MENU_ITEMS = [
-    { icon: Play, label: 'Start', onClick: postdata },
+    { icon: Play, label: 'Start', onClick: postdata, primary: true },
     { icon: ClipboardList, label: 'Select Job', onClick: gotojob },
     { icon: Monitor, label: 'Select Machine', onClick: gotomesin },
     { icon: Settings, label: 'Process Control', onClick: gotoparameter },
@@ -356,11 +360,11 @@ const TimesheetMainMenuPage = () => {
   ];
 
   return (
-    <div className="h-dvh w-screen bg-slate-50 flex flex-col overflow-hidden">
+    <div className="h-dvh w-screen bg-canvas flex flex-col overflow-hidden">
       {}
       <header
         className="flex-shrink-0 flex items-center justify-between
-                         px-4 py-2.5 bg-white border-b border-slate-200 shadow-sm"
+                         px-4 py-2.5 bg-white/80 backdrop-blur-md border-b border-slate-200/80"
       >
         <button onClick={goHome} className={btnOutline}>
           Back
@@ -433,21 +437,21 @@ const TimesheetMainMenuPage = () => {
               <div className="flex flex-col justify-start gap-1.5">
                 <div
                   className="flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg border"
-                  style={{ background: '#e0f2fe', borderColor: '#bae6fd' }}
+                  style={{ background: '#DBEAFE', borderColor: '#BFDBFE' }}
                 >
                   <span className="text-[11px] font-semibold text-slate-500 leading-none">
                     Order
                   </span>
                   <div
                     className="text-[11px] font-bold font-mono leading-tight"
-                    style={{ color: '#0277b6' }}
+                    style={{ color: '#2563EB' }}
                   >
                     {userData.order}
                   </div>
                 </div>
                 <div
                   className="flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg border"
-                  style={{ background: '#e0f2fe', borderColor: '#bae6fd' }}
+                  style={{ background: '#DBEAFE', borderColor: '#BFDBFE' }}
                 >
                   <span className="text-[11px] font-semibold text-slate-500 leading-none">
                     Ident
@@ -461,7 +465,7 @@ const TimesheetMainMenuPage = () => {
               <div className="flex flex-col gap-2">
                 <div
                   className="flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg border"
-                  style={{ background: '#e0f2fe', borderColor: '#bae6fd' }}
+                  style={{ background: '#DBEAFE', borderColor: '#BFDBFE' }}
                 >
                   <span className="text-[11px] font-semibold text-slate-500 leading-none">
                     Work Center
@@ -472,7 +476,7 @@ const TimesheetMainMenuPage = () => {
                 </div>
                 <div
                   className="flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg border"
-                  style={{ background: '#e0f2fe', borderColor: '#bae6fd' }}
+                  style={{ background: '#DBEAFE', borderColor: '#BFDBFE' }}
                 >
                   <span className="text-[11px] font-semibold text-slate-500 leading-none">
                     Machine
@@ -508,9 +512,11 @@ const TimesheetMainMenuPage = () => {
 
         {}
         <section className="grid grid-cols-2 grid-rows-3 gap-3 min-h-0">
-          {MENU_ITEMS.map(({ icon: Icon, label, onClick }) => (
-            <button key={label} onClick={onClick} className={actionBtn}>
-              {React.createElement(Icon, { className: 'w-8 h-8 sm:w-10 sm:h-10' })}
+          {MENU_ITEMS.map(({ icon: Icon, label, onClick, primary }) => (
+            <button key={label} onClick={onClick} className={actionBtn(primary)}>
+              <span className={actionIcon(primary)}>
+                {React.createElement(Icon, { className: 'w-6 h-6 sm:w-8 sm:h-8', 'aria-hidden': true })}
+              </span>
               <span>{label}</span>
             </button>
           ))}
@@ -547,21 +553,21 @@ const TimesheetMainMenuPage = () => {
                 <div className="flex flex-col gap-3">
                   <div
                     className="flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg border"
-                    style={{ background: '#e0f2fe', borderColor: '#bae6fd' }}
+                    style={{ background: '#DBEAFE', borderColor: '#BFDBFE' }}
                   >
                     <span className="text-[11px] font-semibold text-slate-500 leading-none">
                       Order
                     </span>
                     <div
                       className="text-[11px] font-bold font-mono leading-tight"
-                      style={{ color: '#0277b6' }}
+                      style={{ color: '#2563EB' }}
                     >
                       {userData.order}
                     </div>
                   </div>
                   <div
                     className="flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg border"
-                    style={{ background: '#e0f2fe', borderColor: '#bae6fd' }}
+                    style={{ background: '#DBEAFE', borderColor: '#BFDBFE' }}
                   >
                     <span className="text-[11px] font-semibold text-slate-500 leading-none">
                       Ident
@@ -607,9 +613,11 @@ const TimesheetMainMenuPage = () => {
           className="flex-1 grid grid-cols-2 gap-3 overflow-hidden"
           style={{ gridTemplateRows: 'repeat(3, 1fr)' }}
         >
-          {MENU_ITEMS.map(({ icon: Icon, label, onClick }) => (
-            <button key={label} onClick={onClick} className={actionBtn}>
-              {React.createElement(Icon, { className: 'w-8 h-8 xl:w-10 xl:h-10' })}
+          {MENU_ITEMS.map(({ icon: Icon, label, onClick, primary }) => (
+            <button key={label} onClick={onClick} className={actionBtn(primary)}>
+              <span className={actionIcon(primary)}>
+                {React.createElement(Icon, { className: 'w-7 h-7 xl:w-8 xl:h-8', 'aria-hidden': true })}
+              </span>
               <span>{label}</span>
             </button>
           ))}

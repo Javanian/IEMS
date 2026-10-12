@@ -12,14 +12,14 @@ const Button = ({
   ...props
 }) => {
   const baseClasses =
-    'inline-flex items-center justify-center gap-1 font-semibold rounded-lg cursor-pointer transition-colors duration-150 relative text-center select-none active:scale-[0.98] disabled:active:scale-100';
+    'inline-flex items-center justify-center gap-1 font-semibold rounded-xl cursor-pointer transition duration-200 relative text-center select-none active:scale-[0.98] disabled:active:scale-100';
 
   const variantClasses = {
-    primary: 'border border-transparent bg-brand-700 text-white shadow-sm hover:bg-brand-800',
+    primary: 'border border-transparent bg-brand-600 text-white shadow-glow hover:bg-brand-700',
     success: 'border border-transparent bg-emerald-600 text-white shadow-sm hover:bg-emerald-700',
     danger: 'border border-transparent bg-red-600 text-white shadow-sm hover:bg-red-700',
     warning: 'border border-transparent bg-amber-500 text-slate-900 shadow-sm hover:bg-amber-600',
-    secondary: 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50',
+    secondary: 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50',
   };
 
   const sizeClasses = {

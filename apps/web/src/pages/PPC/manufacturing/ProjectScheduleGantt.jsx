@@ -25,7 +25,7 @@ const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'O
 
 const PROJECT_BAR = {
   checkedOut: { bg: 'linear-gradient(135deg,#fbbf24,#fcd34d)', fg: '#78350f' },
-  active: { bg: 'linear-gradient(135deg,#7dd3fc,#bae6fd)', fg: '#0c4a6e' },
+  active: { bg: 'linear-gradient(135deg,#93C5FD,#BFDBFE)', fg: '#1E3A8A' },
   draft: { bg: 'linear-gradient(135deg,#cbd5e1,#e2e8f0)', fg: '#334155' },
 };
 

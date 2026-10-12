@@ -256,7 +256,7 @@ const TimesheetListPage = () => {
           </colgroup>
 
           <thead className="sticky top-0 z-10">
-            <tr className="border-b border-slate-200" style={{ background: '#e0f2fe' }}>
+            <tr className="border-b border-slate-200" style={{ background: '#DBEAFE' }}>
               <th className={`${cellBase} text-center font-semibold text-slate-700`}>Order</th>
               <th className={`${cellBase} text-center font-semibold text-slate-700`}>Operation</th>
               <th className={`${cellBase} text-center font-semibold text-slate-700`}>Time</th>
@@ -288,7 +288,7 @@ const TimesheetListPage = () => {
                   >
                     {}
                     <td className={`${cellBase} text-center`}>
-                      <div className="font-semibold font-mono" style={{ color: '#0277b6' }}>
+                      <div className="font-semibold font-mono" style={{ color: '#2563EB' }}>
                         {item.order_no || '-'}
                       </div>
                       {item.crn_id && (
@@ -319,7 +319,7 @@ const TimesheetListPage = () => {
                               </span>
                               <div
                                 className="flex flex-col leading-tight"
-                                style={{ color: '#0369a1' }}
+                                style={{ color: '#1D4ED8' }}
                               >
                                 <span>{item.hour_checkin}</span>
                                 <span>{item.hour_checkout}</span>
@@ -331,7 +331,7 @@ const TimesheetListPage = () => {
                                 <span className="font-medium">
                                   {formatDateShort(item.date_checkin)}
                                 </span>
-                                <span className="ml-1" style={{ color: '#0369a1' }}>
+                                <span className="ml-1" style={{ color: '#1D4ED8' }}>
                                   {item.hour_checkin}
                                 </span>
                               </div>
@@ -339,7 +339,7 @@ const TimesheetListPage = () => {
                                 <span className="font-medium">
                                   {formatDateShort(item.date_checkout)}
                                 </span>
-                                <span className="ml-1" style={{ color: '#0369a1' }}>
+                                <span className="ml-1" style={{ color: '#1D4ED8' }}>
                                   {item.hour_checkout}
                                 </span>
                               </div>
@@ -351,7 +351,7 @@ const TimesheetListPage = () => {
                               <span className="font-medium text-slate-700">
                                 {formatDateShort(item.date_checkin)}
                               </span>
-                              <span style={{ color: '#0369a1' }}>{item.hour_checkin}</span>
+                              <span style={{ color: '#1D4ED8' }}>{item.hour_checkin}</span>
                             </div>
                             <ElapsedTimer longdateCheckin={item.longdate_checkin} />
                           </>

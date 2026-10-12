@@ -680,9 +680,9 @@ function StepBadge({ n, active, done }) {
                  flex-shrink-0 transition-all"
       style={
         done
-          ? { background: '#0277b6', color: '#fff' }
+          ? { background: '#2563EB', color: '#fff' }
           : active
-            ? { background: '#e0f2fe', color: '#0369a1', border: '1.5px solid #0ea5e9' }
+            ? { background: '#DBEAFE', color: '#1D4ED8', border: '1.5px solid #3B82F6' }
             : { background: '#f1f5f9', color: '#94a3b8' }
       }
     >
@@ -798,18 +798,18 @@ function PartPanel({ selected, onSelect }) {
       <div className="flex flex-col gap-2 py-1">
         <div
           className="flex items-start gap-2 px-3 py-2.5 rounded-xl border"
-          style={{ background: '#e0f2fe', borderColor: '#bae6fd' }}
+          style={{ background: '#DBEAFE', borderColor: '#BFDBFE' }}
         >
-          <Check size={13} style={{ color: '#0369a1' }} className="flex-shrink-0 mt-0.5" />
+          <Check size={13} style={{ color: '#1D4ED8' }} className="flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p
               className="text-xs font-bold leading-snug"
-              style={{ color: '#0c4a6e' }}
+              style={{ color: '#1E3A8A' }}
               title={selected.part_name}
             >
               {selected.part_name}
             </p>
-            <p className="text-[10px] font-mono mt-0.5" style={{ color: '#0369a1' }}>
+            <p className="text-[10px] font-mono mt-0.5" style={{ color: '#1D4ED8' }}>
               {selected.part_number}
               {selected.model ? ` · ${selected.model}` : ''}
             </p>
@@ -1748,7 +1748,7 @@ export function EditPanel({ editOps, onEdit, onDelete, onReorder, onAdd, wcData 
         <div className="overflow-x-auto">
           <table className="w-full text-xs min-w-[620px]">
             <thead>
-              <tr style={{ background: '#e0f2fe' }}>
+              <tr style={{ background: '#DBEAFE' }}>
                 <th className="w-8 px-2 py-2" aria-label="Drag" />
                 <th className="w-10 px-2 py-2 text-center font-semibold text-slate-600 whitespace-nowrap">
                   No.
@@ -1799,7 +1799,7 @@ export function EditPanel({ editOps, onEdit, onDelete, onReorder, onAdd, wcData 
                       ${isDragOver ? 'bg-brand-100/50' : 'hover:bg-slate-50'}
                     `}
                     style={{
-                      borderTop: isDragOver ? '2px solid #0277b6' : '1px solid #f1f5f9',
+                      borderTop: isDragOver ? '2px solid #2563EB' : '1px solid #f1f5f9',
                     }}
                   >
                     {}
@@ -2926,7 +2926,7 @@ export function OperationCardPreview({
                     })
                   }
                   style={{
-                    border: selected ? '2px dashed #0277b6' : '2px dashed transparent',
+                    border: selected ? '2px dashed #2563EB' : '2px dashed transparent',
                     boxSizing: 'border-box',
                   }}
                   onMouseDown={() => {
@@ -2973,7 +2973,7 @@ export function OperationCardPreview({
       {}
       {attachModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 backdrop-blur-sm"
           onClick={() => setAttachModal(null)}
         >
           <div
@@ -3937,7 +3937,7 @@ const SowCreatePage = () => {
                     <div className="mt-1 flex items-center gap-1.5 min-w-0">
                       <span
                         className="text-[10px] font-bold truncate"
-                        style={{ color: '#0c4a6e' }}
+                        style={{ color: '#1E3A8A' }}
                         title={selectedPart.part_name}
                       >
                         {selectedPart.part_name}
@@ -4110,7 +4110,7 @@ const SowCreatePage = () => {
       {}
       {showSaveModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-slate-950/40 px-4"
           onClick={() => setShowSaveModal(false)}
         >
           <div
@@ -4160,7 +4160,7 @@ const SowCreatePage = () => {
       {}
       {showInfoPanel && (
         <div
-          className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm px-0 md:px-4"
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-950/40 backdrop-blur-sm px-0 md:px-4"
           onClick={() => setShowInfoPanel(false)}
         >
           <div

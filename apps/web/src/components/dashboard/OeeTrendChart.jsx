@@ -48,7 +48,7 @@ function OeeTrendChart({ data, loading }) {
           type="monotone"
           dataKey="oee"
           name="OEE"
-          stroke="#0277b6"
+          stroke="#2563EB"
           strokeWidth={2.5}
           dot={false}
           activeDot={{ r: 4 }}
@@ -57,7 +57,7 @@ function OeeTrendChart({ data, loading }) {
           type="monotone"
           dataKey="availability"
           name="Availability"
-          stroke="#0369a1"
+          stroke="#1D4ED8"
           strokeWidth={1.5}
           dot={false}
           strokeDasharray="4 2"

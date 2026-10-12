@@ -66,7 +66,7 @@ export default function DashboardPage() {
           title="Active Orders"
           value={kpi ? kpi.active_orders.toLocaleString() : '—'}
           icon={Package}
-          color="#0277b6"
+          color="#2563EB"
           loading={kpiLoading}
         />
         <KpiCard
@@ -81,7 +81,7 @@ export default function DashboardPage() {
           value={kpi ? kpi.today_hours.toLocaleString() : '—'}
           unit="hrs"
           icon={Clock}
-          color="#0c4a6e"
+          color="#1E3A8A"
           loading={kpiLoading}
         />
         <KpiCard
@@ -89,7 +89,7 @@ export default function DashboardPage() {
           value={kpi ? kpi.avg_progress.toLocaleString() : '—'}
           unit="%"
           icon={TrendingUp}
-          color="#0369a1"
+          color="#1D4ED8"
           loading={kpiLoading}
         />
       </div>

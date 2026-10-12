@@ -363,7 +363,7 @@ function DraggableManpower({ person }) {
     >
       <span
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
-        style={{ background: 'linear-gradient(135deg,#0277b6,#0369a1)' }}
+        style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}
       >
         {initials || <User className="h-4 w-4" />}
       </span>

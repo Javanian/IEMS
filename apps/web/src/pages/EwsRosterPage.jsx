@@ -62,7 +62,7 @@ function StatTile({ label, value, tone = 'neutral' }) {
     neutral: { bg: '#f8fafc', border: '#e2e8f0', text: '#334155' },
     good: { bg: '#f0fdf4', border: '#bbf7d0', text: '#047857' },
     bad: { bg: '#fef2f2', border: '#fecaca', text: '#b91c1c' },
-    info: { bg: '#e0f2fe', border: '#bae6fd', text: '#0369a1' },
+    info: { bg: '#DBEAFE', border: '#BFDBFE', text: '#1D4ED8' },
   };
   const t = tones[tone] || tones.neutral;
   return (

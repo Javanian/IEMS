@@ -171,7 +171,7 @@ const UnproductiveMenuPage = () => {
                          active:scale-95 active:bg-brand-200
                          px-1.5 py-1 min-h-0 overflow-hidden"
             >
-              <div className="flex-shrink-0" style={{ color: '#0277b6' }}>
+              <div className="flex-shrink-0" style={{ color: '#2563EB' }}>
                 {UNPROD_ICONS[item.code]}
               </div>
               <span className="text-[9px] sm:text-[10px] font-bold text-slate-800 leading-tight text-center break-words w-full line-clamp-2">

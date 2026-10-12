@@ -21,7 +21,7 @@ const BUCKET_COLORS = {
   '41-60': '#a3e635',
   '61-80': '#34d399',
   '81-99': '#22d3ee',
-  100: '#0277b6',
+  100: '#2563EB',
   'N/A': '#cbd5e1',
 };
 
@@ -66,7 +66,7 @@ export default function ProgressHistogramChart() {
             />
             <Bar dataKey="count" radius={[3, 3, 0, 0]}>
               {data.map((entry) => (
-                <Cell key={entry.bucket} fill={BUCKET_COLORS[entry.bucket] || '#0277b6'} />
+                <Cell key={entry.bucket} fill={BUCKET_COLORS[entry.bucket] || '#2563EB'} />
               ))}
             </Bar>
           </BarChart>

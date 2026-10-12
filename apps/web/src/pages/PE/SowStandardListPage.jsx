@@ -269,7 +269,7 @@ function OperationFormModal({ mode, initial, componentId, onClose, onSaved }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center
-                    bg-black/30 backdrop-blur-sm p-0 md:p-4"
+                    bg-slate-950/30 backdrop-blur-sm p-0 md:p-4"
     >
       {}
       <div
@@ -940,7 +940,7 @@ function NnvaModal({ standardId, operationText, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-950/30 backdrop-blur-sm">
       <div className="bg-white w-full md:max-w-lg rounded-t-2xl md:rounded-2xl shadow-xl p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -1097,7 +1097,7 @@ function TemplateEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 backdrop-blur-sm p-0 md:p-4">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-950/30 backdrop-blur-sm p-0 md:p-4">
       <div className="bg-white w-full md:max-w-xl rounded-t-2xl md:rounded-2xl shadow-xl flex flex-col max-h-[90vh]">
         <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-800">
@@ -1337,7 +1337,7 @@ function ConfirmDeletePanel({
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 backdrop-blur-sm px-0 md:px-4">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-950/30 backdrop-blur-sm px-0 md:px-4">
       <div className="w-full md:max-w-md bg-white shadow-xl rounded-t-2xl md:rounded-2xl p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
@@ -1421,7 +1421,7 @@ function ComponentEditModal({ group, onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 backdrop-blur-sm p-0 md:p-4">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-950/30 backdrop-blur-sm p-0 md:p-4">
       <div className="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-xl flex flex-col max-h-[90vh]">
         <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-800">Edit Komponen</h2>
@@ -1802,7 +1802,7 @@ function ComponentGroup({ group, onDeleted, onUpdated }) {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr style={{ background: '#e0f2fe' }}>
+                    <tr style={{ background: '#DBEAFE' }}>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-slate-700 whitespace-nowrap">
                         Op No.
                       </th>
@@ -2124,7 +2124,7 @@ const SowStandardListPage = () => {
                              transition-all active:scale-95"
                   style={
                     p === page
-                      ? { background: '#0277b6', color: '#fff', border: 'none' }
+                      ? { background: '#2563EB', color: '#fff', border: 'none' }
                       : { background: '#fff', border: '1px solid #e2e8f0', color: '#475569' }
                   }
                 >

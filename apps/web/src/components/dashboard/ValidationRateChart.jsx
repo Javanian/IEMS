@@ -86,9 +86,9 @@ export default function ValidationRateChart({ workcenter = 'all' }) {
                   key={entry.workcenter}
                   fill={
                     entry.pass_rate >= 80
-                      ? '#0277b6'
+                      ? '#2563EB'
                       : entry.pass_rate >= 50
-                        ? '#0ea5e9'
+                        ? '#3B82F6'
                         : '#f87171'
                   }
                 />

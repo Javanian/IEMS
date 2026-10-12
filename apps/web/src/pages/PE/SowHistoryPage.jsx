@@ -1120,7 +1120,7 @@ export default function SowHistoryPage() {
                 {selectedOrder && !detailLoading && (
                   <div
                     className="flex-shrink-0 border-b border-slate-200 px-4 py-2"
-                    style={{ background: '#e0f2fe' }}
+                    style={{ background: '#DBEAFE' }}
                   >
                     <div className="flex items-start gap-2">
                       <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-700" />

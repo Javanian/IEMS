@@ -503,7 +503,7 @@ export default function ManufacturingSelectJobPage() {
           </colgroup>
 
           <thead className="sticky top-0 z-10">
-            <tr className="border-b-2" style={{ background: '#e0f2fe', borderBottomColor: '#bae6fd' }}>
+            <tr className="border-b-2" style={{ background: '#DBEAFE', borderBottomColor: '#BFDBFE' }}>
               <th className={`${cellBase} text-center font-semibold text-slate-700`}>Order</th>
               <th className={`${cellBase} text-left font-semibold text-slate-700`}>Task</th>
               <th className={`${cellBase} text-center font-semibold text-slate-700`}>Operation</th>
@@ -540,7 +540,7 @@ export default function ManufacturingSelectJobPage() {
                     <tr
                       onClick={() => toggleProject(project)}
                       className="cursor-pointer border-b border-slate-200 hover:bg-brand-100"
-                      style={{ background: '#e0f2fe' }}
+                      style={{ background: '#DBEAFE' }}
                     >
                       <td colSpan={7} className="px-3 py-1.5 text-[11px] font-extrabold">
                         <span className="inline-flex items-center gap-1.5">
@@ -563,7 +563,7 @@ export default function ManufacturingSelectJobPage() {
                           <tr
                             onClick={() => toggleUnit(unitKey)}
                             className="cursor-pointer border-b border-slate-200 hover:bg-brand-50"
-                            style={{ background: '#e0f2fe' }}
+                            style={{ background: '#DBEAFE' }}
                           >
                             <td colSpan={7} className="px-6 py-1 text-[11px] font-extrabold">
                               <span className="inline-flex items-center gap-1.5">
@@ -634,7 +634,7 @@ export default function ManufacturingSelectJobPage() {
       </div>
 
       {deviceModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 px-0 md:items-center md:px-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center backdrop-blur-sm bg-slate-950/30 px-0 md:items-center md:px-4">
           {deviceModal === 'nfc' ? (
             <form
               onSubmit={submitNfc}

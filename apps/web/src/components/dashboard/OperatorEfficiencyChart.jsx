@@ -99,10 +99,10 @@ export default function OperatorEfficiencyChart({ from, to, workcenter = 'all' }
                   key={entry.full_name}
                   fill={
                     entry.efficiency_pct >= 100
-                      ? '#0277b6'
+                      ? '#2563EB'
                       : entry.efficiency_pct >= 70
-                        ? '#0ea5e9'
-                        : '#bae6fd'
+                        ? '#3B82F6'
+                        : '#BFDBFE'
                   }
                 />
               ))}

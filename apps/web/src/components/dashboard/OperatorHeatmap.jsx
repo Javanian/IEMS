@@ -5,9 +5,9 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 function interpolateColor(value, max) {
   if (!max || value === 0) return '#f1f5f9';
   const ratio = value / max;
-  if (ratio < 0.33) return '#e0f2fe';
-  if (ratio < 0.66) return '#0277b6';
-  return '#082f49';
+  if (ratio < 0.33) return '#DBEAFE';
+  if (ratio < 0.66) return '#2563EB';
+  return '#172554';
 }
 
 function ChartSkeleton() {
@@ -98,7 +98,7 @@ export default function OperatorHeatmap({ days = 30 }) {
           </table>
           <div className="flex items-center gap-2 mt-3 text-xs text-slate-400">
             <span>Low</span>
-            {['#f1f5f9', '#e0f2fe', '#0277b6', '#082f49'].map((c) => (
+            {['#f1f5f9', '#DBEAFE', '#2563EB', '#172554'].map((c) => (
               <div key={c} className="w-4 h-4 rounded-sm" style={{ backgroundColor: c }} />
             ))}
             <span>High</span>

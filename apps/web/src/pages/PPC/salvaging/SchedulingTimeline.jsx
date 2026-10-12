@@ -55,7 +55,7 @@ const STATUS_LABEL = {
 const OT_STYLE = { bg: '#f59e0b', text: '#ffffff' };
 
 const ORDER_COLORS = [
-  '#0369a1',
+  '#1D4ED8',
   '#2a9d8f',
   '#4059ad',
   '#3d8361',
@@ -848,7 +848,7 @@ function SchedulingTimeline({ machines = [], shifts = [] }) {
                       className="flex w-full items-center gap-1.5 border-b border-slate-200 px-2 text-left text-white hover:brightness-95"
                       style={{
                         height: MACHINE_H,
-                        background: 'linear-gradient(135deg,#0c4a6e,#0369a1)',
+                        background: 'linear-gradient(135deg,#1E3A8A,#1D4ED8)',
                       }}
                     >
                       <ChevronDown
@@ -1038,7 +1038,7 @@ function SchedulingTimeline({ machines = [], shifts = [] }) {
           {activeDrag && (
             <div
               className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-bold text-white shadow-xl"
-              style={{ background: activeDrag.color || '#0369a1' }}
+              style={{ background: activeDrag.color || '#1D4ED8' }}
             >
               Op {activeDrag.operation_no} · {activeDrag.order_no} · {formatHours(activeDrag.hours)}
               h
@@ -1086,7 +1086,7 @@ function Legend({ swatch, text }) {
 
 function DetailPanel({ detail, saving, onClose, onReorder }) {
   const isOt = detail.kind === 'overtime';
-  const headBg = isOt ? '#d97706' : detail.color || '#0369a1';
+  const headBg = isOt ? '#d97706' : detail.color || '#1D4ED8';
   return (
     <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-slate-200 bg-white shadow-xl">
       <div

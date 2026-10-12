@@ -116,7 +116,7 @@ const SowManagementPage = () => {
                   style={
                     isActive
                       ? {
-                          background: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 100%)',
+                          background: 'linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%)',
                         }
                       : {}
                   }

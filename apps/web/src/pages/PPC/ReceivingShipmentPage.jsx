@@ -234,7 +234,7 @@ function ComponentPickerModal({ open, onClose, onSelect, initialItems = [] }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/35 px-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-slate-950/35 px-4"
       onClick={onClose}
     >
       <div
@@ -407,7 +407,7 @@ function CustomerPickerModal({ open, onClose, onSelect, onCreated }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/35 px-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-slate-950/35 px-4"
       onClick={onClose}
     >
       <div
@@ -601,7 +601,7 @@ function CategoryPickerModal({ open, onClose, onSelect, onCreated, initialItems 
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/35 px-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-slate-950/35 px-4"
       onClick={onClose}
     >
       <div
@@ -1257,12 +1257,12 @@ function ReceivingShipmentPage() {
               <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm">
                 <thead
                   className="sticky top-0 z-10 text-[11px] uppercase tracking-wide text-slate-600 shadow-[0_1px_0_0_rgba(148,163,184,0.25)]"
-                  style={{ background: '#e0f2fe' }}
+                  style={{ background: '#DBEAFE' }}
                 >
                   <tr>
                     <th
                       className="sticky left-0 z-20 px-4 py-3 font-bold"
-                      style={{ background: '#e0f2fe' }}
+                      style={{ background: '#DBEAFE' }}
                     >
                       CRN-ID
                     </th>
@@ -1400,7 +1400,7 @@ function ReceivingShipmentPage() {
             <div className="fixed inset-0 z-30">
               <button
                 type="button"
-                className="absolute inset-0 bg-slate-950/25"
+                className="absolute inset-0 backdrop-blur-sm bg-slate-950/25"
                 onClick={() => setDetailOpen(false)}
                 aria-label="Close detail panel"
               />
@@ -1930,7 +1930,7 @@ function ReceivingShipmentPage() {
                         <table className="w-full min-w-[1320px] border-separate border-spacing-0 text-left text-sm">
                           <thead
                             className="text-[11px] uppercase tracking-wide text-slate-600"
-                            style={{ background: '#e0f2fe' }}
+                            style={{ background: '#DBEAFE' }}
                           >
                             <tr>
                               <th className="px-3 py-3">Level</th>

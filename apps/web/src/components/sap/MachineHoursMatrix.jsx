@@ -16,7 +16,7 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
-const HEAT = ['#eef6fb', '#e0f2fe', '#bae6fd', '#0ea5e9', '#0369a1', '#0c4a6e'];
+const HEAT = ['#eef6fb', '#DBEAFE', '#BFDBFE', '#3B82F6', '#1D4ED8', '#1E3A8A'];
 
 const SEG = { posted: '#059669', eligible: '#d97706', ineligible: '#94a3b8' };
 
@@ -339,7 +339,7 @@ function DrillPanel({ sel, cell, onClose, onChanged }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex justify-end bg-slate-950/30 backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div

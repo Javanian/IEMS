@@ -564,7 +564,7 @@ function NyangkutSheet({ target, busy, onSubmit, onClose }) {
   const op = target.op;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-[2px] md:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 backdrop-blur-[2px] md:items-center"
       onClick={onClose}
     >
       <div

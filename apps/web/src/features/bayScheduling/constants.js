@@ -329,7 +329,7 @@ export function isUnknownOrder(schedule, knownOrderKeys) {
   return !hasText(schedule.part_name) && !hasText(schedule.customer);
 }
 
-const AREA_DOTS = ['#bae6fd', '#38bdf8', '#0ea5e9'];
+const AREA_DOTS = ['#BFDBFE', '#60A5FA', '#3B82F6'];
 
 export function areaDot(code) {
   const text = String(code || '');

@@ -32,6 +32,7 @@ import sapLogo from '../assets/sap.svg';
 import EwsControlTower from '../components/ews/EwsControlTower';
 import { usePermissions, routeToFeature, getRole, authHeaders } from '../rbac';
 import { sidebarItems, getHiddenHubMenus } from '../config/hubSidebarItems';
+import brandLogo from '../assets/brand-logo.svg';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 const SAP_LINKS = {
@@ -116,7 +117,7 @@ function DashboardCard({ children, className = '', style }) {
   return (
     <section
       style={style}
-      className={`rounded-lg border border-slate-300 bg-white shadow-sm ${className}`}
+      className={`rounded-2xl border border-slate-200/80 bg-white shadow-soft ${className}`}
     >
       {children}
     </section>
@@ -157,7 +158,7 @@ function StatCard({
   helper,
   icon,
   tone,
-  accent = '#0277b6',
+  accent = '#2563EB',
   delta,
   deltaLabel = '',
   index = 0,
@@ -173,19 +174,20 @@ function StatCard({
 
   return (
     <DashboardCard
-      className="hub-card group relative overflow-hidden p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60"
+      className="hub-card group relative overflow-hidden p-5 transition duration-300 hover:-translate-y-0.5 hover:shadow-lift"
       style={{ animationDelay: `${index * 70}ms` }}
     >
       {}
       <span
-        className="absolute inset-x-0 top-0 h-[3px]"
-        style={{ background: `linear-gradient(90deg, ${accent}, ${accent}22)` }}
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-[0.08] blur-2xl transition-opacity duration-300 group-hover:opacity-20"
+        style={{ background: accent }}
       />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{title}</p>
-          <div className="mt-1.5 flex items-center gap-3">
-            <p className="text-[26px] font-extrabold leading-none tracking-tight tabular-nums text-slate-950">
+          <p className="text-xs font-medium text-slate-500">{title}</p>
+          <div className="mt-2 flex items-center gap-3">
+            <p className="text-[28px] font-bold leading-none tracking-tight tabular-nums text-slate-950">
               {formatNumber(animated)}
               {suffix}
             </p>
@@ -206,7 +208,7 @@ function StatCard({
           </div>
         </div>
         <div
-          className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${tone} transition-transform duration-300 group-hover:scale-110`}
+          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-slate-900/5 ${tone} transition-transform duration-300 group-hover:scale-105`}
         >
           {React.createElement(IconComponent, { size: 18 })}
         </div>
@@ -259,7 +261,7 @@ function InsightStrip({ items }) {
           <div
             key={item.text}
             style={{ animationDelay: `${index * 60}ms` }}
-            className={`hub-card flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs font-bold ${toneMap[item.tone] || toneMap.emerald}`}
+            className={`hub-card flex items-start gap-2 rounded-xl border px-3.5 py-3 text-xs font-semibold ${toneMap[item.tone] || toneMap.emerald}`}
           >
             <Ico size={15} className="mt-0.5 flex-shrink-0" />
             <span className="leading-snug">{item.text}</span>
@@ -295,30 +297,26 @@ function Sidebar({ onNavigate }) {
     return [...map.entries()];
   }, [items]);
   return (
-    <aside className="border-b border-slate-300 bg-white lg:sticky lg:top-0 lg:h-dvh lg:w-[clamp(180px,16vw,244px)] lg:flex-shrink-0 lg:border-b-0 lg:border-r">
+    <aside className="bg-chrome text-slate-300 lg:sticky lg:top-0 lg:h-dvh lg:w-[clamp(200px,16vw,256px)] lg:flex-shrink-0">
       <div className="flex h-full min-h-0 flex-col">
-        <div className="border-b border-slate-200 px-4 py-3 lg:px-3 lg:py-2">
+        <div className="border-b border-white/5 px-4 py-4">
           <button
             type="button"
             onClick={() => onNavigate('/operations-hub')}
-            className="flex w-full items-center gap-3 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-brand-500 lg:gap-2"
+            className="flex w-full items-center gap-3 rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
           >
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm lg:h-8 lg:w-8">
-              <Factory size={18} />
-            </div>
+            <img src={brandLogo} alt="" className="h-9 w-9 flex-shrink-0 rounded-xl shadow-glow" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-extrabold text-slate-900 lg:text-xs">IEMS</p>
-              <p className="truncate text-xs font-medium text-slate-500 lg:text-[10px]">
-                Operations
-              </p>
+              <p className="truncate text-sm font-bold tracking-tight text-white">IEMS</p>
+              <p className="truncate text-xs font-medium text-slate-400">Operations</p>
             </div>
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-3 lg:min-h-0 lg:space-y-0.5 lg:overflow-y-auto lg:px-2 lg:py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [@media(max-height:720px)]:py-1">
+        <nav className="flex-1 space-y-1 px-3 py-3 lg:min-h-0 lg:space-y-0.5 lg:overflow-y-auto lg:py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [@media(max-height:720px)]:py-1">
           {groups.map(([group, groupItems], groupIndex) => (
-            <div key={group} className={groupIndex === 0 ? '' : 'border-t border-slate-200'}>
-              <p className="px-2 pb-1 pt-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 lg:px-2 lg:pt-2">
+            <div key={group} className={groupIndex === 0 ? '' : 'mt-2'}>
+              <p className="px-3 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                 {group}
               </p>
               {groupItems.map((item) => (
@@ -326,9 +324,9 @@ function Sidebar({ onNavigate }) {
                   key={item.path}
                   type="button"
                   onClick={() => onNavigate(item.path)}
-                  className="flex min-h-[42px] w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 lg:min-h-[34px] lg:gap-2 lg:px-2 lg:py-1 lg:text-xs [@media(max-height:720px)]:min-h-[30px] [@media(max-height:720px)]:py-0.5"
+                  className="group/nav flex min-h-[42px] w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 lg:min-h-[36px] lg:gap-2.5 lg:py-1.5 lg:text-[13px] [@media(max-height:720px)]:min-h-[30px] [@media(max-height:720px)]:py-0.5"
                 >
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-slate-100 text-brand-700 lg:h-7 lg:w-7 [@media(max-height:720px)]:h-6 [@media(max-height:720px)]:w-6">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors group-hover/nav:text-brand-300 lg:h-7 lg:w-7 [@media(max-height:720px)]:h-6 [@media(max-height:720px)]:w-6">
                     <item.icon className="h-[18px] w-[18px] lg:h-4 lg:w-4" />
                   </span>
                   <span className="truncate">{item.title}</span>
@@ -521,7 +519,7 @@ function ChangePasswordPanel({ user, onClose }) {
   );
 }
 
-const UTIL_COLORS = ['#0277b6', '#38bdf8', '#f59e0b', '#94a3b8', '#e24b4a', '#7c3aed'];
+const UTIL_COLORS = ['#2563EB', '#60A5FA', '#f59e0b', '#94a3b8', '#e24b4a', '#7c3aed'];
 
 function InfoTile({ label, value, sub, tone = 'neutral' }) {
   const map = {
@@ -546,7 +544,7 @@ function BarList({
   labelOf,
   subOf,
   valueFmt,
-  color = '#0277b6',
+  color = '#2563EB',
   empty = 'No data',
 }) {
   if (!items?.length) {
@@ -625,8 +623,8 @@ function MachineActivityChart({ data }) {
           <ComposedChart data={rows} margin={{ top: 12, right: 6, left: -10, bottom: 0 }}>
             <defs>
               <linearGradient id="hubProd" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#0277b6" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#0277b6" stopOpacity={0.04} />
+                <stop offset="0%" stopColor="#2563EB" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#2563EB" stopOpacity={0.04} />
               </linearGradient>
               <linearGradient id="hubSup" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.28} />
@@ -664,7 +662,7 @@ function MachineActivityChart({ data }) {
               type="monotone"
               dataKey="productive_hours"
               stackId="1"
-              stroke="#0277b6"
+              stroke="#2563EB"
               strokeWidth={2}
               fill="url(#hubProd)"
             />
@@ -816,7 +814,7 @@ function LaborByWorkcenter({ items }) {
                     />
                     <div
                       className="h-full"
-                      style={{ width: `${100 - prodPct}%`, background: '#0277b6' }}
+                      style={{ width: `${100 - prodPct}%`, background: '#2563EB' }}
                     />
                   </div>
                 </div>
@@ -885,7 +883,7 @@ function WorkcenterWorkload({ items }) {
           subOf={(r) =>
             `${formatNumber(r.operation_count)} operasi · ${formatNumber(r.value)}% avg progress`
           }
-          color="#0369a1"
+          color="#1D4ED8"
           empty="No workload data"
         />
       </div>
@@ -1062,7 +1060,7 @@ function OperationsHubPage() {
         helper: `of ${formatNumber(kpi.total_orders)} total orders`,
         icon: Factory,
         tone: 'bg-brand-50 text-brand-700',
-        accent: '#0277b6',
+        accent: '#2563EB',
         progress: activePct,
 
         chips: [
@@ -1211,11 +1209,11 @@ function OperationsHubPage() {
       <Sidebar onNavigate={navigate} />
 
       <main className="min-w-0 flex-1">
-        <header className="sticky top-0 z-10 border-b border-slate-300 bg-white/90 backdrop-blur">
+        <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/75 backdrop-blur-md">
           <div className="flex flex-col gap-3 px-4 py-3 md:px-6 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <h1 className="text-xl font-extrabold text-slate-950">Operations Hub</h1>
-              <p className="mt-0.5 text-xs font-semibold text-slate-500">
+              <h1 className="text-xl font-bold tracking-tight text-slate-950">Operations Hub</h1>
+              <p className="mt-0.5 text-xs font-medium tabular-nums text-slate-500">
                 {formatTodayClock(currentTime)}
               </p>
             </div>
@@ -1223,7 +1221,7 @@ function OperationsHubPage() {
               <button
                 type="button"
                 onClick={handleOpenSap}
-                className="flex h-[34px] w-[52px] items-center justify-center rounded-md border border-slate-200 bg-white transition hover:bg-slate-50"
+                className="flex h-[34px] w-[52px] items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50"
                 title={`Open SAP ${sapEnv}`}
                 aria-label={`Open SAP ${sapEnv}`}
               >
@@ -1253,20 +1251,24 @@ function OperationsHubPage() {
                 <span className="relative z-10 w-full text-center">{sapEnv}</span>
               </button>
               <span
-                className={`rounded-md border px-2.5 py-2 text-xs font-bold ${
+                className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-full border px-3 text-xs font-semibold ${
                   kpiStatus === 'error'
                     ? 'border-red-200 bg-red-50 text-red-700'
                     : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                 }`}
               >
+                <span
+                  aria-hidden="true"
+                  className={`h-1.5 w-1.5 rounded-full ${kpiStatus === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`}
+                />
                 {statusLabel}
               </span>
               {isAdmin && (
                 <button
                   type="button"
                   onClick={handleToggleAnnouncements}
-                  className={`flex min-h-[34px] items-center gap-1.5 rounded-lg px-3 text-xs font-extrabold text-white transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-                    announcing ? 'bg-red-600 hover:bg-red-500' : 'bg-brand-700 hover:bg-brand-900'
+                  className={`flex min-h-[34px] items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold text-white transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+                    announcing ? 'bg-red-600 hover:bg-red-500' : 'bg-brand-600 shadow-glow hover:bg-brand-700'
                   }`}
                   title={
                     announcing
@@ -1283,7 +1285,7 @@ function OperationsHubPage() {
                   )}
                 </button>
               )}
-              <span className="inline-flex min-h-[34px] items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-700 shadow-sm">
+              <span className="inline-flex min-h-[34px] items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-3 text-xs font-semibold text-slate-700 shadow-sm">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-50 text-brand-700">
                   <Users size={14} />
                 </span>
@@ -1301,7 +1303,7 @@ function OperationsHubPage() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex min-h-[34px] items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-xs font-extrabold text-red-600 shadow-sm transition hover:bg-red-50"
+                className="flex min-h-[34px] items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                 title="Log out"
               >
                 <LogOut size={15} /> Log Out
@@ -1326,8 +1328,8 @@ function OperationsHubPage() {
           `}
         </style>
 
-        <div className="space-y-4 px-4 py-4 md:px-6">
-          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <div className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 md:px-8 md:py-6">
+          <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             {summaryCards.map((card, index) => (
               <StatCard key={card.title} index={index} {...card} />
             ))}
@@ -1339,7 +1341,7 @@ function OperationsHubPage() {
 
           <DashboardCard className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-sm font-extrabold text-slate-900">Order Progress</h2>
+              <h2 className="text-base font-bold tracking-tight text-slate-900">Order Progress</h2>
               <p className="mt-1 text-xs font-semibold text-slate-500">
                 Avg progress {formatNumber(kpi.avg_progress)}% · {formatNumber(kpi.active_orders)}{' '}
                 active · {formatNumber(kpi.teco_orders)} teco
@@ -1348,7 +1350,7 @@ function OperationsHubPage() {
             <button
               type="button"
               onClick={handleViewOrderProgress}
-              className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-xs font-extrabold text-white transition hover:bg-brand-700"
+              className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white shadow-glow transition hover:bg-brand-700"
             >
               <BarChart2 size={16} />
               Open Progress

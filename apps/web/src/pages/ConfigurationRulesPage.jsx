@@ -166,7 +166,7 @@ function MaxRecordTypeRow({ name, code, category, value, hasValue, defaultValue,
   );
 }
 
-function SectionCard({ icon: Icon, title, subtitle, children, accent = '#0369a1' }) {
+function SectionCard({ icon: Icon, title, subtitle, children, accent = '#1D4ED8' }) {
   const IconComponent = Icon;
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-400/60 bg-white shadow-sm">

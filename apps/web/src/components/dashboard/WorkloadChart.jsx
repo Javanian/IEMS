@@ -93,13 +93,13 @@ export default function WorkloadChart() {
             />
             <Bar
               dataKey="total_planhours"
-              fill="#e0f2fe"
+              fill="#DBEAFE"
               radius={[0, 3, 3, 0]}
               name="total_planhours"
             />
             <Bar
               dataKey="total_actual_hours"
-              fill="#0277b6"
+              fill="#2563EB"
               radius={[0, 3, 3, 0]}
               name="total_actual_hours"
             />

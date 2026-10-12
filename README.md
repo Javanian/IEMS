@@ -21,6 +21,16 @@ I designed and built it alone as the company's only internal developer: architec
 | Process control and SPC | Process parameters recorded per job, I-MR control charts with Nelson rules 1 to 3, Cp and Cpk against optional specification limits |
 | Dashboards | Active orders, TECO, machine productive time, pending validation, OEE and OLE |
 
+## Screenshots
+
+Captured from a local run with sample data.
+
+| Sign-in | Operator kiosk (timesheet) |
+| --- | --- |
+| ![Split-screen sign-in with the IEMS brand panel](docs/screenshots/login.png) | ![Timesheet kiosk with a primary Start tile and secondary action tiles](docs/screenshots/timesheet-kiosk.png) |
+| **SAP posting log** | **SPC dashboard** |
+| ![SAP posting queue with status totals and bundles that need action](docs/screenshots/sap-posting-log.png) | ![I-MR chart with out-of-control points flagged by Nelson rule 2](docs/screenshots/spc-dashboard.png) |
+
 ## Architecture
 
 ```mermaid
@@ -85,13 +95,11 @@ docker-compose.yml    Production stack
 - Voice alerts are generated locally with Piper, so the early-warning system does not depend on a cloud TTS service.
 - The SPC page estimates sigma from the average moving range rather than the overall standard deviation, so control limits stay tight when the process drifts, which is when the chart has to react.
 
-![SPC dashboard with I-MR chart and out-of-control points (sample data)](docs/screenshots/spc-dashboard.png)
-
 ## Tech stack
 
 | Layer | Technologies |
 | --- | --- |
-| Frontend | React 19, Vite 7, Tailwind CSS 3 with design tokens, Fira Sans and Fira Code bundled locally, React Router, ECharts, Recharts, dnd-kit, vite-plugin-pwa |
+| Frontend | React 19, Vite 7, Tailwind CSS 3 with design tokens, Plus Jakarta Sans and Fira Code bundled locally, React Router, ECharts, Recharts, dnd-kit, vite-plugin-pwa |
 | Backend | Node.js 18+, Express 4, FastAPI |
 | Data | PostgreSQL 15, PgBouncer, SQL Server (ETL source) |
 | Messaging | Apache Kafka (KRaft), confluent-kafka (librdkafka) with idempotent producers, compacted topics, dead-letter topics |

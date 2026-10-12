@@ -42,7 +42,7 @@ function LeanStackedBar({ data, loading }) {
         <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} unit=" h" />
         <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
         <Legend wrapperStyle={{ fontSize: 11 }} />
-        <Bar dataKey="VA" stackId="a" fill="#0277b6" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="VA" stackId="a" fill="#2563EB" radius={[4, 4, 0, 0]} />
         <Bar dataKey="NNVA / NVA" stackId="a" fill="#f87171" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>

@@ -228,7 +228,7 @@ const SelectMachinePage = () => {
                     style={
                       isOT
                         ? { background: '#fef3c7', borderBottom: '1px solid #fde68a' }
-                        : { background: '#e0f2fe', borderBottom: '1px solid #bae6fd' }
+                        : { background: '#DBEAFE', borderBottom: '1px solid #BFDBFE' }
                     }
                   >
                     <span className="text-sm font-bold text-slate-800 truncate pr-2">
@@ -257,7 +257,7 @@ const SelectMachinePage = () => {
                       <span className="w-[70px] flex-shrink-0 font-medium text-slate-500">
                         WC Code
                       </span>
-                      <span className="font-bold" style={{ color: isOT ? '#d97706' : '#0277b6' }}>
+                      <span className="font-bold" style={{ color: isOT ? '#d97706' : '#2563EB' }}>
                         : {workcenterText || '-'}
                       </span>
                     </div>

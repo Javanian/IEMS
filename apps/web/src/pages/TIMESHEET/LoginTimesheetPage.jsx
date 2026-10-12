@@ -44,7 +44,7 @@ const UnprodPanel = ({ panelRef, onSelect }) => {
     active:bg-slate-100 transition-all duration-150`;
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 backdrop-blur-sm bg-slate-950/40 z-50 flex items-center justify-center p-4">
       <div
         ref={panelRef}
         className="bg-white rounded-2xl shadow-xl overflow-hidden w-full max-w-md max-h-[90vh] flex flex-col"
@@ -52,7 +52,7 @@ const UnprodPanel = ({ panelRef, onSelect }) => {
         {/* Panel Header */}
         <div
           className="px-4 py-3 flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%)' }}
         >
           <h3 className="text-sm font-bold text-white text-center">Mode Unprod</h3>
         </div>
@@ -655,7 +655,7 @@ const LoginTimesheetPage = () => {
         <div className="text-center portrait:mb-5 landscape:mb-3">
           <span
             className="font-mono portrait:text-6xl landscape:text-8xl font-bold tracking-widest tabular-nums"
-            style={{ color: '#0ea5e9', WebkitTextStroke: '2px #0277b6' }}
+            style={{ color: '#3B82F6', WebkitTextStroke: '2px #2563EB' }}
           >
             {currentTime}
           </span>

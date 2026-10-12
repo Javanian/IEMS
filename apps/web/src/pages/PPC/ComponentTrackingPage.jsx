@@ -274,7 +274,7 @@ function MachineDetailModal({ machine, detail, loading, onClose }) {
     <AnimatePresence>
       {machine && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-slate-950/60 p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

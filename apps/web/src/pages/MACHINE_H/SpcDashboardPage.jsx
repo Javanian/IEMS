@@ -56,7 +56,7 @@ function SignalDot({ cx, cy, payload }) {
   if (cx == null || cy == null) return null;
   const bad = payload?.outOfControl;
   return (
-    <circle cx={cx} cy={cy} r={bad ? 4.5 : 2.5} fill={bad ? '#dc2626' : '#0369a1'} stroke="#fff" strokeWidth={bad ? 1.5 : 0} />
+    <circle cx={cx} cy={cy} r={bad ? 4.5 : 2.5} fill={bad ? '#dc2626' : '#1D4ED8'} stroke="#fff" strokeWidth={bad ? 1.5 : 0} />
   );
 }
 
@@ -307,7 +307,7 @@ export default function SpcDashboardPage() {
                     {stats.capability?.lsl != null && (
                       <ReferenceLine y={stats.capability.lsl} stroke="#7c3aed" strokeDasharray="2 2" label={{ value: 'LSL', position: 'right', fontSize: 10, fill: '#7c3aed' }} />
                     )}
-                    <Line type="linear" dataKey="value" stroke="#0277b6" strokeWidth={1.5} dot={<SignalDot />} activeDot={{ r: 5 }} isAnimationActive={false} />
+                    <Line type="linear" dataKey="value" stroke="#2563EB" strokeWidth={1.5} dot={<SignalDot />} activeDot={{ r: 5 }} isAnimationActive={false} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </section>

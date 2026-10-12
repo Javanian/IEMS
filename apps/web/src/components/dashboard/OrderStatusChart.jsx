@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const COLORS = [
-  '#0277b6',
-  '#0c4a6e',
-  '#0ea5e9',
-  '#38bdf8',
-  '#bae6fd',
-  '#e0f2fe',
-  '#082f49',
-  '#bae6fd',
-  '#0369a1',
-  '#0c4a6e',
+  '#2563EB',
+  '#1E3A8A',
+  '#3B82F6',
+  '#60A5FA',
+  '#BFDBFE',
+  '#DBEAFE',
+  '#172554',
+  '#BFDBFE',
+  '#1D4ED8',
+  '#1E3A8A',
 ];
 
 function ChartSkeleton() {

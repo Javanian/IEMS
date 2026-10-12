@@ -22,8 +22,7 @@ const readSessionJson = (key, fallback = {}) => {
 
 const StatPill = ({ label, value }) => (
   <div
-    className="rounded-xl border px-3 py-2"
-    style={{ background: '#e0f2fe', borderColor: '#bae6fd' }}
+    className="rounded-xl border border-brand-100 bg-brand-50/70 px-3 py-2"
   >
     <p className="text-[10px] font-bold uppercase text-slate-500">{label}</p>
     <p className="mt-1 truncate text-xs font-extrabold text-slate-800">{value || '-'}</p>
@@ -33,16 +32,16 @@ const StatPill = ({ label, value }) => (
 const ActionButton = ({ icon: Icon, label, helper, tone = 'primary', onClick }) => {
   const classes =
     tone === 'outline'
-      ? 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+      ? 'border border-slate-200/80 bg-white text-slate-700 shadow-soft hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift'
       : tone === 'success'
-        ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-        : 'bg-brand-600 text-white hover:bg-brand-700';
+        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+        : 'bg-brand-600 text-white shadow-glow hover:bg-brand-700';
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-h-[96px] flex-col items-start justify-between rounded-xl px-4 py-3 text-left font-bold transition-all duration-150 active:scale-95 ${classes}`}
+      className={`flex min-h-[96px] flex-col items-start justify-between rounded-2xl px-4 py-3 text-left font-bold transition duration-200 active:scale-[0.98] ${classes}`}
     >
       <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
         {createElement(Icon, { size: 22 })}

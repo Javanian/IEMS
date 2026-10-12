@@ -168,7 +168,7 @@ const LogTimesheetPage = () => {
             <div className="flex-1 min-h-0 bg-white shadow-sm border border-slate-200 rounded-xl overflow-auto">
               <table className="w-full min-w-[900px] text-xs">
                 <thead className="sticky top-0 z-10">
-                  <tr style={{ background: '#e0f2fe' }}>
+                  <tr style={{ background: '#DBEAFE' }}>
                     {COLS.map((c) => (
                       <th
                         key={c.key}

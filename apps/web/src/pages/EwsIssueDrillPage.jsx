@@ -146,7 +146,7 @@ export default function EwsIssueDrillPage() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[760px] text-left text-sm">
-                    <thead className="border-b border-brand-200" style={{ background: '#e0f2fe' }}>
+                    <thead className="border-b border-brand-200" style={{ background: '#DBEAFE' }}>
                       <tr className="font-mono text-[10px] font-black uppercase tracking-[0.12em] text-slate-700">
                         {columns.map((c) => (
                           <th key={c.key} className="whitespace-nowrap px-3 py-2">

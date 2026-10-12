@@ -70,7 +70,7 @@ export default function DailyHoursChart({ workcenter = 'all', days = 30 }) {
             <Line
               type="monotone"
               dataKey="total_hours"
-              stroke="#0277b6"
+              stroke="#2563EB"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}

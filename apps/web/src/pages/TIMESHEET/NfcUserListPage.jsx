@@ -264,7 +264,7 @@ const NfcUserListPage = () => {
               <div className="overflow-auto flex-1">
                 <table className="w-full text-xs">
                   <thead className="sticky top-0">
-                    <tr style={{ background: '#e0f2fe' }}>
+                    <tr style={{ background: '#DBEAFE' }}>
                       <th className="px-3 py-2.5 text-left font-semibold text-slate-700 whitespace-nowrap">
                         NFC ID
                       </th>
@@ -373,7 +373,7 @@ const NfcUserListPage = () => {
 
         {}
         {deleteModal.show && (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 backdrop-blur-sm px-0 md:px-4">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-950/30 backdrop-blur-sm px-0 md:px-4">
             <div className="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center gap-2 mb-4">
                 <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
@@ -429,7 +429,7 @@ const NfcUserListPage = () => {
         )}
         {}
         {inactiveModal.show && (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/30 backdrop-blur-sm px-0 md:px-4">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-950/30 backdrop-blur-sm px-0 md:px-4">
             <div
               className="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto"
               role="dialog"

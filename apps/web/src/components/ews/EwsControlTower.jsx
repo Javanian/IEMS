@@ -93,10 +93,10 @@ const kpis = [
 ];
 
 const cardStatusClass = {
-  normal: 'border-slate-300 bg-white',
+  normal: 'border-slate-200/80 bg-white',
   watch: 'border-amber-300 bg-amber-50/30',
   critical: 'border-red-400 bg-red-50/40 ews-critical-card',
-  no_data: 'border-slate-300 bg-white',
+  no_data: 'border-slate-200/80 bg-white',
 };
 
 function normalizeStatus(value) {
@@ -268,7 +268,7 @@ function KpiTile({ item, index = 0, onOpenDetail }) {
   return (
     <div
       style={{ animationDelay: `${index * 70}ms` }}
-      className={`ews-tile relative flex h-full flex-col overflow-hidden rounded-xl border p-3 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${cardStatusClass[status] || cardStatusClass.no_data}`}
+      className={`ews-tile relative flex h-full flex-col overflow-hidden rounded-2xl border p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lift ${cardStatusClass[status] || cardStatusClass.no_data}`}
     >
       {isCritical && (
         <span
@@ -324,7 +324,7 @@ function KpiTile({ item, index = 0, onOpenDetail }) {
       <button
         type="button"
         onClick={() => onOpenDetail(item.key)}
-        className="mt-auto inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-700 transition hover:border-brand-200 hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 active:scale-95"
+        className="mt-auto inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/60 px-3 text-xs font-semibold text-slate-700 transition hover:border-brand-200 hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 active:scale-95"
       >
         Detail
         <ChevronRight size={15} />
@@ -523,7 +523,7 @@ function EwsControlTower() {
     connectionState !== 'live' ? 'sync' : freshnessState === 'STALE' ? 'stale' : 'live';
 
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft">
       <style>
         {`
           @keyframes ewsFill {
