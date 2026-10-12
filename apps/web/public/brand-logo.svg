@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- IEMS mark: production bars over a baseline, in the design-system action blue. -->
+  <rect width="64" height="64" rx="14" fill="#0369A1"/>
+  <g fill="#FFFFFF">
+    <rect x="14" y="30" width="8" height="18" rx="2"/>
+    <rect x="28" y="20" width="8" height="28" rx="2"/>
+    <rect x="42" y="12" width="8" height="36" rx="2"/>
+  </g>
+  <rect x="12" y="50" width="40" height="3" rx="1.5" fill="#7DD3FC"/>
+</svg>

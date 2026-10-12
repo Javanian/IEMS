@@ -1,0 +1,26 @@
+# Semua text file pakai LF
+* text eol=lf
+
+# Shell scripts
+*.sh text eol=lf
+
+# Config & common files
+*.yml text eol=lf
+*.yaml text eol=lf
+*.env text eol=lf
+Dockerfile text eol=lf
+
+# Binary files (jangan disentuh Git — JANGAN normalisasi CRLF, akan merusak file)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary
+*.tar.gz binary
+*.pdf binary
+*.docx binary
+*.doc binary
+*.xlsx binary
+*.xls binary
+*.pptx binary
+*.mpp binary

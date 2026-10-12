@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A4 Layout</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #f0f0f0;
+      padding: 20px;
+    }
+
+    .a4-page {
+      width: 210mm;
+      height: 297mm; /* A4: 210mm x 297mm */
+      background-color: white;
+      position: relative;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Container 1 - Header (Fixed di atas) */
+    .container-1 {
+      background-color: #3498db;
+      color: white;
+      padding: 20px;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0; /* Jangan shrink */
+    }
+
+    /* Container 2 - Content (Tengah, bisa scroll) */
+    .container-2 {
+      flex: 1; /* Ambil sisa space */
+      background-color: #ecf0f1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    /* Container 3 - Footer (Fixed di bawah) */
+    .container-3 {
+      background-color: #2c3e50;
+      color: white;
+      padding: 20px;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0; /* Jangan shrink */
+    }
+
+    /* Styling konten */
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      line-height: 1.6;
+      margin-bottom: 15px;
+    }
+
+    .text-small {
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="a4-page">
+    <!-- Container 1 - Header -->
+    <div class="container-1">
+      <h1>Container 1 (Header)</h1>
+    </div>
+
+    <!-- Container 2 - Content -->
+    <div class="container-2">
+      <h2>Container 2 (Content Area)</h2>
+      isinya
+      </p>
+    </div>
+
+    <!-- Container 3 - Footer -->
+    <div class="container-3">
+      <p class="text-small">Container 3 (Footer) - Selalu di bawah</p>
+    </div>
+  </div>
+</body>
+</html>

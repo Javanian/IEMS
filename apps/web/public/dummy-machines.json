@@ -1,0 +1,58 @@
+[
+  {
+    "machineid": "MCH-001",
+    "workcenter_description": "Mixing Machine Alpha",
+    "groupname": "Mixing Department",
+    "workcenternew": "WC-MIX-01",
+    "workcenterot": "WC-MIX-01-OT"
+  },
+  {
+    "machineid": "MCH-002",
+    "workcenter_description": "Heating Oven Beta",
+    "groupname": "Heating Department",
+    "workcenternew": "WC-HEAT-02",
+    "workcenterot": "WC-HEAT-02-OT"
+  },
+  {
+    "machineid": "MCH-003",
+    "workcenter_description": "Molding Press Gamma",
+    "groupname": "Molding Department",
+    "workcenternew": "WC-MOLD-01",
+    "workcenterot": "WC-MOLD-01-OT"
+  },
+  {
+    "machineid": "MCH-004",
+    "workcenter_description": "Quality Control Station",
+    "groupname": "QC Department",
+    "workcenternew": "WC-QC-01",
+    "workcenterot": ""
+  },
+  {
+    "machineid": "MCH-005",
+    "workcenter_description": "Packaging Line Delta",
+    "groupname": "Packaging Department",
+    "workcenternew": "WC-PACK-01",
+    "workcenterot": "WC-PACK-01-OT"
+  },
+  {
+    "machineid": "MCH-006",
+    "workcenter_description": "Assembly Station A",
+    "groupname": "Assembly Department",
+    "workcenternew": "WC-ASSY-01",
+    "workcenterot": "WC-ASSY-01-OT"
+  },
+  {
+    "machineid": "MCH-007",
+    "workcenter_description": "Testing Equipment B",
+    "groupname": "Testing Department",
+    "workcenternew": "WC-TEST-01",
+    "workcenterot": ""
+  },
+  {
+    "machineid": "MCH-008",
+    "workcenter_description": "Preparation Table C",
+    "groupname": "Preparation Department",
+    "workcenternew": "WC-PREP-01",
+    "workcenterot": "WC-PREP-01-OT"
+  }
+]

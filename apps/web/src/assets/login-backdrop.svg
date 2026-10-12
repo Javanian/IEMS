@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <!-- Abstract plant-floor backdrop for the IEMS login. Original artwork, design-system colors. -->
+  <defs>
+    <pattern id="minor" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#16233A" stroke-width="1"/>
+    </pattern>
+    <pattern id="major" width="160" height="160" patternUnits="userSpaceOnUse">
+      <rect width="160" height="160" fill="url(#minor)"/>
+      <path d="M160 0H0V160" fill="none" stroke="#1F3150" stroke-width="1.2"/>
+    </pattern>
+    <radialGradient id="glow" cx="72%" cy="38%" r="60%">
+      <stop offset="0" stop-color="#075985" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#0C4A6E" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#082F49" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0B1220" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0B1220" stop-opacity="0.92"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1920" height="1080" fill="#0B1220"/>
+  <rect width="1920" height="1080" fill="url(#major)"/>
+  <rect width="1920" height="1080" fill="url(#glow)"/>
+
+  <!-- Overhead gantry crane -->
+  <g fill="none" stroke="#2B4A70" stroke-width="3">
+    <path d="M180 250H1740"/>
+    <path d="M180 286H1740"/>
+    <path d="M180 250V880M220 250V880M1700 250V880M1740 250V880"/>
+    <path d="M220 286L180 330M1700 286L1740 330"/>
+    <path d="M1080 286V430" stroke-dasharray="6 8"/>
+    <rect x="1040" y="430" width="80" height="34" rx="4"/>
+  </g>
+
+  <!-- Sawtooth roofline -->
+  <path d="M0 640L120 560V640L240 560V640L360 560V640L480 560V640L600 560V640L720 560V640L840 560V640L960 560V640L1080 560V640L1200 560V640L1320 560V640L1440 560V640L1560 560V640L1680 560V640L1800 560V640L1920 560V640"
+        fill="none" stroke="#1F3150" stroke-width="2"/>
+
+  <!-- Machines on the floor -->
+  <g fill="#0F1B2E" stroke="#2B4A70" stroke-width="2.5">
+    <rect x="300" y="720" width="250" height="160" rx="10"/>
+    <rect x="330" y="690" width="120" height="30" rx="6"/>
+    <rect x="620" y="760" width="180" height="120" rx="10"/>
+    <circle cx="710" cy="820" r="34" fill="none"/>
+    <rect x="880" y="700" width="300" height="180" rx="12"/>
+    <rect x="910" y="730" width="110" height="70" rx="6" fill="#102844"/>
+    <rect x="1260" y="740" width="220" height="140" rx="10"/>
+    <path d="M1290 740V700H1450V740"/>
+    <rect x="1540" y="780" width="140" height="100" rx="8"/>
+  </g>
+
+  <!-- Status lights -->
+  <g>
+    <circle cx="520" cy="745" r="6" fill="#10B981"/>
+    <circle cx="775" cy="785" r="6" fill="#10B981"/>
+    <circle cx="1150" cy="725" r="6" fill="#F59E0B"/>
+    <circle cx="1455" cy="765" r="6" fill="#10B981"/>
+    <circle cx="1660" cy="805" r="6" fill="#10B981"/>
+  </g>
+
+  <!-- Data flow from machines to the line above (ETL / SAP pipeline motif) -->
+  <g fill="none" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 10" opacity="0.85">
+    <path d="M425 690V600H1030V520"/>
+    <path d="M710 760V620H1030"/>
+    <path d="M1030 700V520"/>
+    <path d="M1370 700V600H1030"/>
+    <path d="M1610 780V640H1370"/>
+  </g>
+  <g fill="#0B1220" stroke="#38BDF8" stroke-width="2.5">
+    <circle cx="1030" cy="520" r="9"/>
+    <circle cx="1030" cy="600" r="6"/>
+    <circle cx="1370" cy="600" r="6"/>
+  </g>
+
+  <rect width="1920" height="1080" fill="url(#fade)"/>
+</svg>
