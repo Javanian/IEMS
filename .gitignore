@@ -136,6 +136,7 @@ jobs/.pycache_legacy/
 # Documentation & sample data
 /docs/*
 !/docs/screenshots/
+!/docs/diagrams/
 /samples
 
 # Development tooling

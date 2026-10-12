@@ -1,0 +1,547 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "IEMS: shop floor to SAP S/4HANA",
+    "output": "docs/diagrams/iems-architecture.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "git@github.com:Javanian/IEMS.git",
+      "link_mode": "local-only",
+      "revision": "c64c128cf6d3c590061b4d4a3ecf41a5c18ca29b"
+    }
+  },
+  "components": [
+    {
+      "id": "operators",
+      "type": "external",
+      "label": "Operators",
+      "sublabel": "kiosk tablets + NFC",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/web/src/hooks/useDeviceHeartbeat.js",
+          "line": 1,
+          "end_line": 9,
+          "label": "kiosk tablets"
+        }
+      ]
+    },
+    {
+      "id": "nginx",
+      "type": "security",
+      "label": "Nginx",
+      "sublabel": "TLS reverse proxy",
+      "pos": [
+        260,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "infra/nginx/nginx.conf",
+          "line": 111,
+          "end_line": 113,
+          "label": "/api/ proxy"
+        }
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "React PWA",
+      "sublabel": "offline-first web app",
+      "pos": [
+        260,
+        120
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "infra/nginx/nginx.conf",
+          "line": 158,
+          "end_line": 159,
+          "label": "static assets"
+        },
+        {
+          "path": "apps/web/src/main.jsx",
+          "line": 1,
+          "end_line": 20
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Express API",
+      "sublabel": "REST + SSE :3001",
+      "pos": [
+        480,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/api/server.js",
+          "line": 242,
+          "end_line": 242,
+          "label": "listen"
+        },
+        {
+          "path": "docker-compose.yml",
+          "line": 55,
+          "end_line": 63
+        }
+      ]
+    },
+    {
+      "id": "pgbouncer",
+      "type": "backend",
+      "label": "PgBouncer",
+      "sublabel": "connection pool",
+      "pos": [
+        700,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "docker-compose.yml",
+          "line": 115,
+          "end_line": 116
+        },
+        {
+          "path": "docker-compose.yml",
+          "line": 62,
+          "end_line": 63,
+          "label": "API uses pgbouncer"
+        }
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL 15",
+      "sublabel": "per-plant database",
+      "pos": [
+        920,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "docker-compose.yml",
+          "line": 30,
+          "end_line": 31
+        }
+      ]
+    },
+    {
+      "id": "ews",
+      "type": "backend",
+      "label": "EWS + TTS jobs",
+      "sublabel": "KPI snapshots, voice alerts",
+      "pos": [
+        920,
+        120
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "docker-compose.yml",
+          "line": 140,
+          "end_line": 144,
+          "label": "ews-snapshot-job"
+        },
+        {
+          "path": "apps/api/services/ewsCalculator.js",
+          "line": 1528,
+          "end_line": 1528,
+          "label": "kpi_snapshot write"
+        },
+        {
+          "path": "docker-compose.yml",
+          "line": 415,
+          "end_line": 419,
+          "label": "ews-tts-worker"
+        }
+      ]
+    },
+    {
+      "id": "hmi",
+      "type": "external",
+      "label": "Machine HMI",
+      "sublabel": "SQL Server + network",
+      "pos": [
+        40,
+        500
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/etl_machinehours.py",
+          "line": 34,
+          "end_line": 37,
+          "label": "SQL Server source"
+        }
+      ]
+    },
+    {
+      "id": "etl",
+      "type": "backend",
+      "label": "ETL + ping workers",
+      "sublabel": "machine hours, uptime",
+      "pos": [
+        480,
+        500
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/etl_machinehours.py",
+          "line": 13,
+          "end_line": 13,
+          "label": "pyodbc"
+        },
+        {
+          "path": "docker-compose.yml",
+          "line": 342,
+          "end_line": 347,
+          "label": "machine-ping-worker"
+        }
+      ]
+    },
+    {
+      "id": "sapw",
+      "type": "backend",
+      "label": "SAP workers",
+      "sublabel": "stage, relay, post",
+      "pos": [
+        1140,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/stage_sap_timesheet.py",
+          "line": 548,
+          "end_line": 548,
+          "label": "stage rows"
+        },
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 67,
+          "end_line": 89,
+          "label": "HTTP post to CPI"
+        },
+        {
+          "path": "jobs/sap_staging/sap_kafka_relay.py",
+          "line": 177,
+          "end_line": 185,
+          "label": "relay to Kafka"
+        }
+      ]
+    },
+    {
+      "id": "conf_topic",
+      "type": "messagebus",
+      "label": "sap.confirmations.v1",
+      "sublabel": "Kafka, key = order",
+      "pos": [
+        1360,
+        120
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_kafka_relay.py",
+          "line": 6,
+          "end_line": 6
+        },
+        {
+          "path": "jobs/sap_staging/sap_kafka_poster.py",
+          "line": 21,
+          "end_line": 25,
+          "label": "ordered per order"
+        }
+      ]
+    },
+    {
+      "id": "cpi",
+      "type": "cloud",
+      "label": "SAP CPI",
+      "sublabel": "integration API",
+      "pos": [
+        1360,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 57,
+          "end_line": 63,
+          "label": "CPI response"
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "type": "external",
+      "label": "SAP S/4HANA",
+      "sublabel": "production orders",
+      "pos": [
+        1580,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 479,
+          "end_line": 482,
+          "label": "order lock in CPI"
+        }
+      ]
+    },
+    {
+      "id": "orders_topic",
+      "type": "messagebus",
+      "label": "sap.orders.v1",
+      "sublabel": "Kafka, compacted",
+      "pos": [
+        1140,
+        500
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/sap_orders_producer.py",
+          "line": 7,
+          "end_line": 7
+        },
+        {
+          "path": "jobs/etl/sap_orders_consumer.py",
+          "line": 11,
+          "end_line": 14,
+          "label": "per-plant upsert"
+        }
+      ]
+    },
+    {
+      "id": "sap_src",
+      "type": "database",
+      "label": "SAP order source",
+      "sublabel": "order staging DB",
+      "pos": [
+        1360,
+        500
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jobs/etl/sap_orders_producer.py",
+          "line": 70,
+          "end_line": 78
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Per-plant Docker Compose stack (factory LAN)",
+      "wraps": [
+        "nginx",
+        "web",
+        "api",
+        "pgbouncer",
+        "postgres",
+        "ews",
+        "etl",
+        "sapw"
+      ],
+      "pad": 22
+    }
+  ],
+  "connections": [
+    {
+      "id": "ops-https",
+      "from": "operators",
+      "to": "nginx",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "serve-pwa",
+      "from": "nginx",
+      "to": "web",
+      "label": "static assets",
+      "variant": "dashed"
+    },
+    {
+      "id": "proxy-api",
+      "from": "nginx",
+      "to": "api",
+      "label": "/api",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-pool",
+      "from": "api",
+      "to": "pgbouncer",
+      "label": "SQL",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pool-db",
+      "from": "pgbouncer",
+      "to": "postgres",
+      "label": "pooled",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ews-db",
+      "from": "ews",
+      "to": "postgres",
+      "label": "read KPIs, write snapshots"
+    },
+    {
+      "id": "hmi-etl",
+      "from": "hmi",
+      "to": "etl",
+      "label": "SQL Server + ping"
+    },
+    {
+      "id": "etl-db",
+      "from": "etl",
+      "to": "postgres",
+      "label": "machine hours"
+    },
+    {
+      "id": "db-sap",
+      "from": "postgres",
+      "to": "sapw",
+      "label": "stage + claim",
+      "variant": "emphasis"
+    },
+    {
+      "id": "relay",
+      "from": "sapw",
+      "to": "conf_topic",
+      "label": "relay",
+      "variant": "dashed"
+    },
+    {
+      "id": "poster",
+      "from": "conf_topic",
+      "to": "cpi",
+      "label": "poster",
+      "variant": "dashed"
+    },
+    {
+      "id": "direct",
+      "from": "sapw",
+      "to": "cpi",
+      "label": "direct HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "cpi-s4",
+      "from": "cpi",
+      "to": "s4",
+      "label": "confirm",
+      "variant": "emphasis"
+    },
+    {
+      "id": "produce",
+      "from": "sap_src",
+      "to": "orders_topic",
+      "label": "producer",
+      "variant": "dashed"
+    },
+    {
+      "id": "consume",
+      "from": "orders_topic",
+      "to": "postgres",
+      "label": "consumer per plant",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Per plant",
+      "items": [
+        "Each plant runs its own Compose stack on the factory LAN",
+        "Fonts and assets are bundled, so the app works offline"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Kafka is optional",
+      "items": [
+        "Dashed paths run only with the kafka profiles",
+        "Confirmations are keyed by order, so CPI order locks are respected by partitioning"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Safe posting",
+      "items": [
+        "Rows are claimed before posting and checked against a payload hash",
+        "Late or duplicate messages are dropped instead of posted twice"
+      ]
+    }
+  ]
+}

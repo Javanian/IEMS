@@ -1,0 +1,267 @@
+{
+  "schema_version": 2,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "IEMS: lifecycle of an SAP confirmation",
+    "output": "docs/diagrams/sap-confirmation-lifecycle.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "git@github.com:Javanian/IEMS.git",
+      "link_mode": "local-only",
+      "revision": "c64c128cf6d3c590061b4d4a3ecf41a5c18ca29b"
+    }
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Posting path"
+    },
+    {
+      "id": "kafka",
+      "label": "Kafka transport (optional)"
+    },
+    {
+      "id": "terminal",
+      "label": "Exits and errors"
+    }
+  ],
+  "states": [
+    {
+      "id": "pending",
+      "type": "start",
+      "label": "PENDING",
+      "sublabel": "staged from timesheets",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_staging_common.py",
+          "line": 362,
+          "end_line": 362,
+          "label": "default status"
+        },
+        {
+          "path": "jobs/sap_staging/stage_sap_timesheet.py",
+          "line": 548,
+          "end_line": 548,
+          "label": "stage_rows"
+        }
+      ]
+    },
+    {
+      "id": "queued",
+      "type": "waiting",
+      "label": "QUEUED",
+      "sublabel": "on sap.confirmations.v1",
+      "lane": "kafka",
+      "col": 1,
+      "tag": "key = order",
+      "sources": [
+        {
+          "path": "jobs/sap_staging/sap_kafka_relay.py",
+          "line": 6,
+          "end_line": 6
+        },
+        {
+          "path": "jobs/sap_staging/sap_kafka_relay.py",
+          "line": 177,
+          "end_line": 185,
+          "label": "relay_once"
+        }
+      ]
+    },
+    {
+      "id": "posting",
+      "type": "active",
+      "label": "POSTING",
+      "sublabel": "claimed by one worker",
+      "lane": "main",
+      "col": 2,
+      "step": "02",
+      "sources": [
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 91,
+          "end_line": 108,
+          "label": "claim_rows"
+        },
+        {
+          "path": "jobs/sap_staging/sap_kafka_poster.py",
+          "line": 70,
+          "end_line": 84,
+          "label": "claim_queued"
+        }
+      ]
+    },
+    {
+      "id": "posted",
+      "type": "success",
+      "label": "POSTED",
+      "sublabel": "accepted by SAP",
+      "lane": "main",
+      "col": 4,
+      "step": "03",
+      "sources": [
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 239,
+          "end_line": 281,
+          "label": "update_result"
+        }
+      ]
+    },
+    {
+      "id": "restaged",
+      "type": "neutral",
+      "label": "Re-staged",
+      "sublabel": "source edited, row replaced",
+      "lane": "terminal",
+      "col": 0,
+      "sources": [
+        {
+          "path": "database/migrations/api/20261012_sap_staging_kafka_queue.sql",
+          "line": 48,
+          "end_line": 61,
+          "label": "invalidate trigger"
+        }
+      ]
+    },
+    {
+      "id": "skipped",
+      "type": "failure",
+      "label": "SKIPPED",
+      "sublabel": "already in SAP",
+      "lane": "terminal",
+      "col": 2,
+      "sources": [
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 515,
+          "end_line": 540,
+          "label": "apply_guards"
+        },
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 400,
+          "end_line": 406,
+          "label": "mark_skipped"
+        }
+      ]
+    },
+    {
+      "id": "failed",
+      "type": "failure",
+      "label": "FAILED",
+      "sublabel": "SAP or HTTP error",
+      "lane": "terminal",
+      "col": 4,
+      "tag": "retryable",
+      "sources": [
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 239,
+          "end_line": 281,
+          "label": "update_result"
+        },
+        {
+          "path": "jobs/sap_staging/post_sap_staging.py",
+          "line": 104,
+          "end_line": 106,
+          "label": "retry claims FAILED"
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "id": "direct-claim",
+      "from": "pending",
+      "to": "posting",
+      "label": "direct claim",
+      "variant": "emphasis"
+    },
+    {
+      "id": "relay",
+      "from": "pending",
+      "to": "queued",
+      "label": "relay publishes",
+      "variant": "dashed"
+    },
+    {
+      "id": "poster-claim",
+      "from": "queued",
+      "to": "posting",
+      "label": "hash matches",
+      "variant": "dashed"
+    },
+    {
+      "id": "stale",
+      "from": "queued",
+      "to": "pending",
+      "label": "stale or changed",
+      "variant": "dashed"
+    },
+    {
+      "id": "ok",
+      "from": "posting",
+      "to": "posted",
+      "label": "SAP OK",
+      "variant": "emphasis"
+    },
+    {
+      "id": "guard",
+      "from": "posting",
+      "to": "skipped",
+      "label": "guard hit",
+      "variant": "security"
+    },
+    {
+      "id": "error",
+      "from": "posting",
+      "to": "failed",
+      "label": "error"
+    },
+    {
+      "id": "retry",
+      "from": "failed",
+      "to": "posting",
+      "label": "retry",
+      "variant": "dashed"
+    },
+    {
+      "id": "edited",
+      "from": "pending",
+      "to": "restaged",
+      "label": "source edited",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "One claim per row",
+      "items": [
+        "A worker moves a row to POSTING in one UPDATE before calling SAP",
+        "Two workers can never post the same row"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Kafka path",
+      "items": [
+        "The poster posts only if the row is still QUEUED with the same payload hash",
+        "Rows left QUEUED too long go back to their previous status"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Guards",
+      "items": [
+        "A segment already POSTED or a ZTIMESHEETID already used in SAP is SKIPPED",
+        "Editing source data deletes unposted rows so they are staged again"
+      ]
+    }
+  ]
+}

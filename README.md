@@ -33,35 +33,12 @@ Captured from a local run with sample data.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  subgraph Floor["Shop floor"]
-    NFC["NFC cards and tablets"]
-    HMI[("Machine SQL Server / HMI")]
-    SPK["Speakers (TTS alerts)"]
-  end
-  subgraph Stack["Per-plant Docker Compose stack"]
-    NG["Nginx + TLS"] --> WEB["React PWA"]
-    NG --> API["Express API"]
-    API --> PGB["PgBouncer"] --> PG[("PostgreSQL 15")]
-    FA["FastAPI<br/>MS Project sync"] --> PG
-    ETL["ETL and heartbeat workers"] --> PG
-    EWS["EWS snapshot, adoption,<br/>roster jobs"] --> PG
-    TTS["TTS workers (Piper)"] --> PG
-    SAPW["SAP stage, post,<br/>ops workers"] --> PG
-  end
-  subgraph Bus["Kafka (optional profile)"]
-    TO[["sap.orders.v1"]]
-    TC[["sap.confirmations.v1<br/>key = order number"]]
-  end
-  NFC --> NG
-  HMI --> ETL
-  TTS --> SPK
-  SAPSRC[("SAP order source DB")] -->|producer| TO -->|consumer per plant| PG
-  SAPW -->|relay| TC -->|poster| CPI["SAP CPI"]
-  SAPW -.->|direct mode| CPI
-  CPI --> SAP["SAP S/4HANA"]
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/iems-architecture-dark.svg">
+  <img alt="IEMS architecture: operators reach the per-plant stack through Nginx; the Express API and workers share PostgreSQL behind PgBouncer; SAP workers post confirmations to SAP CPI directly or through Kafka; SAP orders arrive through a compacted Kafka topic" src="docs/diagrams/iems-architecture-light.svg">
+</picture>
+
+The Kafka paths (dashed, through the two topics) run only with the `kafka` profiles. The [interactive version](docs/diagrams/iems-architecture.html) lists the source lines behind every box; download it and open it in a browser.
 
 Each plant runs its own stack of 16 services, plus the Kafka workers when the `kafka` profile is enabled. All frontend assets are bundled locally, so the application works on a factory LAN without internet access.
 
@@ -94,6 +71,17 @@ docker-compose.yml    Production stack
 - The web app follows one design system ([design-system/iems/MASTER.md](design-system/iems/MASTER.md)): colors are CSS-variable tokens instead of raw hex, all fonts ship with the bundle so the app renders the same on an offline factory LAN, and CI rejects raw hex colors in classes.
 - Voice alerts are generated locally with Piper, so the early-warning system does not depend on a cloud TTS service.
 - The SPC page estimates sigma from the average moving range rather than the overall standard deviation, so control limits stay tight when the process drifts, which is when the chart has to react.
+
+### Lifecycle of an SAP confirmation
+
+Each staged row moves through these states. The claim into `POSTING` is a single `UPDATE`, so two workers never post the same row, and the guards turn a would-be duplicate into `SKIPPED` instead of a second payroll entry.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/sap-confirmation-lifecycle-dark.svg">
+  <img alt="SAP confirmation lifecycle: PENDING is claimed into POSTING directly or via QUEUED on Kafka; POSTING ends as POSTED, SKIPPED by a guard, or FAILED, which can be retried; editing the source re-stages unposted rows" src="docs/diagrams/sap-confirmation-lifecycle-light.svg">
+</picture>
+
+Diagrams are generated from the specs in [docs/diagrams](docs/diagrams), each pinned to the commit it was traced from.
 
 ## Tech stack
 
