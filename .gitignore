@@ -167,6 +167,7 @@ jobs/.pycache_legacy/
 *.MD
 *.markdown
 !README.md
+!design-system/**/MASTER.md
 !readme.md
 .obsidian/
 

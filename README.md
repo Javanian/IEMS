@@ -38,7 +38,7 @@ Captured from a local run with sample data.
   <img alt="IEMS architecture: operators reach the per-plant stack through Nginx; the Express API and workers share PostgreSQL behind PgBouncer; SAP workers post confirmations to SAP CPI directly or through Kafka; SAP orders arrive through a compacted Kafka topic" src="docs/diagrams/iems-architecture-light.svg">
 </picture>
 
-The Kafka paths (dashed, through the two topics) run only with the `kafka` profiles. The [interactive version](docs/diagrams/iems-architecture.html) lists the source lines behind every box; download it and open it in a browser.
+The Kafka paths (dashed, through the two topics) run only with the `kafka` profiles. The JSON spec next to each diagram in [docs/diagrams](docs/diagrams) lists the file and line range behind every box.
 
 Each plant runs its own stack of 16 services, plus the Kafka workers when the `kafka` profile is enabled. All frontend assets are bundled locally, so the application works on a factory LAN without internet access.
 
@@ -97,7 +97,7 @@ Each staged row moves through these states. The claim into `POSTING` is a single
   <img alt="Part 2: sap_timesheet_staging claimed by post_sap_staging.py, which checks sap_staging_source and log_timesheet_sap, posts to SAP CPI and S/4HANA, and flags rejected timesheet_transaction rows; the Kafka relay, topic and poster form the optional path; UI buttons go through sap_ops_request to ops_worker.py" src="docs/diagrams/sap-pipeline-posting-light.svg">
 </picture>
 
-Diagrams are generated from the specs in [docs/diagrams](docs/diagrams), each pinned to the commit it was traced from. The HTML versions there list the file and line range behind every box; download one and open it in a browser.
+Diagrams are rendered from the JSON specs in [docs/diagrams](docs/diagrams), each pinned to the commit it was traced from.
 
 ## Tech stack
 
