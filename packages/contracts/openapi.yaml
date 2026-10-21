@@ -1,0 +1,4536 @@
+openapi: 3.1.0
+info:
+  title: IEMS Core API
+  version: 1.0.0
+  description: Canonical OpenAPI 3.1.0 specification for IEMS (Integrated
+    Enterprise Manufacturing & Repair System). Enforces exact decimal strings
+    for currency and quantities, server-side session RBAC per plant, and
+    idempotency guarantees on state mutations.
+servers:
+  - url: /api/v1
+    description: Default API v1 Gateway
+tags:
+  - name: Auth
+    description: Session management and credential verification
+  - name: IAM
+    description: Identity, roles, and badge qualifications
+  - name: "Commercial: Inquiries & Quotes"
+    description: Customer RFQs, cost estimation, and quote revisions
+  - name: "Commercial: Sales Orders"
+    description: Confirmed sales orders, amendments, and billing entitlements
+  - name: Engineering
+    description: CAD/drawing control, BOMs, and routing operations
+  - name: Repair
+    description: Customer unit intake, diagnostic authorization, and teardown findings
+  - name: Planning
+    description: Work orders, finite scheduling, and operations dispatch
+  - name: Execution
+    description: Shop floor traveler, machine/labor sessions, consumption, and scrap
+  - name: Logistics
+    description: Inventory ledger, lot reservations, and shipments
+  - name: Billing
+    description: Invoices, milestone allocations, and payment settlements
+paths:
+  /auth/session:
+    post:
+      tags:
+        - Auth
+      summary: Establish an authenticated session
+      operationId: createSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - plantId
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                plantId:
+                  type: string
+                  format: uuid
+      responses:
+        "201":
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      tags:
+        - Auth
+      summary: Revoke active session (Logout)
+      operationId: revokeSession
+      security:
+        - SessionCookie: []
+      responses:
+        "204":
+          description: Session successfully revoked
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get active session profile and granted scopes
+      operationId: getCurrentSession
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          description: Current user profile with active plant and granted roles
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - user
+                  - activePlantId
+                  - roles
+                  - permissions
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  activePlantId:
+                    type: string
+                    format: uuid
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                  permissions:
+                    type: array
+                    items:
+                      type: string
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /iam/badges/verify:
+    post:
+      tags:
+        - IAM
+      summary: Verify operator NFC badge and qualifications for plant operation
+      operationId: verifyBadge
+      parameters:
+        - $ref: "#/components/parameters/PlantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nfcTagId
+                - requiredSkillCode
+              properties:
+                nfcTagId:
+                  type: string
+                requiredSkillCode:
+                  type: string
+      responses:
+        "200":
+          description: Badge verified and qualification valid
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - badge
+                  - qualificationValid
+                  - operatorName
+                properties:
+                  badge:
+                    $ref: "#/components/schemas/Badge"
+                  qualificationValid:
+                    type: boolean
+                  operatorName:
+                    type: string
+        "403":
+          description: Badge invalid or operator lacks qualification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /commercial/inquiries:
+    get:
+      tags:
+        - "Commercial: Inquiries & Quotes"
+      summary: List customer inquiries with plant scoping
+      operationId: listInquiries
+      parameters:
+        - $ref: "#/components/parameters/PlantId"
+      responses:
+        "200":
+          description: Inquiries list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Inquiry"
+    post:
+      tags:
+        - "Commercial: Inquiries & Quotes"
+      summary: Create a new customer inquiry
+      operationId: createInquiry
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/PlantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Inquiry"
+      responses:
+        "201":
+          description: Inquiry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inquiry"
+        "400":
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /commercial/inquiries/{id}:
+    get:
+      tags:
+        - "Commercial: Inquiries & Quotes"
+      summary: Get inquiry details by ID
+      operationId: getInquiryById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Inquiry details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inquiry"
+        "404":
+          description: Inquiry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /commercial/inquiries/{id}/lines:
+    post:
+      tags:
+        - "Commercial: Inquiries & Quotes"
+      summary: Add line item to customer inquiry
+      operationId: addInquiryLine
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InquiryLine"
+      responses:
+        "201":
+          description: Line added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InquiryLine"
+  /commercial/quotations:
+    get:
+      tags:
+        - "Commercial: Inquiries & Quotes"
+      summary: List quotations
+      operationId: listQuotations
+      parameters:
+        - $ref: "#/components/parameters/PlantId"
+      responses:
+        "200":
+          description: Quotations list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Quotation"
+    post:
+      tags:
+        - "Commercial: Inquiries & Quotes"
+      summary: Create initial quotation container
+      operationId: createQuotation
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Quotation"
+      responses:
+        "201":
+          description: Quotation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quotation"
+  /commercial/quotations/{id}:
+    get:
+      tags:
+        - "Commercial: Inquiries & Quotes"
+      summary: Get quotation with active revisions and cost breakdown
+      operationId: getQuotationById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Quotation record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quotation"
+  /commercial/quotations/{id}/revisions:
+    post:
+      tags:
+        - "Commercial: Inquiries & Quotes"
+      summary: Create and calculate a new quote revision
+      operationId: createQuoteRevision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteRevision"
+      responses:
+        "201":
+          description: Revision created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuoteRevision"
+  /commercial/quotations/{id}/revisions/{revId}/approve:
+    post:
+      tags:
+        - "Commercial: Inquiries & Quotes"
+      summary: Internal commercial approval of quotation revision (Sales/Supervisor
+        role)
+      operationId: approveQuoteRevision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: revId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Revision approved and locked for sending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuoteRevision"
+        "403":
+          description: User lacks commercial approval role (admin is prohibited)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /commercial/quotations/{id}/revisions/{revId}/accept:
+    post:
+      tags:
+        - "Commercial: Inquiries & Quotes"
+      summary: Record formal customer acceptance of quotation revision
+      operationId: acceptQuotationRevision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: revId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteAcceptance"
+      responses:
+        "201":
+          description: Acceptance recorded and revision marked ACCEPTED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuoteAcceptance"
+  /commercial/sales-orders:
+    get:
+      tags:
+        - "Commercial: Sales Orders"
+      summary: List sales orders
+      operationId: listSalesOrders
+      parameters:
+        - $ref: "#/components/parameters/PlantId"
+      responses:
+        "200":
+          description: Sales orders list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SalesOrder"
+    post:
+      tags:
+        - "Commercial: Sales Orders"
+      summary: Create native commercial sales order from accepted quote or customer PO
+      operationId: createSalesOrder
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SalesOrder"
+      responses:
+        "201":
+          description: Sales order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesOrder"
+  /commercial/sales-orders/{id}:
+    get:
+      tags:
+        - "Commercial: Sales Orders"
+      summary: Get sales order details with lines and billing entitlements
+      operationId: getSalesOrderById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Sales order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesOrder"
+  /commercial/sales-orders/{id}/confirm:
+    post:
+      tags:
+        - "Commercial: Sales Orders"
+      summary: Confirm sales order and activate demand planning allocations
+      operationId: confirmSalesOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Order confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesOrder"
+  /commercial/sales-orders/{id}/amendments:
+    post:
+      tags:
+        - "Commercial: Sales Orders"
+      summary: Propose order amendment (scope/price/delivery change)
+      operationId: createOrderAmendment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderAmendment"
+      responses:
+        "201":
+          description: Amendment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderAmendment"
+  /engineering/documents:
+    get:
+      tags:
+        - Engineering
+      summary: List engineering documents and approved revisions
+      operationId: listDocuments
+      responses:
+        "200":
+          description: Documents list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+    post:
+      tags:
+        - Engineering
+      summary: Register engineering document metadata
+      operationId: createDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Document"
+      responses:
+        "201":
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+  /engineering/boms:
+    get:
+      tags:
+        - Engineering
+      summary: List released BOM revisions
+      operationId: listBOMs
+      responses:
+        "200":
+          description: BOM revisions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BOMRevision"
+    post:
+      tags:
+        - Engineering
+      summary: Release a new BOM revision
+      operationId: createBOMRevision
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BOMRevision"
+      responses:
+        "201":
+          description: BOM revision released
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BOMRevision"
+  /engineering/routings:
+    get:
+      tags:
+        - Engineering
+      summary: List released Routing revisions
+      operationId: listRoutings
+      responses:
+        "200":
+          description: Routings list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoutingRevision"
+    post:
+      tags:
+        - Engineering
+      summary: Release a new Routing revision with operations
+      operationId: createRoutingRevision
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoutingRevision"
+      responses:
+        "201":
+          description: Routing revision released
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutingRevision"
+  /repair/cases:
+    get:
+      tags:
+        - Repair
+      summary: List active repair intake cases
+      operationId: listRepairCases
+      parameters:
+        - $ref: "#/components/parameters/PlantId"
+      responses:
+        "200":
+          description: Repair cases list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RepairCase"
+    post:
+      tags:
+        - Repair
+      summary: Intake customer asset and create repair case
+      operationId: intakeRepairCase
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RepairCase"
+      responses:
+        "201":
+          description: Repair case intake recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepairCase"
+  /repair/cases/{id}:
+    get:
+      tags:
+        - Repair
+      summary: Get repair case with diagnostic scope, teardown findings, and
+        dispositions
+      operationId: getRepairCaseById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Repair case details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepairCase"
+  /repair/cases/{id}/diagnostic-authorizations:
+    post:
+      tags:
+        - Repair
+      summary: Record customer authorization for teardown and diagnostic inspection cap
+      operationId: authorizeDiagnosticScope
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiagnosticAuthorization"
+      responses:
+        "201":
+          description: Diagnostic authorization locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticAuthorization"
+  /repair/cases/{id}/findings:
+    post:
+      tags:
+        - Repair
+      summary: Record component defect during authorized teardown
+      operationId: recordTeardownFinding
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeardownFinding"
+      responses:
+        "201":
+          description: Finding recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeardownFinding"
+  /repair/cases/{id}/dispositions:
+    post:
+      tags:
+        - Repair
+      summary: Formally record engineering disposition (REUSE, REPAIR, REPLACE, SCRAP)
+      operationId: recordDisposition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Disposition"
+      responses:
+        "201":
+          description: Disposition approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Disposition"
+  /repair/warranty-claims:
+    get:
+      tags:
+        - Repair
+      summary: List warranty claims
+      operationId: listWarrantyClaims
+      responses:
+        "200":
+          description: Warranty claims list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WarrantyClaim"
+    post:
+      tags:
+        - Repair
+      summary: File customer warranty claim linking prior delivery and serial identity
+      operationId: createWarrantyClaim
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WarrantyClaim"
+      responses:
+        "201":
+          description: Warranty claim filed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarrantyClaim"
+  /planning/work-orders:
+    get:
+      tags:
+        - Planning
+      summary: List manufacturing and repair work orders
+      operationId: listWorkOrders
+      parameters:
+        - $ref: "#/components/parameters/PlantId"
+      responses:
+        "200":
+          description: Work orders list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkOrder"
+    post:
+      tags:
+        - Planning
+      summary: Create new work order linked to demand
+      operationId: createWorkOrder
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkOrder"
+      responses:
+        "201":
+          description: Work order created in DRAFT state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkOrder"
+  /planning/work-orders/{id}:
+    get:
+      tags:
+        - Planning
+      summary: Get work order traveler, material allocations, and operation progress
+      operationId: getWorkOrderById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Work order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkOrder"
+  /planning/work-orders/{id}/release:
+    post:
+      tags:
+        - Planning
+      summary: Release work order for shop floor traveler execution
+      operationId: releaseWorkOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Work order released
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkOrder"
+        "409":
+          description: Missing approved BOM/Routing revision or material shortage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /execution/sessions/start:
+    post:
+      tags:
+        - Execution
+      summary: Operator starts an execution session (Setup, Run, or Downtime)
+      operationId: startExecutionSession
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecutionSession"
+      responses:
+        "201":
+          description: Execution session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionSession"
+        "403":
+          description: Operator badge not qualified for operation workcenter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /execution/sessions/{id}/stop:
+    post:
+      tags:
+        - Execution
+      summary: Operator ends active execution session with calculated duration
+      operationId: stopExecutionSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - endTime
+                - durationMinutes
+              properties:
+                endTime:
+                  type: string
+                  format: date-time
+                durationMinutes:
+                  type: string
+                  pattern: ^[0-9]+(\.[0-9]+)?$
+                pauseReason:
+                  type: string
+      responses:
+        "200":
+          description: Execution session closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionSession"
+  /execution/consumptions:
+    post:
+      tags:
+        - Execution
+      summary: Record material consumption against work order operation
+      operationId: consumeMaterial
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaterialConsumption"
+      responses:
+        "201":
+          description: Consumption logged and inventory depleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaterialConsumption"
+  /execution/outputs:
+    post:
+      tags:
+        - Execution
+      summary: Log completed unit output and register serial / lot identity
+      operationId: recordOutput
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OutputUnit"
+      responses:
+        "201":
+          description: Output recorded and pending QC inspection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutputUnit"
+  /execution/scrap:
+    post:
+      tags:
+        - Execution
+      summary: Log scrap record with root cause defect code and disposition supervisor
+      operationId: recordScrap
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScrapRecord"
+      responses:
+        "201":
+          description: Scrap recorded and work order updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrapRecord"
+  /logistics/movements:
+    get:
+      tags:
+        - Logistics
+      summary: Query immutable stock ledger movements
+      operationId: listStockMovements
+      parameters:
+        - $ref: "#/components/parameters/PlantId"
+      responses:
+        "200":
+          description: Stock movements ledger
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockMovement"
+    post:
+      tags:
+        - Logistics
+      summary: Post atomic inventory movement (Issue, Receipt, Transfer)
+      operationId: postStockMovement
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockMovement"
+      responses:
+        "201":
+          description: Movement posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockMovement"
+        "409":
+          description: Insufficient stock or position locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /logistics/reservations:
+    get:
+      tags:
+        - Logistics
+      summary: List active stock reservations
+      operationId: listReservations
+      parameters:
+        - $ref: "#/components/parameters/PlantId"
+      responses:
+        "200":
+          description: Reservations list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+    post:
+      tags:
+        - Logistics
+      summary: Reserve inventory lot/serial for work order or customer sales order
+      operationId: createReservation
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Reservation"
+      responses:
+        "201":
+          description: Reservation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+  /logistics/shipments:
+    get:
+      tags:
+        - Logistics
+      summary: List shipments
+      operationId: listShipments
+      parameters:
+        - $ref: "#/components/parameters/PlantId"
+      responses:
+        "200":
+          description: Shipments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Shipment"
+    post:
+      tags:
+        - Logistics
+      summary: Create draft shipment and allocate fulfilled sales order lines
+      operationId: createShipment
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Shipment"
+      responses:
+        "201":
+          description: Shipment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+  /logistics/shipments/{id}/dispatch:
+    post:
+      tags:
+        - Logistics
+      summary: Dispatch shipment to freight carrier
+      operationId: dispatchShipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Shipment dispatched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+  /logistics/shipments/{id}/deliver:
+    post:
+      tags:
+        - Logistics
+      summary: Record proof of delivery (POD) completion
+      operationId: deliverShipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - proofOfDeliveryReference
+                - deliveredAt
+              properties:
+                proofOfDeliveryReference:
+                  type: string
+                deliveredAt:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Delivery confirmed and ready for billing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+  /billing/invoices:
+    get:
+      tags:
+        - Billing
+      summary: List customer invoices with outstanding balance tracking
+      operationId: listInvoices
+      responses:
+        "200":
+          description: Invoices list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+    post:
+      tags:
+        - Billing
+      summary: Generate invoice from delivery allocations or billing milestones
+      operationId: createInvoice
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Invoice"
+      responses:
+        "201":
+          description: Invoice created in DRAFT state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "422":
+          description: Exceeded billing entitlement cap
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /billing/invoices/{id}:
+    get:
+      tags:
+        - Billing
+      summary: Get invoice details with lines and applied deposit allocations
+      operationId: getInvoiceById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Invoice details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+  /billing/invoices/{id}/post:
+    post:
+      tags:
+        - Billing
+      summary: Formally post invoice (Locks document as immutable AR debit)
+      operationId: postInvoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Invoice posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "403":
+          description: "Forbidden: Requires Finance role (admin cannot post business
+            invoice)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /billing/payments:
+    post:
+      tags:
+        - Billing
+      summary: Allocate payment receipt against outstanding invoice balance
+      operationId: allocatePayment
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentAllocation"
+      responses:
+        "201":
+          description: Payment allocated and invoice balance updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentAllocation"
+  /billing/deposits/apply:
+    post:
+      tags:
+        - Billing
+      summary: Apply advance deposit to final commercial invoice
+      operationId: applyDeposit
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepositApplication"
+      responses:
+        "201":
+          description: Deposit applied and final invoice balance offset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepositApplication"
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: iems_session_id
+      description: Server-managed HttpOnly opaque session cookie
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Bearer token for automation or integration workers
+    BadgeToken:
+      type: apiKey
+      in: header
+      name: X-Badge-Token
+      description: Kiosk operator NFC badge assertion token
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9_-]{8,128}$
+      description: Client-supplied unique key for guaranteed at-most-once execution.
+    PlantId:
+      name: X-Plant-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Active plant operational context for plant-scoped commands.
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Distributed tracing identifier.
+  schemas:
+    Decimal:
+      $id: https://iems.org/schemas/common/decimal.json
+      type: string
+      pattern: ^[0-9]+(\.[0-9]+)?$
+      description: Exact non-negative decimal string (e.g. "1250000.00" or "42").
+        Floating point numbers are prohibited.
+    SignedDecimal:
+      $id: https://iems.org/schemas/common/signed-decimal.json
+      type: string
+      pattern: ^-?[0-9]+(\.[0-9]+)?$
+      description: Exact signed decimal string (e.g. "-150.00" or "42"). Floating
+        point numbers are prohibited.
+    Currency:
+      $id: https://iems.org/schemas/common/currency.json
+      type: string
+      enum: &a1
+        - IDR
+        - USD
+        - EUR
+        - SGD
+        - JPY
+        - AUD
+        - GBP
+        - CNY
+      description: Standard 3-letter ISO 4217 currency code.
+    Uom:
+      $id: https://iems.org/schemas/common/uom.json
+      type: string
+      enum: &a2
+        - EA
+        - SET
+        - KG
+        - G
+        - M
+        - MM
+        - MTR
+        - HR
+        - MIN
+        - L
+        - ML
+        - PCS
+        - BOX
+        - UNIT
+      description: Standard unit of measure code.
+    FieldError:
+      $id: https://iems.org/schemas/common/field-error.json
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          description: Dot-delimited field path (e.g. "lines[0].quantity").
+        message:
+          type: string
+          description: Human-readable explanation of why the field failed validation.
+        code:
+          type: string
+          description: Optional specific error code for field.
+        rejectedValue:
+          description: The rejected value (omitted if sensitive).
+      additionalProperties: false
+    ErrorEnvelope:
+      $id: https://iems.org/schemas/common/error-envelope.json
+      type: object
+      required:
+        - code
+        - message
+        - correlationId
+        - timestamp
+        - path
+      properties:
+        code:
+          type: string
+          description: Machine-readable stable error code.
+        message:
+          type: string
+          description: Human-readable message explaining the failure and remediation steps.
+        correlationId:
+          type: string
+          description: Unique trace identifier for tracing the request across server logs.
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO-8601 UTC timestamp when error occurred.
+        path:
+          type: string
+          description: Canonical API path of the request.
+        fieldErrors:
+          type: array
+          items:
+            $ref: https://iems.org/schemas/common/field-error.json
+          description: Specific validation errors per field, if applicable.
+        details:
+          type: object
+          additionalProperties: true
+          description: Structured metadata clarifying the conflict or constraint violation.
+      additionalProperties: false
+    IdempotencyRecord:
+      $id: https://iems.org/schemas/common/idempotency-record.json
+      type: object
+      required:
+        - key
+        - requestHash
+        - clientPath
+        - clientMethod
+        - status
+        - createdAt
+        - expiresAt
+      properties:
+        key:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{8,128}$
+          description: Client-supplied unique idempotency key.
+        requestHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          description: SHA-256 digest of method + canonical path + serialized body.
+        clientPath:
+          type: string
+        clientMethod:
+          type: string
+        statusCode:
+          type: integer
+          minimum: 100
+          maximum: 599
+        responseHeaders:
+          type: object
+          additionalProperties:
+            type: string
+        responseBody:
+          description: Cached JSON response body
+        status:
+          type: string
+          enum:
+            - PENDING
+            - RESOLVED
+            - FAILED
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    PaginationQuery:
+      $id: https://iems.org/schemas/common/pagination-query.json
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 50
+        cursor:
+          type: string
+        sortBy:
+          type: string
+        sortOrder:
+          type: string
+          enum:
+            - asc
+            - desc
+          default: asc
+      additionalProperties: false
+    AuditMetadata:
+      $id: https://iems.org/schemas/common/audit-metadata.json
+      type: object
+      required:
+        - createdBy
+        - createdAt
+        - version
+      properties:
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          format: uuid
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic locking concurrency counter
+      additionalProperties: false
+    TransitionRecord:
+      $id: https://iems.org/schemas/common/transition-record.json
+      type: object
+      required:
+        - fromState
+        - toState
+        - actorId
+        - timestamp
+        - correlationId
+      properties:
+        fromState:
+          type: string
+        toState:
+          type: string
+        actorId:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        reason:
+          type: string
+        correlationId:
+          type: string
+      additionalProperties: false
+    Organization:
+      $id: https://iems.org/schemas/core-iam/organization.json
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 2
+          maxLength: 32
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    LegalEntity:
+      $id: https://iems.org/schemas/core-iam/legal-entity.json
+      type: object
+      required:
+        - id
+        - organizationId
+        - code
+        - name
+        - taxId
+        - baseCurrency
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 2
+          maxLength: 32
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+        taxId:
+          type: string
+          minLength: 3
+          maxLength: 64
+        baseCurrency:
+          type: string
+          enum: *a1
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    Plant:
+      $id: https://iems.org/schemas/core-iam/plant.json
+      type: object
+      required:
+        - id
+        - legalEntityId
+        - code
+        - name
+        - timezone
+        - address
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalEntityId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 2
+          maxLength: 32
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+        timezone:
+          type: string
+          minLength: 3
+          maxLength: 64
+        address:
+          type: string
+          minLength: 5
+          maxLength: 500
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    User:
+      $id: https://iems.org/schemas/core-iam/user.json
+      type: object
+      required:
+        - id
+        - organizationId
+        - username
+        - email
+        - displayName
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 128
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+            - SUSPENDED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    Role:
+      $id: https://iems.org/schemas/core-iam/role.json
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - description
+        - isSystemRole
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          enum:
+            - admin
+            - supervisor
+            - sales
+            - estimator
+            - engineering
+            - planner
+            - storekeeper
+            - operator
+            - qc
+            - maintenance
+            - dispatch
+            - finance
+            - auditor
+        name:
+          type: string
+          minLength: 2
+          maxLength: 64
+        description:
+          type: string
+          maxLength: 255
+        isSystemRole:
+          type: boolean
+      additionalProperties: false
+    Permission:
+      $id: https://iems.org/schemas/core-iam/permission.json
+      type: object
+      required:
+        - id
+        - code
+        - module
+        - action
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          enum:
+            - iam:user:read
+            - iam:user:write
+            - iam:role:manage
+            - iam:scope:manage
+            - iam:badge:manage
+            - iam:qualification:verify
+            - system:config:manage
+            - system:audit:read
+            - commercial:inquiry:read
+            - commercial:inquiry:write
+            - commercial:estimate:write
+            - commercial:quotation:read
+            - commercial:quotation:write
+            - commercial:quotation:approve
+            - commercial:quotation:accept
+            - commercial:order:read
+            - commercial:order:write
+            - commercial:order:confirm
+            - commercial:order:amend
+            - commercial:order:cancel
+            - engineering:document:read
+            - engineering:document:write
+            - engineering:document:release
+            - engineering:bom:read
+            - engineering:bom:write
+            - engineering:bom:release
+            - engineering:routing:read
+            - engineering:routing:write
+            - engineering:routing:release
+            - repair:asset:read
+            - repair:asset:register
+            - repair:case:read
+            - repair:case:intake
+            - repair:diagnostic:authorize
+            - repair:teardown:record
+            - repair:disposition:propose
+            - repair:disposition:approve
+            - repair:claim:read
+            - repair:claim:manage
+            - planning:workorder:read
+            - planning:workorder:create
+            - planning:workorder:release
+            - planning:schedule:read
+            - planning:schedule:manage
+            - planning:mrp:run
+            - execution:traveler:read
+            - execution:session:start
+            - execution:session:stop
+            - execution:material:consume
+            - execution:output:record
+            - execution:scrap:record
+            - execution:rework:order
+            - quality:inspection:read
+            - quality:inspection:record
+            - quality:release:approve
+            - quality:ncr:create
+            - quality:ncr:disposition
+            - quality:spc:read
+            - maintenance:equipment:read
+            - maintenance:equipment:manage
+            - maintenance:calibration:record
+            - maintenance:workorder:manage
+            - logistics:stock:read
+            - logistics:movement:post
+            - logistics:reservation:create
+            - logistics:reservation:fulfill
+            - logistics:shipment:read
+            - logistics:shipment:manage
+            - logistics:shipment:dispatch
+            - logistics:pod:record
+            - billing:entitlement:read
+            - billing:invoice:read
+            - billing:invoice:create
+            - billing:invoice:approve
+            - billing:invoice:post
+            - billing:payment:allocate
+            - billing:deposit:apply
+        module:
+          type: string
+          minLength: 2
+          maxLength: 64
+        action:
+          type: string
+          minLength: 2
+          maxLength: 64
+        description:
+          type: string
+          maxLength: 255
+      additionalProperties: false
+    UserScope:
+      $id: https://iems.org/schemas/core-iam/user-scope.json
+      type: object
+      required:
+        - id
+        - userId
+        - roleId
+        - isExplicitGrant
+        - validFrom
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        roleId:
+          type: string
+          format: uuid
+        plantId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: "null"
+        isExplicitGrant:
+          type: boolean
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+      additionalProperties: false
+    Session:
+      $id: https://iems.org/schemas/core-iam/session.json
+      type: object
+      required:
+        - id
+        - userId
+        - plantId
+        - tokenHash
+        - issuedAt
+        - expiresAt
+        - clientIp
+        - userAgent
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        plantId:
+          type: string
+        tokenHash:
+          type: string
+          minLength: 32
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+        clientIp:
+          type: string
+        userAgent:
+          type: string
+      additionalProperties: false
+    Badge:
+      $id: https://iems.org/schemas/core-iam/badge.json
+      type: object
+      required:
+        - id
+        - employeeId
+        - badgeNumber
+        - nfcTagId
+        - status
+        - issuedAt
+        - expiresAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        employeeId:
+          type: string
+          minLength: 2
+          maxLength: 64
+        badgeNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        nfcTagId:
+          type: string
+          minLength: 4
+          maxLength: 128
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - REVOKED
+            - EXPIRED
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    EmployeeQualification:
+      $id: https://iems.org/schemas/core-iam/employee-qualification.json
+      type: object
+      required:
+        - id
+        - employeeId
+        - skillCode
+        - certificationLevel
+        - evidenceReference
+        - validFrom
+        - validTo
+        - verifiedBy
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        employeeId:
+          type: string
+          minLength: 2
+          maxLength: 64
+        skillCode:
+          type: string
+          minLength: 2
+          maxLength: 64
+        certificationLevel:
+          type: string
+          minLength: 1
+          maxLength: 32
+        evidenceReference:
+          type: string
+          minLength: 2
+          maxLength: 255
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        verifiedBy:
+          type: string
+          minLength: 2
+          maxLength: 128
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - EXPIRED
+            - REVOKED
+      additionalProperties: false
+    Customer:
+      $id: https://iems.org/schemas/commercial/customer.json
+      type: object
+      required:
+        - id
+        - organizationId
+        - legalEntityId
+        - customerCode
+        - name
+        - taxId
+        - paymentTermsDays
+        - currency
+        - status
+        - billingAddress
+        - shippingAddress
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        legalEntityId:
+          type: string
+          format: uuid
+        customerCode:
+          type: string
+          minLength: 2
+          maxLength: 32
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+        taxId:
+          type: string
+          minLength: 3
+          maxLength: 64
+        paymentTermsDays:
+          type: integer
+          minimum: 0
+          maximum: 365
+        currency:
+          type: string
+          enum: *a1
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - SUSPENDED
+            - INACTIVE
+        billingAddress:
+          type: string
+          minLength: 5
+          maxLength: 500
+        shippingAddress:
+          type: string
+          minLength: 5
+          maxLength: 500
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    Inquiry:
+      $id: https://iems.org/schemas/commercial/inquiry.json
+      type: object
+      required:
+        - id
+        - legalEntityId
+        - plantId
+        - inquiryNumber
+        - customerId
+        - requestedDueDate
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalEntityId:
+          type: string
+          format: uuid
+        plantId:
+          type: string
+          format: uuid
+        inquiryNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        customerId:
+          type: string
+          format: uuid
+        requestedDueDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - SUBMITTED
+            - IN_REVIEW
+            - ESTIMATED
+            - QUOTED
+            - CLOSED
+            - CANCELLED
+        notes:
+          type: string
+          maxLength: 2000
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    InquiryLine:
+      $id: https://iems.org/schemas/commercial/inquiry-line.json
+      type: object
+      required:
+        - id
+        - inquiryId
+        - lineNumber
+        - itemCode
+        - description
+        - requestedQuantity
+        - requestedUom
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        inquiryId:
+          type: string
+          format: uuid
+        lineNumber:
+          type: integer
+          minimum: 1
+        itemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+        requestedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        requestedUom:
+          type: string
+          enum: *a2
+        targetPrice:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        status:
+          type: string
+          enum:
+            - OPEN
+            - ESTIMATED
+            - QUOTED
+            - REJECTED
+      additionalProperties: false
+    Quotation:
+      $id: https://iems.org/schemas/commercial/quotation.json
+      type: object
+      required:
+        - id
+        - legalEntityId
+        - plantId
+        - quotationNumber
+        - customerId
+        - currency
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalEntityId:
+          type: string
+          format: uuid
+        plantId:
+          type: string
+          format: uuid
+        quotationNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        customerId:
+          type: string
+          format: uuid
+        inquiryId:
+          type: string
+          format: uuid
+        currency:
+          type: string
+          enum: *a1
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - CLOSED
+            - CANCELLED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    QuoteRevision:
+      $id: https://iems.org/schemas/commercial/quote-revision.json
+      type: object
+      required:
+        - id
+        - quotationId
+        - revisionNumber
+        - status
+        - totalMaterialCost
+        - totalLaborCost
+        - totalMachineCost
+        - totalSubcontractCost
+        - totalOverheadCost
+        - subtotal
+        - discountPercent
+        - discountAmount
+        - totalAmount
+        - currency
+        - validityDate
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        quotationId:
+          type: string
+          format: uuid
+        revisionNumber:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - IN_REVIEW
+            - APPROVED
+            - SENT
+            - ACCEPTED
+            - REJECTED
+            - EXPIRED
+            - SUPERSEDED
+        totalMaterialCost:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        totalLaborCost:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        totalMachineCost:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        totalSubcontractCost:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        totalOverheadCost:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        subtotal:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        discountPercent:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        discountAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        totalAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        currency:
+          type: string
+          enum: *a1
+        approvedBy:
+          type: string
+          format: uuid
+        approvedAt:
+          type: string
+          format: date-time
+        validityDate:
+          type: string
+          format: date-time
+        rejectionReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    QuoteLine:
+      $id: https://iems.org/schemas/commercial/quote-line.json
+      type: object
+      required:
+        - id
+        - quoteRevisionId
+        - lineNumber
+        - itemCode
+        - description
+        - quantity
+        - uom
+        - unitCost
+        - unitPrice
+        - discountPercent
+        - lineTotal
+        - lineType
+      properties:
+        id:
+          type: string
+          format: uuid
+        quoteRevisionId:
+          type: string
+          format: uuid
+        lineNumber:
+          type: integer
+          minimum: 1
+        inquiryLineId:
+          type: string
+          format: uuid
+        itemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+        quantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        unitCost:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        unitPrice:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        discountPercent:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        lineTotal:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        lineType:
+          type: string
+          enum:
+            - MANUFACTURE
+            - REPAIR
+            - SERVICE
+            - MATERIAL
+      additionalProperties: false
+    EstimateComponent:
+      $id: https://iems.org/schemas/commercial/estimate-component.json
+      type: object
+      required:
+        - id
+        - quoteLineId
+        - componentType
+        - costCategory
+        - calculationBasis
+        - quantity
+        - unitRate
+        - totalCost
+      properties:
+        id:
+          type: string
+          format: uuid
+        quoteLineId:
+          type: string
+          format: uuid
+        componentType:
+          type: string
+          enum:
+            - MATERIAL
+            - LABOR
+            - MACHINE
+            - SUBCONTRACT
+            - OVERHEAD
+        costCategory:
+          type: string
+          minLength: 2
+          maxLength: 64
+        calculationBasis:
+          type: string
+          minLength: 2
+          maxLength: 128
+        quantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        unitRate:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        totalCost:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        notes:
+          type: string
+          maxLength: 1000
+      additionalProperties: false
+    QuoteAcceptance:
+      $id: https://iems.org/schemas/commercial/quote-acceptance.json
+      type: object
+      required:
+        - id
+        - quoteRevisionId
+        - quoteLineId
+        - acceptedQuantity
+        - acceptedAmount
+        - customerReference
+        - acceptedAt
+        - acceptedByCustomerContact
+      properties:
+        id:
+          type: string
+          format: uuid
+        quoteRevisionId:
+          type: string
+          format: uuid
+        quoteLineId:
+          type: string
+          format: uuid
+        acceptedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        acceptedAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        customerReference:
+          type: string
+          minLength: 2
+          maxLength: 64
+        acceptedAt:
+          type: string
+          format: date-time
+        acceptedByCustomerContact:
+          type: string
+          minLength: 2
+          maxLength: 128
+        notes:
+          type: string
+          maxLength: 1000
+      additionalProperties: false
+    SalesOrder:
+      $id: https://iems.org/schemas/commercial/sales-order.json
+      type: object
+      required:
+        - id
+        - legalEntityId
+        - fulfillmentPlantId
+        - orderNumber
+        - customerId
+        - orderMode
+        - currency
+        - subtotal
+        - taxAmount
+        - totalAmount
+        - status
+        - createdAt
+        - updatedAt
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalEntityId:
+          type: string
+          format: uuid
+        fulfillmentPlantId:
+          type: string
+          format: uuid
+        orderNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        customerId:
+          type: string
+          format: uuid
+        quotationRevisionId:
+          type: string
+          format: uuid
+        orderMode:
+          type: string
+          enum:
+            - MANUFACTURE
+            - REPAIR
+            - SERVICE
+        currency:
+          type: string
+          enum: *a1
+        subtotal:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        taxAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        totalAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - CONFIRMED
+            - IN_EXECUTION
+            - FULFILLED
+            - CLOSED
+            - CANCELLED
+        confirmedAt:
+          type: string
+          format: date-time
+        confirmedBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+      additionalProperties: false
+    SalesOrderLine:
+      $id: https://iems.org/schemas/commercial/sales-order-line.json
+      type: object
+      required:
+        - id
+        - salesOrderId
+        - lineNumber
+        - itemCode
+        - description
+        - quantity
+        - uom
+        - unitPrice
+        - lineTotal
+        - promisedDeliveryDate
+        - fulfilledQuantity
+        - billedQuantity
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        salesOrderId:
+          type: string
+          format: uuid
+        lineNumber:
+          type: integer
+          minimum: 1
+        quoteLineId:
+          type: string
+          format: uuid
+        itemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+        quantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        unitPrice:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        lineTotal:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        promisedDeliveryDate:
+          type: string
+          format: date-time
+        fulfilledQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        billedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        status:
+          type: string
+          enum:
+            - CONFIRMED
+            - IN_PRODUCTION
+            - PARTIALLY_FULFILLED
+            - FULFILLED
+            - CANCELLED
+      additionalProperties: false
+    OrderAmendment:
+      $id: https://iems.org/schemas/commercial/order-amendment.json
+      type: object
+      required:
+        - id
+        - salesOrderId
+        - amendmentNumber
+        - amendmentReason
+        - requestedBy
+        - priceDelta
+        - deliveryDateDeltaDays
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        salesOrderId:
+          type: string
+          format: uuid
+        amendmentNumber:
+          type: integer
+          minimum: 1
+        amendmentReason:
+          type: string
+          minLength: 5
+          maxLength: 500
+        requestedBy:
+          type: string
+          format: uuid
+        approvedBy:
+          type: string
+          format: uuid
+        approvedAt:
+          type: string
+          format: date-time
+        priceDelta:
+          type: string
+          pattern: ^-?[0-9]+(\.[0-9]+)?$
+        deliveryDateDeltaDays:
+          type: integer
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - PENDING_APPROVAL
+            - APPROVED
+            - REJECTED
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    BillingEntitlement:
+      $id: https://iems.org/schemas/commercial/billing-entitlement.json
+      type: object
+      required:
+        - id
+        - salesOrderId
+        - salesOrderLineId
+        - entitlementMode
+        - authorizedCapAmount
+        - currency
+        - billedAmountToDate
+        - creditedAmountToDate
+        - remainingBillableAmount
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        salesOrderId:
+          type: string
+          format: uuid
+        salesOrderLineId:
+          type: string
+          format: uuid
+        entitlementMode:
+          type: string
+          enum:
+            - DELIVERY_BASED
+            - MILESTONE_BASED
+        authorizedCapAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        currency:
+          type: string
+          enum: *a1
+        billedAmountToDate:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        creditedAmountToDate:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        remainingBillableAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - FULLY_BILLED
+            - CANCELLED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    Document:
+      $id: https://iems.org/schemas/engineering-repair/document.json
+      type: object
+      required:
+        - id
+        - legalEntityId
+        - plantId
+        - documentNumber
+        - title
+        - documentType
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalEntityId:
+          type: string
+          format: uuid
+        plantId:
+          type: string
+          format: uuid
+        documentNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        title:
+          type: string
+          minLength: 2
+          maxLength: 255
+        documentType:
+          type: string
+          enum:
+            - DRAWING
+            - SPECIFICATION
+            - WORK_INSTRUCTION
+            - ROUTING_TEMPLATE
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - ARCHIVED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    DocumentRevision:
+      $id: https://iems.org/schemas/engineering-repair/document-revision.json
+      type: object
+      required:
+        - id
+        - documentId
+        - revisionNumber
+        - fileHash
+        - fileSizeBytes
+        - mimeType
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        documentId:
+          type: string
+          format: uuid
+        revisionNumber:
+          type: integer
+          minimum: 1
+        fileHash:
+          type: string
+          minLength: 32
+          maxLength: 128
+        fileSizeBytes:
+          type: integer
+          minimum: 1
+        mimeType:
+          type: string
+          minLength: 3
+          maxLength: 128
+        approvedBy:
+          type: string
+          format: uuid
+        approvedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - IN_REVIEW
+            - APPROVED
+            - SUPERSEDED
+            - OBSOLETE
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    BOMRevision:
+      $id: https://iems.org/schemas/engineering-repair/bom-revision.json
+      type: object
+      required:
+        - id
+        - itemCode
+        - plantId
+        - revisionNumber
+        - status
+        - effectiveFrom
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        itemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        plantId:
+          type: string
+          format: uuid
+        revisionNumber:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - RELEASED
+            - OBSOLETE
+        effectiveFrom:
+          type: string
+          format: date-time
+        effectiveTo:
+          type: string
+          format: date-time
+        releasedBy:
+          type: string
+          format: uuid
+        releasedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    BOMLine:
+      $id: https://iems.org/schemas/engineering-repair/bom-line.json
+      type: object
+      required:
+        - id
+        - bomRevisionId
+        - lineNumber
+        - componentItemCode
+        - componentDescription
+        - quantityPerUnit
+        - uom
+        - scrapAllowancePercent
+        - isCritical
+      properties:
+        id:
+          type: string
+          format: uuid
+        bomRevisionId:
+          type: string
+          format: uuid
+        lineNumber:
+          type: integer
+          minimum: 1
+        componentItemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        componentDescription:
+          type: string
+          minLength: 1
+          maxLength: 255
+        quantityPerUnit:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        scrapAllowancePercent:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        isCritical:
+          type: boolean
+      additionalProperties: false
+    RoutingRevision:
+      $id: https://iems.org/schemas/engineering-repair/routing-revision.json
+      type: object
+      required:
+        - id
+        - itemCode
+        - plantId
+        - revisionNumber
+        - status
+        - effectiveFrom
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        itemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        plantId:
+          type: string
+          format: uuid
+        revisionNumber:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - RELEASED
+            - OBSOLETE
+        effectiveFrom:
+          type: string
+          format: date-time
+        effectiveTo:
+          type: string
+          format: date-time
+        releasedBy:
+          type: string
+          format: uuid
+        releasedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    RoutingOperation:
+      $id: https://iems.org/schemas/engineering-repair/routing-operation.json
+      type: object
+      required:
+        - id
+        - routingRevisionId
+        - operationNumber
+        - operationName
+        - workcenterCode
+        - standardSetupHours
+        - standardRunHoursPerUnit
+        - requiredSkillCode
+        - requiredMachineType
+        - inspectionRequired
+      properties:
+        id:
+          type: string
+          format: uuid
+        routingRevisionId:
+          type: string
+          format: uuid
+        operationNumber:
+          type: integer
+          minimum: 1
+        operationName:
+          type: string
+          minLength: 2
+          maxLength: 128
+        workcenterCode:
+          type: string
+          minLength: 2
+          maxLength: 64
+        standardSetupHours:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        standardRunHoursPerUnit:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        requiredSkillCode:
+          type: string
+          minLength: 2
+          maxLength: 64
+        requiredMachineType:
+          type: string
+          minLength: 2
+          maxLength: 64
+        inspectionRequired:
+          type: boolean
+      additionalProperties: false
+    CustomerAsset:
+      $id: https://iems.org/schemas/engineering-repair/customer-asset.json
+      type: object
+      required:
+        - id
+        - customerId
+        - assetNumber
+        - serialNumber
+        - modelNumber
+        - manufacturer
+        - description
+        - ownershipStatus
+        - custodyPlantId
+        - custodyLocation
+        - conditionNotes
+        - receivedAt
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        assetNumber:
+          type: string
+          minLength: 2
+          maxLength: 64
+        serialNumber:
+          type: string
+          minLength: 2
+          maxLength: 128
+        modelNumber:
+          type: string
+          minLength: 2
+          maxLength: 128
+        manufacturer:
+          type: string
+          minLength: 2
+          maxLength: 128
+        description:
+          type: string
+          minLength: 2
+          maxLength: 255
+        ownershipStatus:
+          type: string
+          enum:
+            - CUSTOMER_OWNED
+        custodyPlantId:
+          type: string
+          format: uuid
+        custodyLocation:
+          type: string
+          minLength: 2
+          maxLength: 64
+        conditionNotes:
+          type: string
+          maxLength: 2000
+        receivedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    RepairCase:
+      $id: https://iems.org/schemas/engineering-repair/repair-case.json
+      type: object
+      required:
+        - id
+        - customerAssetId
+        - legalEntityId
+        - plantId
+        - repairCaseNumber
+        - intakeConditionReport
+        - intakePhotosCount
+        - status
+        - intakeAt
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerAssetId:
+          type: string
+          format: uuid
+        legalEntityId:
+          type: string
+          format: uuid
+        plantId:
+          type: string
+          format: uuid
+        repairCaseNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        intakeConditionReport:
+          type: string
+          minLength: 5
+          maxLength: 2000
+        intakePhotosCount:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum:
+            - RECEIVED
+            - INSPECTION
+            - AWAITING_AUTHORIZATION
+            - RELEASED
+            - IN_PROGRESS
+            - TEST
+            - RELEASED_FOR_RETURN
+            - RETURNED
+        intakeAt:
+          type: string
+          format: date-time
+        targetCompletionDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    DiagnosticAuthorization:
+      $id: https://iems.org/schemas/engineering-repair/diagnostic-authorization.json
+      type: object
+      required:
+        - id
+        - repairCaseId
+        - authorizedScopeDescription
+        - authorizedCostCap
+        - currency
+        - approvedByCustomer
+        - approvedAt
+        - authorizedDiagnosticHours
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        repairCaseId:
+          type: string
+          format: uuid
+        authorizedScopeDescription:
+          type: string
+          minLength: 5
+          maxLength: 2000
+        authorizedCostCap:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        currency:
+          type: string
+          enum: *a1
+        approvedByCustomer:
+          type: string
+          minLength: 2
+          maxLength: 128
+        approvedAt:
+          type: string
+          format: date-time
+        authorizedDiagnosticHours:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        status:
+          type: string
+          enum:
+            - PENDING
+            - APPROVED
+            - REJECTED
+            - EXPIRED
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    TeardownFinding:
+      $id: https://iems.org/schemas/engineering-repair/teardown-finding.json
+      type: object
+      required:
+        - id
+        - repairCaseId
+        - findingNumber
+        - componentIdentifier
+        - componentDescription
+        - observedDefect
+        - failureMode
+        - severity
+        - discoveredBy
+        - discoveredAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        repairCaseId:
+          type: string
+          format: uuid
+        findingNumber:
+          type: integer
+          minimum: 1
+        componentIdentifier:
+          type: string
+          minLength: 2
+          maxLength: 64
+        componentDescription:
+          type: string
+          minLength: 2
+          maxLength: 255
+        observedDefect:
+          type: string
+          minLength: 5
+          maxLength: 1000
+        failureMode:
+          type: string
+          minLength: 2
+          maxLength: 128
+        severity:
+          type: string
+          enum:
+            - CRITICAL
+            - MAJOR
+            - MINOR
+        discoveredBy:
+          type: string
+          format: uuid
+        discoveredAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    Disposition:
+      $id: https://iems.org/schemas/engineering-repair/disposition.json
+      type: object
+      required:
+        - id
+        - teardownFindingId
+        - dispositionType
+        - customerApprovalRequired
+        - customerApproved
+        - authorizedCostDelta
+        - technicalJustification
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        teardownFindingId:
+          type: string
+          format: uuid
+        dispositionType:
+          type: string
+          enum:
+            - REUSE
+            - REPAIR
+            - REPLACE
+            - SCRAP
+        customerApprovalRequired:
+          type: boolean
+        customerApproved:
+          type: boolean
+        authorizedCostDelta:
+          type: string
+          pattern: ^-?[0-9]+(\.[0-9]+)?$
+        technicalJustification:
+          type: string
+          minLength: 5
+          maxLength: 2000
+        approvedBy:
+          type: string
+          format: uuid
+        approvedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    ComponentInstallation:
+      $id: https://iems.org/schemas/engineering-repair/component-installation.json
+      type: object
+      required:
+        - id
+        - parentAssetId
+        - childComponentItemCode
+        - position
+        - installedAt
+        - installationWorkOrderId
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentAssetId:
+          type: string
+          format: uuid
+        childAssetId:
+          type: string
+          format: uuid
+        childComponentItemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        childSerialNumber:
+          type: string
+          maxLength: 128
+        childLotNumber:
+          type: string
+          maxLength: 64
+        position:
+          type: string
+          minLength: 1
+          maxLength: 64
+        installedAt:
+          type: string
+          format: date-time
+        removedAt:
+          type: string
+          format: date-time
+        installationWorkOrderId:
+          type: string
+          format: uuid
+        removalWorkOrderId:
+          type: string
+          format: uuid
+      additionalProperties: false
+    WarrantyClaim:
+      $id: https://iems.org/schemas/engineering-repair/warranty-claim.json
+      type: object
+      required:
+        - id
+        - customerAssetId
+        - claimNumber
+        - claimDate
+        - failureDescription
+        - claimStatus
+        - resolutionCost
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        repairCaseId:
+          type: string
+          format: uuid
+        salesOrderLineId:
+          type: string
+          format: uuid
+        customerAssetId:
+          type: string
+          format: uuid
+        claimNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        claimDate:
+          type: string
+          format: date-time
+        failureDescription:
+          type: string
+          minLength: 5
+          maxLength: 2000
+        claimStatus:
+          type: string
+          enum:
+            - SUBMITTED
+            - UNDER_INVESTIGATION
+            - APPROVED
+            - REJECTED
+            - CLOSED
+        originalShipmentId:
+          type: string
+          format: uuid
+        originalInvoiceId:
+          type: string
+          format: uuid
+        settlementResolution:
+          type: string
+          maxLength: 2000
+        resolutionCost:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    WorkOrder:
+      $id: https://iems.org/schemas/planning-execution/work-order.json
+      type: object
+      required:
+        - id
+        - legalEntityId
+        - plantId
+        - workOrderNumber
+        - itemCode
+        - orderMode
+        - plannedQuantity
+        - uom
+        - completedQuantity
+        - scrappedQuantity
+        - reworkQuantity
+        - scheduledStartDate
+        - scheduledEndDate
+        - status
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalEntityId:
+          type: string
+          format: uuid
+        plantId:
+          type: string
+          format: uuid
+        workOrderNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        salesOrderLineId:
+          type: string
+          format: uuid
+        repairCaseId:
+          type: string
+          format: uuid
+        itemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        orderMode:
+          type: string
+          enum:
+            - MANUFACTURING
+            - REPAIR
+            - REWORK
+        bomRevisionId:
+          type: string
+          format: uuid
+        routingRevisionId:
+          type: string
+          format: uuid
+        plannedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        completedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        scrappedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        reworkQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        scheduledStartDate:
+          type: string
+          format: date-time
+        scheduledEndDate:
+          type: string
+          format: date-time
+        actualStartDate:
+          type: string
+          format: date-time
+        actualEndDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - PLANNED
+            - RELEASED
+            - RUNNING
+            - COMPLETED
+            - CLOSED
+            - ON_HOLD
+            - CANCELLED
+        holdReason:
+          type: string
+          maxLength: 1000
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    WorkOperation:
+      $id: https://iems.org/schemas/planning-execution/work-operation.json
+      type: object
+      required:
+        - id
+        - workOrderId
+        - operationNumber
+        - operationName
+        - workcenterCode
+        - standardRunHours
+        - standardSetupHours
+        - actualSetupHours
+        - actualRunHours
+        - status
+        - completedQuantity
+        - scrappedQuantity
+        - requiredSkillCode
+      properties:
+        id:
+          type: string
+          format: uuid
+        workOrderId:
+          type: string
+          format: uuid
+        operationNumber:
+          type: integer
+          minimum: 1
+        operationName:
+          type: string
+          minLength: 2
+          maxLength: 128
+        workcenterCode:
+          type: string
+          minLength: 2
+          maxLength: 64
+        standardRunHours:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        standardSetupHours:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        actualSetupHours:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        actualRunHours:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        status:
+          type: string
+          enum:
+            - READY
+            - RUNNING
+            - PAUSED
+            - COMPLETED
+            - SKIPPED
+        completedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        scrappedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        requiredSkillCode:
+          type: string
+          minLength: 2
+          maxLength: 64
+      additionalProperties: false
+    ExecutionSession:
+      $id: https://iems.org/schemas/planning-execution/execution-session.json
+      type: object
+      required:
+        - id
+        - workOperationId
+        - employeeId
+        - badgeId
+        - machineCode
+        - sessionType
+        - startTime
+        - durationMinutes
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        workOperationId:
+          type: string
+          format: uuid
+        employeeId:
+          type: string
+          minLength: 2
+          maxLength: 64
+        badgeId:
+          type: string
+          minLength: 2
+          maxLength: 64
+        machineCode:
+          type: string
+          minLength: 2
+          maxLength: 64
+        sessionType:
+          type: string
+          enum:
+            - SETUP
+            - RUN
+            - DOWNTIME
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        pauseReason:
+          type: string
+          maxLength: 500
+        status:
+          type: string
+          enum:
+            - RUNNING
+            - CLOSED
+            - ADJUSTED
+      additionalProperties: false
+    MaterialConsumption:
+      $id: https://iems.org/schemas/planning-execution/material-consumption.json
+      type: object
+      required:
+        - id
+        - workOrderId
+        - workOperationId
+        - itemCode
+        - quantityConsumed
+        - uom
+        - consumedAt
+        - employeeId
+        - isScrap
+      properties:
+        id:
+          type: string
+          format: uuid
+        workOrderId:
+          type: string
+          format: uuid
+        workOperationId:
+          type: string
+          format: uuid
+        itemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        lotNumber:
+          type: string
+          maxLength: 64
+        serialNumber:
+          type: string
+          maxLength: 128
+        quantityConsumed:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        stockMovementLineId:
+          type: string
+          format: uuid
+        consumedAt:
+          type: string
+          format: date-time
+        employeeId:
+          type: string
+          minLength: 2
+          maxLength: 64
+        isScrap:
+          type: boolean
+      additionalProperties: false
+    OutputUnit:
+      $id: https://iems.org/schemas/planning-execution/output-unit.json
+      type: object
+      required:
+        - id
+        - workOrderId
+        - workOperationId
+        - quantityProduced
+        - uom
+        - qualityStatus
+        - producedAt
+        - employeeId
+      properties:
+        id:
+          type: string
+          format: uuid
+        workOrderId:
+          type: string
+          format: uuid
+        workOperationId:
+          type: string
+          format: uuid
+        serialNumber:
+          type: string
+          maxLength: 128
+        lotNumber:
+          type: string
+          maxLength: 64
+        quantityProduced:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        qualityStatus:
+          type: string
+          enum:
+            - PENDING_INSPECTION
+            - ACCEPTED
+            - REJECTED
+            - CONCESSION
+        producedAt:
+          type: string
+          format: date-time
+        employeeId:
+          type: string
+          minLength: 2
+          maxLength: 64
+      additionalProperties: false
+    ScrapRecord:
+      $id: https://iems.org/schemas/planning-execution/scrap-record.json
+      type: object
+      required:
+        - id
+        - workOrderId
+        - workOperationId
+        - itemCode
+        - quantityScrapped
+        - uom
+        - defectCode
+        - defectReason
+        - dispositionApprovedBy
+        - scrappedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        workOrderId:
+          type: string
+          format: uuid
+        workOperationId:
+          type: string
+          format: uuid
+        itemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        quantityScrapped:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        defectCode:
+          type: string
+          minLength: 2
+          maxLength: 64
+        defectReason:
+          type: string
+          minLength: 5
+          maxLength: 500
+        dispositionApprovedBy:
+          type: string
+          format: uuid
+        scrappedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    ReworkOrder:
+      $id: https://iems.org/schemas/planning-execution/rework-order.json
+      type: object
+      required:
+        - id
+        - parentWorkOrderId
+        - originOutputUnitId
+        - reworkOrderNumber
+        - reworkReason
+        - targetWorkOperationId
+        - plannedHours
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentWorkOrderId:
+          type: string
+          format: uuid
+        originOutputUnitId:
+          type: string
+          format: uuid
+        reworkOrderNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        reworkReason:
+          type: string
+          minLength: 5
+          maxLength: 500
+        targetWorkOperationId:
+          type: string
+          format: uuid
+        plannedHours:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        status:
+          type: string
+          enum:
+            - PLANNED
+            - RELEASED
+            - IN_PROGRESS
+            - COMPLETED
+            - CANCELLED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    StockMovement:
+      $id: https://iems.org/schemas/logistics-billing/stock-movement.json
+      type: object
+      required:
+        - id
+        - plantId
+        - movementNumber
+        - movementType
+        - sourceLocation
+        - destinationLocation
+        - inventoryOwnerId
+        - referenceDocumentType
+        - referenceDocumentId
+        - postedAt
+        - postedBy
+        - isReversed
+      properties:
+        id:
+          type: string
+          format: uuid
+        plantId:
+          type: string
+          format: uuid
+        movementNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        movementType:
+          type: string
+          enum:
+            - GOODS_RECEIPT
+            - GOODS_ISSUE
+            - TRANSFER
+            - ADJUSTMENT
+            - SCRAP
+            - REVERSAL
+        sourceLocation:
+          type: string
+          minLength: 2
+          maxLength: 64
+        destinationLocation:
+          type: string
+          minLength: 2
+          maxLength: 64
+        inventoryOwnerId:
+          type: string
+          enum:
+            - COMPANY
+            - CUSTOMER
+        referenceDocumentType:
+          type: string
+          enum:
+            - WORK_ORDER
+            - SALES_ORDER
+            - PURCHASE_ORDER
+            - RETURN
+        referenceDocumentId:
+          type: string
+          minLength: 3
+          maxLength: 64
+        postedAt:
+          type: string
+          format: date-time
+        postedBy:
+          type: string
+          format: uuid
+        isReversed:
+          type: boolean
+        reverseMovementId:
+          type: string
+          format: uuid
+      additionalProperties: false
+    Reservation:
+      $id: https://iems.org/schemas/logistics-billing/reservation.json
+      type: object
+      required:
+        - id
+        - plantId
+        - reservationNumber
+        - reservationType
+        - itemCode
+        - plantLocation
+        - requestedQuantity
+        - reservedQuantity
+        - uom
+        - status
+        - requiredDate
+      properties:
+        id:
+          type: string
+          format: uuid
+        plantId:
+          type: string
+          format: uuid
+        reservationNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        reservationType:
+          type: string
+          enum:
+            - WORK_ORDER
+            - SALES_ORDER
+            - TRANSFER
+        itemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        plantLocation:
+          type: string
+          minLength: 2
+          maxLength: 64
+        requestedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        reservedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        lotNumber:
+          type: string
+          maxLength: 64
+        serialNumber:
+          type: string
+          maxLength: 128
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - FULFILLED
+            - RELEASED
+            - CANCELLED
+        requiredDate:
+          type: string
+          format: date-time
+        workOrderId:
+          type: string
+          format: uuid
+        salesOrderId:
+          type: string
+          format: uuid
+      additionalProperties: false
+    Shipment:
+      $id: https://iems.org/schemas/logistics-billing/shipment.json
+      type: object
+      required:
+        - id
+        - legalEntityId
+        - plantId
+        - shipmentNumber
+        - customerId
+        - destinationAddress
+        - carrierName
+        - trackingNumber
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalEntityId:
+          type: string
+          format: uuid
+        plantId:
+          type: string
+          format: uuid
+        shipmentNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        customerId:
+          type: string
+          format: uuid
+        destinationAddress:
+          type: string
+          minLength: 5
+          maxLength: 500
+        carrierName:
+          type: string
+          minLength: 2
+          maxLength: 128
+        trackingNumber:
+          type: string
+          minLength: 2
+          maxLength: 128
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - PICKED
+            - PACKED
+            - RELEASED
+            - DISPATCHED
+            - DELIVERED
+            - CANCELLED
+        dispatchedAt:
+          type: string
+          format: date-time
+        deliveredAt:
+          type: string
+          format: date-time
+        proofOfDeliveryReference:
+          type: string
+          maxLength: 255
+        proofOfDeliveryReceivedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    ShipmentLine:
+      $id: https://iems.org/schemas/logistics-billing/shipment-line.json
+      type: object
+      required:
+        - id
+        - shipmentId
+        - lineNumber
+        - salesOrderLineId
+        - itemCode
+        - quantityShipped
+        - uom
+      properties:
+        id:
+          type: string
+          format: uuid
+        shipmentId:
+          type: string
+          format: uuid
+        lineNumber:
+          type: integer
+          minimum: 1
+        salesOrderLineId:
+          type: string
+          format: uuid
+        itemCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+        quantityShipped:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        trackingLotNumber:
+          type: string
+          maxLength: 64
+        trackingSerialNumber:
+          type: string
+          maxLength: 128
+        packageReference:
+          type: string
+          maxLength: 64
+      additionalProperties: false
+    FulfillmentAllocation:
+      $id: https://iems.org/schemas/logistics-billing/fulfillment-allocation.json
+      type: object
+      required:
+        - id
+        - shipmentLineId
+        - salesOrderLineId
+        - fulfillmentSourceType
+        - allocatedQuantity
+        - uom
+        - allocatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        shipmentLineId:
+          type: string
+          format: uuid
+        salesOrderLineId:
+          type: string
+          format: uuid
+        fulfillmentSourceType:
+          type: string
+          enum:
+            - PRODUCTION_OUTPUT
+            - INVENTORY_LOT
+            - CUSTOMER_ASSET
+        productionOutputUnitId:
+          type: string
+          format: uuid
+        stockPositionId:
+          type: string
+          format: uuid
+        customerAssetId:
+          type: string
+          format: uuid
+        allocatedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        allocatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    Invoice:
+      $id: https://iems.org/schemas/logistics-billing/invoice.json
+      type: object
+      required:
+        - id
+        - legalEntityId
+        - billingPlantId
+        - invoiceNumber
+        - customerId
+        - invoiceType
+        - invoiceDate
+        - dueDate
+        - currency
+        - subtotal
+        - taxAmount
+        - totalAmount
+        - paidAmount
+        - balanceDue
+        - status
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalEntityId:
+          type: string
+          format: uuid
+        billingPlantId:
+          type: string
+          format: uuid
+        invoiceNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        customerId:
+          type: string
+          format: uuid
+        invoiceType:
+          type: string
+          enum:
+            - COMMERCIAL_DELIVERY
+            - SERVICE_MILESTONE
+            - ADVANCE_DEPOSIT
+            - CREDIT_NOTE
+        invoiceDate:
+          type: string
+          format: date-time
+        dueDate:
+          type: string
+          format: date-time
+        currency:
+          type: string
+          enum: *a1
+        subtotal:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        taxAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        totalAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        paidAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        balanceDue:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - APPROVED
+            - POSTED
+            - PARTIALLY_PAID
+            - PAID
+            - CANCELLED
+        postedAt:
+          type: string
+          format: date-time
+        postedBy:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    InvoiceLine:
+      $id: https://iems.org/schemas/logistics-billing/invoice-line.json
+      type: object
+      required:
+        - id
+        - invoiceId
+        - lineNumber
+        - billingSourceType
+        - description
+        - quantity
+        - uom
+        - unitPrice
+        - taxRate
+        - lineTotal
+      properties:
+        id:
+          type: string
+          format: uuid
+        invoiceId:
+          type: string
+          format: uuid
+        lineNumber:
+          type: integer
+          minimum: 1
+        billingSourceType:
+          type: string
+          enum:
+            - DELIVERY
+            - MILESTONE
+        deliveryBillingAllocationId:
+          type: string
+          format: uuid
+        milestoneBillingAllocationId:
+          type: string
+          format: uuid
+        description:
+          type: string
+          minLength: 2
+          maxLength: 255
+        quantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        uom:
+          type: string
+          enum: *a2
+        unitPrice:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        taxRate:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        lineTotal:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+      additionalProperties: false
+    DeliveryBillingAllocation:
+      $id: https://iems.org/schemas/logistics-billing/delivery-billing-allocation.json
+      type: object
+      required:
+        - id
+        - invoiceLineId
+        - shipmentLineId
+        - salesOrderLineId
+        - billingEntitlementId
+        - billedQuantity
+        - billedAmount
+        - currency
+        - reconciledAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        invoiceLineId:
+          type: string
+          format: uuid
+        shipmentLineId:
+          type: string
+          format: uuid
+        salesOrderLineId:
+          type: string
+          format: uuid
+        billingEntitlementId:
+          type: string
+          format: uuid
+        billedQuantity:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        billedAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        currency:
+          type: string
+          enum: *a1
+        reconciledAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    MilestoneBillingAllocation:
+      $id: https://iems.org/schemas/logistics-billing/milestone-billing-allocation.json
+      type: object
+      required:
+        - id
+        - invoiceLineId
+        - salesOrderId
+        - salesOrderLineId
+        - billingEntitlementId
+        - milestoneDescription
+        - milestonePercentage
+        - billedAmount
+        - currency
+        - reconciledAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        invoiceLineId:
+          type: string
+          format: uuid
+        salesOrderId:
+          type: string
+          format: uuid
+        salesOrderLineId:
+          type: string
+          format: uuid
+        billingEntitlementId:
+          type: string
+          format: uuid
+        milestoneDescription:
+          type: string
+          minLength: 2
+          maxLength: 255
+        milestonePercentage:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        billedAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        currency:
+          type: string
+          enum: *a1
+        reconciledAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    PaymentAllocation:
+      $id: https://iems.org/schemas/logistics-billing/payment-allocation.json
+      type: object
+      required:
+        - id
+        - invoiceId
+        - paymentReferenceNumber
+        - paymentDate
+        - paymentMethod
+        - allocatedAmount
+        - currency
+        - bankFeeAmount
+        - appliedBy
+      properties:
+        id:
+          type: string
+          format: uuid
+        invoiceId:
+          type: string
+          format: uuid
+        paymentReferenceNumber:
+          type: string
+          minLength: 3
+          maxLength: 64
+        paymentDate:
+          type: string
+          format: date-time
+        paymentMethod:
+          type: string
+          enum:
+            - BANK_TRANSFER
+            - CHECK
+            - CASH
+            - CREDIT_OFFSET
+        allocatedAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        currency:
+          type: string
+          enum: *a1
+        bankFeeAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        appliedBy:
+          type: string
+          format: uuid
+        notes:
+          type: string
+          maxLength: 1000
+      additionalProperties: false
+    DepositApplication:
+      $id: https://iems.org/schemas/logistics-billing/deposit-application.json
+      type: object
+      required:
+        - id
+        - finalInvoiceId
+        - depositInvoiceId
+        - prepaymentReference
+        - appliedDepositAmount
+        - currency
+        - appliedAt
+        - approvedBy
+      properties:
+        id:
+          type: string
+          format: uuid
+        finalInvoiceId:
+          type: string
+          format: uuid
+        depositInvoiceId:
+          type: string
+          format: uuid
+        prepaymentReference:
+          type: string
+          minLength: 3
+          maxLength: 64
+        appliedDepositAmount:
+          type: string
+          pattern: ^[0-9]+(\.[0-9]+)?$
+        currency:
+          type: string
+          enum: *a1
+        appliedAt:
+          type: string
+          format: date-time
+        approvedBy:
+          type: string
+          format: uuid
+      additionalProperties: false

@@ -1,0 +1,24 @@
+{
+  "name": "@iems/domain-test-fixtures",
+  "version": "1.0.0",
+  "description": "Deterministic domain test fixtures and validation engine for IEMS manufacturing, repair, and negative acceptance scenarios",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "iems",
+    "manufacturing",
+    "repair",
+    "test-fixtures",
+    "acceptance",
+    "traceability"
+  ],
+  "author": "IEMS Architecture Team",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

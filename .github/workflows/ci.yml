@@ -8,6 +8,20 @@ permissions:
   contents: read
 
 jobs:
+  domain-foundations:
+    name: Domain contracts and fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/contracts/package-lock.json
+      - run: npm ci --prefix packages/contracts --no-audit --no-fund
+      - run: npm test --prefix packages/contracts
+      - run: npm test --prefix packages/domain-test-fixtures
+
   api:
     name: API tests
     runs-on: ubuntu-latest

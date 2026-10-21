@@ -1,0 +1,32 @@
+{
+  "name": "@iems/contracts",
+  "version": "1.0.0",
+  "description": "Canonical TypeScript types, JSON schemas, and OpenAPI 3.1 contract for IEMS",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js",
+      "default": "./dist/src/index.js"
+    },
+    "./openapi.json": "./openapi.json",
+    "./openapi.yaml": "./openapi.yaml"
+  },
+  "scripts": {
+    "build": "tsc && node dist/src/openapi/generate.js",
+    "typecheck": "tsc --noEmit",
+    "generate:openapi": "node dist/src/openapi/generate.js",
+    "test": "tsc && node --test dist/test/decimal.test.js dist/test/error-idempotency.test.js dist/test/role-matrix.test.js dist/test/schemas.test.js dist/test/openapi.test.js"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}
