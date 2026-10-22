@@ -1,0 +1,25 @@
+{
+  "name": "@iems/tenant-foundation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs"
+    }
+  },
+  "types": "./index.d.ts",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 foundation.test.mjs",
+    "check": "tsc --noEmit --target es2022 --module nodenext --moduleResolution nodenext index.d.ts"
+  },
+  "devDependencies": {
+    "mongodb": "6.20.0",
+    "mongodb-memory-server": "10.2.3",
+    "typescript": "5.9.3"
+  }
+}
