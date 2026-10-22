@@ -1,0 +1,27 @@
+{
+  "name": "@iems/document-rendering",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.mjs"
+    }
+  },
+  "scripts": {
+    "test": "node --test --test-reporter=tap --test-concurrency=1 test/render.test.mjs test/issue.test.mjs test/contracts.test.mjs test/mutation.test.mjs test/wave3b-layout.test.mjs test/wave3b-recovery.test.mjs test/wave3c.test.mjs",
+    "check": "tsc --noEmit --strict --module nodenext --moduleResolution nodenext test/public-api.mts"
+  },
+  "dependencies": {
+    "mongodb": "6.21.0",
+    "pdfkit": "0.17.2"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "1.0.13",
+    "@types/node": "24.10.0",
+    "mongodb-memory-server": "10.3.0",
+    "pdfjs-dist": "5.4.394",
+    "typescript": "5.9.3"
+  }
+}
