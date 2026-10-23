@@ -27,6 +27,8 @@ The source manifest and import audit is rerun for the final publication commit. 
 - Mongo shutdown ECONNRESET diagnostics and web build warnings remain recorded; they are distinct from browser console-error counts.
 - A final audit invocation exposed Windows default-encoding failure. Reads are now explicitly UTF-8 and manifest hashing normalizes CRLF to LF for clean checkouts.
 
+- First remote CI passed the maintained API suite but failed one historical renderer recovery test because worker command-line parsing assumed quoted paths. The correction accepts quoted or unquoted exact script paths, retains creation-time checks, and additionally checks PID and IPC identity. A parser regression test is added; this is a harness correction, not a VAT behavior change. Original remote failure: https://github.com/Javanian/IEMS/actions/runs/39977936872.
+
 ## Limits and merge order
 
 PR #1 must provide the customer-service dependency before this change reaches main. Keep this PR dependent on feat/customer-service-preview while that prerequisite is open. No automatic merge or release promotion is authorized by this acceptance.

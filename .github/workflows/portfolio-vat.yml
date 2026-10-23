@@ -60,8 +60,6 @@ jobs:
         run: python checkpoints/wave4h/audit-publication.py
       - name: Validate API syntax
         run: npm --prefix apps/portfolio-api run check
-      - name: Test maintained API contract
-        run: npm --prefix apps/portfolio-api test
       - name: Check renderer public types
         run: npm --prefix packages/document-rendering run check
       - name: Test historical and VAT rendering
@@ -80,3 +78,5 @@ jobs:
           PORTFOLIO_ENGINEERING: '1'
           PORTFOLIO_LABOR: '1'
           PORTFOLIO_VAT: '1'
+      - name: Test maintained API contract
+        run: npm --prefix apps/portfolio-api test
