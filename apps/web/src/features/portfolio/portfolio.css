@@ -1,0 +1,111 @@
+@tailwind components;
+  .portfolio-root { @apply min-h-dvh bg-canvas text-ink; font-size: 1rem; }
+  .portfolio-root * { min-width: 0; }
+  .portfolio-root :is(h1, h2, p, a, button, label, input, select, textarea, span, strong, dt, dd, time) { line-height: 1.5; }
+  .portfolio-root .pf-main :is(h1, h2) { line-height: 1.2; }
+  .pf-dl dd { overflow-wrap: anywhere; }
+  .pf-repair-record > div { padding: 8px 0; border-bottom: 1px solid #cbd5e1; }
+  .pf-repair-record dt { font-weight: 700; }
+  .pf-repair-record dd { overflow-wrap: anywhere; }
+  .pf-repair-record pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.875rem; }
+  .portfolio-root :is(input, textarea, select) { scroll-margin-block: 100px; }
+  .portfolio-root a { @apply text-brand-700 underline underline-offset-4; display: inline-flex; align-items: center; min-height: 44px; overflow-wrap: anywhere; }
+  .portfolio-root button { @apply rounded-xl bg-white border border-slate-500 px-4 py-2 font-semibold text-ink; min-height: 44px; cursor: pointer; }
+  .portfolio-root button:hover { @apply bg-slate-100; }
+  .portfolio-root button:disabled { @apply opacity-60; cursor: not-allowed; }
+  .portfolio-root :is(a, button, input, select, textarea):focus-visible { @apply outline outline-2 outline-offset-2 outline-brand-700; }
+  .portfolio-root .pf-primary { @apply bg-brand-600 text-white border-brand-600; }
+  .portfolio-root .pf-primary:hover { @apply bg-brand-700; }
+  .pf-header { @apply bg-chrome text-white px-4 py-4; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+  .portfolio-root .pf-header a { @apply text-white no-underline px-2; }
+  .portfolio-root .pf-header a[aria-current] { @apply bg-slate-700 rounded-xl; }
+  .portfolio-root .pf-brand { @apply text-xl font-bold; }
+  .pf-nav-hint { display: none; }
+  .pf-repair-record details { margin-block: 8px; }
+  .portfolio-root summary { cursor: pointer; min-height: 44px; padding-block: 10px; }
+  .portfolio-root summary:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+  .pf-header nav, .pf-session { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .pf-session { margin-left: auto; }
+  .pf-main { @apply p-4; max-width: 1280px; margin: auto; padding-bottom: 80px; }
+  .pf-main h1 { @apply text-3xl font-bold tracking-tight mt-4 mb-3; overflow-wrap: anywhere; }
+  .pf-main h2 { @apply text-xl font-bold mb-4; }
+  .pf-main p { margin-bottom: 12px; overflow-wrap: anywhere; }
+  .pf-muted { @apply text-slate-600; }
+  .pf-panel { @apply rounded-2xl border border-slate-200 bg-surface p-4 shadow-soft; margin: 16px 0; align-self: start; }
+  .pf-form { display: flex; flex-direction: column; gap: 12px; }
+  .pf-form > button { align-self: flex-start; }
+  .pf-field { @apply font-medium; display: flex; flex-direction: column; gap: 8px; }
+  .pf-field :is(input, select, textarea) { @apply w-full border border-slate-500 rounded-xl bg-white px-3 py-2 text-ink; min-height: 44px; font-size: 1rem; }
+  .pf-field textarea { resize: vertical; }
+  .pf-columns, .pf-fields, .pf-login { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .pf-list { list-style: none; padding: 0; }
+  .pf-list li { @apply border-b border-slate-200 py-3; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+  .pf-list li:last-child { border: 0; }
+  .pf-id { @apply text-sm text-slate-600; overflow-wrap: anywhere; }
+  .pf-summary, .pf-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+  .pf-summary { margin-bottom: 16px; }
+  .pf-summary strong { @apply text-xl; overflow-wrap: anywhere; }
+  .pf-money { max-width: 100%; font-variant-numeric: tabular-nums; }
+  @media (max-width: 639px) { .pf-summary .pf-money { font-size: 0.875rem; white-space: nowrap; letter-spacing: -0.03em; } }
+  .pf-error { @apply border border-red-600 rounded-xl p-4 my-3 text-ink bg-white; }
+  .pf-skip { position: absolute; top: -100px; left: 16px; z-index: 10; }
+  .portfolio-root .pf-skip:focus { top: 8px; @apply bg-white px-4 rounded-xl; }
+  .pf-login { max-width: 960px; margin: 32px auto; }
+  .pf-tag { @apply text-sm font-semibold text-slate-700 bg-slate-100 border border-slate-300 rounded-lg px-2 py-1; display: inline-block; }
+  .pf-tag-private { @apply bg-amber-50 border-amber-600 text-amber-900; }
+  .pf-private { @apply border-amber-600 bg-amber-50; border-left-width: 4px; }
+  .pf-status { @apply text-sm font-semibold text-slate-800 bg-slate-100 rounded-lg px-2 py-1; align-self: flex-start; }
+  .pf-tabs { display: flex; gap: 8px; flex-wrap: wrap; @apply border-b border-slate-300; }
+  .portfolio-root .pf-tabs a { @apply px-3 no-underline text-slate-700; }
+  .portfolio-root .pf-tabs a[aria-current] { @apply text-brand-700 font-semibold; box-shadow: inset 0 -3px 0 currentColor; }
+  .pf-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between; margin-bottom: 12px; }
+  .pf-toolbar h2 { margin-bottom: 0; }
+  .pf-inline { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .pf-thread .pf-message { @apply rounded-xl px-3 border; margin: 8px 0; }
+  .pf-thread .pf-in { @apply bg-white border-slate-300; margin-right: 15%; }
+  .pf-thread .pf-out { @apply bg-brand-50 border-brand-200; margin-left: 15%; }
+  .pf-thread li:last-child { @apply border; }
+  .pf-balance { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .pf-balance th, .pf-balance td { @apply border-b border-slate-200 py-2 pr-3 text-left; }
+  .pf-balance td.pf-num, .pf-balance th.pf-num { text-align: right; }
+  .pf-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin-bottom: 16px; font-variant-numeric: tabular-nums; }
+  .pf-dl dt { @apply text-slate-600; }
+  .pf-dl dd { @apply font-semibold; text-align: right; }
+  .pf-table-wrap { overflow-x: auto; max-width: 100%; }
+  @media (min-width: 640px) { .pf-main { @apply p-6; } .pf-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pf-panel { @apply p-6; } }
+  @media (min-width: 960px) { .pf-columns, .pf-login { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; } .pf-fields { grid-template-columns: 1.4fr 1fr 0.7fr; } .pf-main { @apply p-8; } }
+  @media (max-width: 639px) {
+    .pf-header { gap: 8px; }
+    .pf-nav-hint { display: block; order: 2; width: 100%; font-size: 0.875rem; }
+    .pf-header nav { order: 3; width: 100%; flex-wrap: nowrap; overflow-x: auto; gap: 4px; }
+    .pf-header nav a { flex: 0 0 auto; white-space: nowrap; }
+    .pf-session { margin-left: 0; width: 100%; justify-content: space-between; }
+    .pf-thread .pf-in { margin-right: 4%; }
+    .pf-thread .pf-out { margin-left: 4%; }
+  }
+  /* Wave 4f: holds, stock exceptions, CS preview provenance and metrics. Sizes in rem so browser text size scales them. */
+  .pf-main h3 { @apply font-semibold; font-size: 1.0625rem; margin: 16px 0 8px; }
+  .pf-disabled-reason { @apply text-amber-900 bg-amber-50 border border-amber-600 rounded-lg px-2 py-1 text-sm font-medium; margin: 0; }
+  .portfolio-root .pf-status-hold { @apply bg-amber-100 text-amber-900; }
+  .pf-exception { @apply border-amber-600 bg-amber-50; border-left-width: 4px; }
+  .pf-hold-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .pf-hold-release { @apply border-t border-slate-200 pt-3 mt-2; }
+  .pf-hold-release fieldset, .pf-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+  .pf-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: 12px; margin-bottom: 12px; }
+  .pf-metric { @apply rounded-xl border border-slate-200 bg-white p-3; }
+  .pf-metric dt { @apply text-sm text-slate-600 font-medium; }
+  .pf-metric dd { display: flex; flex-direction: column; gap: 2px; }
+  .pf-metric dd strong { @apply text-2xl font-bold; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .pf-metric dd span { @apply text-sm text-slate-600; overflow-wrap: anywhere; }
+  .pf-metric-empty dd strong { @apply text-lg text-slate-600; }
+  .pf-compact { flex-direction: row; align-items: center; }
+  .pf-preview-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .pf-provenance { margin-bottom: 4px; }
+  .pf-delivery-note { @apply text-sm text-slate-700; margin-bottom: 4px; }
+  .pf-uncertain { @apply text-amber-900 font-semibold; }
+  .pf-dl-left dd { text-align: left; }
+  .pf-exchange { @apply border-b border-slate-200; }
+  .pf-order-status { @apply rounded-lg border border-slate-200 bg-white px-3 py-2; margin-bottom: 8px; }
+  .pf-milestones { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .pf-milestones li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+  .pf-milestones li[data-state=CURRENT] { @apply font-semibold text-brand-700; }

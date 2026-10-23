@@ -1,0 +1,13 @@
+{
+  "runtime": "Node v24.19.0; MONGOMS_RUNTIME_DOWNLOAD=false; cached MongoDB 7.0.14",
+  "cwd": "D:/Project AI/GITHUB/IEMS",
+  "runner": "node --test --test-concurrency=1 --test-reporter=tap",
+  "baseline20": [
+    "apps/portfolio-api/test/http.test.mjs", "apps/portfolio-api/test/commercial.test.mjs", "apps/portfolio-api/test/procurement.test.mjs", "apps/portfolio-api/test/warehouse.test.mjs", "apps/portfolio-api/test/manufacturing.test.mjs", "apps/portfolio-api/test/fulfillment.test.mjs", "apps/portfolio-api/test/customer-service.test.mjs", "apps/portfolio-api/test/documents.test.mjs", "apps/portfolio-api/test/repair.test.mjs", "apps/portfolio-api/test/stock-ledger.test.mjs", "apps/portfolio-api/test/fulfillment-ledger.test.mjs", "apps/portfolio-api/test/order-reader.test.mjs", "apps/portfolio-api/test/operator-http.test.mjs", "apps/portfolio-api/test/cs-transaction-port.test.mjs", "apps/portfolio-api/test/wave3c.test.mjs", "apps/portfolio-api/test/wave3e.test.mjs", "apps/portfolio-api/test/wave4-wms.test.mjs", "apps/portfolio-api/test/wave4b-engineering.test.mjs", "apps/portfolio-api/test/wave4c-labor.test.mjs", "apps/portfolio-api/test/wave4d-held-stock.test.mjs"
+  ],
+  "wave4f": ["apps/portfolio-api/test/wave4f-stock-holds.test.mjs", "apps/portfolio-api/test/wave4f-customer-service.test.mjs", "apps/portfolio-api/test/wave4f-route-authorization.test.mjs"],
+  "packageAndCs": ["packages/customer-service/customer-service.test.mjs", "packages/customer-service/revocation.test.mjs", "packages/customer-service/wave4f.test.mjs", "docs/platform-2026-10-22/execution/job13/wave4f/qa/c-cs-adversarial.test.mjs"],
+  "originalAuthProbes": ["docs/platform-2026-10-22/execution/job13/wave4f/qa/c-holds-adversarial.test.mjs", "docs/platform-2026-10-22/execution/job13/wave4f/qa/c-route-case-authz.test.mjs"],
+  "desiredHeldProbe": "C_REQUIRE_HELD_DENIAL=1 MONGOMS_RUNTIME_DOWNLOAD=false node --test --test-concurrency=1 --test-reporter=tap docs/platform-2026-10-22/execution/job13/wave4c/cross-review/c-20261023-01/probe.test.mjs",
+  "typecheck": "npm --prefix packages/customer-service run typecheck"
+}
