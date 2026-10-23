@@ -1,11 +1,10 @@
-# Wave4h publication handback (WIP)
+# Reproducing the VAT preview
 
-No installs, Mongo, builds or browser runs were performed in this pass. Acquire the lead heavy-test token before executing commands below, one at a time. Use Node 24.x, npm and Python 3. No root installation or root lock change is needed.
+Use Node.js 24, npm, Python 3.11 or later, and an installed Chrome browser. Run from a clean checkout of feat/wave4h-vat-documents. The branch depends on customer-service preview PR #1; compare against that branch to review this increment.
 
-From the publication worktree root in Git Bash:
+Run the following commands sequentially from the repository root:
 
-```bash
-export MONGOMS_DISABLE_POSTINSTALL=1
+```sh
 npm --prefix packages/tenant-foundation ci
 npm --prefix packages/customer-service ci
 npm --prefix packages/document-rendering ci
@@ -14,36 +13,33 @@ npm --prefix apps/wa-demo-bridge ci
 npm --prefix apps/web ci
 python checkpoints/wave4h/audit-publication.py
 npm --prefix apps/portfolio-api run check
-npm --prefix apps/web run test:portfolio
-npm --prefix packages/tenant-foundation test
-npm --prefix packages/customer-service test
+npm --prefix apps/portfolio-api test
+npm --prefix packages/document-rendering run check
 npm --prefix packages/document-rendering test
-node --test --test-concurrency=1 packages/document-rendering/test/wave4h-vat.test.mjs
-node --test --test-concurrency=1 apps/portfolio-api/test/*.test.mjs
+npm --prefix apps/web run test:portfolio
 npm --prefix apps/web run build
-PORTFOLIO_PAGINATION=1 PORTFOLIO_REPAIR=1 PORTFOLIO_DOCUMENTS=1 PORTFOLIO_WMS=1 PORTFOLIO_ENGINEERING=1 PORTFOLIO_LABOR=1 PORTFOLIO_VAT=1 npm --prefix apps/web run test:portfolio:browser
 ```
 
-Set `PORTFOLIO_EVIDENCE_DIR` to a private directory outside the checkout to retain browser output at a known path. The default is a randomized directory under TMPDIR/OS temp, never publication docs. After browser completion:
+API npm test runs all current test files except the explicitly preserved wave4g-tax.test.mjs. That historical file requires VAT PDF issuance to return 422 and is incompatible with the approved Wave4h behavior. Its expected failure can be reproduced with npm --prefix apps/portfolio-api run test:historical-wave4g. The active wave4h-vat-documents.test.mjs covers the canonical values, supported issuance, partial invoices, settlement and historical replay. No claim is made that the unfiltered historical wildcard suite passes.
 
-```bash
-npm --prefix apps/web run test:portfolio:raster -- "$PORTFOLIO_EVIDENCE_DIR"
+Renderer npm test includes the historical and VAT tests and runs from the correct package directory. The public type-check command is npm run check, not npm run typecheck.
+
+For the connected browser journey, set PORTFOLIO_PAGINATION, PORTFOLIO_REPAIR, PORTFOLIO_DOCUMENTS, PORTFOLIO_WMS, PORTFOLIO_ENGINEERING, PORTFOLIO_LABOR and PORTFOLIO_VAT to 1. Leave PORTFOLIO_SKIP_CS unset. Then run:
+
+```sh
+npm --prefix apps/web run test:portfolio:browser
 ```
 
-Mongo harnesses use `MONGOMS_SYSTEM_BINARY` if supplied; otherwise mongodb-memory-server downloads MongoDB 7.0.14 on first test. A compatible binary/OS runtime or network access to MongoDB downloads is required. Do not point at a shared database: harnesses create their own replica set and randomized marked database. `MONGOMS_DISABLE_POSTINSTALL=1` only defers download until tests. Chrome must already be installed; override executable using `PORTFOLIO_CHROME_BINARY` (native absolute path on Windows). Linux defaults to google-chrome on PATH, macOS to the standard application path. API port 4313 must be free; web chooses a free dual-loopback port 4173..4272. Never kill another owner to free a port.
+Set PORTFOLIO_EVIDENCE_DIR to a private directory outside the checkout, or use the randomized OS-temp default. The raster command accepts that directory:
 
-## Import/dependency disposition
+```sh
+npm --prefix apps/web run test:portfolio:raster -- <evidence-directory>
+```
 
-The static audit covers portfolio API, all portfolio web tests/features and tenant-foundation/customer-service/document-rendering source scopes. Local relative import targets must exist. Browser Mongo imports intentionally resolve the separately locked portfolio-api node_modules; PDF parser/canvas imports resolve the separately locked document-rendering node_modules. These are install-order dependencies, not unpublished spike dependencies. Vite/React/router are in the existing locked web package. No additional browser package is needed: the harness drives installed Chrome over Node 24 WebSocket/CDP. Four missing Wave4f modules were reviewed individually, including their API-only synthetic fixtures and their sole shared browser-kit dependency.
+Mongo harnesses launch their own disposable replica sets. MONGOMS_SYSTEM_BINARY selects an installed MongoDB 7.0.14 binary; otherwise the harness downloads it. MONGOMS_DISABLE_POSTINSTALL=1 defers download until tests. Never point the harness at a shared database. Install all six packages, including the bridge, before running the browser journey.
 
-No fixture/golden directories exist in the three package scopes. Existing test source embeds synthetic fixtures; none was bulk-copied. The two historical Wave4f JSON files already in checkpoint9f4ed18 are old command/hash metadata, not runtime dependencies or new verification evidence; they were not refreshed or used to claim acceptance. Golden PDF hashes embedded in existing tests remain untouched.
+PORTFOLIO_CHROME_BINARY can override the Chrome executable. Windows defaults to the standard Program Files installation; Linux expects google-chrome on PATH. Port 4313 must be free; the web harness probes 4173 through 4272. Do not stop another user's process to free a port. No Docker or RabbitMQ service is required.
 
-`native-smoke.mjs` now launches its own MongoMemoryReplSet instead of unpublished ops/job13, and checks the actual five synthetic seed identities. Execute only after token handback using `node apps/portfolio-api/scripts/native-smoke.mjs`.
+The manifest audit checks normalized source hashes and relative imports; it is not a complete package-resolution or security audit. Two historical command/hash metadata JSON files inherited from the first checkpoint remain provenance only, not runtime dependencies or fresh test evidence. New runtime evidence stays outside Git.
 
-Existing API full suite retains the historically obsolete unsupported-VAT-PDF assertion; business behavior/test expectations were not silently changed. Report any failure explicitly. This preparation is not a green-build claim. Original lead browser 81 exit 0 does not certify this worktree.
-
-## Scope
-
-Only portfolio mount pieces were selected from original router/main/vite. Legacy startup remains unchanged for non-portfolio paths. No kiosk route, startup redesign, legacy aliases, PWA policy or other legacy proxy edits were copied. API src, tax policy and renderer implementation remain checkpoint-identical. Original source hashes are in INTEGRATION-SOURCES.json; the browser entry has additional documented portability-only edits, while the corrected fulfillment module is byte-identical to original.
-
-Manifest includes publication source plus inherited tenant-foundation/customer-service dependencies and integration metadata. It excludes itself to avoid a recursive hash, private evidence, logs, databases, caches and reports. Review all diffs before lead acceptance. No commit/push/PR actions are delegated here.
+The dedicated Portfolio VAT acceptance workflow reproduces API, renderer, frontend, build and connected browser checks on Windows. It does not replace independent visual review of rendered PDFs or establish production readiness.

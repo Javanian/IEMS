@@ -5,11 +5,11 @@ import subprocess
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-manifest = json.loads((root / 'checkpoints/wave4h/SOURCE-MANIFEST.json').read_text())
+manifest = json.loads((root / 'checkpoints/wave4h/SOURCE-MANIFEST.json').read_text(encoding='utf-8'))
 errors = []
 for name, digest in manifest.items():
     path = root / name
-    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+    if not path.is_file() or hashlib.sha256(path.read_bytes().replace(b'\r\n', b'\n')).hexdigest() != digest:
         errors.append(f'manifest mismatch: {name}')
 scopes = ['apps/portfolio-api', 'apps/web/test', 'apps/web/src/features/portfolio', 'packages/tenant-foundation', 'packages/customer-service', 'packages/document-rendering']
 imports = []
@@ -17,7 +17,7 @@ for scope in scopes:
     for path in (root / scope).rglob('*'):
         if not path.is_file() or 'node_modules' in path.parts or path.suffix not in {'.js', '.mjs', '.jsx', '.ts'}:
             continue
-        text = path.read_text()
+        text = path.read_text(encoding='utf-8')
         for specifier in re.findall(r'''(?:from\s+|import\s*\()['"]([^'"]+)''', text):
             if not specifier.startswith('.') or 'node_modules' in specifier:
                 continue

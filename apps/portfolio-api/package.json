@@ -1,1 +1,22 @@
-{"name":"@iems/portfolio-api","private":true,"type":"module","engines":{"node":">=24"},"scripts":{"start":"node src/server.mjs","seed":"node src/seed-cli.mjs","test":"node --test --test-reporter=tap test/*.test.mjs","check":"node scripts/check.mjs"},"dependencies":{"express":"5.1.0","mongodb":"6.20.0"},"devDependencies":{"mongodb-memory-server":"10.2.3"}}
+{
+  "name": "@iems/portfolio-api",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "seed": "node src/seed-cli.mjs",
+    "test": "node scripts/test-maintained.mjs",
+    "check": "node scripts/check.mjs",
+    "test:historical-wave4g": "node --test --test-concurrency=1 test/wave4g-tax.test.mjs"
+  },
+  "dependencies": {
+    "express": "5.1.0",
+    "mongodb": "6.20.0"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "10.2.3"
+  }
+}

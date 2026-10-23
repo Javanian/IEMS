@@ -3,7 +3,7 @@
 Lead exercised this separate worktree after clean npm ci in tenant-foundation, customer-service, document-rendering, portfolio-api, web and wa-demo-bridge. No original-checkout node_modules were borrowed. Mongo 7.0.14 resolved through mongodb-memory-server without MONGOMS_SYSTEM_BINARY; Chrome was the installed native browser. Real owned Mongo and synthetic business fixtures, not a simulated database.
 
 Results, 2026-10-23:
-- Static audit: 167 manifest files, 204 relative import edges, zero errors.
+- Earlier static audit: 168 manifest files, 204 relative import edges, zero errors as recorded by the publication lead. The finalization pass reruns the audit after documentation and test-entry updates; see the PR checks for the final count.
 - API syntax check: exit0.
 - Frontend portfolio units:44/44, zero skipped, exit0.
 - Web production build:exit0; outdated Browserslist and large chunk warnings remain.
@@ -21,4 +21,4 @@ Historical Wave4g test expecting VAT PDF422 is unchanged and obsolete under the 
 
 Boundaries: fixture tax policy only, no statutory compliance. NO_TAX schema1/templates1/2 remain; VAT quote/invoice use schema2/template3. Quote/SO VAT total is gross. Full E01, repair VAT, real brokers, production/shared-database remediation, live messaging, SAP, AWS and cutover remain unaccepted/outside this increment. No daemon/container was started.
 
-This is local verification, not CI or remote publication proof. Push, PR and remote checks remain pending.
+These are local verification results at the integration checkpoint. Remote publication and checks are tracked on the dependent pull request; local results must not be presented as remote CI proof.

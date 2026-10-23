@@ -1,0 +1,82 @@
+name: Portfolio VAT acceptance
+
+on:
+  push:
+    paths:
+      - 'apps/portfolio-api/**'
+      - 'apps/web/**'
+      - 'apps/wa-demo-bridge/**'
+      - 'packages/**'
+      - 'checkpoints/wave4h/**'
+      - '.github/workflows/portfolio-vat.yml'
+  pull_request:
+    paths:
+      - 'apps/portfolio-api/**'
+      - 'apps/web/**'
+      - 'apps/wa-demo-bridge/**'
+      - 'packages/**'
+      - 'checkpoints/wave4h/**'
+      - '.github/workflows/portfolio-vat.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portfolio-vat-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vat:
+    name: VAT API, PDF and connected browser
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      MONGOMS_DISABLE_POSTINSTALL: '1'
+      MONGOMS_VERSION: '7.0.14'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            packages/tenant-foundation/package-lock.json
+            packages/customer-service/package-lock.json
+            packages/document-rendering/package-lock.json
+            apps/portfolio-api/package-lock.json
+            apps/wa-demo-bridge/package-lock.json
+            apps/web/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install locked dependencies
+        shell: pwsh
+        run: |
+          foreach ($package in @('packages/tenant-foundation', 'packages/customer-service', 'packages/document-rendering', 'apps/portfolio-api', 'apps/wa-demo-bridge', 'apps/web')) {
+            npm --prefix $package ci --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Audit publication manifest and imports
+        run: python checkpoints/wave4h/audit-publication.py
+      - name: Validate API syntax
+        run: npm --prefix apps/portfolio-api run check
+      - name: Test maintained API contract
+        run: npm --prefix apps/portfolio-api test
+      - name: Check renderer public types
+        run: npm --prefix packages/document-rendering run check
+      - name: Test historical and VAT rendering
+        run: npm --prefix packages/document-rendering test
+      - name: Test frontend behavior
+        run: npm --prefix apps/web run test:portfolio
+      - name: Build web application
+        run: npm --prefix apps/web run build
+      - name: Test connected browser workflow
+        run: npm --prefix apps/web run test:portfolio:browser
+        env:
+          PORTFOLIO_PAGINATION: '1'
+          PORTFOLIO_REPAIR: '1'
+          PORTFOLIO_DOCUMENTS: '1'
+          PORTFOLIO_WMS: '1'
+          PORTFOLIO_ENGINEERING: '1'
+          PORTFOLIO_LABOR: '1'
+          PORTFOLIO_VAT: '1'

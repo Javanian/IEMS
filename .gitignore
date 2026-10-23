@@ -175,3 +175,5 @@ jobs/.pycache_legacy/
 
 !/.github/pull_request_template.md
 !/checkpoints/wave4h/PUBLICATION.md
+
+!/checkpoints/wave4h/*.md
