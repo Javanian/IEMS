@@ -29,6 +29,8 @@ The source manifest and import audit is rerun for the final publication commit. 
 
 - First remote CI passed the maintained API suite but failed one historical renderer recovery test because worker command-line parsing assumed quoted paths. The correction accepts quoted or unquoted exact script paths, retains creation-time checks, and additionally checks PID and IPC identity. A parser regression test is added; this is a harness correction, not a VAT behavior change. Original remote failure: https://github.com/Javanian/IEMS/actions/runs/39977936872.
 
+- The second remote run passed renderer (including the new identity regression), frontend units and build, then failed before UI navigation because the harness did not obtain a Chrome endpoint within its old 10-second stderr-only wait. Startup now checks the protocol-defined DevToolsActivePort file in its unique temporary profile as well, allows a bounded 60-second startup, and reports process launch/exit diagnostics. Business assertions and browser acceptance counts are unchanged. Remote reproduction: https://github.com/Javanian/IEMS/actions/runs/39979308381.
+
 ## Limits and merge order
 
 PR #1 must provide the customer-service dependency before this change reaches main. Keep this PR dependent on feat/customer-service-preview while that prerequisite is open. No automatic merge or release promotion is authorized by this acceptance.

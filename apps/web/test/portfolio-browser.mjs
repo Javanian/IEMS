@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer as createNetServer } from 'node:net';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -88,9 +88,24 @@ try {
   await new Promise((r, j) => { api.once('listening', r); api.once('error', j); });
   vite = await createServer({ root, server: { host: 'localhost', port: webPort, strictPort: true } }); await vite.listen();
   chrome = spawn(process.env.PORTFOLIO_CHROME_BINARY || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'google-chrome'), ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
-  let stderr = ''; chrome.stderr.on('data', d => stderr += d);
-  for (let i = 0; i < 100 && !stderr.includes('DevTools listening on'); i++) await delay(100);
-  const endpoint = stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/)?.[1]; assert.ok(endpoint, 'owned Chrome endpoint');
+  let stderr = '', launchError, endpoint;
+  chrome.stderr.on('data', d => stderr += d);
+  chrome.once('error', error => { launchError = error; });
+  const startupDeadline = Date.now() + 60000;
+  while (!endpoint && Date.now() < startupDeadline) {
+    if (launchError) throw launchError;
+    endpoint = stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/)?.[1];
+    if (!endpoint) {
+      // The protocol also exposes readiness in this exclusively owned profile.
+      try {
+        const [port, route] = (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).trim().split(/\r?\n/);
+        if (/^\d+$/.test(port) && Number(port) > 0 && Number(port) <= 65535 && /^\/devtools\/browser\/[a-zA-Z0-9-]+$/.test(route)) endpoint = `ws://127.0.0.1:${port}${route}`;
+      } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    }
+    if (chrome.exitCode !== null || chrome.signalCode !== null) throw Error(`Owned Chrome exited before readiness (${chrome.exitCode}/${chrome.signalCode}): ${stderr.slice(-4000)}`);
+    if (!endpoint) await delay(100);
+  }
+  assert.ok(endpoint, `owned Chrome endpoint not ready within 60s: ${stderr.slice(-4000)}`);
   ws = new WebSocket(endpoint); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
   ws.onmessage = e => { const m = JSON.parse(e.data); const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(m.error) : p.resolve(m.result); }
     for (const listener of listeners) listener(m);
