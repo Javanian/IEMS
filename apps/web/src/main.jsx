@@ -4,11 +4,16 @@ import '@fontsource-variable/plus-jakarta-sans/wght.css';
 import '@fontsource/fira-code/latin-500.css';
 import './index.css';
 import App from './App.jsx';
+import { RouterProvider } from 'react-router-dom';
+import router from './router';
 import { loadConfig } from './config/loadConfig';
 
 const root = createRoot(document.getElementById('root'));
 
-loadConfig()
+const portfolioEntry = /^\/portfolio(?:\/|$)/.test(window.location.pathname);
+if (portfolioEntry) {
+  root.render(<StrictMode><RouterProvider router={router} /></StrictMode>);
+} else loadConfig()
   .then(() => {
     root.render(
       <StrictMode>

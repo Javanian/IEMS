@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-export async function fulfillmentJourney({db,call,wait,click,fill,evaluate,screenshot,check}) {
+export async function fulfillmentJourney({db,call,wait,click,fill,evaluate,screenshot,check,network}) {
  const so=await db.collection('salesOrders').findOne({}),wo=await db.collection('manufacturingWorkOrders').findOne({status:'QC_COMPLETED'});
  await click('Sales orders');await click(so._id);await click('Manage fulfillment');
  await wait(`document.querySelector('[name=sourceId] option[value="${wo._id}"]')`);
@@ -18,10 +18,34 @@ export async function fulfillmentJourney({db,call,wait,click,fill,evaluate,scree
  await fill('amount','10.00');await fill('reference','Synthetic payment receipt');await click('Allocate payment');await wait(`document.querySelector('.pf-dl dd:last-child')?.textContent==='USD 15.00'`);
  const payment=await db.collection('fulfillmentPayments').findOne({reference:'Synthetic payment receipt'});assert.equal(payment.amount,'10.00');assert.equal(payment.allocations[0].invoiceId,invoice._id);
  assert.equal((await db.collection('fulfillmentInvoices').findOne({_id:invoice._id})).paidAmount,'10.00');
- await call('Page.reload');await wait(`document.querySelector('.pf-dl dd:last-child')?.textContent==='USD 15.00'`);
+ const loadedInvoice = `document.querySelector('h1')?.textContent==='Invoice ${invoice._id.slice(0,8)}' && document.querySelector('.pf-dl dd:last-child')?.textContent==='USD 15.00' && document.querySelector('[name=amount]') && [...document.querySelectorAll('button')].some(b=>b.textContent==='Refresh record'&&!b.disabled)`;
+ const timeOrigin=await evaluate('performance.timeOrigin');
+ await call('Page.reload');
+ await wait(`performance.timeOrigin!==${timeOrigin} && (${loadedInvoice})`);
  const credential=await db.collection('credentials').findOne({username:'alpha.owner'}),member=await db.collection('memberships').findOne({userId:credential._id});
- await db.collection('memberships').updateOne({_id:member._id},{$set:{roles:[]}});await click('Refresh record');await wait(`document.body.innerText.includes('Access denied')`);
- await db.collection('memberships').updateOne({_id:member._id},{$set:{roles:member.roles}});await click('Refresh and retry');await wait(`document.querySelector('.pf-dl dd:last-child')?.textContent==='USD 15.00'`);
+ const invoicePath=`/api/fulfillment/invoices/${invoice._id}`;
+ const invoiceResponses=()=>network.filter(r=>new URL(r.url).pathname.endsWith(invoicePath));
+ const beforeDenial=invoiceResponses().length;
+ const invoiceBeforeDenial=await db.collection('fulfillmentInvoices').findOne({_id:invoice._id});
+ await db.collection('memberships').updateOne({_id:member._id},{$set:{roles:[]}});
+ assert.deepEqual((await db.collection('memberships').findOne({_id:member._id})).roles,[]);
+ await click('Refresh record');
+ await wait(`document.querySelector('[role=alert]')?.innerText.includes('Code: SCOPE_DENIED')`);
+ assert.equal(invoiceResponses().length,beforeDenial+1);assert.equal(invoiceResponses().at(-1).status,403);
+ assert.equal(await evaluate(`document.querySelector('[name=amount]')===null && ![...document.querySelectorAll('button')].some(b=>b.textContent==='Refresh record')`),true);
+ // A denied detail remains denied on a genuine hard reload; only its error control may retry it.
+ const deniedOrigin=await evaluate('performance.timeOrigin');await call('Page.reload');
+ await wait(`performance.timeOrigin!==${deniedOrigin} && document.querySelector('[role=alert]')?.innerText.includes('Code: SCOPE_DENIED')`);
+ assert.equal(invoiceResponses().length,beforeDenial+2);assert.equal(invoiceResponses().at(-1).status,403);
+ await db.collection('memberships').updateOne({_id:member._id},{$set:{roles:member.roles}});
+ assert.deepEqual((await db.collection('memberships').findOne({_id:member._id})).roles,member.roles);
+ await click('Refresh and retry');await wait(loadedInvoice);
+ assert.equal(invoiceResponses().length,beforeDenial+3);assert.equal(invoiceResponses().at(-1).status,200);
+ assert.deepEqual(await db.collection('fulfillmentInvoices').findOne({_id:invoice._id}),invoiceBeforeDenial);
+ assert.equal(await db.collection('fulfillmentPayments').countDocuments({reference:'Synthetic payment receipt'}),1);
+ // The denied hard reload also refreshed session permissions while roles were empty.
+ const restoredOrigin=await evaluate('performance.timeOrigin');await call('Page.reload');
+ await wait(`performance.timeOrigin!==${restoredOrigin} && (${loadedInvoice})`);
  await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1});await click('Refresh record');await wait(`document.body.innerText.includes('Retry to load')`);
  await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});await click('Refresh and retry');await wait(`document.querySelector('[name=amount]')`);
  await call('Emulation.setDeviceMetricsOverride',{width:375,height:800,deviceScaleFactor:1,mobile:true});

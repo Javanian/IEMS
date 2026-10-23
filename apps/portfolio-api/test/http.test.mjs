@@ -6,7 +6,7 @@ import { MongoClient } from 'mongodb';
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { createApp, initialize, seedSynthetic } from '../src/app.mjs';
 
-const binary = fileURLToPath(new URL('../../../packages/mongodb-spike/.runtime/binary/mongod-x64-win32-7.0.14.exe', import.meta.url));
+const binary = process.env.MONGOMS_SYSTEM_BINARY;
 test('password cookie lifecycle uses real scoped Mongo identity', async t => {
   const repl = await MongoMemoryReplSet.create({ binary: { systemBinary: binary, version: '7.0.14' }, replSet: { count: 1, storageEngine: 'wiredTiger' }, instanceOpts: [{ args: ['--wiredTigerCacheSizeGB', '0.25', '--oplogSize', '128'] }] });
   const client = await new MongoClient(repl.getUri()).connect();

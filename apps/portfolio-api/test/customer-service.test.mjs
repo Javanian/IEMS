@@ -8,7 +8,7 @@ import { createApp, initialize, seedSynthetic } from '../src/app.mjs';
 
 const ACCOUNT = 'synthetic-preview-account';
 test('customer-service operator HTTP routes over the read-only package API', async t => {
-  const repl = await MongoMemoryReplSet.create({ binary: { systemBinary: fileURLToPath(new URL('../../../packages/mongodb-spike/.runtime/binary/mongod-x64-win32-7.0.14.exe', import.meta.url)), version: '7.0.14' }, replSet: { count: 1, storageEngine: 'wiredTiger' }, instanceOpts: [{ args: ['--wiredTigerCacheSizeGB', '0.25', '--oplogSize', '128'] }] });
+  const repl = await MongoMemoryReplSet.create({ binary: { systemBinary: process.env.MONGOMS_SYSTEM_BINARY, version: '7.0.14' }, replSet: { count: 1, storageEngine: 'wiredTiger' }, instanceOpts: [{ args: ['--wiredTigerCacheSizeGB', '0.25', '--oplogSize', '128'] }] });
   const client = await new MongoClient(repl.getUri()).connect();
   const db = client.db(`portfolio_test_${randomUUID().replaceAll('-', '')}`), marker = randomUUID();
   await db.collection('ownedRun').insertOne({ _id: marker });

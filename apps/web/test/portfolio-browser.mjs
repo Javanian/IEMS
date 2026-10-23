@@ -38,7 +38,7 @@ process.env.PORTFOLIO_WEB_ORIGIN = web;
 console.log('Owned web origin', web);
 
 const root = resolve(import.meta.dirname, '..');
-const evidence = process.env.PORTFOLIO_EVIDENCE_DIR ? resolve(process.env.PORTFOLIO_EVIDENCE_DIR) : resolve(root, `../../docs/platform-2026-10-22/execution/job13/wave4f/browser/run-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+const evidence = process.env.PORTFOLIO_EVIDENCE_DIR ? resolve(process.env.PORTFOLIO_EVIDENCE_DIR) : resolve(process.env.TMPDIR || tmpdir(), `portfolio-evidence-${randomUUID()}`);
 await mkdir(evidence, { recursive: true });
 const profile = await mkdtemp(join(process.env.TMPDIR || tmpdir(), 'portfolio-chrome-'));
 const marker = randomUUID(), database = `portfolio_owned_browser_${marker.replaceAll('-', '')}`;
@@ -72,7 +72,7 @@ async function fill(name, value) {
 async function screenshot(name) { await call('Page.bringToFront'); await delay(150); const shot = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); await writeFile(join(evidence, name + '.png'), Buffer.from(shot.data, 'base64')); }
 function check(name) { checks.push(name); console.log('PASS', name); }
 try {
-  mongo = await MongoMemoryReplSet.create({ binary: { version: '7.0.14', systemBinary: resolve(root, '../../packages/mongodb-spike/.runtime/binary/mongod-x64-win32-7.0.14.exe') }, instanceOpts: [{ launchTimeout: 60000 }], replSet: { count: 1, storageEngine: 'wiredTiger' } });
+  mongo = await MongoMemoryReplSet.create({ binary: { version: '7.0.14', systemBinary: process.env.MONGOMS_SYSTEM_BINARY }, instanceOpts: [{ launchTimeout: 60000 }], replSet: { count: 1, storageEngine: 'wiredTiger' } });
   const env = { ...process.env, PORTFOLIO_MONGO_URI: mongo.getUri(), PORTFOLIO_DB: database, PORTFOLIO_SEED_PASSWORD: password };
   runtime = await connectOwned(env);
   runtime.customerService = await initializeCustomerService(runtime, { previewDispatcher: true });
@@ -81,13 +81,13 @@ try {
   assert.equal(seeded.status, 0, seeded.stderr);
   const seededIdentities = JSON.parse(seeded.stdout).identities.map(i => i.username);
   assert.deepEqual(seededIdentities, ['alpha.owner', 'beta.owner', 'alpha.inspector', 'alpha.quality', 'alpha.viewer']);
-  check('explicit synthetic seed CLI, fresh owned DB, cached real MongoDB 7.0.14 replica set');
+  check('explicit synthetic seed CLI, fresh owned DB, real MongoDB 7.0.14 replica set');
   independent = new MongoClient(mongo.getUri()); await independent.connect();
   const db = independent.db(database);
   api = createApp(runtime, { origins: [web] }).listen(4313, '127.0.0.1');
   await new Promise((r, j) => { api.once('listening', r); api.once('error', j); });
   vite = await createServer({ root, server: { host: 'localhost', port: webPort, strictPort: true } }); await vite.listen();
-  chrome = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  chrome = spawn(process.env.PORTFOLIO_CHROME_BINARY || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'google-chrome'), ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = ''; chrome.stderr.on('data', d => stderr += d);
   for (let i = 0; i < 100 && !stderr.includes('DevTools listening on'); i++) await delay(100);
   const endpoint = stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/)?.[1]; assert.ok(endpoint, 'owned Chrome endpoint');
@@ -208,7 +208,7 @@ try {
   if (process.env.PORTFOLIO_SKIP_CS !== '1') await orderInquiry({db,runtime,headers,expected:'ACCEPTED'});
   await manufacturingJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers });
   if (process.env.PORTFOLIO_SKIP_CS !== '1') await orderInquiry({db,runtime,headers,expected:'READY_TO_SHIP'});
-  await fulfillmentJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers });
+  await fulfillmentJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, network });
   if (process.env.PORTFOLIO_SKIP_CS !== '1') await serviceJourney({ db, runtime, call, wait, click, fill, evaluate, screenshot, check, headers });
   if (process.env.PORTFOLIO_PAGINATION === '1') await paginationJourney({ db, runtime, call, wait, click, fill, evaluate, screenshot, check, headers });
   if (process.env.PORTFOLIO_REPAIR === '1') await repairJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse, downloadPath: evidence });

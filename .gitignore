@@ -174,3 +174,4 @@ jobs/.pycache_legacy/
 /apps/api/testantri.js
 
 !/.github/pull_request_template.md
+!/checkpoints/wave4h/PUBLICATION.md

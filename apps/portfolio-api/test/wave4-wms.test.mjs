@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-const require = createRequire("file:///D:/Project%20AI/GITHUB/IEMS/apps/portfolio-api/test/fulfillment.test.mjs");
+const require = createRequire(import.meta.url);
 const { MongoClient } = require('mongodb');
 const { MongoMemoryReplSet } = require('mongodb-memory-server');
-import { createApp, initialize, seedSynthetic } from "file:///D:/Project%20AI/GITHUB/IEMS/apps/portfolio-api/src/app.mjs";
+import { createApp, initialize, seedSynthetic } from '../src/app.mjs';
 
 test('wave4 bounded WMS owned Mongo HTTP', async t => {
-  const repl = await MongoMemoryReplSet.create({ binary: { systemBinary: fileURLToPath(new URL("file:///D:/Project%20AI/GITHUB/IEMS/packages/mongodb-spike/.runtime/binary/mongod-x64-win32-7.0.14.exe")), version: '7.0.14' }, replSet: { count: 1, storageEngine: 'wiredTiger' }, instanceOpts: [{ args: ['--wiredTigerCacheSizeGB', '0.25', '--oplogSize', '128'] }] });
+  const repl = await MongoMemoryReplSet.create({ binary: { systemBinary: process.env.MONGOMS_SYSTEM_BINARY, version: '7.0.14' }, replSet: { count: 1, storageEngine: 'wiredTiger' }, instanceOpts: [{ args: ['--wiredTigerCacheSizeGB', '0.25', '--oplogSize', '128'] }] });
   const client = await new MongoClient(repl.getUri()).connect();
   const db = client.db(`portfolio_test_${randomUUID().replaceAll('-', '')}`), marker = randomUUID();
   await db.collection('ownedRun').insertOne({ _id: marker });
