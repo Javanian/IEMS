@@ -1,0 +1,20 @@
+{
+  "name": "@iems/wa-demo-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/binding.test.mjs test/bridge.test.mjs test/customer-service.test.mjs test/foundation.test.mjs test/operator-race.test.mjs test/os-kill.test.mjs",
+    "start": "node src/main.mjs"
+  },
+  "dependencies": {
+    "@iems/customer-service": "file:../../packages/customer-service",
+    "mongodb": "6.21.0"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "10.2.3"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}
