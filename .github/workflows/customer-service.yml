@@ -1,0 +1,54 @@
+name: Customer service preview
+
+on:
+  push:
+    paths:
+      - 'packages/customer-service/**'
+      - 'packages/tenant-foundation/**'
+      - 'apps/wa-demo-bridge/**'
+      - '.github/workflows/customer-service.yml'
+  pull_request:
+    paths:
+      - 'packages/customer-service/**'
+      - 'packages/tenant-foundation/**'
+      - 'apps/wa-demo-bridge/**'
+      - '.github/workflows/customer-service.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cs-preview-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Tickets, authorization and preview recovery
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      MONGOMS_VERSION: '7.0.14'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            packages/customer-service/package-lock.json
+            apps/wa-demo-bridge/package-lock.json
+      - name: Install customer service dependencies
+        run: npm ci --ignore-scripts --workspaces=false --no-audit --no-fund
+        working-directory: packages/customer-service
+      - name: Install preview bridge dependencies
+        run: npm ci --ignore-scripts --workspaces=false --no-audit --no-fund
+        working-directory: apps/wa-demo-bridge
+      - name: Check customer service types
+        run: npm run typecheck
+        working-directory: packages/customer-service
+      - name: Test tickets, bindings and delivery fencing
+        run: npm test
+        working-directory: packages/customer-service
+      - name: Test preview authentication and crash recovery
+        run: npm test
+        working-directory: apps/wa-demo-bridge
