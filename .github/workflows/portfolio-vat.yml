@@ -10,6 +10,7 @@ on:
       - 'checkpoints/wave4h/**'
       - 'checkpoints/wave4j/**'
       - 'checkpoints/wave4k/**'
+      - 'checkpoints/wave4k2a/**'
       - '.github/workflows/portfolio-vat.yml'
   pull_request:
     paths:
@@ -20,6 +21,7 @@ on:
       - 'checkpoints/wave4h/**'
       - 'checkpoints/wave4j/**'
       - 'checkpoints/wave4k/**'
+      - 'checkpoints/wave4k2a/**'
       - '.github/workflows/portfolio-vat.yml'
 
 permissions:
@@ -61,7 +63,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - name: Audit publication manifest and imports
-        run: python checkpoints/wave4h/audit-publication.py checkpoints/wave4k/SOURCE-MANIFEST.json
+        run: python checkpoints/wave4h/audit-publication.py checkpoints/wave4k2a/SOURCE-MANIFEST.json
       - name: Validate API syntax
         run: npm --prefix apps/portfolio-api run check
       - name: Check renderer public types
@@ -74,6 +76,8 @@ jobs:
         run: npm --prefix apps/web run build
       - name: Test independent genealogy ordering and holds
         run: node --test --test-concurrency=1 checkpoints/wave4k/qa/hold-shipment-fence.test.mjs
+      - name: Test independent received custody ordering
+        run: node --test --test-concurrency=1 checkpoints/wave4k2a/qa/custody-ordering.test.mjs
       - name: Test connected browser workflow
         run: npm --prefix apps/web run test:portfolio:browser
         env:
@@ -87,5 +91,6 @@ jobs:
           PORTFOLIO_INQUIRY: '1'
           PORTFOLIO_LOT_SERIAL: '1'
           PORTFOLIO_GENEALOGY: '1'
+          PORTFOLIO_SERIAL_CUSTODY: '1'
       - name: Test maintained API contract
         run: npm --prefix apps/portfolio-api test

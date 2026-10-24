@@ -1,0 +1,13 @@
+# Received serial custody handoff
+
+Worktree `D:/Project AI/GITHUB/IEMS-worktrees/manufacturing-serial-custody`, branch `feat/manufacturing-serial-custody`, baseline `2b66c85`. CONTRACT.md is the frozen wire, lifecycle and acceptance boundary. STATUS.md and LEAD-ACCEPTANCE.md are current verification authority.
+
+`serial-custody.mjs` owns explicit untouched-receipt adoption, stable custody units, active claim documents, immutable events, source/registry/quantity integrity and exact claim transitions. Manufacturing registers dedicated capabilities, opts planning in, shares complete claim validation across manual/engineering release, and consumes the same RESERVED identities with the existing first operation. Warehouse integrates initialization/routes, permanent quantity-only reservation/count refusal and identity-aware whole-transfer eligibility. Fulfillment defensively rejects quantity-only RESERVATION dispatch from adopted receipts. Hold writers retain authority and share the same receipt conflict document.
+
+Adoption cannot reconstruct history from zero counters. It checks receipt-owned registry identities plus actual reservation/movement history and quantity conservation. Claim/abandon write receipt and WO versions without quantity changes. Release reserves and first operation consumes exactly once; unit/claim/event writes and ordinary stock/audit/outbox/key effects are transactional. No TTL, auto-unclaim or RESERVED/CONSUMED release endpoint exists here. Invalid markers and malformed inactive hold caches remain blocked.
+
+UI uses the existing portfolio design: explicit receipt adoption, quantity-available versus claimable identities, native UUID multi-select, PLANNED abandon, source holds, separate permissions, exact uncertain retry, event pages and complete claim bindings for both release paths. No default identity selection or inferred installation is permitted. New browser flag PORTFOLIO_SERIAL_CUSTODY is additive to all ten accepted earlier switches.
+
+Heavy jobs run sequentially on cached Mongo7.0.14 with owned disposable marker-guarded databases. Dependency junctions reuse the accepted K1 installed modules; package and lock files are unchanged. Raw logs/screenshots/PDFs and hash verification live outside Git in the K2a evidence directory. SOURCE-MANIFEST.json normalizes CRLF to LF and is checked by the existing publication audit.
+
+Next freeze K2b before graph commands. Per-output installed edges and manufactured-child custody cannot be inferred from CONSUMED_WO identity evidence. The full original K2/later delivery/E01 gates remain in the Wave4j plan, refined by this folder's development plan. Local tests do not publish or deploy these branches.

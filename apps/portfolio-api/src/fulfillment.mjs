@@ -3,6 +3,7 @@ import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.m
 import { fixtureVat, fixtureTax, taxAmounts } from './fixture-tax.mjs';
 import { requireEligibleReceipt } from './stock-holds.mjs';
 import { freezeShipmentGenealogy } from './genealogy.mjs';
+import { requireQuantityOnlyReceipt } from './serial-custody.mjs';
 
 const verbs = ['read', 'ship', 'invoice', 'pay'];
 export const fulfillmentActions = verbs.map(v => `fulfillment.${v}`);
@@ -183,6 +184,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
           const consumed = await tally(req, 'SOURCE_SHIPPED', reservation._id, 0, s.amount, units(reservation.quantity), session);
           await c('warehouseReservations').updateOne({ ...req.filter, _id: reservation._id }, { $set: { shippedQuantity: decimal(consumed.after), remainingQuantity: decimal(units(reservation.quantity) - consumed.after), status: consumed.after === units(reservation.quantity) ? 'CONSUMED' : 'PARTIALLY_SHIPPED', updatedAt: new Date() }, $inc: { version: 1 } }, { session });
           receipt = await find('warehouseReceipts', req, reservation.receiptId, session);
+          requireQuantityOnlyReceipt(receipt);
           if (receipt.lotNumber !== undefined) s.materialTrace = { receiptId: receipt._id, lotNumber: receipt.lotNumber, heatNumber: receipt.heatNumber };
           // Shipping draws on the receipt: a hold (new or legacy) blocks it; the reservation itself is left intact.
           await requireEligibleReceipt(runtime.db, receipt, session);

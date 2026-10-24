@@ -1,3 +1,5 @@
+import { releaseSerialClaims } from './serial-custody.mjs';
+
 // Pure command builders for /api/manufacturing. Decimal strings and UOM pass through unchanged;
 // the server is the conservation authority. expectedVersion is captured once per command so an
 // uncertain response can be retried with the identical idempotent payload.
@@ -5,12 +7,12 @@ const words = text => (text || '').trim().split(/\s+/).filter(Boolean);
 
 export function planCommand(order, values, key) {
   const lineIndex = Number(values.lineIndex);
-  return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex]?.uom, quantities: words(values.quantities), ...(values.serialized === 'true' || values.serialized === true ? { serialized:true } : {}), ...(values.genealogyRequired === 'true' || values.genealogyRequired === true ? { genealogyRequired:true } : {}), idempotencyKey: key };
+  return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex]?.uom, quantities: words(values.quantities), ...(values.serialized === 'true' || values.serialized === true ? { serialized:true } : {}), ...(values.genealogyRequired === 'true' || values.genealogyRequired === true ? { genealogyRequired:true } : {}), ...(values.serialCustodyRequired === 'true' || values.serialCustodyRequired === true ? { serialCustodyRequired:true } : {}), idempotencyKey: key };
 }
-export function releaseCommand(wo, values, operationCount, materialCount, key) {
+export function releaseCommand(wo, values, operationCount, materialCount, key, claims = []) {
   const operations = Array.from({ length: operationCount }, (_, i) => ({ code: values[`code${i}`], instruction: values[`instruction${i}`] }));
   const materials = Array.from({ length: materialCount }, (_, i) => ({ receiptId: values[`receiptId${i}`], quantityPerUnit: values[`quantityPerUnit${i}`], uom: values[`materialUom${i}`] }));
-  return { expectedVersion: wo.version, operations, materials, idempotencyKey: key };
+  return { expectedVersion: wo.version, operations, materials, ...releaseSerialClaims(wo, claims), idempotencyKey: key };
 }
 export function nextOperation(wo) {
   const index = wo.records.length, operation = wo.routing?.operations[index];
