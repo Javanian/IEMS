@@ -172,3 +172,5 @@ jobs/.pycache_legacy/
 .obsidian/
 
 /apps/api/testantri.js
+
+!/.github/pull_request_template.md

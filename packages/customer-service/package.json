@@ -1,0 +1,25 @@
+{
+  "name": "@iems/customer-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs"
+    }
+  },
+  "types": "./index.d.ts",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 customer-service.test.mjs revocation.test.mjs wave4f.test.mjs",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext index.d.ts contract-check.ts"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "mongodb": "6.21.0",
+    "mongodb-memory-server": "10.2.3"
+  }
+}
