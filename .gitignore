@@ -182,3 +182,5 @@ jobs/.pycache_legacy/
 !/checkpoints/wave4k2a/*.md
 !/checkpoints/wave4k2b1/*.md
 !/checkpoints/wave4k2b1/qa/*.md
+!/checkpoints/wave4k2b2a/*.md
+!/checkpoints/wave4k2b2a/qa/*.md

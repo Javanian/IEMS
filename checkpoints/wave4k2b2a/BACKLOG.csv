@@ -1,0 +1,24 @@
+id,depends_on,status,owner,deliverable
+K2B2A-01,,FROZEN,contract,Item location and internal planning contract
+K2B2A-02,K2B2A-01,ACCEPTED_LOCAL,api,Versioned item and company-location authority with dependency fences
+K2B2A-03,K2B2A-01,ACCEPTED_LOCAL,api,Separate internal planning and immutable approved engineering demand
+K2B2A-04,K2B2A-01,ACCEPTED_LOCAL,ui,Native item location and internal plan workspaces
+K2B2A-05,K2B2A-02|K2B2A-03,ACCEPTED_LOCAL,review,Independent scope corruption rollback replay and zero stock-demand effects
+K2B2A-06,K2B2A-04|K2B2A-05,ACCEPTED_LOCAL,lead,Maintained checks connected browser evidence audit and checkpoint
+K2B2A-07,K2B2A-06,PLANNED,ui,Source picker cursor navigation beyond bounded100-row selection
+MAP-01,K2B2A-06,PLANNED,contract,Approved tracking-policy V2 and typed procurement receipt contract
+MAP-02,MAP-01,PLANNED,api,Typed request approval PO conversion and issue with immutable item lineage
+MAP-03,MAP-02,PLANNED,api,Actual typed quarantine receipt and permanent lineage-based legacy path guards
+MAP-04,MAP-03,PLANNED,review,Independent typed mapping acceptance and native operator recovery
+MAP-05,MAP-04,PLANNED,contract,Qualified QC location and internal execution origin adapters
+K2B2B-02,MAP-05,PLANNED,api,Actual input reserve issue execution and serial output with QC partition
+K2B2B-03,K2B2B-02,PLANNED,api,Complete provenance and explicit company-stock receipt with exact identity reconciliation
+K2B2-03,K2B2B-03,PLANNED,api,Company-stock reservation issue and immutable dependency evidence locks
+K2B2-04,K2B2-03,PLANNED,api,Typed manufactured-source genealogy without second raw-material consumption
+K2B2-05,K2B2-04,PLANNED,api,Shared graph write unique parent bounded cycles and reciprocal race acceptance
+K2B2-06,K2B2-05,PLANNED,api,Ancestor shipment closure freeze across descendants and source authorities
+K2B2-07,K2B2-03|K2B2-05,PLANNED,contract,Rework spare removal and inspection contract
+K2B2-08,K2B2-07,PLANNED,api,Controlled physical replacement under authorized new issue
+K2B2-09,K2B2-06,PLANNED,review,Complete manufactured inventory graph and historical regression acceptance
+L-01,K2B2-09,PLANNED,contract,Versioned delivery proof and immutable corrections
+M-01,L-01|K2B2-08,PLANNED,review,Complete original E01 parity through mounted runtime stages

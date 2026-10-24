@@ -14,7 +14,7 @@ import { planCommand, releaseCommand, recordCommand, qcCommand, nextOperation, m
 
 const base = '/portfolio/manufacturing';
 function Input({ label, ...props }) { return <label className="pf-field">{label}<input {...props} /></label>; }
-function Navigation() { return <nav className="pf-actions" aria-label="Manufacturing"><Link to={`${base}/work-orders`}>Work orders</Link><Link to={`${base}/plan`}>Plan from sales order</Link><Link to={`${base}/engineering`}>Engineering packages</Link></nav>; }
+function Navigation() { return <nav className="pf-actions" aria-label="Manufacturing"><Link to={`${base}/work-orders`}>Work orders</Link><Link to={`${base}/plan`}>Plan from sales order</Link><Link to={`${base}/engineering`}>Engineering packages</Link><Link to={`${base}/internal-production`}>Internal production</Link><Link to="/portfolio/inventory-master/items">Inventory items</Link><Link to="/portfolio/inventory-master/locations">Company locations</Link></nav>; }
 function Boundary() { return <p>Every work order is operator recorded: people enter routing, quantities and evidence. No machine telemetry, scheduling, BOM catalog or UOM conversion is involved. QC results stay on the work order; nothing is put away, shipped or marked fulfilled here.</p>; }
 export function CommandForm({ title, submitLabel, intro, build, path, onSaved, refresh, children, disabledReason }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState(null);
