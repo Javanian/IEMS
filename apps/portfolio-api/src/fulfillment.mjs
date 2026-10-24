@@ -182,7 +182,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       }
       const total = sources.reduce((a, s) => a + s.amount, 0n);
       await tally(req, 'SO_LINE_SHIPPED', so._id, lineIndex, total, units(line.quantity), session);
-      const row = { ...base(req), _id: shipmentId, salesOrderId: so._id, accountId: so.accountId, lineIndex, uom, quantity: decimal(total), stockMovementCount: sources.length, sources: sources.map(({ amount: _, ...s }) => s), reference, status: 'SHIPPED', dispatchMode: 'OPERATOR_RECORDED', shippedBy: req.scope.userId, shippedAt: new Date() };
+      const row = { ...base(req), ...(line.provenance ? { provenance: structuredClone(line.provenance) } : {}), _id: shipmentId, salesOrderId: so._id, accountId: so.accountId, lineIndex, uom, quantity: decimal(total), stockMovementCount: sources.length, sources: sources.map(({ amount: _, ...s }) => s), reference, status: 'SHIPPED', dispatchMode: 'OPERATOR_RECORDED', shippedBy: req.scope.userId, shippedAt: new Date() };
       await c('fulfillmentShipments').insertOne(row, { session });
       return row;
     }); res.status(201).json({ data });
@@ -212,7 +212,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
         const beforeNet = extend(before, source.unitPrice), afterNet = extend(after, source.unitPrice);
         const tax = vat ? fixtureTax(afterNet) - fixtureTax(beforeNet) : 0n;
         total += lineAmount; taxTotal += tax;
-        invoiceLines.push({ ...(vat ? taxAmounts(lineAmount, tax, scale) : {}), shipmentId: shipment._id, lineIndex: shipment.lineIndex, description: source.description, quantity: l.quantity, uom: shipment.uom, unitPrice: source.unitPrice, currency, amount: money(lineAmount, scale), rounding: { ...(vat ? { sourceVersion: so.version, quoteRevision: so.quoteRevision, taxPolicyVersion: 1, beforeTaxAmount: money(fixtureTax(beforeNet), scale), afterTaxAmount: money(fixtureTax(afterNet), scale), beforeGrossAmount: money(beforeNet + fixtureTax(beforeNet), scale), afterGrossAmount: money(afterNet + fixtureTax(afterNet), scale) } : {}), sourceId: so._id, lineIndex: shipment.lineIndex, beforeQuantity: decimal(before), afterQuantity: decimal(after), beforeAmount: money(extend(before, source.unitPrice), scale), afterAmount: money(extend(after, source.unitPrice), scale) } });
+        invoiceLines.push({ ...(source.provenance ? { provenance: structuredClone(source.provenance) } : {}), ...(vat ? taxAmounts(lineAmount, tax, scale) : {}), shipmentId: shipment._id, lineIndex: shipment.lineIndex, description: source.description, quantity: l.quantity, uom: shipment.uom, unitPrice: source.unitPrice, currency, amount: money(lineAmount, scale), rounding: { ...(vat ? { sourceVersion: so.version, quoteRevision: so.quoteRevision, taxPolicyVersion: 1, beforeTaxAmount: money(fixtureTax(beforeNet), scale), afterTaxAmount: money(fixtureTax(afterNet), scale), beforeGrossAmount: money(beforeNet + fixtureTax(beforeNet), scale), afterGrossAmount: money(afterNet + fixtureTax(afterNet), scale) } : {}), sourceId: so._id, lineIndex: shipment.lineIndex, beforeQuantity: decimal(before), afterQuantity: decimal(after), beforeAmount: money(extend(before, source.unitPrice), scale), afterAmount: money(extend(after, source.unitPrice), scale) } });
       }
       const financial = vat ? { ...taxAmounts(total, taxTotal, scale), sourceVersion: so.version, quoteRevision: so.quoteRevision, taxRate: '0.11', taxPolicyVersion: 1 } : {};
       total += taxTotal;

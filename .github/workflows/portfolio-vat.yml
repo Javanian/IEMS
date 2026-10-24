@@ -57,7 +57,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - name: Audit publication manifest and imports
-        run: python checkpoints/wave4h/audit-publication.py
+        run: python checkpoints/wave4h/audit-publication.py checkpoints/wave4i/SOURCE-MANIFEST.json
       - name: Validate API syntax
         run: npm --prefix apps/portfolio-api run check
       - name: Check renderer public types
@@ -78,5 +78,6 @@ jobs:
           PORTFOLIO_ENGINEERING: '1'
           PORTFOLIO_LABOR: '1'
           PORTFOLIO_VAT: '1'
+          PORTFOLIO_INQUIRY: '1'
       - name: Test maintained API contract
         run: npm --prefix apps/portfolio-api test

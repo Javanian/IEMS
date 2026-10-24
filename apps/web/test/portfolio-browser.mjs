@@ -24,6 +24,7 @@ import { paginationJourney } from './portfolio-pagination-browser.mjs';
 import { repairJourney } from './portfolio-repair-browser.mjs';
 import { documentJourney } from './portfolio-wave3e-documents-browser.mjs';
 import { vatJourney } from './portfolio-wave4h-vat-browser.mjs';
+import { inquiryJourney } from './portfolio-wave4i-inquiry-browser.mjs';
 import { responseLoss } from './portfolio-wave3d-transport.mjs';
 import { holdJourney } from './wave4f-holds-browser.mjs';
 import { csOnboardingJourney } from './wave4f-cs-browser.mjs';
@@ -237,6 +238,7 @@ try {
   await csOnboardingJourney(wave4f);
   await textEnlargementJourney(wave4f);
   if (process.env.PORTFOLIO_VAT === '1') await vatJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, downloadPath: evidence });
+  if (process.env.PORTFOLIO_INQUIRY === '1') await inquiryJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse, downloadPath: evidence });
   await click('Opportunities'); await click('Synthetic browser opportunity'); await wait(`document.body.innerText.includes('Stage: WON')`);
   for (const width of [1440, 1280, 1100, 1024, 900, 768, 430, 375, 360]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 600 }); await wait(`innerWidth===${width}`);
