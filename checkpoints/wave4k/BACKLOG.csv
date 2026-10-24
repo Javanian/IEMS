@@ -1,0 +1,17 @@
+id,wave,title,status,depends_on,owner,acceptance
+W4J-CP,4j,Accepted implementation and planning checkpoint,CHECKPOINT,,lead,Verified source and evidence hashes; explicit staged review; local checkpoint commit
+W4K-01,4k,Freeze genealogy attribution contract,FROZEN,W4J-CP,lead,Define opt-in; per-output ratios; hold semantics; effective correction budgets and shipment pointers; API and grants
+W4K-02,4k,Consumed-lot attribution ledger and finalization,ACCEPTED_LOCAL,W4K-01,api,No second consumption; exact per-source and per-output reconciliation; historical holds; correction and shipment fences
+W4K-03,4k,Native per-output attribution workspace,ACCEPTED_LOCAL,W4K-02,ui,Ten outputs and five source lots; explicit incomplete state; reload and identical retry
+W4K-04,4k,Independent K1 attribution acceptance,ACCEPTED_LOCAL,W4K-02;W4K-03,qa,HTTP and browser; uneven allocation; zero-good; later hold and correction races; legacy and PDF regressions
+W4K-05,4k,Freeze serial custody and graph conflict contract,PLANNED,W4K-04,lead,Claims before consumption; count-transfer-hold fences; existing consumed adoption; install-ship and cycle locks
+W4K-06,4k,Serial claims and controlled installation graph,PLANNED,W4K-05,api,One active parent; exact custody; concurrent cycle prevention; no orphan claims
+W4K-07,4k,Installation and reverse-trace workspace,PLANNED,W4K-06,ui,Explicit source identity; scoped pagination; installation evidence and corrective history
+W4K-08,4k,Independent complete genealogy gate,PLANNED,W4K-06;W4K-07,qa,Supplemental serial fixtures; claim and double-parent races; reciprocal cycles; revocation and stock reconciliation
+W4L-01,4l,Freeze delivery and correction contract,PLANNED,W4K-08,lead,Separate delivery aggregate; exact dispatch entitlement; evidence and permission boundaries
+W4L-02,4l,Controlled POD API and UI,PLANNED,W4L-01,api+ui,Partial and complete delivery; immutable corrections; no rebilling or PDF rewrite
+W4L-03,4l,Independent delivery acceptance,PLANNED,W4L-02,qa,Both canonical shipments; replay and concurrency; source scope; historical financial records intact
+W4M-01,4m,Freeze canonical E01 fixture and parity adapter,PLANNED,W4K-08;W4L-03,qa,Original fixture hash; identity and labor-QC-entitlement matrix; trusted owned test clock; no bypass continuation
+W4M-02,4m,Resolve explicitly measured full E01 gaps,PLANNED,W4M-01,api+ui,Exact material-engineering-labor-QC evidence; acceptor and PO links; entitlement and fulfillment; explicit missing behavior
+W4M-03,4m,Independent full E01 and connected browser,PLANNED,W4M-02,qa,Ten units; genealogy; two PODs; gross settlement135975.00; restart and negative guards
+REL-01,release,Review publication and merge prerequisites,PLANNED,W4J-CP,lead,Deliver both PR4 fixes coherently; current published-head CI; no inferred approval or deployment

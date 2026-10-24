@@ -178,3 +178,4 @@ jobs/.pycache_legacy/
 
 !/checkpoints/wave4h/*.md
 !/checkpoints/wave4j/*.md
+!/checkpoints/wave4k/*.md

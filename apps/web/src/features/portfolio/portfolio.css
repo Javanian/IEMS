@@ -72,6 +72,9 @@
   .pf-dl dt { @apply text-slate-600; }
   .pf-dl dd { @apply font-semibold; text-align: right; }
   .pf-table-wrap { overflow-x: auto; max-width: 100%; }
+  .pf-genealogy-table { min-width: 60rem; }
+  .pf-genealogy-table th:first-child { width: 40%; }
+  .pf-genealogy-scroll:focus-visible { @apply outline outline-2 outline-offset-2 outline-brand-700; }
   @media (min-width: 640px) { .pf-main { @apply p-6; } .pf-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pf-panel { @apply p-6; } }
   @media (min-width: 960px) { .pf-columns, .pf-login { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; } .pf-fields { grid-template-columns: 1.4fr 1fr 0.7fr; } .pf-main { @apply p-8; } }
   @media (max-width: 639px) {

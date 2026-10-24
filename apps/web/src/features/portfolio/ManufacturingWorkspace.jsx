@@ -5,6 +5,7 @@ import { portfolioRequest as request } from './client.mjs';
 import { EngineeringWorkOrderRelease } from './EngineeringWorkspace.jsx';
 import { LaborWorkspace } from './LaborWorkspace.jsx';
 import { MaterialTrace } from './MaterialTrace.jsx';
+import { GenealogyWorkspace } from './GenealogyWorkspace.jsx';
 import { Failure, Resource, useResource } from './PortfolioWorkspace.jsx';
 import { planCommand, releaseCommand, recordCommand, qcCommand, nextOperation, manufacturingHint } from './manufacturing.mjs';
 
@@ -50,6 +51,8 @@ export function PlanWorkOrders() {
       <label className="pf-field">Sales order line<select name="lineIndex">{data.snapshot.lines.map((line, i) => <option key={i} value={i}>Line {i + 1}: {line.description} ({line.quantity} {line.uom})</option>)}</select></label>
       <label className="pf-field">Split quantities (exact decimals, one per work order, separated by spaces or new lines)<textarea name="quantities" rows={3} required inputMode="decimal" /></label>
       <label className="pf-field">Output identification<select name="serialized" defaultValue="false"><option value="false">Quantity only</option><option value="true">Individual serial identities</option></select></label>
+      <label className="pf-field">Per-unit lot genealogy<select name="genealogyRequired" defaultValue="false"><option value="false">Not required</option><option value="true">Required before shipment</option></select></label>
+      <p>Required genealogy needs individual serial identities, at most 100 units per work order, and at most 20 released materials with recorded lot and heat. Operators explicitly assign consumed material to each output and record any process losses before finalization.</p>
       <p>Serial identification is fixed at planning. Each serialized work order needs an integral quantity of at most 1,000 units. Register final output identities before QC.</p>
     </CommandForm> : <p>This sales order is {data.status}. Only OPEN orders can be planned.</p>}
     {created && <section className="pf-panel" role="status"><h2>Planned {created.workOrders.length} work orders</h2><ul className="pf-list">{created.workOrders.map(w => <li key={w._id}><Link to={`${base}/work-orders/${w._id}`}>{w._id}</Link><span>{w.status} · {w.quantity} {w.uom}</span></li>)}</ul></section>}
@@ -102,6 +105,7 @@ export function WorkOrderDetail() {
     {wo.routing?.materials.some(material => material.materialTrace) && <section className="pf-panel"><h2>Frozen material receipt context</h2><MaterialTrace trace={wo.routing.materials.flatMap(material => material.materialTrace ? [material.materialTrace] : [])} output /></section>}
     {wo.qc && <section className="pf-panel"><h2>QC decision</h2><p>Accepted: {wo.qc.acceptedQuantity} {wo.qc.uom} · Rejected: {wo.qc.rejectedQuantity} {wo.qc.uom}</p>{wo.serialized && <><p>Accepted serials: {wo.qc.acceptedSerials.join(', ') || 'None'}</p><p>Rejected serials: {wo.qc.rejectedSerials.join(', ') || 'None'}</p></>}<p>Evidence: {wo.qc.evidence}</p><p className="pf-id">Recorded by {wo.qc.recordedBy} at {wo.qc.recordedAt}</p><p>Accepted output is not put away or shipped by this workspace.</p></section>}
     {wo.serialized && wo.output && <OutputUnits key={`units-${wo.version}`} workOrderId={wo._id} />}
+    <GenealogyWorkspace wo={wo} refresh={resource.reload} />
     {wo.engineeringSnapshot && <section className="pf-panel"><h2>Frozen work order engineering snapshot</h2><Link to={`${base}/engineering/${wo.engineeringSnapshot.engineeringId}`}>{wo.engineeringSnapshot.engineeringId}</Link><p>Revision: {wo.engineeringSnapshot.revision} · Engineering version at release: {wo.engineeringSnapshot.engineeringVersion}</p><p>Routing and material reservations remain frozen through later package revisions or revocation.</p></section>}
     {wo.status === 'PLANNED' && <><EngineeringWorkOrderRelease key={`engineering-${wo.version}`} wo={wo} refresh={resource.reload} /><ReleaseForm key={wo.version} wo={wo} refresh={resource.reload} /></>}
     {['RELEASED', 'IN_PROGRESS'].includes(wo.status) && <RecordForm key={wo.version} wo={wo} refresh={resource.reload} />}
