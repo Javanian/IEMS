@@ -1,6 +1,7 @@
 import { useContext, useRef, useState } from 'react';
 import { DocumentIssue } from './DocumentIssue.jsx';
 import { MonetarySummary } from './MonetarySummary.jsx';
+import { SourceLineage } from './SourceLineage.jsx';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { portfolioRequest as request, validMoney, displayMoney } from './client.mjs';
 import { Resource, Failure, useResource, IdentityContext } from './PortfolioWorkspace.jsx';
@@ -97,6 +98,7 @@ export function FulfillmentDetail({ kind }) {
     <h1>{name} {row.reference || row._id.slice(0, 8)}</h1><Boundary />
     <div className="pf-summary"><span className="pf-status">{row.status}</span>{kind === 'shipments' && <strong>{row.quantity} {row.uom}</strong>}{kind === 'payments' && <strong>{money(row.currency, row.amount)}</strong>}{kind === 'invoices' && <span>Quote revision {row.quoteRevision || 'not recorded'}</span>}</div>
     <div className="pf-actions">{row.salesOrderId && <Link to={`/portfolio/fulfillment/orders/${row.salesOrderId}`}>Open order fulfillment</Link>}<Link to={`/portfolio/accounts/${row.accountId}`}>Open account</Link><button type="button" onClick={r.reload}>Refresh record</button></div>
+    {kind === 'shipments' && <SourceLineage line={row} />}
     {kind === 'invoices' && <DocumentIssue key={row._id} kind="invoice" sourceId={row._id} />}
     {kind === 'shipments' && row.status === 'SHIPPED' && <DocumentIssue key={row._id} kind="shipment" sourceId={row._id} />}
     <div className="pf-columns">
@@ -105,7 +107,7 @@ export function FulfillmentDetail({ kind }) {
         <h2>Linked records</h2>
         <ul className="pf-list">
           {kind === 'shipments' && row.sources.map((s, i) => <li key={i}><Link to={s.sourceType === 'WORK_ORDER' ? `/portfolio/manufacturing/work-orders/${s.sourceId}` : `/portfolio/warehouse/reservations/${s.sourceId}`}>{s.sourceType === 'WORK_ORDER' ? 'Work order' : 'Reservation'} {s.sourceId.slice(0, 8)}</Link><span>{s.quantity} {row.uom}</span></li>)}
-          {kind === 'invoices' && row.lines.map((l, i) => <li key={i}><Link to={`/portfolio/fulfillment/shipments/${l.shipmentId}`}>Shipment {l.shipmentId.slice(0, 8)}</Link><span>{l.description} · {l.quantity} {l.uom} × {money(l.currency, l.unitPrice)} = {money(l.currency, l.amount)}</span></li>)}
+          {kind === 'invoices' && row.lines.map((l, i) => <li key={i}><Link to={`/portfolio/fulfillment/shipments/${l.shipmentId}`}>Shipment {l.shipmentId.slice(0, 8)}</Link><span>{l.description} · {l.quantity} {l.uom} × {money(l.currency, l.unitPrice)} = {money(l.currency, l.amount)}</span><SourceLineage line={l} /></li>)}
           {kind === 'invoices' && row.allocations.map((a, i) => <li key={`p${i}`}><Link to={`/portfolio/fulfillment/payments/${a.paymentId}`}>Payment {a.paymentId.slice(0, 8)}</Link><span>{money(row.currency, a.amount)}</span></li>)}
           {kind === 'payments' && row.allocations.map((a, i) => <li key={i}><Link to={`/portfolio/fulfillment/invoices/${a.invoiceId}`}>Invoice {a.invoiceId.slice(0, 8)}</Link><span>{money(a.currency, a.amount)} · invoice now {a.invoiceStatus}</span></li>)}
         </ul>

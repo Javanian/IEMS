@@ -2,10 +2,12 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-manifest = json.loads((root / 'checkpoints/wave4h/SOURCE-MANIFEST.json').read_text(encoding='utf-8'))
+manifest_path = root / (sys.argv[1] if len(sys.argv) > 1 else 'checkpoints/wave4h/SOURCE-MANIFEST.json')
+manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
 errors = []
 for name, digest in manifest.items():
     path = root / name

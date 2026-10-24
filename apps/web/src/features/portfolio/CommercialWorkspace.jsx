@@ -6,10 +6,23 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { portfolioRequest as request } from './client.mjs';
 import { Failure, Resource, useResource } from './PortfolioWorkspace.jsx';
 import { quoteContent, conversionAttempt } from './commercial.mjs';
+import { sourcedQuoteContent } from './inquiry.mjs';
+import { InquiryCommand } from './InquiryWorkspace.jsx';
+import { SourceLineage } from './SourceLineage.jsx';
+
+function SourcedContentForm({ quote, onSaved }) {
+  const revision = quote.revisions.at(-1);
+  return <InquiryCommand title="Save commercial revision" permission="quote.write" action={`/api/commercial/quotes/${quote._id}/revisions`} build={(v, k) => ({ ...sourcedQuoteContent(v, revision), expectedVersion: quote.version })} onSaved={onSaved}>
+    <p>Inquiry source fields are frozen. Only prices, currency, expiry and tax policy can change here. Drawing metadata is not a BOM.</p>
+    <Input label="Expires at (UTC ISO)" name="expiresAt" defaultValue={revision.expiresAt} />
+    <label className="pf-field">Tax policy<select name="taxPolicy" defaultValue={revision.taxPolicy || 'NO_TAX'}><option value="NO_TAX">NO_TAX</option><option value="FIXTURE_VAT_11_V1">FIXTURE_VAT_11_V1 (11% fixture, not statutory)</option></select></label>
+    {revision.lines.map((line, i) => <fieldset key={line.provenance.inquiryLineId}><legend>{line.provenance.itemCode}: {line.description}</legend><p>{line.quantity} {line.uom} · Drawing {line.provenance.drawingNumber} revision {line.provenance.drawingRevision}</p><div className="pf-fields"><Input label="Unit price (fixed scale)" name={`unitPrice${i}`} inputMode="decimal" defaultValue={line.unitPrice} required /><label className="pf-field">Currency<select name={`currency${i}`} defaultValue={line.currency}>{['USD','EUR','GBP','IDR','JPY','KWD'].map(c => <option key={c}>{c}</option>)}</select></label></div></fieldset>)}
+  </InquiryCommand>;
+}
 
 function Input({ label, ...props }) { return <label className="pf-field">{label}<input {...props} /></label>; }
 export function Lines({ snapshot }) {
-  return <><ol className="pf-list">{snapshot.lines.map((line, i) => <li key={i}><strong>{line.description}</strong><span>Quantity: {line.quantity} {line.uom}</span><span>Unit price: {line.currency} {line.unitPrice}</span></li>)}</ol><p>Rounding: {snapshot.roundingPolicy}</p><MonetarySummary record={{...snapshot, currency: snapshot.currency || snapshot.lines[0]?.currency}} /></>;
+  return <><ol className="pf-list">{snapshot.lines.map((line, i) => <li key={i}><strong>{line.description}</strong><span>Quantity: {line.quantity} {line.uom}</span><span>Unit price: {line.currency} {line.unitPrice}</span><SourceLineage line={line} /></li>)}</ol><p>Rounding: {snapshot.roundingPolicy}</p><MonetarySummary record={{...snapshot, currency: snapshot.currency || snapshot.lines[0]?.currency}} /></>;
 }
 function ContentForm({ quote, onSaved }) {
   const [count, setCount] = useState(1), [error, setError] = useState(null), [busy, setBusy] = useState(false);
@@ -59,7 +72,7 @@ export function Quote() {
   return <><Link to="/portfolio/quotes">Back to quotes</Link><Resource resource={resource}>{({ data:q }) => <><h1>Quote</h1><p className="pf-id">Quote ID: {q._id}</p><section className="pf-panel"><p>Status: {q.status}</p><p>Version: {q.version}</p><p>Revision: {q.revisions.at(-1).number}</p><Link to={`/portfolio/accounts/${q.accountId}`}>Open related account</Link><button type="button" onClick={refresh}>Refresh record</button><Failure error={error} mutation retry={refresh} /><div className="pf-actions">{[['DRAFT','approve','Approve revision'],['APPROVED','accept','Record acceptance'],['ACCEPTED','convert','Convert to sales order']].filter(([state]) => q.status === state).map(([, action, label]) => <button key={action} className="pf-primary" disabled={busy || error?.status === 409} onClick={() => transition(action,q)}>{busy ? 'Saving...' : label}</button>)}{attempt.current && error && error.status !== 409 && <button disabled={busy} onClick={() => transition('convert',q)}>Retry same conversion</button>}</div><p>Acceptance records the authenticated internal decision, not an external signature.</p></section>
     <div className="pf-columns"><section className="pf-panel"><h2>Revision history</h2>{q.revisions.map(rev => <section key={rev.number}><h3>Revision {rev.number}</h3><p>Expires: {rev.expiresAt}</p><Lines snapshot={rev} /></section>)}</section><section className="pf-panel"><h2>Approval history</h2>{!q.approvals?.length ? <p>No revisions approved yet.</p> : q.approvals.map((a,i) => <p key={i}>Revision {a.revision} approved by {a.approvedBy} at {a.approvedAt}</p>)}{q.acceptedRevision && <p>Accepted revision: {q.acceptedRevision}</p>}</section></div>
     {q.approvals?.map(a => <DocumentIssue key={`${q._id}:${a.revision}`} kind="quote" sourceId={q._id} sourceVersion={a.revision} />)}
-    {q.status !== 'CONVERTED' && <ContentForm key={q.version} quote={q} onSaved={refresh} />}
+    {q.status !== 'CONVERTED' && (q.revisions.at(-1).lines.some(line => line.provenance?.inquiryId) ? <SourcedContentForm key={q.version} quote={q} onSaved={refresh} /> : <ContentForm key={q.version} quote={q} onSaved={refresh} />)}
     {order && <section className="pf-panel" data-order-id={order._id}><h2>Sales order snapshot</h2><p className="pf-id">{order._id}</p><Lines snapshot={order.snapshot} /><Link to={`/portfolio/orders/${order._id}`}>Open sales order</Link></section>}
     {!order && q.orderId && <Link to={`/portfolio/orders/${q.orderId}`}>Open persisted sales order</Link>}
   </>}</Resource></>;

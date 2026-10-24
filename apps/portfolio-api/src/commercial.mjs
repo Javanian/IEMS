@@ -1,4 +1,5 @@
 import { randomUUID, createHash } from 'node:crypto';
+import { installInquiries, initializeInquiries } from './inquiries.mjs';
 import { fixtureVat, fixtureTax, taxAmounts, formatMoney } from './fixture-tax.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 export const commercialActions = ['quote.read', 'quote.write', 'quote.approve', 'quote.accept', 'quote.convert'];
@@ -7,6 +8,7 @@ const scales = { USD: 2, EUR: 2, GBP: 2, IDR: 2, JPY: 0, KWD: 3 };
 // Public customer-facing order number: stable, unique per tenant+plant (unique index), never the raw UUID.
 export const orderNumberFor = ({ tenantId, plantId }, orderId) => `SO-${createHash('sha256').update(`${tenantId}:${plantId}:${orderId}`).digest('hex').slice(0, 16).toUpperCase()}`;
 export async function initializeCommercial(db) {
+  await initializeInquiries(db);
   await db.collection('salesOrders').createIndex({ tenantId: 1, plantId: 1, quoteId: 1 }, { unique: true });
   await db.collection('salesOrders').createIndex({ tenantId: 1, plantId: 1, orderNumber: 1 }, { unique: true, partialFilterExpression: { orderNumber: { $type: 'string' } } });
   await db.collection('quoteConversions').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
@@ -19,7 +21,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
     if (!Array.isArray(body.lines) || !body.lines.length || body.lines.length > 100) fail(400, 'INVALID_LINES');
     let total = 0n, taxTotal = 0n, currency;
     const lines = body.lines.map(line => {
-      if (!line || typeof line !== 'object' || Object.keys(line).sort().join(',') !== 'currency,description,quantity,unitPrice,uom') fail(400, 'INVALID_LINE');
+      if (!line || typeof line !== 'object' || Object.keys(line).filter(k => k !== 'provenance').sort().join(',') !== 'currency,description,quantity,unitPrice,uom') fail(400, 'INVALID_LINE');
       const scale = scales[line.currency];
       if (scale === undefined || (currency && currency !== line.currency)) fail(400, 'INVALID_CURRENCY');
       currency = line.currency;
@@ -39,6 +41,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
     const raw = total.toString().padStart(scale + 1, '0');
     return { lines, currency, ...(fixtureVat(body.taxPolicy) ? { ...taxAmounts(total, taxTotal, scale), taxRate: '0.11', taxPolicyVersion: 1 } : {}), total: fixtureVat(body.taxPolicy) ? formatMoney(total + taxTotal, scale) : scale ? raw.slice(0, -scale) + '.' + raw.slice(-scale) : raw, expiresAt: new Date(body.expiresAt), taxPolicy: body.taxPolicy, roundingPolicy: body.roundingPolicy };
   };
+  installInquiries(app, runtime, { fail, guard, id, fields, validateQuote: validate });
   app.use('/api/commercial', async (req, res, next) => {
     const scope = resolveScopeAliases({ body: { tenantId: req.scope.tenantId, plantId: req.scope.selectedPlantId, ...req.body }, query: req.query, headers: req.headers });
     if (scope.plantId !== req.scope.selectedPlantId) fail(403, 'SCOPE_DENIED');
@@ -84,6 +87,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
   app.get('/api/commercial/quotes/:id', async (req, res) => res.json({ data: await find(req, req.params.id) }));
   app.post('/api/commercial/quotes', async (req, res) => {
     fields(req.body, ['accountId', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy']);
+    if (Array.isArray(req.body.lines) && req.body.lines.some(l => l?.provenance !== undefined)) fail(422, 'SOURCE_TAMPER');
     const accountId = id(req.body.accountId), revision = validate(req.body);
     const data = await tx(req, 'quote.created', async session => {
       if (!await c('accounts').findOne({ ...req.filter, _id: accountId }, { session })) fail(404, 'NOT_FOUND');
@@ -113,6 +117,10 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
       const latest = row.revisions.at(-1);
       if (operation === 'revisions') {
         if (req.body.accountId !== undefined && req.body.accountId !== row.accountId) fail(400, 'ACCOUNT_CONFLICT');
+        if (row.inquiryId) {
+          if (nextRevision.lines.length !== latest.lines.length || nextRevision.lines.some((line, i) => ['description', 'quantity', 'uom'].some(k => line[k] !== latest.lines[i][k]) || JSON.stringify(line.provenance) !== JSON.stringify(latest.lines[i].provenance))) fail(422, 'SOURCE_TAMPER');
+          nextRevision.lines = nextRevision.lines.map((line, i) => ({ ...line, provenance: structuredClone(latest.lines[i].provenance) }));
+        } else if (nextRevision.lines.some(l => l.provenance !== undefined)) fail(422, 'SOURCE_TAMPER');
         row.revisions.push({ ...nextRevision, number: latest.number + 1 }); row.status = 'DRAFT';
         delete row.acceptedRevision;
       } else {
