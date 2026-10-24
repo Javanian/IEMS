@@ -5,7 +5,7 @@ const words = text => (text || '').trim().split(/\s+/).filter(Boolean);
 
 export function planCommand(order, values, key) {
   const lineIndex = Number(values.lineIndex);
-  return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex]?.uom, quantities: words(values.quantities), idempotencyKey: key };
+  return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex]?.uom, quantities: words(values.quantities), ...(values.serialized === 'true' || values.serialized === true ? { serialized:true } : {}), idempotencyKey: key };
 }
 export function releaseCommand(wo, values, operationCount, materialCount, key) {
   const operations = Array.from({ length: operationCount }, (_, i) => ({ code: values[`code${i}`], instruction: values[`instruction${i}`] }));
@@ -18,10 +18,11 @@ export function nextOperation(wo) {
 }
 export function recordCommand(wo, values, key) {
   const next = nextOperation(wo);
-  return { expectedVersion: wo.version, operationIndex: next.index, inputQuantity: next.inputQuantity, goodQuantity: values.goodQuantity, scrapQuantity: values.scrapQuantity, uom: wo.uom, evidence: values.evidence, idempotencyKey: key };
+  const serials = wo.serialized && next.index === wo.routing.operations.length - 1 ? { outputSerials:words(values.outputSerials) } : {};
+  return { expectedVersion: wo.version, operationIndex: next.index, inputQuantity: next.inputQuantity, goodQuantity: values.goodQuantity, scrapQuantity: values.scrapQuantity, uom: wo.uom, evidence: values.evidence, ...serials, idempotencyKey: key };
 }
 export function qcCommand(wo, values, key) {
-  return { expectedVersion: wo.version, acceptedQuantity: values.acceptedQuantity, rejectedQuantity: values.rejectedQuantity, uom: wo.uom, evidence: values.evidence, idempotencyKey: key };
+  return { expectedVersion: wo.version, acceptedQuantity: values.acceptedQuantity, rejectedQuantity: values.rejectedQuantity, uom: wo.uom, evidence: values.evidence, ...(wo.serialized ? { acceptedSerials:words(values.acceptedSerials), rejectedSerials:words(values.rejectedSerials) } : {}), idempotencyKey: key };
 }
 const hints = {
   QUANTITY_EXCEEDED: 'The split total plus quantities already planned would exceed the sales order line. Review existing work orders for this line.',
@@ -32,5 +33,9 @@ const hints = {
   STATE_CONFLICT: 'The work order is no longer in the state this action requires. Refresh to see its current status.',
   STOCK_ENCUMBERED: 'A material receipt is on hold. Nothing was consumed and the reservation is still recorded. Review the stock exception and the hold before continuing.',
   INEXACT_MATERIAL_QUANTITY:'WO quantity x quantity per unit needs more than six decimal places. Adjust the ratio.',
+  SERIAL_CONFLICT:'A serial identity is already registered or unavailable. Refresh the work order and review its output units before continuing.',
+  SERIAL_QUANTITY_CONFLICT:'Serial counts must match the exact quantities. QC must classify each output serial once, as accepted or rejected.',
+  SERIAL_STATE_CONFLICT:'A selected serial is no longer accepted and available to ship. Refresh serial statuses before selecting output units.',
+  SERIAL_SOURCE_CONFLICT:'A serial does not belong to this work order. Review the registered output identities.',
 };
 export function manufacturingHint(error) { return error?.code ? hints[error.code] || null : null; }

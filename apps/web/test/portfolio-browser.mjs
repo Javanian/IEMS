@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer as createNetServer } from 'node:net';
-import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile, realpath } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -25,6 +25,8 @@ import { repairJourney } from './portfolio-repair-browser.mjs';
 import { documentJourney } from './portfolio-wave3e-documents-browser.mjs';
 import { vatJourney } from './portfolio-wave4h-vat-browser.mjs';
 import { inquiryJourney } from './portfolio-wave4i-inquiry-browser.mjs';
+import { lotSerialJourney } from './portfolio-wave4j-lot-serial-browser.mjs';
+import { quoteEditorInquiryJourney } from './portfolio-wave4j-pr4-browser.mjs';
 import { responseLoss } from './portfolio-wave3d-transport.mjs';
 import { holdJourney } from './wave4f-holds-browser.mjs';
 import { csOnboardingJourney } from './wave4f-cs-browser.mjs';
@@ -87,7 +89,7 @@ try {
   const db = independent.db(database);
   api = createApp(runtime, { origins: [web] }).listen(4313, '127.0.0.1');
   await new Promise((r, j) => { api.once('listening', r); api.once('error', j); });
-  vite = await createServer({ root, server: { host: 'localhost', port: webPort, strictPort: true } }); await vite.listen();
+  vite = await createServer({ root, server: { host: 'localhost', port: webPort, strictPort: true, fs: { allow: [resolve(root, '../..'), await realpath(join(root, 'node_modules'))] } } }); await vite.listen();
   chrome = spawn(process.env.PORTFOLIO_CHROME_BINARY || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'google-chrome'), ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = '', launchError, endpoint;
   chrome.stderr.on('data', d => stderr += d);
@@ -239,6 +241,8 @@ try {
   await textEnlargementJourney(wave4f);
   if (process.env.PORTFOLIO_VAT === '1') await vatJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, downloadPath: evidence });
   if (process.env.PORTFOLIO_INQUIRY === '1') await inquiryJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse, downloadPath: evidence });
+  if (process.env.PORTFOLIO_LOT_SERIAL === '1') await lotSerialJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse });
+  if (process.env.PORTFOLIO_LOT_SERIAL === '1') await quoteEditorInquiryJourney({ db, call, wait, fill, evaluate, check, headers });
   await click('Opportunities'); await click('Synthetic browser opportunity'); await wait(`document.body.innerText.includes('Stage: WON')`);
   for (const width of [1440, 1280, 1100, 1024, 900, 768, 430, 375, 360]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 600 }); await wait(`innerWidth===${width}`);

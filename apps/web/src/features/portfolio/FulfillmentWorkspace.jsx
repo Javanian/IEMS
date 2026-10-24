@@ -2,6 +2,7 @@ import { useContext, useRef, useState } from 'react';
 import { DocumentIssue } from './DocumentIssue.jsx';
 import { MonetarySummary } from './MonetarySummary.jsx';
 import { SourceLineage } from './SourceLineage.jsx';
+import { MaterialTrace } from './MaterialTrace.jsx';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { portfolioRequest as request, validMoney, displayMoney } from './client.mjs';
 import { Resource, Failure, useResource, IdentityContext } from './PortfolioWorkspace.jsx';
@@ -27,13 +28,15 @@ export function CommandForm({ title, action, build, children, onSaved, permissio
   }
   function submit(event) {
     event.preventDefault(); setSaved(false);
-    try { attempt.current = build(Object.fromEntries(new FormData(event.currentTarget)), crypto.randomUUID()); send(attempt.current); }
+    if (attempt.current) return;
+    try { const data = new FormData(event.currentTarget), values = Object.fromEntries(data); if (event.currentTarget.querySelector('[name="serials"]')) values.serials = data.getAll('serials'); attempt.current = build(values, crypto.randomUUID()); send(attempt.current); }
     catch (e) { attempt.current = null; setError(e); }
   }
   const retryable = error && attempt.current && (!error.status || error.status >= 500);
-  return <form className="pf-panel pf-form" onSubmit={submit}><h2>{title}</h2>{children}
+  return <form className="pf-panel pf-form" aria-label={title} onSubmit={submit}><h2>{title}</h2><fieldset className="pf-form" disabled={busy || !!attempt.current}>{children}</fieldset>
     {error && (error.status === undefined ? <div className="pf-error" role="alert"><p>{error.message}</p></div> : <Failure error={error} mutation />)}
-    <div className="pf-actions"><button className="pf-primary" disabled={busy || Boolean(deniedReason)} aria-describedby={reasonId}>{busy ? 'Saving...' : title}</button>{retryable && <button type="button" disabled={busy} onClick={() => send(attempt.current)}>Retry same request</button>}{deniedReason && <p className="pf-disabled-reason" id={reasonId}>{deniedReason}</p>}</div>
+    <div className="pf-actions"><button className="pf-primary" disabled={busy || !!attempt.current || Boolean(deniedReason)} aria-describedby={reasonId}>{busy ? 'Saving...' : title}</button>{retryable && <button type="button" disabled={busy} onClick={() => send(attempt.current)}>Retry same request</button>}{attempt.current && error && <button type="button" disabled={busy} onClick={() => { attempt.current = null; setError(null); onSaved?.(); }}>Discard command and refresh</button>}{deniedReason && <p className="pf-disabled-reason" id={reasonId}>{deniedReason}</p>}</div>
+    {attempt.current && error && <p>The command and its serial selection are retained. Retry the same request after an uncertain response, or discard it and review the refreshed record before changing inputs.</p>}
     <p role="status">{saved ? 'Saved.' : ''}</p></form>;
 }
 export function Input({ label, name, ...props }) { return <label className="pf-field">{label}<input name={name} required {...props} /></label>; }
@@ -64,7 +67,7 @@ function Balances({ order, resource }) {
 
 export function FulfillmentOrder() {
   const { id } = useParams(), r = useResource(`/api/commercial/orders/${id}`), balances = useResource(`/api/fulfillment/orders/${id}/balances`);
-  const [sourceType, setSourceType] = useState('WORK_ORDER'), [lineIndex, setLineIndex] = useState(0);
+  const [sourceType, setSourceType] = useState('WORK_ORDER'), [lineIndex, setLineIndex] = useState(0), [sourceId, setSourceId] = useState('');
   const sources = useResource(sourceType === 'WORK_ORDER' ? '/api/manufacturing/work-orders?limit=100' : '/api/warehouse/reservations?limit=100', true);
   const shipments = useResource('/api/fulfillment/shipments?limit=100', true);
   const refresh = () => { r.reload(); balances.reload(); sources.reload(); shipments.reload(); };
@@ -75,10 +78,10 @@ export function FulfillmentOrder() {
     <div className="pf-actions"><Link to={`/portfolio/accounts/${order.accountId}`}>Open account</Link><Link to="/portfolio/fulfillment/invoices">Open invoices</Link><button type="button" onClick={refresh}>Refresh fulfillment</button></div>
     <Balances order={order} resource={balances} />
     <div className="pf-columns">
-      <CommandForm title="Record shipment" action="/api/fulfillment/shipments" build={(v, k) => { if (!v.sourceId) throw Error('Select a source.'); if (!validQuantity(v.quantity)) throw Error('Enter a positive quantity with up to 6 decimals.'); return shipmentCommand(order, v, k); }} onSaved={refresh}>
-        <label className="pf-field">Order line<select name="lineIndex" value={lineIndex} onChange={e => setLineIndex(Number(e.target.value))}>{order.snapshot.lines.map((l, i) => <option key={i} value={i}>{i + 1}. {l.description} ({l.quantity} {l.uom})</option>)}</select></label>
-        <label className="pf-field">Source type<select name="sourceType" value={sourceType} onChange={e => setSourceType(e.target.value)}><option value="WORK_ORDER">QC-completed work order</option><option value="RESERVATION">Warehouse reservation</option></select></label>
-        <Resource resource={sources}>{({ data }) => { const rows = data.filter(eligible); return rows.length ? <label className="pf-field">Source<select name="sourceId" required defaultValue=""><option value="">Select source</option>{rows.map(s => <option key={s._id} value={s._id}>{sourceType === 'WORK_ORDER' ? `Work order ${s._id.slice(0, 8)} · accepted ${s.qc?.acceptedQuantity} ${s.uom}` : `Reservation ${s._id.slice(0, 8)} · ${s.remainingQuantity ?? s.quantity} ${s.uom}`}</option>)}</select></label> : <p>No eligible {sourceType === 'WORK_ORDER' ? 'QC-completed work orders' : 'reservations'} for this line.</p>; }}</Resource>
+      <CommandForm title="Record shipment" action="/api/fulfillment/shipments" build={(v, k) => { if (!v.sourceId) throw Error('Select a source.'); if (!validQuantity(v.quantity)) throw Error('Enter a positive quantity with up to 6 decimals.'); if (sourceType === 'WORK_ORDER' && sources.data?.find(source => source._id === v.sourceId)?.serialized && !v.serials?.length) throw Error('Select accepted output serials for this shipment.'); return shipmentCommand(order, v, k); }} onSaved={refresh}>
+        <label className="pf-field">Order line<select name="lineIndex" value={lineIndex} onChange={e => { setLineIndex(Number(e.target.value)); setSourceId(''); }}>{order.snapshot.lines.map((l, i) => <option key={i} value={i}>{i + 1}. {l.description} ({l.quantity} {l.uom})</option>)}</select></label>
+        <label className="pf-field">Source type<select name="sourceType" value={sourceType} onChange={e => { setSourceType(e.target.value); setSourceId(''); }}><option value="WORK_ORDER">QC-completed work order</option><option value="RESERVATION">Warehouse reservation</option></select></label>
+        <Resource resource={sources}>{({ data }) => { const rows = data.filter(eligible), selected = rows.find(s => s._id === sourceId); return rows.length ? <><label className="pf-field">Source<select name="sourceId" required value={sourceId} onChange={e => setSourceId(e.target.value)}><option value="">Select source</option>{rows.map(s => <option key={s._id} value={s._id}>{sourceType === 'WORK_ORDER' ? `Work order ${s._id.slice(0, 8)} · accepted ${s.qc?.acceptedQuantity} ${s.uom}` : `Reservation ${s._id.slice(0, 8)} · ${s.remainingQuantity ?? s.quantity} ${s.uom}`}</option>)}</select></label>{sourceType === 'WORK_ORDER' && selected?.serialized && <ShipmentSerials key={`${selected._id}-${order.version}`} workOrderId={selected._id} />}</> : <p>No eligible {sourceType === 'WORK_ORDER' ? 'QC-completed work orders' : 'reservations'} for this line.</p>; }}</Resource>
         <Input label={`Quantity (${order.snapshot.lines[lineIndex]?.uom})`} name="quantity" inputMode="decimal" autoComplete="off" />
         <Input label="Dispatch reference" name="reference" maxLength={200} autoComplete="off" />
       </CommandForm>
@@ -106,7 +109,7 @@ export function FulfillmentDetail({ kind }) {
         {kind === 'invoices' && <><h2>Balance</h2><MonetarySummary record={row} /></>}
         <h2>Linked records</h2>
         <ul className="pf-list">
-          {kind === 'shipments' && row.sources.map((s, i) => <li key={i}><Link to={s.sourceType === 'WORK_ORDER' ? `/portfolio/manufacturing/work-orders/${s.sourceId}` : `/portfolio/warehouse/reservations/${s.sourceId}`}>{s.sourceType === 'WORK_ORDER' ? 'Work order' : 'Reservation'} {s.sourceId.slice(0, 8)}</Link><span>{s.quantity} {row.uom}</span></li>)}
+          {kind === 'shipments' && row.sources.map((s, i) => <li key={i}><Link to={s.sourceType === 'WORK_ORDER' ? `/portfolio/manufacturing/work-orders/${s.sourceId}` : `/portfolio/warehouse/reservations/${s.sourceId}`}>{s.sourceType === 'WORK_ORDER' ? 'Work order' : 'Reservation'} {s.sourceId.slice(0, 8)}</Link><span>{s.quantity} {row.uom}</span>{s.serials && <p>Shipped serials: {s.serials.join(', ')}</p>}<MaterialTrace trace={s.materialTrace} output={s.sourceType === 'WORK_ORDER'} /></li>)}
           {kind === 'invoices' && row.lines.map((l, i) => <li key={i}><Link to={`/portfolio/fulfillment/shipments/${l.shipmentId}`}>Shipment {l.shipmentId.slice(0, 8)}</Link><span>{l.description} · {l.quantity} {l.uom} × {money(l.currency, l.unitPrice)} = {money(l.currency, l.amount)}</span><SourceLineage line={l} /></li>)}
           {kind === 'invoices' && row.allocations.map((a, i) => <li key={`p${i}`}><Link to={`/portfolio/fulfillment/payments/${a.paymentId}`}>Payment {a.paymentId.slice(0, 8)}</Link><span>{money(row.currency, a.amount)}</span></li>)}
           {kind === 'payments' && row.allocations.map((a, i) => <li key={i}><Link to={`/portfolio/fulfillment/invoices/${a.invoiceId}`}>Invoice {a.invoiceId.slice(0, 8)}</Link><span>{money(a.currency, a.amount)} · invoice now {a.invoiceStatus}</span></li>)}
@@ -120,4 +123,9 @@ export function FulfillmentDetail({ kind }) {
       </CommandForm>}
     </div>
   </>}</Resource></>;
+}
+
+function ShipmentSerials({ workOrderId }) {
+  const resource = useResource(`/api/manufacturing/work-orders/${workOrderId}/output-units`);
+  return <Resource resource={resource}>{({ data }) => { const available = data.filter(unit => unit.status === 'ACCEPTED'); return <><p>Select one accepted serial for each unit in this shipment. Already shipped and rejected units cannot be selected. The server checks current availability when saving.</p>{available.length ? <label className="pf-field">Output serials to ship (select multiple)<select name="serials" multiple size={Math.min(8, Math.max(3, available.length))} required defaultValue={[]}>{available.map(unit => <option key={unit._id} value={unit.serial}>{unit.serial}</option>)}</select></label> : <p>No accepted, unshipped serials remain for this work order. Select another source or refresh fulfillment.</p>}</>; }}</Resource>;
 }

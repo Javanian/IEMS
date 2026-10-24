@@ -8,6 +8,7 @@ on:
       - 'apps/wa-demo-bridge/**'
       - 'packages/**'
       - 'checkpoints/wave4h/**'
+      - 'checkpoints/wave4j/**'
       - '.github/workflows/portfolio-vat.yml'
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - 'apps/wa-demo-bridge/**'
       - 'packages/**'
       - 'checkpoints/wave4h/**'
+      - 'checkpoints/wave4j/**'
       - '.github/workflows/portfolio-vat.yml'
 
 permissions:
@@ -57,7 +59,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - name: Audit publication manifest and imports
-        run: python checkpoints/wave4h/audit-publication.py checkpoints/wave4i/SOURCE-MANIFEST.json
+        run: python checkpoints/wave4h/audit-publication.py checkpoints/wave4j/SOURCE-MANIFEST.json
       - name: Validate API syntax
         run: npm --prefix apps/portfolio-api run check
       - name: Check renderer public types
@@ -79,5 +81,6 @@ jobs:
           PORTFOLIO_LABOR: '1'
           PORTFOLIO_VAT: '1'
           PORTFOLIO_INQUIRY: '1'
+          PORTFOLIO_LOT_SERIAL: '1'
       - name: Test maintained API contract
         run: npm --prefix apps/portfolio-api test

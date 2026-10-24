@@ -1,5 +1,6 @@
 export function receiptCommand(po, values, key) {
-  return { purchaseOrderId:po._id, vendorId:po.vendorId, expectedVersion:po.version, lineIndex:Number(values.lineIndex), quantity:values.quantity, uom:values.uom, serials:values.serials.trim() ? values.serials.trim().split(/\s+/) : [], idempotencyKey:key };
+  const trace = values.lotNumber || values.heatNumber ? { lotNumber:values.lotNumber, heatNumber:values.heatNumber } : {};
+  return { purchaseOrderId:po._id, vendorId:po.vendorId, expectedVersion:po.version, lineIndex:Number(values.lineIndex), quantity:values.quantity, uom:values.uom, serials:(values.serials || '').trim() ? values.serials.trim().split(/\s+/) : [], ...trace, idempotencyKey:key };
 }
 export function warehouseCommand(action, receipt, values, key) {
   const body = {expectedVersion:receipt.version,idempotencyKey:key};

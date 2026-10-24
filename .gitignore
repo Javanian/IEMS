@@ -177,3 +177,4 @@ jobs/.pycache_legacy/
 !/checkpoints/wave4h/PUBLICATION.md
 
 !/checkpoints/wave4h/*.md
+!/checkpoints/wave4j/*.md

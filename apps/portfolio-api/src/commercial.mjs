@@ -1,4 +1,5 @@
 import { randomUUID, createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { installInquiries, initializeInquiries } from './inquiries.mjs';
 import { fixtureVat, fixtureTax, taxAmounts, formatMoney } from './fixture-tax.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
@@ -118,7 +119,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
       if (operation === 'revisions') {
         if (req.body.accountId !== undefined && req.body.accountId !== row.accountId) fail(400, 'ACCOUNT_CONFLICT');
         if (row.inquiryId) {
-          if (nextRevision.lines.length !== latest.lines.length || nextRevision.lines.some((line, i) => ['description', 'quantity', 'uom'].some(k => line[k] !== latest.lines[i][k]) || JSON.stringify(line.provenance) !== JSON.stringify(latest.lines[i].provenance))) fail(422, 'SOURCE_TAMPER');
+          if (nextRevision.lines.length !== latest.lines.length || nextRevision.lines.some((line, i) => ['description', 'quantity', 'uom'].some(k => line[k] !== latest.lines[i][k]) || !isDeepStrictEqual(line.provenance, latest.lines[i].provenance))) fail(422, 'SOURCE_TAMPER');
           nextRevision.lines = nextRevision.lines.map((line, i) => ({ ...line, provenance: structuredClone(latest.lines[i].provenance) }));
         } else if (nextRevision.lines.some(l => l.provenance !== undefined)) fail(422, 'SOURCE_TAMPER');
         row.revisions.push({ ...nextRevision, number: latest.number + 1 }); row.status = 'DRAFT';

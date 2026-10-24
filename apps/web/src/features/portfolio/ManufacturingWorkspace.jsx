@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { portfolioRequest as request } from './client.mjs';
 import { EngineeringWorkOrderRelease } from './EngineeringWorkspace.jsx';
 import { LaborWorkspace } from './LaborWorkspace.jsx';
+import { MaterialTrace } from './MaterialTrace.jsx';
 import { Failure, Resource, useResource } from './PortfolioWorkspace.jsx';
 import { planCommand, releaseCommand, recordCommand, qcCommand, nextOperation, manufacturingHint } from './manufacturing.mjs';
 
@@ -21,7 +22,7 @@ export function CommandForm({ title, submitLabel, intro, build, path, onSaved, r
   }
   const reset = () => { attempt.current = null; setError(null); refresh(); };
   const hint = manufacturingHint(error);
-  return <form className="pf-panel pf-form" onSubmit={e => { e.preventDefault(); if (!attempt.current) attempt.current = build(Object.fromEntries(new FormData(e.currentTarget)), crypto.randomUUID()); send(); }}>
+  return <form className="pf-panel pf-form" aria-label={submitLabel} onSubmit={e => { e.preventDefault(); if (!attempt.current) attempt.current = build(Object.fromEntries(new FormData(e.currentTarget)), crypto.randomUUID()); send(); }}>
     <h2>{title}</h2>{intro}<fieldset className="pf-form" disabled={busy || !!attempt.current}>{children}</fieldset>
     <Failure error={error} mutation retry={reset} />{hint && <p role="alert">{hint}</p>}
     {attempt.current && error ? <button type="button" disabled={busy || [400, 401, 403, 409].includes(error.status)} onClick={send}>Retry same manufacturing command</button> : <button className="pf-primary" disabled={busy}>{busy ? 'Saving...' : submitLabel}</button>}
@@ -48,6 +49,8 @@ export function PlanWorkOrders() {
     {data.status === 'OPEN' ? <CommandForm key={`plan-${created?._id || ''}`} title="Split line into work orders" submitLabel="Plan work orders" path="/api/manufacturing/work-orders" refresh={resource.reload} build={(v, key) => planCommand(data, v, key)} onSaved={setCreated} intro={<p>Each quantity becomes one PLANNED work order in the line UOM. All planned work orders for a line together cannot exceed its ordered quantity. Planning reserves production capacity, not finished goods.</p>}>
       <label className="pf-field">Sales order line<select name="lineIndex">{data.snapshot.lines.map((line, i) => <option key={i} value={i}>Line {i + 1}: {line.description} ({line.quantity} {line.uom})</option>)}</select></label>
       <label className="pf-field">Split quantities (exact decimals, one per work order, separated by spaces or new lines)<textarea name="quantities" rows={3} required inputMode="decimal" /></label>
+      <label className="pf-field">Output identification<select name="serialized" defaultValue="false"><option value="false">Quantity only</option><option value="true">Individual serial identities</option></select></label>
+      <p>Serial identification is fixed at planning. Each serialized work order needs an integral quantity of at most 1,000 units. Register final output identities before QC.</p>
     </CommandForm> : <p>This sales order is {data.status}. Only OPEN orders can be planned.</p>}
     {created && <section className="pf-panel" role="status"><h2>Planned {created.workOrders.length} work orders</h2><ul className="pf-list">{created.workOrders.map(w => <li key={w._id}><Link to={`${base}/work-orders/${w._id}`}>{w._id}</Link><span>{w.status} · {w.quantity} {w.uom}</span></li>)}</ul></section>}
     <PlannedForOrder key={`planned-${created?._id || ''}`} orderId={data._id} />
@@ -72,12 +75,14 @@ function RecordForm({ wo, refresh }) {
     intro={<><p>Instruction: {operation.instruction}</p><p>Input: {next.inputQuantity} {wo.uom} ({next.index ? 'good output of the previous operation' : 'work order quantity'}). Good + scrap must equal the input.{next.index === 0 && ' Recording this first operation consumes the reserved material.'}</p></>}>
     <div className="pf-fields"><Input label={`Good quantity (${wo.uom})`} name="goodQuantity" required inputMode="decimal" /><Input label={`Scrap quantity (${wo.uom})`} name="scrapQuantity" required inputMode="decimal" /></div>
     <label className="pf-field">Operator evidence<textarea name="evidence" rows={3} required maxLength={1000} /></label>
+    {wo.serialized && next.index === wo.routing.operations.length - 1 && <><label className="pf-field">Final output serial identifiers (whitespace separated)<textarea name="outputSerials" rows={5} /></label><p>Enter one unique serial for every good unit, using letters, numbers, underscores or hyphens, at most 100 characters each. Leave empty only when good quantity is zero.</p></>}
   </CommandForm>;
 }
 function QcForm({ wo, refresh }) {
   return <CommandForm title="Record QC decision" submitLabel="Record QC" path={`/api/manufacturing/work-orders/${wo._id}/qc`} refresh={refresh} onSaved={refresh} build={(v, key) => qcCommand(wo, v, key)}
     intro={<p>Final output in quarantine: {wo.output.quantity} {wo.uom}. Accepted + rejected must equal it.</p>}>
     <div className="pf-fields"><Input label={`Accepted quantity (${wo.uom})`} name="acceptedQuantity" required inputMode="decimal" /><Input label={`Rejected quantity (${wo.uom})`} name="rejectedQuantity" required inputMode="decimal" /></div>
+    {wo.serialized && <><p>Classify every final output serial exactly once. Accepted and rejected serial counts must match their quantities. Registered output: {wo.output.serials.join(', ') || 'None (zero good output)'}.</p><label className="pf-field">Accepted serial identifiers (whitespace separated)<textarea name="acceptedSerials" rows={4} /></label><label className="pf-field">Rejected serial identifiers (whitespace separated)<textarea name="rejectedSerials" rows={4} /></label></>}
     <label className="pf-field">Inspector evidence<textarea name="evidence" rows={3} required maxLength={1000} /></label>
   </CommandForm>;
 }
@@ -86,17 +91,26 @@ export function WorkOrderDetail() {
   return <><Navigation /><Resource resource={resource}>{({ data: wo }) => <><h1>Work order</h1><p className="pf-id">Work order ID: {wo._id}</p><Boundary /><StockExceptions exceptions={wo.stockExceptions} />
     <section className="pf-panel"><div className="pf-summary"><strong>Status: {wo.status}</strong><span>Version: {wo.version}</span><span>Quantity: {wo.quantity} {wo.uom}</span></div>
       <p>Source: sales order line {wo.lineIndex + 1}, {wo.sourceLine.description} ({wo.sourceLine.quantity} {wo.sourceLine.uom} ordered, SO version {wo.salesOrderVersion})</p>
+      <p>Output identification: {wo.serialized ? 'Individual serial identities' : 'Quantity only'}</p>
       {wo.totalScrapQuantity && <p>Total scrap: {wo.totalScrapQuantity} {wo.uom}</p>}
       {wo.output && <p>Final output: {wo.output.quantity} {wo.output.uom} · {wo.output.status}</p>}
+      {wo.output && <MaterialTrace trace={wo.output.materialTrace} output />}
       <p className="pf-id">Planned by {wo.createdBy} at {wo.createdAt} · split {wo.splitId}</p>
       <div className="pf-actions"><button type="button" onClick={resource.reload}>Refresh record</button><Link to={`/portfolio/orders/${wo.salesOrderId}`}>Open source sales order</Link><Link to={`/portfolio/accounts/${wo.accountId}`}>Open customer</Link></div></section>
     {wo.routing && <div className="pf-columns"><section className="pf-panel"><h2>Routing and operator records</h2><ol className="pf-list">{wo.routing.operations.map((op, i) => { const r = wo.records[i]; return <li key={op.code}><strong>{i + 1}. {op.code}</strong><span>{op.instruction}</span>{r ? <><span>Input {r.inputQuantity} · Good {r.goodQuantity} · Scrap {r.scrapQuantity} {r.uom}</span><span>Evidence: {r.evidence}</span><span className="pf-id">Recorded by {r.recordedBy} at {r.recordedAt}</span></> : <span>Not recorded yet</span>}</li>; })}</ol></section>
       <section className="pf-panel"><h2>Released materials</h2><ul className="pf-list">{wo.routing.materials.map(m => <li key={m.receiptId}><Link to={`/portfolio/warehouse/receipts/${m.receiptId}`}>{m.receiptId}</Link><span>{m.quantity} {m.uom} ({m.quantityPerUnit} per 1 {wo.uom}) · {wo.records.length ? 'Consumed' : 'Reserved'}</span></li>)}</ul><p className="pf-id">Released by {wo.routing.releasedBy} at {wo.routing.releasedAt}</p></section></div>}
-    {wo.qc && <section className="pf-panel"><h2>QC decision</h2><p>Accepted: {wo.qc.acceptedQuantity} {wo.qc.uom} · Rejected: {wo.qc.rejectedQuantity} {wo.qc.uom}</p><p>Evidence: {wo.qc.evidence}</p><p className="pf-id">Recorded by {wo.qc.recordedBy} at {wo.qc.recordedAt}</p><p>Accepted output is not put away or shipped by this workspace.</p></section>}
+    {wo.routing?.materials.some(material => material.materialTrace) && <section className="pf-panel"><h2>Frozen material receipt context</h2><MaterialTrace trace={wo.routing.materials.flatMap(material => material.materialTrace ? [material.materialTrace] : [])} output /></section>}
+    {wo.qc && <section className="pf-panel"><h2>QC decision</h2><p>Accepted: {wo.qc.acceptedQuantity} {wo.qc.uom} · Rejected: {wo.qc.rejectedQuantity} {wo.qc.uom}</p>{wo.serialized && <><p>Accepted serials: {wo.qc.acceptedSerials.join(', ') || 'None'}</p><p>Rejected serials: {wo.qc.rejectedSerials.join(', ') || 'None'}</p></>}<p>Evidence: {wo.qc.evidence}</p><p className="pf-id">Recorded by {wo.qc.recordedBy} at {wo.qc.recordedAt}</p><p>Accepted output is not put away or shipped by this workspace.</p></section>}
+    {wo.serialized && wo.output && <OutputUnits key={`units-${wo.version}`} workOrderId={wo._id} />}
     {wo.engineeringSnapshot && <section className="pf-panel"><h2>Frozen work order engineering snapshot</h2><Link to={`${base}/engineering/${wo.engineeringSnapshot.engineeringId}`}>{wo.engineeringSnapshot.engineeringId}</Link><p>Revision: {wo.engineeringSnapshot.revision} · Engineering version at release: {wo.engineeringSnapshot.engineeringVersion}</p><p>Routing and material reservations remain frozen through later package revisions or revocation.</p></section>}
     {wo.status === 'PLANNED' && <><EngineeringWorkOrderRelease key={`engineering-${wo.version}`} wo={wo} refresh={resource.reload} /><ReleaseForm key={wo.version} wo={wo} refresh={resource.reload} /></>}
     {['RELEASED', 'IN_PROGRESS'].includes(wo.status) && <RecordForm key={wo.version} wo={wo} refresh={resource.reload} />}
     {wo.status === 'QUARANTINED' && <QcForm key={wo.version} wo={wo} refresh={resource.reload} />}
     <LaborWorkspace key={`labor-${wo._id}-${wo.version}`} wo={wo} refresh={resource.reload} />
   </>}</Resource></>;
+}
+
+function OutputUnits({ workOrderId }) {
+  const resource = useResource(`/api/manufacturing/work-orders/${workOrderId}/output-units`);
+  return <section className="pf-panel"><div className="pf-toolbar"><h2>Output serial identities</h2><button type="button" onClick={resource.reload}>Refresh serial statuses</button></div><Resource resource={resource}>{({ data }) => data.length ? <ul className="pf-list">{data.map(unit => <li key={unit._id}><strong>{unit.serial}</strong><span>Status: {unit.status}</span>{unit.shipmentId && <Link to={`/portfolio/fulfillment/shipments/${unit.shipmentId}`}>Open shipment</Link>}</li>)}</ul> : <p>No output units were registered. A final operation with zero good quantity creates no serial identities.</p>}</Resource></section>;
 }

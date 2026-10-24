@@ -38,11 +38,20 @@ export function InquirySource({ lines }) {
   return <ol className="pf-list">{lines.map((line, i) => <li key={line.lineId || i}><strong>{line.itemCode}: {line.description}</strong><span>Quantity: {line.quantity} {line.uom}</span><span>Drawing: {line.drawingNumber} · Revision {line.drawingRevision}</span>{line.lineId && <span className="pf-id">Source line: {line.lineId}</span>}</li>)}</ol>;
 }
 
-function SourceForm({ inquiry, onSaved }) {
-  const latest = inquiry?.revisions.at(-1), [count, setCount] = useState(latest?.lines.length || 1);
+function InquiryAccountSelect() {
   const accounts = useResource('/api/crm/accounts?limit=100', true);
+  return <Resource resource={accounts}>{({ data }) => data.length ? <label className="pf-field">Customer account<select name="accountId" required defaultValue=""><option value="">Select existing customer</option>{data.map(a => <option key={a._id} value={a._id}>{a.name} ({a._id})</option>)}</select></label> : <p>No customer accounts in this plant. Create an account first.</p>}</Resource>;
+}
+
+export function InquiryAccountField({ canReadAccounts }) {
+  return canReadAccounts ? <InquiryAccountSelect /> : <><Input label="Known customer account ID" name="accountId" /><p>Enter the ID of an existing customer in this plant. Your role cannot browse customer accounts.</p></>;
+}
+
+function SourceForm({ inquiry, onSaved }) {
+  const identity = useContext(IdentityContext), canReadAccounts = capabilityState('crm.read', identity?.permissions).enabled;
+  const latest = inquiry?.revisions.at(-1), [count, setCount] = useState(latest?.lines.length || 1);
   return <InquiryCommand title={inquiry ? 'Save inquiry revision' : 'Save inquiry'} permission="inquiry.write" action={inquiry ? `/api/commercial/inquiries/${inquiry._id}/revisions` : '/api/commercial/inquiries'} build={(v, key) => ({ ...(inquiry ? { expectedVersion: inquiry.version } : { accountId: v.accountId }), lines: inquiryLines(v, count, latest?.lines), idempotencyKey: key })} onSaved={onSaved}>
-    {!inquiry && <Resource resource={accounts}>{({ data }) => data.length ? <label className="pf-field">Customer account<select name="accountId" required defaultValue=""><option value="">Select existing customer</option>{data.map(a => <option key={a._id} value={a._id}>{a.name} ({a._id})</option>)}</select></label> : <p>No customer accounts in this plant. Create an account first.</p>}</Resource>}
+    {!inquiry && <InquiryAccountField canReadAccounts={canReadAccounts} />}
     <p>Drawing numbers and revisions are source metadata, not an engineering BOM or release. No prices are required for an inquiry.</p>
     {Array.from({ length: count }, (_, i) => <fieldset key={i}><legend>Inquiry line {i + 1}</legend><div className="pf-fields">{fields.map(([field, label]) => <Input key={field} label={label} name={`${field}${i}`} defaultValue={latest?.lines[i]?.[field]} inputMode={field === 'quantity' ? 'decimal' : undefined} maxLength={field === 'description' ? 200 : 100} />)}</div></fieldset>)}
     <div className="pf-actions"><button type="button" disabled={count >= 100} onClick={() => setCount(n => n + 1)}>Add inquiry line</button>{count > 1 && <button type="button" onClick={() => setCount(n => n - 1)}>Remove last inquiry line</button>}</div>
