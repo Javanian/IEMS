@@ -10,7 +10,7 @@
     }
   },
   "scripts": {
-    "test": "node --test --test-reporter=tap --test-concurrency=1 test/render.test.mjs test/issue.test.mjs test/contracts.test.mjs test/mutation.test.mjs test/wave3b-layout.test.mjs test/wave3b-recovery.test.mjs test/wave3c.test.mjs",
+    "test": "node --test --test-reporter=tap --test-concurrency=1 test/render.test.mjs test/issue.test.mjs test/contracts.test.mjs test/mutation.test.mjs test/wave3b-layout.test.mjs test/wave3b-recovery.test.mjs test/wave3c.test.mjs test/wave4h-vat.test.mjs",
     "check": "tsc --noEmit --strict --module nodenext --moduleResolution nodenext test/public-api.mts"
   },
   "dependencies": {

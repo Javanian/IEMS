@@ -1,6 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import PDFDocument from 'pdfkit';
 import { renderV2 } from './layout-v2.mjs';
+import { vatContent } from './vat.mjs';
+import { renderV3 } from './layout-v3.mjs';
+const vatTemplate = Object.freeze({ id:'iems-commercial', version:3, engine:'pdfkit-0.17.2', layout:'a4-flow-v3' });
 
 const templates = Object.freeze(Object.fromEntries([1,2].map(version => [version, Object.freeze({ id: 'iems-commercial', version, engine: 'pdfkit-0.17.2', layout: `a4-flow-v${version}` })])));
 export const TEMPLATE = templates[2];
@@ -17,7 +20,24 @@ function money(value, currency) { const scale = scales[currency]; if (!Object.ha
 const minor = value => BigInt(value.replace('.', ''));
 const format = (value, scale) => { const raw = value.toString().padStart(scale + 1, '0'); return scale ? raw.slice(0,-scale)+'.'+raw.slice(-scale) : raw; };
 
-export function createSnapshot(kind, scope, source, { templateVersion = 2 } = {}) {
+export function createSnapshot(kind, scope, source, { templateVersion } = {}) {
+  const vatBody = kind === 'quote' || kind === 'purchaseOrder' ? source.snapshot : source;
+  if (vatBody?.schemaVersion !== undefined && vatBody.schemaVersion !== (vatBody.taxPolicy === 'FIXTURE_VAT_11_V1' ? 2 : 1)) fail('INVALID_POLICY_SCHEMA');
+  if (vatBody?.taxPolicy === 'FIXTURE_VAT_11_V1') {
+    if (templateVersion !== undefined && templateVersion !== 3) fail('INVALID_TEMPLATE');
+    const selected = checkedScope(scope);
+    if (scopeKeys.some(k => selected[k] !== source[k])) fail('SCOPE_MISMATCH');
+    if (!Number.isSafeInteger(source.version) || source.version < 1) fail('INVALID_VERSION');
+    const content = vatContent(kind, vatBody, netBody => {
+      const net = createSnapshot(kind, scope, { ...source, ...(kind === 'quote' ? { snapshot:netBody } : netBody) }, { templateVersion:2 });
+      const { schemaVersion, kind:ignoredKind, scope:ignoredScope, sourceId, sourceVersion, template, contentHash:ignoredHash, ...result } = net;
+      return result;
+    });
+    const snapshot = { schemaVersion:2, kind, scope:selected, sourceId:text(source._id,100), sourceVersion:source.version, template:{...vatTemplate}, ...content };
+    return freeze({ ...snapshot, contentHash:contentHash(snapshot) });
+  }
+  if (vatBody?.taxPolicy !== undefined && vatBody.taxPolicy !== 'NO_TAX') fail('INVALID_POLICY');
+  templateVersion ??= 2;
   if (!Object.hasOwn(templates, templateVersion)) fail('INVALID_TEMPLATE');
   if (!['quote', 'purchaseOrder', 'invoice', 'shipment'].includes(kind)) fail('INVALID_KIND');
   const selected = checkedScope(scope);
@@ -70,12 +90,13 @@ export function createSnapshot(kind, scope, source, { templateVersion = 2 } = {}
 }
 function verify(snapshot) {
   const { contentHash: hash, ...body } = snapshot;
-  if (hash !== contentHash(body) || canonical(snapshot.template) !== canonical(templates[snapshot.template?.version])) fail('SNAPSHOT_INTEGRITY');
+  if (hash !== contentHash(body) || canonical(snapshot.template) !== canonical(snapshot.schemaVersion === 2 ? vatTemplate : templates[snapshot.template?.version])) fail('SNAPSHOT_INTEGRITY');
   const recreated = createSnapshot(snapshot.kind, snapshot.scope, { _id: snapshot.sourceId, ...snapshot.scope, version: snapshot.sourceVersion, ...(snapshot.kind === 'quote' || snapshot.kind === 'purchaseOrder' ? { snapshot } : snapshot.kind === 'shipment' ? { ...snapshot, lineIndex: Number(snapshot.lines[0].description.replace('Sales order line ','')), ...snapshot.lines[0] } : snapshot) }, { templateVersion: snapshot.template.version });
   if (canonical(recreated) !== canonical(snapshot)) fail('SNAPSHOT_INTEGRITY');
 }
 export async function renderPdf(snapshot) {
   verify(snapshot);
+  if (snapshot.template.version === 3) return renderV3(snapshot);
   if (snapshot.template.version === 2) return renderV2(snapshot);
   const doc = new PDFDocument({ size: 'A4', margin: 48, compress: true, info: { Title: `${snapshot.kind} ${snapshot.sourceId}`, Author: 'IEMS', CreationDate: new Date('2000-01-01T00:00:00Z'), ModDate: new Date('2000-01-01T00:00:00Z') } });
   const chunks = [];

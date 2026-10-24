@@ -8,7 +8,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "lint:tokens": "node scripts/check-design-tokens.mjs"
+    "lint:tokens": "node scripts/check-design-tokens.mjs",
+    "test:portfolio": "node --test --test-concurrency=1 test/portfolio-*.test.mjs",
+    "test:portfolio:browser": "node test/portfolio-browser.mjs",
+    "test:portfolio:raster": "node test/portfolio-wave4h-raster.mjs"
   },
   "dependencies": {
     "18": "^0.0.0",

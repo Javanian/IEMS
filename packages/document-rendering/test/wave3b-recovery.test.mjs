@@ -11,6 +11,21 @@ import { createSnapshot,createIssuer } from '../src/index.mjs';
 const scope={tenantId:'t',legalEntityId:'e',plantId:'p'};
 function snapshot(version=1,templateVersion=2){return createSnapshot('invoice',scope,{_id:'invoice',version,...scope,currency:'KWD',taxPolicy:'NO_TAX',roundingPolicy:'LINE_HALF_UP',total:'9007199254740993.123',lines:[{description:'Exact total',quantity:'1',unitPrice:'9007199254740993.123',currency:'KWD',uom:'KG'}]},{templateVersion});}
 function identity(pid){return JSON.parse(execFileSync('powershell.exe',['-NoProfile','-Command',`Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}" | Select-Object ProcessId,CommandLine,@{Name='CreationDate';Expression={$_.CreationDate.ToString('o')}} | ConvertTo-Json -Compress`],{encoding:'utf8'}));}
+function workerPath(commandLine) {
+ const match = /^(?:"[^"]+"|\S+)\s+(?:"([^"]+)"|(\S+))(?:\s|$)/.exec(commandLine);
+ return match?.[1] ?? match?.[2];
+}
+test('worker identity accepts Windows quoting variants and preserves the exact script path', () => {
+ const spaced = String.raw`D:\Project AI\renderer\test\wave3b-child.mjs`;
+ const plain = String.raw`D:\a\IEMS\renderer\test\wave3b-child.mjs`;
+ assert.equal(workerPath(`"C:\\Program Files\\nodejs\\node.exe" "${spaced}" arg`), spaced);
+ assert.equal(workerPath(`C:\\node\\node.exe ${plain} arg`), plain);
+ assert.equal(workerPath(`"C:\\Program Files\\nodejs\\node.exe" ${plain} arg`), plain);
+ assert.equal(workerPath(`C:\\node\\node.exe "${spaced}" arg`), spaced);
+ assert.equal(workerPath('node.exe'), undefined);
+ assert.notEqual(workerPath(`node.exe ${plain}.other arg`), plain);
+ assert.notEqual(workerPath(`node.exe other.mjs ${plain}`), plain);
+});
 test('owned real Mongo killed transaction and lost receipt recover once; unknown commit retries; template and stored hashes fail closed',async()=>{
  const run=randomUUID().replaceAll('-',''),dbName=`owned_document_${run}`,root=path.resolve('.runtime',run),dir=`evidence/wave3b/recovery-${run}`;
  await fs.mkdir(root,{recursive:true});await fs.mkdir(dir,{recursive:true});
@@ -20,10 +35,10 @@ test('owned real Mongo killed transaction and lost receipt recover once; unknown
   const env={...process.env};delete env.NODE_TEST_CONTEXT;
   const child=fork(path.resolve('test/wave3b-child.mjs'),[repl.getUri(),dbName,run,mode,Buffer.from(JSON.stringify(snap)).toString('base64')],{env,execArgv:[],stdio:['ignore','pipe','pipe','ipc']});children.add(child);let output='';child.stdout.on('data',x=>output+=x);child.stderr.on('data',x=>output+=x);
   const exited=once(child,'exit');child.once('exit',()=>children.delete(child));
-  const creation=mode==='replay'?null:identity(child.pid);if(creation){assert.ok(Date.parse(creation.CreationDate));child.ownedIdentity=creation;assert.equal(creation.CommandLine.match(/^"[^"]+"\s+"([^"]+)"/)?.[1],path.resolve('test/wave3b-child.mjs'));}
+  const creation=mode==='replay'?null:identity(child.pid);if(creation){assert.ok(Date.parse(creation.CreationDate));assert.equal(creation.ProcessId,child.pid);child.ownedIdentity=creation;assert.equal(workerPath(creation.CommandLine),path.resolve('test/wave3b-child.mjs'));}
   const message=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('CHILD_TIMEOUT '+output)),30000);child.once('message',m=>{clearTimeout(timer);resolve(m);});child.once('error',reject);child.once('exit',code=>{if(code)reject(Error(`CHILD_EXIT ${code} ${output}`));});});
   if(mode==='replay'){const [code,signal]=await exited;children.delete(child);assert.equal(code,0,output);return message;}
-  assert.equal(message.phase,mode);const live=identity(child.pid);assert.equal(live.CreationDate,creation.CreationDate);assert.equal(live.ProcessId,child.pid);
+  assert.equal(message.phase,mode);assert.equal(message.pid,child.pid);const live=identity(child.pid);assert.equal(live.CreationDate,creation.CreationDate);assert.equal(live.ProcessId,child.pid);assert.equal(workerPath(live.CommandLine),path.resolve('test/wave3b-child.mjs'));
   const exit=once(child,'exit');child.kill('SIGKILL');const [code,signal]=await exit;children.delete(child);evidence.kills.push({mode,pid:creation.ProcessId,creationDate:creation.CreationDate,code,signal});return message;
  }
  try{

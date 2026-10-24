@@ -1,0 +1,12 @@
+{
+  "apps/web/src/pages/PORTFOLIO/PortfolioPage.jsx": "52a91607a10cadcb3ecea49f4ec844938b73242645cc0e3fff54d8a0ec556e5e",
+  "apps/web/test/portfolio-browser.mjs": "95c6751240f5b61469da60fc715306e1b8546f46e9cf443ec522e0d68ff81571",
+  "apps/web/test/portfolio-fulfillment-browser.mjs": "6d0b248a1a9a28392db533d4614e2116a2a0578a178f95108f9aec78749f1729",
+  "apps/web/test/wave4f-holds-browser.mjs": "ab3bb2ebed767fe87bc0bcb1074b8f0bf3df46aa4d9b9b8fad14242e115d0ddf",
+  "apps/web/test/wave4f-cs-browser.mjs": "3210a6ad3326537b6873a72e3c3b9b407548ba8b729837bd68f016d6d21987bb",
+  "apps/web/test/wave4f-text-browser.mjs": "ac932a51225ad8d1c796c8d6d348dc138706355aad8ee7efae72ed8adce2878b",
+  "apps/web/test/wave4f-browser-kit.mjs": "f86a0f7d5ca7f6d0c4c93e4624cb4ea59935cc91b4bb129f28d79ecb76bf8dc4",
+  "apps/web/src/main.jsx": "2d024396105025fdbec58f11dd73cf70a9b375faee9f35bc94196df1bdedcb7b",
+  "apps/web/src/router/index.jsx": "c1d16c12930109931cafd5eda7e111dc0e74acdaba3593a527fbfb8b0856e861",
+  "apps/web/vite.config.js": "a627015fceb2ed2730c7cab095cd262068902f85db88ffeabd06a70406900022"
+}

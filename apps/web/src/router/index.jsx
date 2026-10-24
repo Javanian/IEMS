@@ -50,6 +50,10 @@ function NotFoundPage() {
 
 const router = createBrowserRouter([
   {
+    path: '/portfolio/*',
+    lazy: page(() => import('../pages/PORTFOLIO/PortfolioPage')),
+  },
+  {
     path: '/LandingPage',
     lazy: page(() => import('../pages/OperationsHubPage')),
   },
