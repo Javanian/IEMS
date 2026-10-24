@@ -7,7 +7,7 @@ const words = text => (text || '').trim().split(/\s+/).filter(Boolean);
 
 export function planCommand(order, values, key) {
   const lineIndex = Number(values.lineIndex);
-  return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex]?.uom, quantities: words(values.quantities), ...(values.serialized === 'true' || values.serialized === true ? { serialized:true } : {}), ...(values.genealogyRequired === 'true' || values.genealogyRequired === true ? { genealogyRequired:true } : {}), ...(values.serialCustodyRequired === 'true' || values.serialCustodyRequired === true ? { serialCustodyRequired:true } : {}), idempotencyKey: key };
+  return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex]?.uom, quantities: words(values.quantities), ...(values.serialized === 'true' || values.serialized === true ? { serialized:true } : {}), ...(values.genealogyRequired === 'true' || values.genealogyRequired === true ? { genealogyRequired:true } : {}), ...(values.serialCustodyRequired === 'true' || values.serialCustodyRequired === true ? { serialCustodyRequired:true } : {}), ...(values.installationRequired === 'true' || values.installationRequired === true ? { installationRequired:true } : {}), idempotencyKey: key };
 }
 export function releaseCommand(wo, values, operationCount, materialCount, key, claims = []) {
   const operations = Array.from({ length: operationCount }, (_, i) => ({ code: values[`code${i}`], instruction: values[`instruction${i}`] }));

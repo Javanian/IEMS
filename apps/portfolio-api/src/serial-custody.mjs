@@ -266,3 +266,26 @@ export async function consumeSerialCustody(db, wo, material, receipt, userId, se
   await holds(db, receipt, session, true);
   await transition(db, wo, receipt, claim, 'RESERVED', 'CONSUMED', userId, session);
 }
+
+export async function loadConsumedCustodyForInstallation(db, wo, session) {
+  if (!wo.serialCustodyRequired || !Array.isArray(wo.routing?.materials) || !wo.routing.materials.length || wo.routing.materials.length > 20) fail(409, 'SERIAL_CUSTODY_SOURCE_INVALID');
+  const active = await claims(db, wo, session), sources = [], components = [];
+  if (active.length !== wo.routing.materials.length) fail(409, 'SERIAL_CUSTODY_SOURCE_INVALID');
+  for (const material of wo.routing.materials) {
+    const receipt = await db.collection('warehouseReceipts').findOne({ ...scope(wo), _id: material.receiptId }, { session });
+    if (!receipt) fail(409, 'SERIAL_CUSTODY_SOURCE_INVALID');
+    const available = await authority(db, receipt, session), binding = material.serialCustody, claim = active.find(c => c._id === binding?.claimId);
+    verifyClaim(claim, available, wo, receipt, 'CONSUMED');
+    if (!equal(binding, { claimId: claim._id, serialUnitIds: claim.serialUnitIds, serials: claim.serials }) || number(claim.quantity) !== number(material.quantity) || material.uom !== claim.uom || !equal(material.materialTrace, claim.materialTrace)) fail(409, 'SERIAL_CUSTODY_SOURCE_INVALID');
+    let consumed;
+    for (const kind of ['MATERIAL_RESERVED', 'MATERIAL_CONSUMED']) {
+      const movements = await db.collection('manufacturingMovements').find({ ...scope(wo), workOrderId: wo._id, receiptId: receipt._id, kind }, { session }).limit(2).toArray();
+      const movement = movements[0];
+      if (movements.length !== 1 || movement.quantity !== material.quantity || movement.quantityPerUnit !== material.quantityPerUnit || movement.uom !== material.uom || !equal(movement.materialTrace, material.materialTrace) || !equal(movement.serialCustody, binding)) fail(409, 'SERIAL_CUSTODY_SOURCE_INVALID');
+      if (kind === 'MATERIAL_CONSUMED') consumed = movement;
+    }
+    sources.push({ receiptId: receipt._id, quantityPerUnit: material.quantityPerUnit, consumedQuantity: material.quantity, uom: material.uom, movementId: consumed._id, materialTrace: structuredClone(material.materialTrace) });
+    components.push(...claim.serialUnitIds.map(id => available.find(unit => unit._id === id)));
+  }
+  return { sources, components };
+}

@@ -1,5 +1,11 @@
 # Owned portfolio CRM API
 
+## K2b1 received component installation
+
+New WOs can opt in with `installationRequired` alongside serialized output, lot genealogy and received serial custody. Operators explicitly bind already-consumed received identities to outputs from the same WO, record process-loss identities, and finalize exact identity and lot reconciliation. Source inventory stays CONSUMED. Removal permanently quarantines the installation disposition and leaves the parent incomplete. First shipment freezes the entire finalized installation revision; shipment sources, movements and units retain its immutable pointer.
+
+Read the [K2b1 contract](../../checkpoints/wave4k2b1/CONTRACT.md) and [continuation plan](../../checkpoints/wave4k2b1/DEVELOPMENT-PLAN.md). Manufactured-component ownership/custody, general graph-cycle acceptance, replacement/rework, POD and full original E01 remain open. Supplemental incoming serial fixtures do not change canonical E01.
+
 ## K2a received serial custody
 
 Untouched serialized receipts can be explicitly adopted into received identity custody. Required WOs opt in with `serialized`, `genealogyRequired` and `serialCustodyRequired`; operators claim exact identities while PLANNED, release reserves them, and the first operation consumes them with the existing stock movement. Claim and abandon do not change quantities. Adopted receipts permanently reject quantity-only reservation and counting; whole transfer requires all identities available and no holds. Existing untracked receipts retain their prior behavior.

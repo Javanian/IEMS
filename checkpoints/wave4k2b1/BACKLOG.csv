@@ -1,0 +1,17 @@
+id,depends_on,status,owner,deliverable
+K2B1-01,,FROZEN,lead,Received-only installation authority and removal contract
+K2B1-02,K2B1-01,ACCEPTED_LOCAL,api,Scoped identity dispositions immutable evidence and shipment freeze
+K2B1-03,K2B1-01,ACCEPTED_LOCAL,ui,Explicit native parent input loss removal and finalize controls
+K2B1-04,K2B1-02,ACCEPTED_LOCAL,review,Independent adversarial HTTP probe and source review
+K2B1-05,K2B1-02|K2B1-03|K2B1-04,ACCEPTED_LOCAL,lead,Maintained checks connected browser source audit and local checkpoint
+K2B2-01,K2B1-05,PLANNED,contract,Company-owned manufactured component custody and original demand disposition
+K2B2-02,K2B2-01,PLANNED,api,Internal production orders and serialized QC-to-company-stock receipt
+K2B2-03,K2B2-02,PLANNED,api,Exact company-stock reserve and issue authority with demand and output-unit fences
+K2B2-04,K2B2-03,PLANNED,api,Typed manufactured-source genealogy with no second raw-material consumption
+K2B2-05,K2B2-04,PLANNED,api,Unique parent shared graph write fence and bounded cycle traversal
+K2B2-06,K2B2-05,PLANNED,api,Ancestor shipment closure freeze across descendants and source holds
+K2B2-07,K2B2-03|K2B2-05,PLANNED,contract,Authorized rework spare issue removal and inspection contract
+K2B2-08,K2B2-07,PLANNED,api,Controlled replacement with separately authorized issue and immutable removal
+K2B2-09,K2B2-02|K2B2-03|K2B2-04|K2B2-05|K2B2-06,PLANNED,review,Independent inventory graph and ancestor-freeze acceptance
+L-01,K2B2-09,PLANNED,contract,Versioned partial delivery proof and immutable correction aggregate
+M-01,L-01|K2B2-08,PLANNED,review,Canonical E01 adapter and complete original acceptance evidence
