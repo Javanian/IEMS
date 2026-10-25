@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { loadConsumedCustodyForInstallation } from './serial-custody.mjs';
 import { validHoldCache, receiptHoldState, requireEligibleReceipt } from './stock-holds.mjs';
+import { requireLegacyReceipt } from './receipt-origin.mjs';
 
 export const installationActions = ['installation.read', 'installation.record', 'installation.finalize', 'installation.remove'];
 export const installationRoles = Object.fromEntries(['Reader', 'Recorder', 'Finalizer', 'Remover'].map((name, index) => [`installation${name}`, ['manufacturing.read', 'installation.read', ...(index ? [installationActions[index]] : [])]]));
@@ -42,6 +43,7 @@ async function sourceHolds(db, wo, sources, session, enforce = false) {
     if (!receipt) fail(409, 'INSTALLATION_SOURCE_INVALID');
     const invalid = receipt.hold !== undefined && receipt.hold !== null && !validHoldCache(receipt.hold);
     if (enforce) {
+      await requireLegacyReceipt(db, receipt, session);
       if (invalid) fail(409, 'STOCK_ENCUMBERED'); await requireEligibleReceipt(db, receipt, session);
       const changed = await db.collection('warehouseReceipts').updateOne({ ...scope(wo), _id: receipt._id }, { $inc: { installationFence: 1 } }, { session });
       if (changed.matchedCount !== 1) fail(409, 'INSTALLATION_SOURCE_INVALID');

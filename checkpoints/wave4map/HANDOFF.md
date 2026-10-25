@@ -1,0 +1,15 @@
+# Catalog item mapping handoff
+
+Worktree: `D:/Project AI/GITHUB/IEMS-worktrees/catalog-procurement-receipts`; branch `feat/catalog-procurement-receipts`; baseline `bd6d7f2b7ec6404a5b6c4fa31db55c1154bfcec3`. Use `git log -1` for the accepted checkpoint commit. No push, merge or deployment is included.
+
+`apps/portfolio-api/src/catalog-procurement.mjs` owns the separate typed procurement provider and immutable typed receipt validator. `internal-production.mjs` accepts explicit paired V2 tracking content in new revisions and exports current approved source validation. `receipt-origin.mjs` proves eligibility for legacy writers from actual scoped PO/vendor/line/UOM and sole matching RECEIVE. Presence of any typed receipt marker, origin record, typed PO or RECEIVE source marker denies legacy use. Missing, duplicate, mismatched or ambiguous legacy proof denies use. Warehouse reads supply the origin classification; UI presentation never grants mutation authority.
+
+The provider uses real vendors, approved PURCHASED item revisions, stable request item line UUIDs, exact decimal quantity and BigInt currency arithmetic. Receipt creation writes actual warehouse receipt, RECEIVE, serial registry, independent origin, exact partial receiving tally, key, audit and outbox in one guarded transaction. New item revisions/deactivation block fresh procurement/receiving. Historical PO and receipt bindings remain readable. Replays authenticate before returning the original committed response.
+
+The independent origin ledger and physical RECEIVE/receipt set reconcile together. Removing an origin or tally does not free receiving entitlement. Shared serial uniqueness includes existing received and manufactured identities. Quarantine cannot carry availability, reservation, consumption or shipment counters. Quality hold metadata may change receipt version; it does not release stock.
+
+Native screens are under `/portfolio/catalog-procurement/requests`, `/orders` and `/receipts/:id`; item V2 controls extend `/portfolio/inventory-master/items`. Whole retained commands lock fieldsets and other forms until exact retry or explicit discard/refresh. Direct legacy receipt URLs suppress stock operation controls when server origin eligibility is absent or false. Warehouse receipt and typed RECEIVE links use the catalog source namespace.
+
+Raw logs/screenshots stay outside Git at `D:/Project AI/GITHUB/IEMS-evidence/wave4map-20261025/`. The maintained owner test is `apps/portfolio-api/test/wave4map-catalog-receipts.test.mjs`; independent attacks are in `qa/catalog-receipt-boundary.test.mjs`; connected journey is `apps/web/test/portfolio-wave4map-catalog-browser.mjs`, enabled with `PORTFOLIO_CATALOG=1`. Existing acceptance switches remain enabled in CI.
+
+Typed incoming QC, qualified putaway, usable stock and internal execution are not implemented. See DEVELOPMENT-PLAN.md and BACKLOG.csv. Do not adopt legacy receipts by attaching an item label, infer policy from UOM, generate incoming serial IDs, fabricate an SO/internal execution pointer or change the original canonical E01 fixtures to bypass these gates.
