@@ -127,5 +127,9 @@ jobs:
           PORTFOLIO_REVIEW_E01: '1'
           PORTFOLIO_REVIEW_DEBUG_ONLY: '0'
           PORTFOLIO_TEXT_DIAGNOSTIC_ONLY: '0'
+      - name: Test intentional module failure and native reload recovery
+        run: node checkpoints/review-five-findings/qa/module-fetch-recovery-browser.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-module-fetch-recovery
       - name: Test maintained API contract
         run: npm --prefix apps/portfolio-api test

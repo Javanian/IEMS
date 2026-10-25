@@ -17,6 +17,7 @@
   .pf-source-picker > .pf-fields { grid-template-columns: minmax(0,1fr) auto; align-items: end; }
   @media (max-width: 639px) { .pf-source-picker > .pf-fields { grid-template-columns: minmax(0,1fr); } }
   .portfolio-root[data-kiosk=true] :is(a,button,input,select,textarea,summary) { min-height: 48px; }
+  .portfolio-root.pf-route-recovery :is(button,summary) { min-height: 48px; }
   @media (prefers-reduced-motion: reduce) { .portfolio-root *, .portfolio-root *::before, .portfolio-root *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
   .portfolio-root * { min-width: 0; }
   .portfolio-root :is(h1, h2, p, a, button, label, input, select, textarea, span, strong, dt, dd, time) { line-height: 1.5; }

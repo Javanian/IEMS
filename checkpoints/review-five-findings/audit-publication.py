@@ -19,6 +19,7 @@ scopes = (
 )
 specific = {'.gitignore', '.github/workflows/portfolio-vat.yml', 'apps/web/package.json',
             'apps/web/package-lock.json', 'apps/web/vite.config.js', 'apps/web/src/index.css',
+            'apps/web/src/router/index.jsx',
             'checkpoints/review-five-findings/audit-publication.py'}
 # This unchanged renderer test uses a Windows path only as input to its pure quoting parser.
 path_parser_fixture = {'packages/document-rendering/test/wave3b-recovery.test.mjs':
