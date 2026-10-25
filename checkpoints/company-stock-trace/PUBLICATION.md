@@ -10,4 +10,6 @@ The feature checkpoint ca854ad was published in draft PR14. Its first PR Portfol
 
 The workflow now retains synthetic browser JSON/screenshots for seven days even after failure and prints collected network failures in failure stdout. This improves future observability. It does not establish a cause or a fix for the parent's historical browser reload failure.
 
+Two push attempts on3226 subsequently failed with blank documents and local eager CSS connection refusal on different existing routes. Both attempts, full logs and verified artifact ZIPs are retained. A test-only transport follow-up removes localhost family selection by matching explicit127.0.0.1 origin/bind, asserts the actual listener, and adds bounded failure-only transport diagnostics. The owned HTTP/DNS probe demonstrates the structural ambiguity, not the historical Chrome cause. New source receives fresh local normal20 and exact-head remote gates; no further unchanged push rerun substitutes for that acceptance.
+
 Raw TAP/logs, screenshots, PDFs and database files remain outside the commit. The source auditor includes the new checkpoint and every literal relative import in its scoped source manifest. A separate changed-content inspection checks raw-file and selected credential patterns; it is not a full history, entropy or personal-data certification.

@@ -45,16 +45,16 @@ import { quoteEditorInquiryJourney } from './portfolio-wave4j-pr4-browser.mjs';
 import { responseLoss } from './portfolio-wave3d-transport.mjs';
 import { observeTraceRead } from './company-trace-readiness.mjs';
 import { observeOfflineQuoteRead,quoteRecoveryDOMState,isOfflineQuoteRoot,isRecoveredQuoteRoot } from './quote-offline-readiness.mjs';
+import { assertOwnedWebAddress,webTransportTelemetry } from './web-transport-telemetry.mjs';
 import { holdJourney } from './wave4f-holds-browser.mjs';
 import { csOnboardingJourney } from './wave4f-cs-browser.mjs';
 import { textEnlargementJourney } from './wave4f-text-browser.mjs';
 
-// The owned Vite server needs a port free on both loopback stacks: another project may hold 127.0.0.1:4173,
-// and Chrome may resolve localhost to either address. Probe, never kill.
 const freeOn = (host, port) => new Promise(r => { const s = createNetServer(); s.once('error', () => r(false)); s.listen(port, host, () => s.close(() => r(true))); });
-async function pickWebPort() { for (let p = 4173; p < 4273; p++) if (await freeOn('127.0.0.1', p) && await freeOn('::1', p)) return p; throw Error('No loopback port in 4173..4272 is free on both 127.0.0.1 and ::1'); }
+async function pickWebPort() { for (let p = 4173; p < 4273; p++) if (await freeOn('127.0.0.1', p)) return p; throw Error('No IPv4 loopback port in 4173..4272 is free'); }
 const reviewMode=reviewRunPlan(process.env);
-const webPort = await pickWebPort(), web = `http://localhost:${webPort}`;
+const webPort = await pickWebPort(), web = `http://127.0.0.1:${webPort}`;
+const transportTelemetry=webTransportTelemetry(web);
 process.env.PORTFOLIO_WEB_ORIGIN = web;
 console.log('Owned web origin', web);
 
@@ -73,13 +73,18 @@ const listeners = new Set();
 let quoteRecoveryEvidence;
 const loseResponse = responseLoss({ call, subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener); } });
 let sequence = 0;
-async function sendCdp(method, params = {}, sessionId = session) {
+async function sendCdp(method, params = {}, sessionId = session, timeoutMs = 60000) {
   const id = ++sequence;
-  const result = new Promise((resolve, reject) => { const timeout = setTimeout(() => { pending.delete(id); reject(Error(`CDP timeout: ${method}`)); }, 60000); pending.set(id, { resolve: x => { clearTimeout(timeout); resolve(x); }, reject: e => { clearTimeout(timeout); reject(e); } }); });
+  const result = new Promise((resolve, reject) => { const timeout = setTimeout(() => { pending.delete(id); reject(Error(`CDP timeout: ${method}`)); }, timeoutMs); pending.set(id, { resolve: x => { clearTimeout(timeout); resolve(x); }, reject: e => { clearTimeout(timeout); reject(e); } }); });
   ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })); return result;
 }
 const sendWithNavigation=documentNavigationCall(sendCdp);
-async function call(method,params={},sessionId=session) { return sendWithNavigation(method,params,sessionId); }
+async function call(method,params={},sessionId=session) {
+  const tracked=['Page.navigate','Page.reload','Network.emulateNetworkConditions'].includes(method);
+  if(tracked)transportTelemetry.command('before',method,params);
+  try {const result=await sendWithNavigation(method,params,sessionId);if(tracked)transportTelemetry.command('ack',method,params,result);return result;}
+  catch(error){if(tracked)transportTelemetry.command('error',method,params,{errorText:String(error)});throw error;}
+}
 async function evaluate(expression) {
   const r = await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
   if (r.exceptionDetails) throw Error(JSON.stringify(r.exceptionDetails)); return r.result.value;
@@ -158,7 +163,8 @@ try {
   const db = independent.db(database);
   api = createApp(runtime, { origins: [web] }).listen(4313, '127.0.0.1');
   await new Promise((r, j) => { api.once('listening', r); api.once('error', j); });
-  vite = await createServer({ root:uiRoot, define: { 'import.meta.env.VITE_PORTFOLIO_API_BASE': JSON.stringify('/portfolio-api') }, server: { host: 'localhost', port: webPort, strictPort: true, fs: { allow: [resolve(root, '../..'),resolve(uiRoot,'../..'), await realpath(join(root, 'node_modules')),await realpath(join(uiRoot,'node_modules'))] } } }); await vite.listen();
+  vite = await createServer({ root:uiRoot, define: { 'import.meta.env.VITE_PORTFOLIO_API_BASE': JSON.stringify('/portfolio-api') }, server: { host: '127.0.0.1', port: webPort, strictPort: true, fs: { allow: [resolve(root, '../..'),resolve(uiRoot,'../..'), await realpath(join(root, 'node_modules')),await realpath(join(uiRoot,'node_modules'))] } } });
+  transportTelemetry.attachServer(vite.httpServer);await vite.listen();assertOwnedWebAddress(vite.httpServer,webPort);
   chrome = spawn(process.env.PORTFOLIO_CHROME_BINARY || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'google-chrome'), ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = '', launchError, endpoint;
   chrome.stderr.on('data', d => stderr += d);
@@ -180,6 +186,7 @@ try {
   assert.ok(endpoint, `owned Chrome endpoint not ready within 60s: ${stderr.slice(-4000)}`);
   ws = new WebSocket(endpoint); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
   ws.onmessage = e => { const m = JSON.parse(e.data); const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(m.error) : p.resolve(m.result); }
+    transportTelemetry.event(m);
     for (const listener of listeners) listener(m);
     if (m.method === 'Runtime.exceptionThrown') exceptions.push(m.params.exceptionDetails);
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') consoleErrors.push(m.params.args.map(a => a.value || a.description).join(' ') + ' after ' + (network.at(-1)?.url.replace(/^.*\/api\//, '') || 'start'));
@@ -190,7 +197,7 @@ try {
   };
   const { targetId } = await call('Target.createTarget', { url: 'about:blank' }, null);
   session = (await call('Target.attachToTarget', { targetId, flatten: true }, null)).sessionId;
-  await call('Runtime.enable'); await call('Page.enable'); await call('Network.enable');
+  await call('Runtime.enable'); await call('Page.enable'); await call('Network.enable');await call('Log.enable');
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   await call('Page.navigate', { url: `${web}/portfolio/accounts` });
   await wait(`document.querySelector('[name=username]')`);
@@ -398,6 +405,11 @@ try {
   console.log(JSON.stringify({ passed: checks.length, exceptions: exceptions.length, consoleErrors: consoleErrors.length, evidence }));
   }
 } catch (error) {
+  try {
+  const transportFailure=await transportTelemetry.failure(vite?.httpServer);
+  try{if(ws?.readyState===1&&session){const page=await sendCdp('Runtime.evaluate',{expression:'({href:location.href,readyState:document.readyState,online:navigator.onLine,timeOrigin:performance.timeOrigin,title:document.title,text:document.body?.innerText.slice(0,4000)})',returnByValue:true},session,1500);transportFailure.page=page.exceptionDetails?{error:page.exceptionDetails}:page.result?.value;}else transportFailure.page={unavailable:'Browser session not attached'};}catch(diagnosticError){transportFailure.page={error:String(diagnosticError)};}
+  await writeFile(join(evidence,'web-transport-failure.json'),JSON.stringify(transportFailure,null,2));
+  }catch(diagnosticError){console.warn('Transport failure diagnostics unavailable:',String(diagnosticError));}
   await writeFile(join(evidence, 'failure-diagnostics.json'), JSON.stringify({ diagnosticOnly:reviewMode.diagnosticOnly,fullAcceptance:false,error:String(error), checks, exceptions, consoleErrors, network, networkFailures,quoteRecoveryEvidence }, null, 2));
   if (ws?.readyState === 1 && session) await screenshot('failure').catch(() => {});
   console.log(JSON.stringify({ exceptions, consoleErrors, network, networkFailures }));
@@ -405,7 +417,8 @@ try {
 } finally {
   if (ws?.readyState === 1) { try { await call('Browser.close', {}, null); } catch {} ws.close(); }
   if (chrome?.exitCode === null) chrome.kill();
-  if (vite) await vite.close();
+  if (vite) {transportTelemetry.command('before','OwnedVite.close',{});await vite.close();transportTelemetry.command('ack','OwnedVite.close',{});}
+  await writeFile(join(evidence,'web-transport-lifecycle.json'),JSON.stringify(transportTelemetry.snapshot(vite?.httpServer),null,2)).catch(error=>console.warn('Transport lifecycle diagnostics unavailable:',String(error)));
   if (api) await new Promise(r => api.close(r));
   if (independent) await independent.close();
   if (runtime) { assert.ok(await runtime.db.collection('ownedRun').findOne({ _id: marker })); await runtime.db.dropDatabase(); await runtime.client.close(); }
