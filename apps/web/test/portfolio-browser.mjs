@@ -31,6 +31,7 @@ import { serialCustodyJourney } from './portfolio-wave4k2a-serial-custody-browse
 import { installationJourney } from './portfolio-wave4k2b1-installation-browser.mjs';
 import { internalPlanningJourney } from './portfolio-wave4k2b2a-internal-planning-browser.mjs';
 import { catalogJourney } from './portfolio-wave4map-catalog-browser.mjs';
+import { catalogDispositionJourney } from './portfolio-wave4qc-catalog-disposition-browser.mjs';
 import { quoteEditorInquiryJourney } from './portfolio-wave4j-pr4-browser.mjs';
 import { responseLoss } from './portfolio-wave3d-transport.mjs';
 import { holdJourney } from './wave4f-holds-browser.mjs';
@@ -257,6 +258,7 @@ try {
   if (process.env.PORTFOLIO_INSTALLATION === '1') await installationJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse });
   if (process.env.PORTFOLIO_INTERNAL_PLANNING === '1') await internalPlanningJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse });
   if (process.env.PORTFOLIO_CATALOG === '1') await catalogJourney({ db, call, wait, click, evaluate, screenshot, check, headers, loseResponse });
+  if (process.env.PORTFOLIO_CATALOG_QC === '1') await catalogDispositionJourney({ db, call, wait, click, evaluate, screenshot, check, headers, loseResponse });
   await click('Opportunities'); await click('Synthetic browser opportunity'); await wait(`document.body.innerText.includes('Stage: WON')`);
   for (const width of [1440, 1280, 1100, 1024, 900, 768, 430, 375, 360]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 600 }); await wait(`innerWidth===${width}`);

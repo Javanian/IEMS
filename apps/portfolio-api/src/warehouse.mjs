@@ -3,6 +3,7 @@ import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.m
 import { initializeStockHolds, installStockHolds, requireEligibleReceipt, holdActions, holdRoles } from './stock-holds.mjs';
 import { initializeSerialCustody, installWarehouseSerialCustody, requireQuantityOnlyReceipt, requireCustodyTransfer } from './serial-custody.mjs';
 import { classifyReceiptOrigin, requireLegacyReceipt } from './receipt-origin.mjs';
+import { validateCatalogReceiptOrigin } from './catalog-procurement.mjs';
 
 export const warehouseActions = [...['read', 'receive', 'release', 'putaway', 'reserve', 'bin', 'transfer', 'count'].map(a => `warehouse.${a}`), ...holdActions];
 // QC receipt release (`warehouse.release`) and stock-hold release (`warehouse.hold.release`) are separate grants.
@@ -100,6 +101,11 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
     try {
       const data = await session.withTransaction(async () => {
         const receipt = await find('warehouseReceipts', req, req.params.id, session);
+        const origin = await classifyReceiptOrigin(runtime.db, receipt, session);
+        if (origin.cohort === 'CATALOG') {
+          const source = await c('warehouseReceiptOrigins').findOne({ ...req.filter, receiptId: receipt._id }, { session });
+          await validateCatalogReceiptOrigin(runtime.db, receipt, source, session);
+        }
         const movements = await c('warehouseMovements').find({ ...req.filter, receiptId: receipt._id }, { session }).toArray();
         const materials = await c('manufacturingMovements').find({ ...req.filter, receiptId: receipt._id, kind: { $in: ['MATERIAL_RESERVED', 'MATERIAL_CONSUMED'] } }, { session }).toArray();
         const values = { availableQuantity: 0n, reservedQuantity: 0n, shippedQuantity: 0n, manufacturingReservedQuantity: 0n, manufacturingConsumedQuantity: 0n };
@@ -119,7 +125,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
         const cached = Object.fromEntries(Object.keys(values).map(k => [k, receipt[k] || '0']));
         const transfers = movements.filter(m => m.kind === 'TRANSFER').sort((a, b) => a.receiptVersion - b.receiptVersion);
         const location = transfers.length ? { replayed: transfers.at(-1).to, cached: receipt.location, matches: transfers.at(-1).to === receipt.location && transfers.at(-1).binId === receipt.binId } : null;
-        return { receiptId: receipt._id, uom: receipt.uom, replayed, cached, matches: Object.keys(values).every(k => values[k] === units(cached[k])) && (!location || location.matches), warehouseMovementCount: movements.length, materialMovementCount: materials.length, ...(location ? { location } : {}) };
+        return { receiptId: receipt._id, uom: receipt.uom, replayed, cached, matches: Object.keys(values).every(k => values[k] === units(cached[k])) && (!location || location.matches), warehouseMovementCount: movements.length, materialMovementCount: materials.length, ...(location ? { location } : {}), ...(origin.cohort === 'CATALOG' ? { catalog: { originVerified: true, dispositionVerified: true, stockIsSeparate: true } } : {}) };
       }, { readConcern: { level: 'snapshot' }, readPreference: 'primary' });
       res.json({ data });
     } finally { await session.endSession(); }

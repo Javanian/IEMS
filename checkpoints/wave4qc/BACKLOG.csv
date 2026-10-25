@@ -1,0 +1,22 @@
+id,depends_on,status,owner,deliverable
+QC-01,MAP-04,FROZEN,contract,Exact immutable inspection approval accepted-only putaway and dedicated typed stock contract
+QC-02,QC-01,ACCEPTED_LOCAL,api,LOT exact partitions and exhaustive SERIAL inspection revisions with terminal approval
+QC-03,QC-02,ACCEPTED_LOCAL,api,Qualified owned location accepted-only one-time putaway and separate stock identity ledger
+QC-04,QC-03,ACCEPTED_LOCAL,api,Strict holds current source location bin fences and live eligibility without stock history mutation
+QC-05,QC-02|QC-03,OWNER_VERIFIED_LOCAL,api,Real revision100 cap approval rollback concurrent putaway corruption and revoked replay proof
+QC-06,QC-03,INDEPENDENT_VERIFIED_LOCAL,review,Independent source state legacy bypass holds withdrawal and conservation attacks
+QC-07,QC-04|QC-05|QC-06,ACCEPTED_LOCAL,lead,Final maintained suites native browser evidence and checkpoint acceptance
+MAP-05,QC-07,ACCEPTED_LOCAL,api,Controlled typed incoming QC qualified putaway and physical stock without allocation or execution
+MAP-06,MAP-04,PLANNED,ui,Source picker cursor selection beyond first100 approved items and vendors
+K2B2B-01,QC-07,PLANNED,contract,Freeze approved internal demand execution origin and per-line mixed LOT SERIAL source authority
+K2B2B-02A,K2B2B-01,PLANNED,api,Typed company stock reservation identity claims and authorized release or abandon with conservation
+K2B2B-02B,K2B2B-02A,PLANNED,api,Exactly-once actual input issue execution operations losses and output QC partition
+K2B2B-02,K2B2B-02B,PLANNED,api,Complete original actual input reserve issue execution serial output and QC deliverable
+K2B2B-03,K2B2B-02,PLANNED,api,Complete input provenance and actual authorized company-stock output receipt
+K2B2-03,K2B2B-03,PLANNED,api,Manufactured company-stock reservation issue and evidence locks
+K2B2-04,K2B2-03,PLANNED,api,Manufactured-source genealogy without second raw consumption
+K2B2-05,K2B2-04,PLANNED,api,Unique parent shared graph write bounded cycles and reciprocal race proof
+K2B2-06,K2B2-05,PLANNED,api,Ancestor shipment freeze across descendant source authorities
+K2B2-07,K2B2-03|K2B2-05,PLANNED,contract,Authorized rework spare issue removal and inspection
+K2B2-08,K2B2-07,PLANNED,api,Controlled physical replacement and permanent removed quarantine
+E01-COMPLETE,K2B2-06|K2B2-08,PLANNED,review,Original full-chain acceptance including financial entitlement and POD

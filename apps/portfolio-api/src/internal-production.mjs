@@ -33,6 +33,25 @@ export async function requireCatalogInventoryItem(db, filter, itemId, itemVersio
   return row;
 }
 
+export async function requireQualifiedCompanyLocation(db, filter, locationId, expectedVersion, ownerLegalEntityId, session, fence = false) {
+  const row = await db.collection('companyLocations').findOne({ ...filter, _id: locationId }, { session });
+  if (!row) fail(404, 'NOT_FOUND');
+  const event = await db.collection('internalPlanningEvents').findOne({ ...filter, _id: row.eventId, subjectType: 'LOCATION', subjectId: row._id }, { session });
+  if (!Number.isSafeInteger(row.version) || row.version < 1 || !['DRAFT', 'QUALIFIED', 'INACTIVE'].includes(row.status) || !event || event.version !== row.version || event.status !== row.status || event.contentHash !== row.authorityHash || hash(event.snapshot) !== row.authorityHash || hash(semantic(row)) !== row.authorityHash || row.ownerLegalEntityId !== ownerLegalEntityId) fail(409, 'MASTER_SOURCE_INVALID');
+  if (row.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
+  if (row.status !== 'QUALIFIED' || !row.qualification) fail(409, 'CATALOG_DEPENDENCY_CHANGED');
+  const bin = await db.collection('warehouseBins').findOne({ ...filter, _id: row.binId }, { session });
+  if (!bin || !Number.isSafeInteger(bin.version) || bin.version < 1 || typeof bin.code !== 'string' || !bin.code.trim() || (Object.hasOwn(bin, 'active') && bin.active !== true)) fail(409, 'CATALOG_DEPENDENCY_CHANGED');
+  if (row.binSnapshot?._id !== bin._id || row.binSnapshot?.version !== bin.version || row.binSnapshot?.code !== bin.code) fail(409, 'CATALOG_DEPENDENCY_CHANGED');
+  if (fence) {
+    if (!session?.inTransaction()) throw new Error('location fence requires transaction');
+    const locationWrite = await db.collection('companyLocations').updateOne({ ...filter, _id: row._id, version: row.version }, { $inc: { useFence: 1 } }, { session });
+    const binWrite = await db.collection('warehouseBins').updateOne({ ...filter, _id: bin._id, version: bin.version }, { $inc: { internalPlanningUseFence: 1 } }, { session });
+    if (locationWrite.matchedCount !== 1 || binWrite.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+  }
+  return { ...semantic(row), authorityHash: row.authorityHash };
+}
+
 export async function initializeInternalPlanning(db) {
   for (const [name, keys] of [
     ['inventoryItems', { tenantId: 1, plantId: 1, code: 1 }], ['companyLocations', { tenantId: 1, plantId: 1, code: 1 }], ['companyLocations', { tenantId: 1, plantId: 1, binId: 1 }],
