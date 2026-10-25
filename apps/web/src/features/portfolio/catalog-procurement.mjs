@@ -1,7 +1,10 @@
 export const catalogBase = '/api/catalog-procurement';
 export const catalogUi = '/portfolio/catalog-procurement';
 export function legacyReceiptEligible(receipt) { return receipt?.receiptOrigin?.cohort === 'LEGACY' && receipt.receiptOrigin.legacyEligible === true; }
-export function receiptDetailPath(receipt) { return receipt?.receiptOrigin?.cohort === 'CATALOG' ? `${catalogUi}/receipts/${receipt._id}` : `/portfolio/warehouse/receipts/${receipt._id}`; }
+export function receiptDetailPath(receipt,permissions) {
+  if(receipt?.receiptOrigin?.cohort !== 'CATALOG')return `/portfolio/warehouse/receipts/${receipt._id}`;
+  return Array.isArray(permissions) && permissions.includes('catalog.qc.read') && !permissions.includes('catalog.read') ? `/portfolio/catalog-disposition/receipts/${receipt._id}` : `${catalogUi}/receipts/${receipt._id}`;
+}
 export function catalogCapability(action, permissions) {
   return Array.isArray(permissions) && permissions.includes(action) ? { enabled:true,reason:'' } : { enabled:false,reason:Array.isArray(permissions) ? `You need ${action} permission for this action.` : 'Effective catalog permissions are unavailable. Refresh your session.' };
 }

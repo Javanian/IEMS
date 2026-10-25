@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { requireCatalogInventoryItem } from './internal-production.mjs';
+import { validateCatalogDispositionState } from './catalog-disposition-state.mjs';
 
 export const catalogActions = ['read', 'write', 'approve', 'convert', 'issue', 'receive'].map(action => `catalog.${action}`);
 export const catalogRoles = Object.fromEntries(['Reader', 'Writer', 'Approver', 'Converter', 'Issuer', 'Receiver'].map((role, index) => [`catalog${role}`, [...new Set(['catalog.read', catalogActions[index]])]]));
@@ -56,7 +57,7 @@ async function load(db, filter, type, id, session) {
 
 export async function validateCatalogReceiptOrigin(db, receipt, origin, session) {
   const filter = scopeOf(receipt);
-  if (!origin || origin.receiptId !== receipt._id || origin.tenantId !== receipt.tenantId || origin.plantId !== receipt.plantId || origin.schema !== 'CATALOG_RECEIPT_ORIGIN_V1' || origin.originType !== 'CATALOG_PURCHASE' || !uuid(origin._id) || !uuid(origin.receiveMovementId) || !uuid(origin.recordedBy) || !origin.recordedAt || hash(withoutHash(origin)) !== origin.contentHash || !Object.hasOwn(receipt, 'catalogSource') || hash(receipt.catalogSource) !== hash(origin.source) || hash(physicalOf(receipt)) !== hash(origin.physical) || !positive(receipt.version) || receipt.status !== 'QUARANTINED' || receipt.availableQuantity !== '0' || receipt.reservedQuantity !== '0' || Object.hasOwn(receipt, 'serialCustody')) invalid();
+  if (!origin || origin.receiptId !== receipt._id || origin.tenantId !== receipt.tenantId || origin.plantId !== receipt.plantId || origin.schema !== 'CATALOG_RECEIPT_ORIGIN_V1' || origin.originType !== 'CATALOG_PURCHASE' || !uuid(origin._id) || !uuid(origin.receiveMovementId) || !uuid(origin.recordedBy) || !origin.recordedAt || hash(withoutHash(origin)) !== origin.contentHash || !Object.hasOwn(receipt, 'catalogSource') || hash(receipt.catalogSource) !== hash(origin.source) || hash(physicalOf(receipt)) !== hash(origin.physical) || !positive(receipt.version) || receipt.availableQuantity !== '0' || receipt.reservedQuantity !== '0' || Object.hasOwn(receipt, 'serialCustody')) invalid();
   if (['shippedQuantity', 'manufacturingReservedQuantity', 'manufacturingConsumedQuantity'].some(key => Object.hasOwn(receipt, key) && units(receipt[key]) !== 0n)) invalid();
   const order = await load(db, filter, 'ORDER', receipt.purchaseOrderId, session);
   if (order.status !== 'ISSUED' || order.content.vendorId !== receipt.vendorId || !Number.isSafeInteger(receipt.lineIndex) || receipt.lineIndex < 0) invalid();
@@ -69,6 +70,7 @@ export async function validateCatalogReceiptOrigin(db, receipt, origin, session)
   if (movements.length !== 1 || movement._id !== origin.receiveMovementId || movement.version !== 1 || movement.purchaseOrderId !== receipt.purchaseOrderId || movement.vendorId !== receipt.vendorId || movement.lineIndex !== receipt.lineIndex || movement.quantity !== receipt.quantity || movement.uom !== receipt.uom || movement.from !== null || movement.to !== 'QUARANTINE' || movement.createdBy !== origin.recordedBy || receipt.createdBy !== origin.recordedBy || hash(movement.createdAt) !== hash(origin.recordedAt) || hash(receipt.createdAt) !== hash(origin.recordedAt) || hash(movement.catalogSource) !== hash(source) || hash(movement.materialTrace ?? null) !== hash(Object.keys(trace).length ? { receiptId: receipt._id, ...trace } : null)) invalid();
   const registry = await db.collection('warehouseSerials').find({ ...filter, receiptId: receipt._id }, { session }).limit(101).toArray();
   if (registry.length !== receipt.serials.length || registry.some(row => ['sourceType', 'workOrderId', 'unitId'].some(key => Object.hasOwn(row, key)) || !receipt.serials.includes(row.serial)) || new Set(registry.map(row => row.serial)).size !== registry.length) invalid();
+  await validateCatalogDispositionState(db, receipt, origin, session);
   return origin;
 }
 
@@ -153,7 +155,7 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
   async function receiptView(req, row, session) {
     const origin = await c('warehouseReceiptOrigins').findOne({ ...req.filter, receiptId: row._id }, { session }); await validateCatalogReceiptOrigin(db, row, origin, session);
     const order = await load(db, req.filter, 'ORDER', row.purchaseOrderId, session);
-    return { ...row, receiptOrigin: { cohort: 'CATALOG', legacyEligible: false }, usable: false, blockers: ['TYPED_QUARANTINE_ONLY', ...await dependencies(req, order, session)] };
+    return { ...row, receiptOrigin: { cohort: 'CATALOG', legacyEligible: false }, usable: false, blockers: [Object.hasOwn(row, 'catalogDisposition') ? 'TYPED_ALLOCATION_NOT_IMPLEMENTED' : 'TYPED_QUARANTINE_ONLY', ...await dependencies(req, order, session)] };
   }
   async function save(type, req, row, previous, kind, reason, session) {
     const snapshot = semantic(row), eventId = randomUUID(), contentHash = hash(snapshot);

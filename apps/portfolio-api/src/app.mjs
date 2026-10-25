@@ -12,12 +12,15 @@ import { installRepair, initializeRepair, repairRoles, repairActions } from './r
 import { installDocuments, initializeDocuments, documentRoles, documentActions } from './documents.mjs';
 import { initializeInternalPlanning, installInternalPlanning, internalPlanningActions, internalPlanningRoles } from './internal-production.mjs';
 import { initializeCatalogProcurement, installCatalogProcurement, catalogActions, catalogRoles } from './catalog-procurement.mjs';
+import { initializeCatalogDisposition, installCatalogDisposition, catalogDispositionActions, catalogDispositionRoles } from './catalog-disposition.mjs';
 Object.assign(roleActions, documentRoles, repairRoles, procurementRoles, warehouseRoles, manufacturingRoles, fulfillmentRoles, customerServiceRoles);
 Object.assign(roleActions, internalPlanningRoles);
 Object.assign(roleActions, catalogRoles);
+Object.assign(roleActions, catalogDispositionRoles);
 roleActions.owner.push(...documentActions, ...repairActions, ...procurementActions, ...warehouseActions, ...manufacturingActions, ...fulfillmentActions, ...customerServiceOwnerActions);
 roleActions.owner.push(...internalPlanningActions);
 roleActions.owner.push(...catalogActions);
+roleActions.owner.push(...catalogDispositionActions);
 const scrypt = promisify(scryptCallback);
 const actions = ['crm.read', 'crm.write'];
 export const fail = (status, code, message = code) => { throw Object.assign(new Error(message), { status, code }); };
@@ -32,6 +35,7 @@ export async function initialize({ client, db, customerService = {} }) {
   await initializeManufacturing(db);
   await initializeInternalPlanning(db);
   await initializeCatalogProcurement(db);
+  await initializeCatalogDisposition(db);
   await initializeRepair(db);
   await initializeFulfillment(db);
   await db.collection('credentials').createIndex({ username: 1 }, { unique: true });
@@ -124,6 +128,7 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   installManufacturing(app, runtime, { fail, guard, id, fields });
   installInternalPlanning(app, runtime, { fail, guard, id, fields });
   installCatalogProcurement(app, runtime, { fail, guard, id, fields });
+  installCatalogDisposition(app, runtime, { fail, guard, id, fields });
   installRepair(app, runtime, { fail, guard, id, fields });
   installFulfillment(app, runtime, { fail, guard, id, fields });
   installCustomerService(app, runtime, { fail, id, fields });
