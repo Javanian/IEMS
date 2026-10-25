@@ -3,7 +3,8 @@ export function validQuantity(value) {
 }
 export function shipmentCommand(order, values, key) {
   const lineIndex = Number(values.lineIndex);
-  return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex].uom, reference: values.reference, sources: [{ sourceType: values.sourceType, sourceId: values.sourceId, quantity: values.quantity }], idempotencyKey: key };
+  const serials = values.sourceType === 'WORK_ORDER' && values.serials !== undefined ? { serials:Array.isArray(values.serials) ? [...values.serials] : values.serials.trim().split(/\s+/).filter(Boolean) } : {};
+  return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex].uom, reference: values.reference, sources: [{ sourceType: values.sourceType, sourceId: values.sourceId, quantity: values.quantity, ...serials }], idempotencyKey: key };
 }
 export function invoiceCommand(order, values, key) {
   return { salesOrderId: order._id, expectedVersion: order.version, lines: [{ shipmentId: values.shipmentId, quantity: values.quantity }], idempotencyKey: key };

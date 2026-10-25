@@ -42,6 +42,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) fail(400, 'INVALID_VERSION');
     if (typeof key !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(key)) fail(400, 'INVALID_IDEMPOTENCY_KEY');
     const payloadHash = createHash('sha256').update(JSON.stringify({ kind, id: req.params.id || null, ...payload })).digest('hex');
+    for (let attempt = 1; ; attempt++) {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
       await guard(runtime, req, session, req.warehouseAction);
@@ -54,7 +55,9 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
       await c('warehouseKeys').insertOne({ _id: randomUUID(), ...req.filter, key, payloadHash, result }, { session });
       return result;
     }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' }); }
+    catch (error) { if (error?.code === 11000 && attempt < 4) continue; if (error?.code === 11000 && error.keyPattern?.serial) fail(409, 'SERIAL_CONFLICT'); throw error; }
     finally { await session.endSession(); }
+    }
   };
   const tally = async (name, filter, amount, maximum, session) => {
     const row = await c(name).findOne(filter, { session });
@@ -113,11 +116,14 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
     } finally { await session.endSession(); }
   });
   app.post('/api/warehouse/receipts', async (req, res) => {
-    fields(req.body, ['purchaseOrderId', 'expectedVersion', 'vendorId', 'lineIndex', 'quantity', 'uom', 'serials', 'idempotencyKey']);
+    fields(req.body, ['purchaseOrderId', 'expectedVersion', 'vendorId', 'lineIndex', 'quantity', 'uom', 'serials', 'lotNumber', 'heatNumber', 'idempotencyKey']);
     const { purchaseOrderId, expectedVersion, vendorId, lineIndex, quantity: qty, uom, serials = [] } = req.body;
     id(purchaseOrderId); id(vendorId); const amount = quantity(qty);
     if (!Array.isArray(serials) || serials.length > 1000 || serials.some(s => typeof s !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(s)) || new Set(serials).size !== serials.length || (serials.length && amount !== BigInt(serials.length) * 1000000n)) fail(400, 'INVALID_SERIALS');
-    const payload = { purchaseOrderId, expectedVersion, vendorId, lineIndex, quantity: qty, uom, serials };
+    const traced = Object.hasOwn(req.body, 'lotNumber') || Object.hasOwn(req.body, 'heatNumber');
+    if (traced && ['lotNumber', 'heatNumber'].some(k => typeof req.body[k] !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/.test(req.body[k]))) fail(400, 'INVALID_MATERIAL_TRACE');
+    const trace = traced ? { lotNumber: req.body.lotNumber, heatNumber: req.body.heatNumber } : {};
+    const payload = { purchaseOrderId, expectedVersion, vendorId, lineIndex, quantity: qty, uom, serials, ...trace };
     const data = await tx(req, 'receipt.received', payload, async session => {
       const order = await find('purchaseOrders', req, purchaseOrderId, session);
       await find('vendors', req, vendorId, session);
@@ -127,7 +133,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
       if (order.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (!['ISSUED', 'CONFIRMED'].includes(order.status)) fail(409, 'STATE_CONFLICT');
       await tally('warehouseReceived', { ...req.filter, purchaseOrderId, lineIndex }, amount, units(source.quantity), session);
-      const row = { ...base(req), purchaseOrderId, vendorId, lineIndex, quantity: qty, uom, serials, status: 'QUARANTINED', availableQuantity: '0', reservedQuantity: '0' };
+      const row = { ...base(req), purchaseOrderId, vendorId, lineIndex, quantity: qty, uom, serials, ...trace, status: 'QUARANTINED', availableQuantity: '0', reservedQuantity: '0' };
       for (const serial of serials) {
         if (await c('warehouseSerials').findOne({ ...req.filter, serial }, { session })) fail(409, 'SERIAL_CONFLICT');
         await c('warehouseSerials').insertOne({ _id: randomUUID(), ...req.filter, serial, receiptId: row._id }, { session });
@@ -136,7 +142,8 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
       await movement(req, row, 'RECEIVE', qty, null, 'QUARANTINE', session); return row;
     }); res.status(201).json({ data });
   });
-  const movement = async (req, row, kind, qty, from, to, session, extra = {}) => c('warehouseMovements').insertOne({ ...base(req), receiptId: row._id, purchaseOrderId: row.purchaseOrderId, vendorId: row.vendorId, lineIndex: row.lineIndex, uom: row.uom, quantity: qty, kind, from, to, ...extra }, { session });
+  const traceOf = row => row.lotNumber !== undefined ? { materialTrace: { receiptId: row._id, lotNumber: row.lotNumber, heatNumber: row.heatNumber } } : {};
+  const movement = async (req, row, kind, qty, from, to, session, extra = {}) => c('warehouseMovements').insertOne({ ...base(req), receiptId: row._id, purchaseOrderId: row.purchaseOrderId, vendorId: row.vendorId, lineIndex: row.lineIndex, uom: row.uom, quantity: qty, kind, from, to, ...traceOf(row), ...extra }, { session });
   for (const operation of ['transfer', 'count']) app.post(`/api/warehouse/receipts/:id/${operation}`, async (req, res) => {
     const target = operation === 'transfer' ? 'binId' : 'countedQuantity';
     fields(req.body, ['expectedVersion', 'idempotencyKey', target, 'uom', 'reason']);
@@ -192,7 +199,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
         if (so.status !== 'OPEN' || amount > units(row.availableQuantity)) fail(409, 'INSUFFICIENT_STOCK');
         await requireEligibleReceipt(runtime.db, row, session);
         await tally('warehouseAllocated', { ...req.filter, salesOrderId, lineIndex }, amount, units(target.quantity), session);
-        const reservation = { ...base(req), receiptId: row._id, salesOrderId, accountId, lineIndex, quantity: qty, uom, status: 'RESERVED' };
+        const reservation = { ...base(req), receiptId: row._id, salesOrderId, accountId, lineIndex, quantity: qty, uom, status: 'RESERVED', ...traceOf(row) };
         await c('warehouseReservations').insertOne(reservation, { session });
         row.availableQuantity = decimal(units(row.availableQuantity) - amount); row.reservedQuantity = decimal(units(row.reservedQuantity) + amount);
         await movement(req, row, 'RESERVE', qty, row.location, 'RESERVED', session, { reservationId: reservation._id, salesOrderId, accountId });

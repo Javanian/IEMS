@@ -141,9 +141,10 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
     id(salesOrderId); version(expectedVersion); const reference = text(req.body.reference);
     if (!Number.isSafeInteger(lineIndex) || lineIndex < 0) fail(400, 'INVALID_LINE');
     const sources = list(req.body.sources, 100).map(s => {
-      fields(s, ['sourceType', 'sourceId', 'quantity']);
+      fields(s, ['sourceType', 'sourceId', 'quantity', 'serials']);
       if (!['WORK_ORDER', 'RESERVATION'].includes(s.sourceType)) fail(400, 'INVALID_SOURCE');
-      return { sourceType: s.sourceType, sourceId: id(s.sourceId), quantity: s.quantity, amount: qty(s.quantity) };
+      if (Object.hasOwn(s, 'serials') && (s.sourceType !== 'WORK_ORDER' || !Array.isArray(s.serials) || s.serials.length > 1000 || s.serials.some(v => typeof v !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(v)) || new Set(s.serials).size !== s.serials.length)) fail(400, 'INVALID_SERIALS');
+      return { sourceType: s.sourceType, sourceId: id(s.sourceId), quantity: s.quantity, amount: qty(s.quantity), ...(Object.hasOwn(s, 'serials') ? { serials: [...s.serials] } : {}) };
     });
     if (new Set(sources.map(s => s.sourceId)).size !== sources.length) fail(400, 'DUPLICATE_SOURCE');
     const data = await tx(req, 'shipment.recorded', async session => {
@@ -162,6 +163,14 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
           await find('accounts', req, so.accountId, session);
           if (wo.status !== 'QC_COMPLETED') fail(409, 'STATE_CONFLICT');
           if (wo.uom !== uom) fail(409, 'UOM_CONFLICT');
+          if (wo.serialized) {
+            if (!Array.isArray(s.serials)) fail(400, 'INVALID_SERIALS');
+            if (BigInt(s.serials.length) * 1000000n !== s.amount) fail(409, 'SERIAL_QUANTITY_CONFLICT');
+            if (s.serials.some(serial => !wo.qc.acceptedSerials.includes(serial))) fail(409, 'SERIAL_SOURCE_CONFLICT');
+            const shipped = await c('manufacturingOutputUnits').updateMany({ ...req.filter, workOrderId: wo._id, serial: { $in: s.serials }, status: 'ACCEPTED' }, { $set: { status: 'SHIPPED', shipmentId, shippedBy: req.scope.userId, shippedAt: new Date() }, $inc: { version: 1 } }, { session });
+            if (shipped.matchedCount !== s.serials.length) fail(409, 'SERIAL_STATE_CONFLICT');
+          } else if (Object.hasOwn(s, 'serials')) fail(400, 'INVALID_SERIALS');
+          if (wo.output.materialTrace) s.materialTrace = structuredClone(wo.output.materialTrace);
           await tally(req, 'SOURCE_SHIPPED', wo._id, 0, s.amount, units(wo.qc.acceptedQuantity), session);
         } else {
           const reservation = await find('warehouseReservations', req, s.sourceId, session);
@@ -172,13 +181,14 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
           const consumed = await tally(req, 'SOURCE_SHIPPED', reservation._id, 0, s.amount, units(reservation.quantity), session);
           await c('warehouseReservations').updateOne({ ...req.filter, _id: reservation._id }, { $set: { shippedQuantity: decimal(consumed.after), remainingQuantity: decimal(units(reservation.quantity) - consumed.after), status: consumed.after === units(reservation.quantity) ? 'CONSUMED' : 'PARTIALLY_SHIPPED', updatedAt: new Date() }, $inc: { version: 1 } }, { session });
           receipt = await find('warehouseReceipts', req, reservation.receiptId, session);
+          if (receipt.lotNumber !== undefined) s.materialTrace = { receiptId: receipt._id, lotNumber: receipt.lotNumber, heatNumber: receipt.heatNumber };
           // Shipping draws on the receipt: a hold (new or legacy) blocks it; the reservation itself is left intact.
           await requireEligibleReceipt(runtime.db, receipt, session);
           if (units(receipt.reservedQuantity) < s.amount) fail(409, 'INSUFFICIENT_STOCK');
           const moved = await c('warehouseReceipts').updateOne({ ...req.filter, _id: receipt._id, version: receipt.version }, { $set: { reservedQuantity: decimal(units(receipt.reservedQuantity) - s.amount), shippedQuantity: decimal(units(receipt.shippedQuantity || '0') + s.amount), updatedAt: new Date() }, $inc: { version: 1 } }, { session });
           if (!moved.matchedCount) fail(409, 'VERSION_CONFLICT');
         }
-        await c('warehouseMovements').insertOne({ ...base(req), shipmentId, salesOrderId: so._id, accountId: so.accountId, lineIndex, sourceType: s.sourceType, sourceId: s.sourceId, ...(receipt ? { receiptId: receipt._id, reservationId: s.sourceId } : { workOrderId: s.sourceId }), uom, quantity: decimal(s.amount), kind: 'SHIP', from: receipt ? 'RESERVED' : 'QC_ACCEPTED_OUTPUT', to: 'SHIPPED' }, { session });
+        await c('warehouseMovements').insertOne({ ...base(req), shipmentId, salesOrderId: so._id, accountId: so.accountId, lineIndex, sourceType: s.sourceType, sourceId: s.sourceId, ...(receipt ? { receiptId: receipt._id, reservationId: s.sourceId } : { workOrderId: s.sourceId }), ...(s.serials ? { serials: [...s.serials] } : {}), ...(s.materialTrace ? { materialTrace: structuredClone(s.materialTrace) } : {}), uom, quantity: decimal(s.amount), kind: 'SHIP', from: receipt ? 'RESERVED' : 'QC_ACCEPTED_OUTPUT', to: 'SHIPPED' }, { session });
       }
       const total = sources.reduce((a, s) => a + s.amount, 0n);
       await tally(req, 'SO_LINE_SHIPPED', so._id, lineIndex, total, units(line.quantity), session);
