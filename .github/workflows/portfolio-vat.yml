@@ -16,6 +16,7 @@ on:
       - 'checkpoints/wave4map/**'
       - 'checkpoints/wave4qc/**'
       - 'checkpoints/review-five-findings/**'
+      - 'checkpoints/company-stock-use/**'
       - '.github/workflows/portfolio-vat.yml'
   pull_request:
     paths:
@@ -32,6 +33,7 @@ on:
       - 'checkpoints/wave4map/**'
       - 'checkpoints/wave4qc/**'
       - 'checkpoints/review-five-findings/**'
+      - 'checkpoints/company-stock-use/**'
       - '.github/workflows/portfolio-vat.yml'
 
 permissions:
@@ -104,6 +106,10 @@ jobs:
           IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-independent-evidence
       - name: Test guarded benchmark resume selection
         run: node --test checkpoints/review-five-findings/qa/benchmark-selection.test.mjs
+      - name: Test independent one-generation company stock use
+        run: node --test --test-concurrency=1 checkpoints/company-stock-use/qa/company-stock-use.test.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-company-stock-evidence
       - name: Test connected browser workflow
         run: npm --prefix apps/web run test:portfolio:browser
         env:
@@ -124,9 +130,11 @@ jobs:
           PORTFOLIO_CATALOG_QC: '1'
           PORTFOLIO_REVIEW_OPERATOR: '1'
           PORTFOLIO_INTERNAL_EXECUTION: '1'
+          PORTFOLIO_COMPANY_STOCK: '1'
           PORTFOLIO_REVIEW_E01: '1'
           PORTFOLIO_REVIEW_DEBUG_ONLY: '0'
           PORTFOLIO_TEXT_DIAGNOSTIC_ONLY: '0'
+          PORTFOLIO_COMPANY_STOCK_DIAGNOSTIC_ONLY: '0'
       - name: Test intentional module failure and native reload recovery
         run: node checkpoints/review-five-findings/qa/module-fetch-recovery-browser.mjs
         env:

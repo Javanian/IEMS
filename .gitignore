@@ -193,3 +193,9 @@ jobs/.pycache_legacy/
 /checkpoints/review-five-findings/**/*.png
 /checkpoints/review-five-findings/**/*.pdf
 /checkpoints/review-five-findings/**/*.db
+
+!/checkpoints/company-stock-use/**/*.md
+/checkpoints/company-stock-use/**/*.log
+/checkpoints/company-stock-use/**/*.png
+/checkpoints/company-stock-use/**/*.pdf
+/checkpoints/company-stock-use/**/*.db

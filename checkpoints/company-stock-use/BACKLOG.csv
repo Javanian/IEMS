@@ -1,0 +1,9 @@
+id,master_mapping,status,deliverable
+CSU-01,P020|K2B2-03,LOCAL_PASS,Immutable company source and separate current use authority
+CSU-02,P020|P026|K2B2-03,LOCAL_PASS,Typed V2 demand reserve abandon issue consumption and direct company holds
+CSU-03,P026|P027|K2B2-04,LOCAL_PASS,One-generation exact source-unit allocation loss QC and terminal company receipt
+CSU-04,P020|P026|P027,LOCAL_PASS,Native connected UI and independent negatives with HTTP winner and separate abort-only actual source CAS
+CSU-05,P042,SOURCE_FREEZE,Current-source local gates passed and exact published-head attestation belongs to stacked draft PR
+CSU-LATER,K2B2-05|K2B2-06,PLANNED,General graph cycles multiple generations and ancestor dispatch closure
+CSU-LATER-CUSTOMER,P015|P031,PLANNED,Authoritative commercial inventory item entitlement and company stock dispatch
+CSU-F5,P042,BLOCKED,Revocation-preserving contention optimization and matched capacity acceptance

@@ -13,6 +13,7 @@ scopes = (
     'apps/wa-demo-bridge/', 'packages/tenant-foundation/', 'packages/customer-service/',
     'packages/document-rendering/', 'packages/domain-test-fixtures/',
     'checkpoints/review-five-findings/',
+    'checkpoints/company-stock-use/',
     'checkpoints/wave4k/qa/', 'checkpoints/wave4k2a/qa/',
     'checkpoints/wave4k2b1/qa/', 'checkpoints/wave4k2b2a/qa/',
     'checkpoints/wave4map/qa/', 'checkpoints/wave4qc/qa/',

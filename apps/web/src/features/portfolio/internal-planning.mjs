@@ -19,7 +19,7 @@ export function itemCommand(head, values, key, action = 'create') {
 export function locationCommand(head, values, key) { return { ...common(head, values, key), ...(head ? {} : { code:values.code, binId:values.binId }) }; }
 export function internalPlanCommand(items, locations, values, key) {
   const item = items.find(row => row._id === values.itemId), location = locations.find(row => row._id === values.locationId);
-  return { ...common(null, values, key), itemId:values.itemId, itemRevision:item?.currentRevision, expectedItemVersion:item?.version, locationId:values.locationId, expectedLocationVersion:location?.version, quantity:values.quantity };
+  return { ...common(null, values, key), ...(values.schema === 'INTERNAL_PLAN_V2' ? { schema:values.schema } : {}), itemId:values.itemId, itemRevision:item?.currentRevision, expectedItemVersion:item?.version, locationId:values.locationId, expectedLocationVersion:location?.version, quantity:values.quantity };
 }
 export function internalEngineeringCommand(order, items, values, operationCount, materialCount, key) {
   return { ...common(order, values, key), operations:Array.from({ length:operationCount }, (_, i) => ({ code:values[`code${i}`], instruction:values[`instruction${i}`] })), materials:Array.from({ length:materialCount }, (_, i) => {
