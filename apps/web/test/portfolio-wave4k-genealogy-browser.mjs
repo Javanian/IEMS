@@ -144,7 +144,9 @@ export async function genealogyJourney({ db, call, wait, click, fill, evaluate, 
       await click('Refresh lot genealogy');
       await ready('document.querySelector("#lot-genealogy")?.innerText.includes("Active source receipt holds block")');
       assert.match(await form.disabledReason(FINALIZE, 'Finalize lot genealogy'), /source holds/);
-      await form.clickLink('#lot-genealogy', `Review or release source holds on receipt ${receipt._id}`);
+      const holdActionSelector = `#lot-genealogy a[href="/portfolio/warehouse/receipts/${receipt._id}"]`, holdActionPrefix = 'Review or release source holds on RCV-';
+      await ready(`[...document.querySelectorAll(${js(holdActionSelector)})].some(link=>link.textContent.trim().startsWith(${js(holdActionPrefix)}))`);
+      assert.equal(await checked(`(()=>{const links=[...document.querySelectorAll(${js(holdActionSelector)})].filter(link=>link.textContent.trim().startsWith(${js(holdActionPrefix)}));if(links.length!==1)return false;links[0].click();return true})()`), true, 'exact source receipt hold action link');
       await ready(`document.querySelector('[data-testid=receipt-holds]')&&document.querySelector('[data-hold-id=${js(held.hold.id)}]')`);
       assert.equal(await checked('location.pathname'), `/portfolio/warehouse/receipts/${receipt._id}`);
       await navigate(`manufacturing/work-orders/${wo._id}`, `document.querySelector(${js(UNIT)})&&document.querySelector('#lot-genealogy')?.innerText.includes('Active source receipt holds block')`);
