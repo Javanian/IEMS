@@ -4,10 +4,11 @@ import { installLabor } from './labor.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { requireEligibleReceipt, workOrderStockExceptions } from './stock-holds.mjs';
 import { initializeGenealogy, installGenealogy, genealogyActions, genealogyRoles } from './genealogy.mjs';
+import { custodyActions, custodyRoles, installManufacturingSerialCustody, reserveSerialCustody, consumeSerialCustody } from './serial-custody.mjs';
 
 const verbs = ['read', 'plan', 'release', 'record', 'qc'];
-export const manufacturingActions = [...verbs.map(v => `manufacturing.${v}`), ...genealogyActions];
-export const manufacturingRoles = { ...Object.fromEntries(verbs.map(v => [`manufacturing${v[0].toUpperCase()}${v.slice(1)}`, [...new Set(['manufacturing.read', `manufacturing.${v}`])]])), ...genealogyRoles };
+export const manufacturingActions = [...verbs.map(v => `manufacturing.${v}`), ...genealogyActions, ...custodyActions];
+export const manufacturingRoles = { ...Object.fromEntries(verbs.map(v => [`manufacturing${v[0].toUpperCase()}${v.slice(1)}`, [...new Set(['manufacturing.read', `manufacturing.${v}`])]])), ...genealogyRoles, ...custodyRoles };
 export async function initializeManufacturing(db) {
   await db.collection('manufacturingLabor').createIndex({ tenantId: 1, plantId: 1, workOrderId: 1, operationIndex: 1 }, { unique: true });
   await db.collection('manufacturingLabor').createIndex({ tenantId: 1, plantId: 1, operatorId: 1, startedAt: 1, endedAt: 1 });
@@ -44,7 +45,9 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     if (req.filter.plantId !== req.scope.selectedPlantId) fail(403, 'SCOPE_DENIED');
     const tail = req.path.split('/').at(-1);
     const genealogyPath = /^\/work-orders\/[^/]+\/genealogy(?:\/|$)/.test(req.path) || req.path.startsWith('/genealogy/');
+    const custodyPath = /^\/work-orders\/[^/]+\/serial-claims(?:\/|$)/.test(req.path);
     req.manufacturingAction = genealogyPath ? req.method === 'GET' ? 'genealogy.read' : ['allocations', 'losses'].includes(tail) ? 'genealogy.record' : tail === 'finalize' ? 'genealogy.finalize' : null : `manufacturing.${req.method === 'GET' ? 'read' : ['/work-orders', '/engineering'].includes(req.path) || (req.path.startsWith('/engineering/') && tail === 'revisions') ? 'plan' : ['release-engineering', 'revoke'].includes(tail) ? 'release' : tail === 'labor' ? 'record' : tail}`;
+    if (custodyPath) req.manufacturingAction = req.method === 'GET' ? 'custody.read' : req.method === 'POST' ? tail === 'abandon' ? 'custody.abandon' : tail === 'serial-claims' ? 'custody.claim' : null : null;
     if (!req.manufacturingAction) fail(404, 'NOT_FOUND');
     await runtime.foundation.authorize(req.scope, { ...req.filter, action: req.manufacturingAction }); next();
   });
@@ -61,7 +64,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
       const prior = await c('manufacturingKeys').findOne({ ...req.filter, key }, { session });
       if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
       const result = await effect(session);
-      const event = { ...base(req), kind, subjectId: result._id || result.workOrderId, subjectVersion: result.version, executionMode: 'OPERATOR_RECORDED' };
+      const event = { ...base(req), kind, subjectId: result._id || result.workOrderId, subjectVersion: result.version ?? result.workOrderVersion, executionMode: 'OPERATOR_RECORDED' };
       await c('manufacturingAudit').insertOne(event, { session });
       await c('manufacturingOutbox').insertOne({ ...event, _id: randomUUID(), state: 'PENDING' }, { session });
       await c('manufacturingKeys').insertOne({ ...base(req), key, payloadHash, result }, { session });
@@ -72,6 +75,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     }
   };
   installGenealogy(app, runtime, { tx, find, fail, fields, id });
+  installManufacturingSerialCustody(app, runtime, { tx, find, fail, fields, id });
   app.get('/api/manufacturing/work-orders', async (req, res) => {
     const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
     if (!Number.isInteger(limit) || limit < 1 || limit > 100 || (req.query.limit !== undefined && !/^[0-9]+$/.test(req.query.limit))) fail(400, 'INVALID_PAGINATION');
@@ -98,7 +102,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     res.json({ data });
   });
   app.post('/api/manufacturing/work-orders', async (req, res) => {
-    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'quantities', 'uom', 'serialized', 'genealogyRequired', 'idempotencyKey']);
+    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'quantities', 'uom', 'serialized', 'genealogyRequired', 'serialCustodyRequired', 'idempotencyKey']);
     const { salesOrderId, lineIndex, quantities, uom, expectedVersion } = req.body;
     id(salesOrderId);
     if (!Number.isSafeInteger(lineIndex) || lineIndex < 0 || !Array.isArray(quantities) || !quantities.length || quantities.length > 100) fail(400, 'INVALID_SPLIT');
@@ -107,6 +111,8 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     if (req.body.serialized && amounts.some(a => a % 1000000n !== 0n || a > 1000000000n)) fail(400, 'INVALID_SERIALIZED');
     if (Object.hasOwn(req.body, 'genealogyRequired') && typeof req.body.genealogyRequired !== 'boolean') fail(400, 'INVALID_GENEALOGY');
     if (req.body.genealogyRequired && (!req.body.serialized || amounts.some(a => a > 100000000n))) fail(400, 'INVALID_GENEALOGY');
+    if (Object.hasOwn(req.body, 'serialCustodyRequired') && typeof req.body.serialCustodyRequired !== 'boolean') fail(400, 'INVALID_SERIAL_CUSTODY');
+    if (req.body.serialCustodyRequired && (!req.body.serialized || !req.body.genealogyRequired || amounts.some(a => a > 100000000n))) fail(400, 'INVALID_SERIAL_CUSTODY');
     const data = await tx(req, 'workOrders.planned', async session => {
       const so = await find('salesOrders', req, salesOrderId, session);
       if (so.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
@@ -118,7 +124,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
       if (total > units(line.quantity)) fail(409, 'QUANTITY_EXCEEDED');
       if (allocated) await c('manufacturingAllocated').updateOne({ _id: allocated._id }, { $set: { quantity: decimal(total) } }, { session });
       else await c('manufacturingAllocated').insertOne({ ...base(req), ...filter, quantity: decimal(total) }, { session });
-      const batch = base(req), workOrders = amounts.map(a => ({ ...base(req), splitId: batch._id, salesOrderId, salesOrderVersion: so.version, accountId: so.accountId, lineIndex, sourceLine: line, quantity: decimal(a), uom, ...(req.body.serialized ? { serialized: true } : {}), ...(req.body.genealogyRequired ? { genealogyRequired: true } : {}), status: 'PLANNED', executionMode: 'OPERATOR_RECORDED', records: [] }));
+      const batch = base(req), workOrders = amounts.map(a => ({ ...base(req), splitId: batch._id, salesOrderId, salesOrderVersion: so.version, accountId: so.accountId, lineIndex, sourceLine: line, quantity: decimal(a), uom, ...(req.body.serialized ? { serialized: true } : {}), ...(req.body.genealogyRequired ? { genealogyRequired: true } : {}), ...(req.body.serialCustodyRequired ? { serialCustodyRequired: true } : {}), status: 'PLANNED', executionMode: 'OPERATOR_RECORDED', records: [] }));
       await c('manufacturingWorkOrders').insertMany(workOrders, { session });
       return { ...batch, workOrders };
     }); res.status(201).json({ data });
@@ -127,7 +133,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
   const engineeringRouting = installEngineering(app, { c, find, base, tx, fail, fields, id, qty, text });
   const movement = async (req, wo, kind, values, session) => c('manufacturingMovements').insertOne({ ...base(req), workOrderId: wo._id, kind, ...values }, { session });
   for (const action of ['release', 'release-engineering', 'record', 'qc']) app.post(`/api/manufacturing/work-orders/:id/${action}`, async (req, res) => {
-    const allowed = { 'release-engineering': ['engineeringId', 'engineeringVersion', 'revision'], release: ['operations', 'materials'], record: ['operationIndex', 'inputQuantity', 'goodQuantity', 'scrapQuantity', 'uom', 'evidence', 'outputSerials'], qc: ['acceptedQuantity', 'rejectedQuantity', 'uom', 'evidence', 'acceptedSerials', 'rejectedSerials'] }[action];
+    const allowed = { 'release-engineering': ['engineeringId', 'engineeringVersion', 'revision', 'serialClaims'], release: ['operations', 'materials', 'serialClaims'], record: ['operationIndex', 'inputQuantity', 'goodQuantity', 'scrapQuantity', 'uom', 'evidence', 'outputSerials'], qc: ['acceptedQuantity', 'rejectedQuantity', 'uom', 'evidence', 'acceptedSerials', 'rejectedSerials'] }[action];
     fields(req.body, ['expectedVersion', 'idempotencyKey', ...allowed]);
     const b = req.body;
     if (['record', 'qc'].includes(action)) text(b.evidence);
@@ -142,6 +148,8 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
         if (row.genealogyRequired && releaseBody.materials.length > 20) fail(400, 'INVALID_GENEALOGY');
         const operations = releaseBody.operations.map(op => { fields(op, ['code', 'instruction']); return { code: text(op.code), instruction: text(op.instruction) }; });
         if (new Set(operations.map(o => o.code)).size !== operations.length || new Set(releaseBody.materials.map(m => m.receiptId)).size !== releaseBody.materials.length) fail(400, 'INVALID_ROUTING');
+        for (const m of releaseBody.materials) { fields(m, ['receiptId', 'quantityPerUnit', 'uom']); id(m.receiptId); qty(m.quantityPerUnit); }
+        const custody = await reserveSerialCustody(runtime.db, row, releaseBody.materials, b.serialClaims, req.scope.userId, session);
         const materials = [];
         for (const m of releaseBody.materials) {
           fields(m, ['receiptId', 'quantityPerUnit', 'uom']);
@@ -154,7 +162,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
           if (receipt.status !== 'STORED' || required > units(receipt.availableQuantity)) fail(409, 'INSUFFICIENT_STOCK');
           const reserved = await c('warehouseReceipts').updateOne({ ...req.filter, _id: receipt._id, version: receipt.version }, { $set: { availableQuantity: decimal(units(receipt.availableQuantity) - required), manufacturingReservedQuantity: decimal(units(receipt.manufacturingReservedQuantity || '0') + required) }, $inc: { version: 1 } }, { session });
           if (!reserved.matchedCount) fail(409, 'VERSION_CONFLICT');
-          const material = { receiptId: receipt._id, quantityPerUnit: decimal(ratio), quantity: decimal(required), uom: m.uom, ...(receipt.lotNumber !== undefined ? { materialTrace: { receiptId: receipt._id, lotNumber: receipt.lotNumber, heatNumber: receipt.heatNumber } } : {}) };
+          const material = { receiptId: receipt._id, quantityPerUnit: decimal(ratio), quantity: decimal(required), uom: m.uom, ...(receipt.lotNumber !== undefined ? { materialTrace: { receiptId: receipt._id, lotNumber: receipt.lotNumber, heatNumber: receipt.heatNumber } } : {}), ...(custody.has(receipt._id) ? { serialCustody: custody.get(receipt._id) } : {}) };
           materials.push(material); await movement(req, row, 'MATERIAL_RESERVED', material, session);
         }
         row.routing = { operations, materials, releasedBy: req.scope.userId, releasedAt: new Date() }; row.status = 'RELEASED';
@@ -172,6 +180,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
         const outputSerials = row.serialized && finalOperation ? serials(b.outputSerials, good) : null;
         if (!row.records.length) for (const m of row.routing.materials) {
           const receipt = await find('warehouseReceipts', req, m.receiptId, session), amount = units(m.quantity);
+          await consumeSerialCustody(runtime.db, row, m, receipt, req.scope.userId, session);
           await requireUnheld(receipt, session);
           if (units(receipt.manufacturingReservedQuantity || '0') < amount) fail(409, 'INSUFFICIENT_STOCK');
           const consumed = await c('warehouseReceipts').updateOne({ ...req.filter, _id: receipt._id, version: receipt.version }, { $set: { manufacturingReservedQuantity: decimal(units(receipt.manufacturingReservedQuantity) - amount), manufacturingConsumedQuantity: decimal(units(receipt.manufacturingConsumedQuantity || '0') + amount) }, $inc: { version: 1 } }, { session });

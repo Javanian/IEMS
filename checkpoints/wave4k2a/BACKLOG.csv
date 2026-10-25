@@ -1,0 +1,17 @@
+id,wave,title,status,depends_on,owner,acceptance
+K1-CP,4k,Accepted lot-attribution checkpoint,BASELINE,,lead,Commit2b66c85 and preserved K1 evidence
+K2A-01,4k2a,Freeze received serial custody contract,FROZEN,K1-CP,lead,Explicit untouched adoption; identity claim before quantity release; shared receipt and WO fences
+K2A-02,4k2a,Received identity authority and guarded stock integration,ACCEPTED_LOCAL,K2A-01,api+lead,No quantity delta at claim; strict origin/history; every stock writer guarded; exact reserve and consumption
+K2A-03,4k2a,Native adoption and claim workspace,ACCEPTED_LOCAL,K2A-02,ui,Explicit identities; distinct available counters; exact retry; grants; native release integration
+K2A-04,4k2a,Independent bounded custody gate,ACCEPTED_LOCAL,K2A-02;K2A-03,qa+lead,Ordering and rollback; integrity tampering; all regressions; connected browser and screenshot review
+K2B-01,4k2b,Freeze installation and manufactured-child custody contract,PLANNED,K2A-04,lead,No free reallocation of consumed identities; common ship fence; graph revision; removal policy
+K2B-02,4k2b,Controlled installation graph and custody transitions,PLANNED,K2B-01,api,One active parent; bounded ancestry; reciprocal-cycle and ship races; immutable corrections
+K2B-03,4k2b,Installation and reverse trace workspace,PLANNED,K2B-02,ui,Exact parent and child identities; explicit incomplete state; scoped evidence and recovery
+K2B-04,4k2b,Independent complete genealogy gate,PLANNED,K2B-02;K2B-03,qa,Supplemental serial fixtures; competing parents and cycles; stock and custody reconciliation
+L-01,4l,Freeze controlled delivery contract,PLANNED,K2B-04,lead,Separate delivery aggregate; exact dispatch entitlement; bounded time and evidence
+L-02,4l,Controlled delivery API and UI,PLANNED,L-01,api+ui,Partial and complete POD; immutable corrections; no rebilling or PDF rewrite
+L-03,4l,Independent delivery acceptance,PLANNED,L-02,qa,Both canonical shipments; replay and races; historical documents and balances preserved
+M-01,4m,Freeze original E01 hash and parity adapter,PLANNED,K2B-04;L-03,qa,Original source identities and ratios; labor and QC matrix; trusted owned test clock
+M-02,4m,Resolve measured canonical runtime gaps,PLANNED,M-01,api+ui,No bypass entity creation; exact engineering labor QC entitlement and delivery proof
+M-03,4m,Independent full E01 browser and ledger acceptance,PLANNED,M-02,qa,Original ten-unit chain; two PODs; exact financial totals; restart and negative guards
+REL-01,release,Review publication prerequisites,PLANNED,K1-CP,lead,Deliver prior corrections coherently; published-head CI; no inferred merge or deployment

@@ -1,3 +1,5 @@
+import { releaseSerialClaims } from './serial-custody.mjs';
+
 export function engineeringContent(values, operations, materials, receipts) {
   return {
     operations: Array.from({length:operations}, (_,i)=>({code:values[`code${i}`],instruction:values[`instruction${i}`]})),
@@ -11,6 +13,6 @@ export function engineeringDraft(order, values, content, key) {
 export function engineeringTransition(head,key,reason) {
   return {expectedVersion:head.version,idempotencyKey:key,revision:head.currentRevision,...(reason===undefined?{}:{reason})};
 }
-export function engineeringRelease(wo,head,key) {
-  return {expectedVersion:wo.version,idempotencyKey:key,engineeringId:head._id,engineeringVersion:head.version,revision:head.currentRevision};
+export function engineeringRelease(wo,head,key,claims = []) {
+  return {expectedVersion:wo.version,idempotencyKey:key,engineeringId:head._id,engineeringVersion:head.version,revision:head.currentRevision,...releaseSerialClaims(wo,claims)};
 }

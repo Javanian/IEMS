@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { initializeStockHolds, installStockHolds, requireEligibleReceipt, holdActions, holdRoles } from './stock-holds.mjs';
+import { initializeSerialCustody, installWarehouseSerialCustody, requireQuantityOnlyReceipt, requireCustodyTransfer } from './serial-custody.mjs';
 
 export const warehouseActions = [...['read', 'receive', 'release', 'putaway', 'reserve', 'bin', 'transfer', 'count'].map(a => `warehouse.${a}`), ...holdActions];
 // QC receipt release (`warehouse.release`) and stock-hold release (`warehouse.hold.release`) are separate grants.
@@ -14,6 +15,7 @@ export async function initializeWarehouse(db) {
     ['warehouseAllocated', { tenantId: 1, plantId: 1, salesOrderId: 1, lineIndex: 1 }],
   ]) await db.collection(name).createIndex(keys, { unique: true });
   await initializeStockHolds(db);
+  await initializeSerialCustody(db);
 }
 const units = s => BigInt(s.split('.')[0]) * 1000000n + BigInt((s.split('.')[1] || '').padEnd(6, '0'));
 const decimal = n => { const s = n.toString().padStart(7, '0'); return `${s.slice(0, -6)}.${s.slice(-6)}`.replace(/0+$/, '').replace(/\.$/, ''); };
@@ -30,7 +32,8 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
     const holdAction = req.method === 'POST' && (/^\/receipts\/[^/]+\/holds$/.test(req.path) ? 'warehouse.hold.apply' : /^\/holds\/[^/]+\/release$/.test(req.path) ? 'warehouse.hold.release' : null);
     const receiptCommand = /^\/receipts\/[^/]+\/(release|putaway|reserve|transfer|count)$/.exec(req.path)?.[1];
     const command = req.path === '/receipts' ? 'receive' : req.path === '/bins' ? 'bin' : receiptCommand;
-    req.warehouseAction = req.method === 'GET' ? 'warehouse.read' : holdAction || (req.method === 'POST' && command ? `warehouse.${command}` : null);
+    const custodyPath = /^\/receipts\/[^/]+\/serial-custody(?:\/(adopt|events))?$/.exec(req.path);
+    req.warehouseAction = custodyPath ? req.method === 'GET' ? 'custody.read' : req.method === 'POST' && custodyPath[1] === 'adopt' ? 'custody.adopt' : null : req.method === 'GET' ? 'warehouse.read' : holdAction || (req.method === 'POST' && command ? `warehouse.${command}` : null);
     if (!req.warehouseAction) fail(404, 'NOT_FOUND');
     try { await runtime.foundation.authorize(req.scope, { ...req.filter, action: req.warehouseAction }); }
     catch (e) { if (holdAction && e?.code === 'SCOPE_DENIED') fail(403, 'FORBIDDEN', 'Forbidden'); throw e; }
@@ -59,6 +62,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
     finally { await session.endSession(); }
     }
   };
+  installWarehouseSerialCustody(app, runtime, { tx, find, fail, fields, id });
   const tally = async (name, filter, amount, maximum, session) => {
     const row = await c(name).findOne(filter, { session });
     const next = units(row?.quantity || '0') + amount;
@@ -156,6 +160,8 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
       if (row.version !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (row.status !== 'STORED') fail(409, 'STATE_CONFLICT');
       if (row.uom !== req.body.uom) fail(409, 'UOM_CONFLICT');
+      if (operation === 'count') requireQuantityOnlyReceipt(row);
+      else await requireCustodyTransfer(runtime.db, row, session);
       if (['reservedQuantity', 'shippedQuantity', 'manufacturingReservedQuantity', 'manufacturingConsumedQuantity'].some(k => units(row[k] || '0') !== 0n) || row.held === true || row.hold?.active === true || units(row.heldQuantity || '0') !== 0n) fail(409, 'STOCK_ENCUMBERED');
       // Policy: a held receipt is neither moved (no quarantine-bin exception) nor counted, in either direction.
       await requireEligibleReceipt(runtime.db, row, session);
@@ -191,6 +197,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
       if (operation === 'release') { row.status = 'RELEASED'; row.qc = { reason: req.body.reason.trim(), releasedBy: req.scope.userId, releasedAt: new Date() }; await movement(req, row, 'QC_RELEASE', row.quantity, 'QUARANTINE', 'RELEASED', session); }
       if (operation === 'putaway') { row.status = 'STORED'; row.location = req.body.location.trim(); row.availableQuantity = decimal(units(row.quantity)); await movement(req, row, 'PUTAWAY', row.quantity, 'RELEASED', row.location, session); }
       if (operation === 'reserve') {
+        requireQuantityOnlyReceipt(row);
         const { salesOrderId, accountId, lineIndex, quantity: qty, uom } = req.body, amount = quantity(qty);
         const so = await find('salesOrders', req, salesOrderId, session); await find('accounts', req, accountId, session);
         if (so.accountId !== accountId) fail(409, 'ACCOUNT_CONFLICT');

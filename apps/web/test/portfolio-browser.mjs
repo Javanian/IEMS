@@ -27,6 +27,7 @@ import { vatJourney } from './portfolio-wave4h-vat-browser.mjs';
 import { inquiryJourney } from './portfolio-wave4i-inquiry-browser.mjs';
 import { lotSerialJourney } from './portfolio-wave4j-lot-serial-browser.mjs';
 import { genealogyJourney } from './portfolio-wave4k-genealogy-browser.mjs';
+import { serialCustodyJourney } from './portfolio-wave4k2a-serial-custody-browser.mjs';
 import { quoteEditorInquiryJourney } from './portfolio-wave4j-pr4-browser.mjs';
 import { responseLoss } from './portfolio-wave3d-transport.mjs';
 import { holdJourney } from './wave4f-holds-browser.mjs';
@@ -50,6 +51,7 @@ const password = randomUUID() + randomUUID();
 const delay = ms => new Promise(r => setTimeout(r, ms));
 let mongo, runtime, independent, api, vite, chrome, ws, session;
 const pending = new Map(), exceptions = [], consoleErrors = [], network = [], checks = [], layouts = [];
+const requests = new Map(), networkFailures = [];
 const listeners = new Set();
 const loseResponse = responseLoss({ call, subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener); } });
 let sequence = 0;
@@ -116,6 +118,9 @@ try {
     if (m.method === 'Runtime.exceptionThrown') exceptions.push(m.params.exceptionDetails);
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') consoleErrors.push(m.params.args.map(a => a.value || a.description).join(' ') + ' after ' + (network.at(-1)?.url.replace(/^.*\/api\//, '') || 'start'));
     if (m.method === 'Network.responseReceived' && m.params.response.url.includes('/portfolio-api/')) network.push({ url: m.params.response.url, status: m.params.response.status });
+    if (m.method === 'Network.requestWillBeSent') requests.set(m.params.requestId, { url:m.params.request.url, method:m.params.request.method });
+    if (m.method === 'Network.loadingFailed') { networkFailures.push({ ...requests.get(m.params.requestId), errorText:m.params.errorText, canceled:m.params.canceled || false }); requests.delete(m.params.requestId); }
+    if (m.method === 'Network.loadingFinished') requests.delete(m.params.requestId);
   };
   const { targetId } = await call('Target.createTarget', { url: 'about:blank' }, null);
   session = (await call('Target.attachToTarget', { targetId, flatten: true }, null)).sessionId;
@@ -245,6 +250,7 @@ try {
   if (process.env.PORTFOLIO_LOT_SERIAL === '1') await lotSerialJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse });
   if (process.env.PORTFOLIO_LOT_SERIAL === '1') await quoteEditorInquiryJourney({ db, call, wait, fill, evaluate, check, headers });
   if (process.env.PORTFOLIO_GENEALOGY === '1') await genealogyJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse });
+  if (process.env.PORTFOLIO_SERIAL_CUSTODY === '1') await serialCustodyJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse });
   await click('Opportunities'); await click('Synthetic browser opportunity'); await wait(`document.body.innerText.includes('Stage: WON')`);
   for (const width of [1440, 1280, 1100, 1024, 900, 768, 430, 375, 360]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 600 }); await wait(`innerWidth===${width}`);
@@ -298,6 +304,8 @@ try {
   await writeFile(join(evidence, 'browser-results.json'), JSON.stringify({ realBrowser: true, api: 'actual portfolio-api createApp, unmodified', mongoVersion: '7.0.14', fixtureFetch: false, checks, layouts, exceptions, consoleErrors, network, databaseAssertions: { accountId, opportunityId, amount: row.amount, version: row.version, history: row.history.length }, cleanup: 'marker-verified disposable DB and owned processes only' }, null, 2));
   console.log(JSON.stringify({ passed: checks.length, exceptions: exceptions.length, consoleErrors: consoleErrors.length, evidence }));
 } catch (error) {
+  await writeFile(join(evidence, 'failure-diagnostics.json'), JSON.stringify({ error:String(error), checks, exceptions, consoleErrors, network, networkFailures }, null, 2));
+  if (ws?.readyState === 1 && session) await screenshot('failure').catch(() => {});
   console.log(JSON.stringify({ exceptions, consoleErrors, network }));
   throw error;
 } finally {

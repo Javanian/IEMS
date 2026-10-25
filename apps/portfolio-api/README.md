@@ -1,5 +1,11 @@
 # Owned portfolio CRM API
 
+## K2a received serial custody
+
+Untouched serialized receipts can be explicitly adopted into received identity custody. Required WOs opt in with `serialized`, `genealogyRequired` and `serialCustodyRequired`; operators claim exact identities while PLANNED, release reserves them, and the first operation consumes them with the existing stock movement. Claim and abandon do not change quantities. Adopted receipts permanently reject quantity-only reservation and counting; whole transfer requires all identities available and no holds. Existing untracked receipts retain their prior behavior.
+
+Read the [K2a contract](../../checkpoints/wave4k2a/CONTRACT.md), [handoff](../../checkpoints/wave4k2a/HANDOFF.md) and [executed status](../../checkpoints/wave4k2a/STATUS.md). Received custody through WO consumption does not prove per-output installation, manufactured-child inventory, unique parents or cycle prevention; those remain K2b. No automatic promotion of previously consumed stock is supported.
+
 ## Wave4k K1 consumed-lot attribution
 
 Planning can explicitly require per-output lot genealogy with `serialized: true` and `genealogyRequired: true`. Scoped genealogy commands attribute already-consumed materials, reconcile exact per-unit ratios and explicit process losses, and retain immutable revisions. Dedicated read/record/finalize capabilities are separate from existing manufacturing roles. First shipment freezes the whole work order's finalized revision; every new shipment still checks current whole-receipt holds. Legacy planning and shipment remain compatible when not opted in.
