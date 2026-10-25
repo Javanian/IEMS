@@ -114,7 +114,7 @@ export async function catalogJourney({ db, call, wait, click, evaluate, screensh
   const target = `/portfolio/catalog-procurement/receipts/${receipt._id}`;
   await navigate(`warehouse/receipts${cursor ? `?cursor=${cursor}` : ''}`, `document.querySelector('a[href="${target}"]')`);
   await click(receipt._id); await ready('document.querySelector("#catalog-receipt")');
-  await navigate(`warehouse/receipts/${receipt._id}`, 'document.body.innerText.includes("QUARANTINED")');
+  await navigate(`warehouse/receipts/${receipt._id}`, 'document.querySelector("h1")?.textContent==="Warehouse receipt"&&document.querySelector("[data-warehouse-record-version]")?.innerText.includes("Status: Awaiting inspection")');
   assert.deepEqual(await checked(`[...document.querySelectorAll('button,h2')].filter(element=>['Record QC release','Put away','Reserve for sales order','Adopt incoming serial custody','Transfer whole receipt','Record absolute count'].includes(element.textContent.trim())).map(element=>element.textContent)`), []);
   const beforeDenied = await effects(), denied = await send(`/warehouse/receipts/${receipt._id}/release`, { expectedVersion: receipt.version, reason: 'Synthetic denied legacy release', idempotencyKey: randomUUID() }); assert.equal(denied.error.code, 'CATALOG_RECEIPT_UNSUPPORTED'); assert.deepEqual(await effects(), beforeDenied);
   check('MAP warehouse list opens the typed receipt namespace; direct legacy receipt URL and API cannot release typed quarantine into usable stock');

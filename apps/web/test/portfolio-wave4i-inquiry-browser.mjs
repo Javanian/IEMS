@@ -139,7 +139,7 @@ export async function inquiryJourney({ db, call, wait, click, fill, evaluate, sc
   await fill('amount', invoice.grossAmount); await fill('reference', 'Synthetic Wave4i gross settlement'); await click('Allocate payment');
   await wait('document.querySelector(".pf-dl dd:last-child")?.textContent==="USD 0.00"');
   invoice = await db.collection('fulfillmentInvoices').findOne({ _id: invoice._id }); assert.equal(invoice.status, 'PAID'); invoice.lines.forEach(l => provenance(l, 0));
-  await reload('document.body.innerText.includes("PAID")&&document.body.innerText.includes("SYNTH-DWG-A")');
+  await reload('document.querySelector(".pf-summary .pf-status")?.textContent==="Paid"&&document.body.innerText.includes("SYNTH-DWG-A")');
   await call('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: downloadPath.replaceAll('/', '\\') });
   await click('Issue immutable PDF'); await wait('document.body.innerText.includes("Issued artifact loaded")');
   const intent = await db.collection('documentIntents').findOne({ kind: 'invoice', sourceId: invoice._id, sourceVersion: 1 });
