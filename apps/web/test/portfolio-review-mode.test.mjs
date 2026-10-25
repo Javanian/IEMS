@@ -4,7 +4,7 @@ import { reviewRunPlan } from './portfolio-review-mode.mjs';
 
 test('isolated review debug forces all three actual journeys and fixture actors without claiming prior coverage',()=>{
   assert.deepEqual(reviewRunPlan({PORTFOLIO_REVIEW_DEBUG_ONLY:'1'}),{
-    diagnosticOnly:true,textProbeOnly:false,companyOnly:false,e01:true,internalExecution:true,companyStock:false,operator:true,seedOperators:true,
+    diagnosticOnly:true,textProbeOnly:false,companyOnly:false,e01:true,internalExecution:true,companyStock:false,companyTrace:false,operator:true,seedOperators:true,
     resultsFile:'review-debug-results.json',priorJourneyCoverage:false,
   });
 });
@@ -23,6 +23,9 @@ test('the normal default keeps original five-user seeding and does not enable re
   const company=reviewRunPlan({PORTFOLIO_COMPANY_STOCK:'1'});
   assert.equal(company.companyStock,true);assert.equal(company.diagnosticOnly,false);
   assert.equal(company.priorJourneyCoverage,true);assert.equal(company.internalExecution,false);
+  const trace=reviewRunPlan({PORTFOLIO_COMPANY_STOCK_TRACE:'1'});
+  assert.equal(trace.companyTrace,true);assert.equal(trace.companyStock,false);
+  assert.equal(trace.diagnosticOnly,false);assert.equal(trace.priorJourneyCoverage,true);
 });
 test('ambiguous debug flag values fail before services start instead of silently selecting a different coverage mode',()=>{
   for(const value of ['true','false','yes','',1,null])assert.throws(()=>reviewRunPlan({PORTFOLIO_REVIEW_DEBUG_ONLY:value}),/must be 0 or 1/);
@@ -38,5 +41,7 @@ test('text probe is explicitly isolated and seeds actors for actual API invoice 
   assert.ok(company.diagnosticOnly&&company.companyOnly&&company.companyStock);
   assert.equal(company.e01||company.internalExecution||company.operator||company.seedOperators,false);
   assert.equal(company.priorJourneyCoverage,false);assert.equal(company.resultsFile,'company-stock-debug-results.json');
+  const trace=reviewRunPlan({PORTFOLIO_COMPANY_STOCK_DIAGNOSTIC_ONLY:'1',PORTFOLIO_COMPANY_STOCK_TRACE:'1'});
+  assert.equal(trace.companyStock && trace.companyTrace,true);assert.equal(trace.priorJourneyCoverage,false);
   assert.throws(()=>reviewRunPlan({PORTFOLIO_COMPANY_STOCK_DIAGNOSTIC_ONLY:'1',PORTFOLIO_REVIEW_DEBUG_ONLY:'1'}),/Choose one diagnostic entry/);
 });

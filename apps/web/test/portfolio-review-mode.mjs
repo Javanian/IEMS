@@ -11,6 +11,7 @@ export function reviewRunPlan(env={}) {
     diagnosticOnly,textProbeOnly,companyOnly,e01,
     internalExecution:!companyOnly && (reviewDebug || env.PORTFOLIO_INTERNAL_EXECUTION==='1'),
     companyStock:companyOnly || env.PORTFOLIO_COMPANY_STOCK==='1',
+    companyTrace:env.PORTFOLIO_COMPANY_STOCK_TRACE==='1',
     operator:!companyOnly && (reviewDebug || env.PORTFOLIO_REVIEW_OPERATOR==='1'),
     seedOperators:e01 || textProbeOnly,
     resultsFile:companyOnly ? 'company-stock-debug-results.json' : textProbeOnly ? 'review-text-probe-results.json' : diagnosticOnly ? 'review-debug-results.json' : 'browser-results.json',

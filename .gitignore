@@ -199,3 +199,9 @@ jobs/.pycache_legacy/
 /checkpoints/company-stock-use/**/*.png
 /checkpoints/company-stock-use/**/*.pdf
 /checkpoints/company-stock-use/**/*.db
+
+!/checkpoints/company-stock-trace/**/*.md
+/checkpoints/company-stock-trace/**/*.log
+/checkpoints/company-stock-trace/**/*.png
+/checkpoints/company-stock-trace/**/*.pdf
+/checkpoints/company-stock-trace/**/*.db

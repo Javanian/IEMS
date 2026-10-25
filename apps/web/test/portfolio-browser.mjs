@@ -15,6 +15,7 @@ import { reviewRunPlan } from './portfolio-review-mode.mjs';
 import { reviewOperatorJourney } from './portfolio-review-operator-browser.mjs';
 import { reviewInternalExecutionJourney } from './portfolio-review-internal-execution-browser.mjs';
 import { companyStockJourney } from './portfolio-company-stock-browser.mjs';
+import { companyStockTraceJourney } from './portfolio-company-stock-trace-browser.mjs';
 import { canonicalE01Journey } from './portfolio-review-e01-browser.mjs';
 import { createApp,seedSynthetic } from '../../portfolio-api/src/app.mjs';
 import { initializeCustomerService } from '../../portfolio-api/src/customer-service.mjs';
@@ -42,16 +43,18 @@ import { catalogJourney } from './portfolio-wave4map-catalog-browser.mjs';
 import { catalogDispositionJourney } from './portfolio-wave4qc-catalog-disposition-browser.mjs';
 import { quoteEditorInquiryJourney } from './portfolio-wave4j-pr4-browser.mjs';
 import { responseLoss } from './portfolio-wave3d-transport.mjs';
+import { observeTraceRead } from './company-trace-readiness.mjs';
+import { observeOfflineQuoteRead,quoteRecoveryDOMState,isOfflineQuoteRoot,isRecoveredQuoteRoot } from './quote-offline-readiness.mjs';
+import { assertOwnedWebAddress,webTransportTelemetry } from './web-transport-telemetry.mjs';
 import { holdJourney } from './wave4f-holds-browser.mjs';
 import { csOnboardingJourney } from './wave4f-cs-browser.mjs';
 import { textEnlargementJourney } from './wave4f-text-browser.mjs';
 
-// The owned Vite server needs a port free on both loopback stacks: another project may hold 127.0.0.1:4173,
-// and Chrome may resolve localhost to either address. Probe, never kill.
 const freeOn = (host, port) => new Promise(r => { const s = createNetServer(); s.once('error', () => r(false)); s.listen(port, host, () => s.close(() => r(true))); });
-async function pickWebPort() { for (let p = 4173; p < 4273; p++) if (await freeOn('127.0.0.1', p) && await freeOn('::1', p)) return p; throw Error('No loopback port in 4173..4272 is free on both 127.0.0.1 and ::1'); }
+async function pickWebPort() { for (let p = 4173; p < 4273; p++) if (await freeOn('127.0.0.1', p)) return p; throw Error('No IPv4 loopback port in 4173..4272 is free'); }
 const reviewMode=reviewRunPlan(process.env);
-const webPort = await pickWebPort(), web = `http://localhost:${webPort}`;
+const webPort = await pickWebPort(), web = `http://127.0.0.1:${webPort}`;
+const transportTelemetry=webTransportTelemetry(web);
 process.env.PORTFOLIO_WEB_ORIGIN = web;
 console.log('Owned web origin', web);
 
@@ -67,15 +70,21 @@ let mongo, runtime, independent, api, vite, chrome, ws, session;
 const pending = new Map(), exceptions = [], consoleErrors = [], network = [], checks = [], layouts = [];
 const requests = new Map(), networkFailures = [];
 const listeners = new Set();
+let quoteRecoveryEvidence;
 const loseResponse = responseLoss({ call, subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener); } });
 let sequence = 0;
-async function sendCdp(method, params = {}, sessionId = session) {
+async function sendCdp(method, params = {}, sessionId = session, timeoutMs = 60000) {
   const id = ++sequence;
-  const result = new Promise((resolve, reject) => { const timeout = setTimeout(() => { pending.delete(id); reject(Error(`CDP timeout: ${method}`)); }, 60000); pending.set(id, { resolve: x => { clearTimeout(timeout); resolve(x); }, reject: e => { clearTimeout(timeout); reject(e); } }); });
+  const result = new Promise((resolve, reject) => { const timeout = setTimeout(() => { pending.delete(id); reject(Error(`CDP timeout: ${method}`)); }, timeoutMs); pending.set(id, { resolve: x => { clearTimeout(timeout); resolve(x); }, reject: e => { clearTimeout(timeout); reject(e); } }); });
   ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })); return result;
 }
 const sendWithNavigation=documentNavigationCall(sendCdp);
-async function call(method,params={},sessionId=session) { return sendWithNavigation(method,params,sessionId); }
+async function call(method,params={},sessionId=session) {
+  const tracked=['Page.navigate','Page.reload','Network.emulateNetworkConditions'].includes(method);
+  if(tracked)transportTelemetry.command('before',method,params);
+  try {const result=await sendWithNavigation(method,params,sessionId);if(tracked)transportTelemetry.command('ack',method,params,result);return result;}
+  catch(error){if(tracked)transportTelemetry.command('error',method,params,{errorText:String(error)});throw error;}
+}
 async function evaluate(expression) {
   const r = await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
   if (r.exceptionDetails) throw Error(JSON.stringify(r.exceptionDetails)); return r.result.value;
@@ -95,7 +104,7 @@ async function fill(name, value) {
 async function screenshot(name) { await call('Page.bringToFront'); await delay(150); const shot = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); await writeFile(join(evidence, name + '.png'), Buffer.from(shot.data, 'base64')); }
 function check(name) { checks.push(name); console.log('PASS', name); }
 async function runReviewJourneys({db,headers}) {
-  const reviewKit={db,call,wait,click,fill,evaluate,screenshot,check,headers,loseResponse,password,web,seedIdentities,writeEvidence:(name,value)=>writeFile(join(evidence,name),JSON.stringify(value,null,2))};
+  const reviewKit={db,call,wait,click,fill,evaluate,screenshot,check,headers,loseResponse,password,web,seedIdentities,subscribe:listener=>{listeners.add(listener);return()=>listeners.delete(listener);},writeEvidence:(name,value)=>writeFile(join(evidence,name),JSON.stringify(value,null,2))};
   if(reviewMode.e01){
     const priorClock=runtime.businessClock,priorMode=runtime.businessClockMode;let instant=new Date('2026-03-10T08:15:00.000Z');
     await bindBusinessClock(runtime,()=>new Date(instant),marker);
@@ -104,6 +113,7 @@ async function runReviewJourneys({db,headers}) {
   }
   if(reviewMode.internalExecution){const internal=await reviewInternalExecutionJourney(reviewKit);reviewKit.internalPlanId=internal.planId;}
   if(reviewMode.companyStock)await companyStockJourney(reviewKit);
+  if(reviewMode.companyTrace)await companyStockTraceJourney(reviewKit);
   if(reviewMode.operator)await reviewOperatorJourney(reviewKit);
 }
 async function runTextProbe({db,headers}) {
@@ -153,7 +163,8 @@ try {
   const db = independent.db(database);
   api = createApp(runtime, { origins: [web] }).listen(4313, '127.0.0.1');
   await new Promise((r, j) => { api.once('listening', r); api.once('error', j); });
-  vite = await createServer({ root:uiRoot, define: { 'import.meta.env.VITE_PORTFOLIO_API_BASE': JSON.stringify('/portfolio-api') }, server: { host: 'localhost', port: webPort, strictPort: true, fs: { allow: [resolve(root, '../..'),resolve(uiRoot,'../..'), await realpath(join(root, 'node_modules')),await realpath(join(uiRoot,'node_modules'))] } } }); await vite.listen();
+  vite = await createServer({ root:uiRoot, define: { 'import.meta.env.VITE_PORTFOLIO_API_BASE': JSON.stringify('/portfolio-api') }, server: { host: '127.0.0.1', port: webPort, strictPort: true, fs: { allow: [resolve(root, '../..'),resolve(uiRoot,'../..'), await realpath(join(root, 'node_modules')),await realpath(join(uiRoot,'node_modules'))] } } });
+  transportTelemetry.attachServer(vite.httpServer);await vite.listen();assertOwnedWebAddress(vite.httpServer,webPort);
   chrome = spawn(process.env.PORTFOLIO_CHROME_BINARY || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'google-chrome'), ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = '', launchError, endpoint;
   chrome.stderr.on('data', d => stderr += d);
@@ -175,6 +186,7 @@ try {
   assert.ok(endpoint, `owned Chrome endpoint not ready within 60s: ${stderr.slice(-4000)}`);
   ws = new WebSocket(endpoint); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
   ws.onmessage = e => { const m = JSON.parse(e.data); const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(m.error) : p.resolve(m.result); }
+    transportTelemetry.event(m);
     for (const listener of listeners) listener(m);
     if (m.method === 'Runtime.exceptionThrown') exceptions.push(m.params.exceptionDetails);
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') consoleErrors.push(m.params.args.map(a => a.value || a.description).join(' ') + ' after ' + (network.at(-1)?.url.replace(/^.*\/api\//, '') || 'start'));
@@ -185,7 +197,7 @@ try {
   };
   const { targetId } = await call('Target.createTarget', { url: 'about:blank' }, null);
   session = (await call('Target.attachToTarget', { targetId, flatten: true }, null)).sessionId;
-  await call('Runtime.enable'); await call('Page.enable'); await call('Network.enable');
+  await call('Runtime.enable'); await call('Page.enable'); await call('Network.enable');await call('Log.enable');
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   await call('Page.navigate', { url: `${web}/portfolio/accounts` });
   await wait(`document.querySelector('[name=username]')`);
@@ -198,13 +210,13 @@ try {
   assert.deepEqual(await evaluate(`({local:Object.keys(localStorage),session:Object.keys(sessionStorage)})`), { local: [], session: [] });
   check('HttpOnly cookie not exposed; no localStorage/sessionStorage bearer or auth data');
   if(reviewMode.diagnosticOnly){
-    console.log(`DIAGNOSTIC ONLY: ${reviewMode.companyOnly?'company stock journey':reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'review journeys'}; prior137 journey coverage is absent. Full acceptance requires all diagnostic modes0 and all19 flags.`);
+    console.log(`DIAGNOSTIC ONLY: ${reviewMode.companyOnly?'company stock journey and any explicitly selected trace':reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'review journeys'}; prior137 journey coverage is absent. Full acceptance requires all diagnostic modes0 and all20 flags.`);
     const cookie=(await call('Network.getCookies',{urls:[web]})).cookies.find(row=>row.name==='portfolio_session');
     assert.ok(cookie?.httpOnly);
     const headers={origin:web,'content-type':'application/json',cookie:`portfolio_session=${cookie.value}`};
     if(reviewMode.textProbeOnly)await runTextProbe({db,headers});else await runReviewJourneys({db,headers});
     assert.deepEqual(exceptions,[]);assert.deepEqual(consoleErrors,[]);
-    await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp with marker-validated owned canonical business clock',prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:reviewMode.companyOnly?['supplemental one-generation company stock; prerequisite HTTP producer setup']:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:['canonical E01','supplemental internal execution','operator/source selectors'],checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
+    await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp with marker-validated owned canonical business clock',prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:reviewMode.companyOnly?['supplemental one-generation company stock; prerequisite HTTP producer setup',...(reviewMode.companyTrace?['readonly unit trace; staged actual HTTP fixture']:[])]:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:['canonical E01','supplemental internal execution','operator/source selectors',...(reviewMode.companyTrace?['readonly unit trace; staged actual HTTP fixture']:[])],checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
     console.log(JSON.stringify({diagnosticOnly:true,fullAcceptance:false,passed:checks.length,exceptions:exceptions.length,consoleErrors:consoleErrors.length,evidence,resultsFile:reviewMode.resultsFile}));
   }else{
   await fill('name', 'Synthetic browser account'); await click('Create account');
@@ -293,10 +305,22 @@ try {
   await click('Refresh record'); await wait(`document.body.innerText.includes('Access denied')`); await screenshot('12-quote-forbidden');
   await db.collection('memberships').updateOne({_id:commercialMembership._id},{$set:{roles:commercialMembership.roles}});
   await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: Order created')`);
-  await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1});
-  await click('Refresh record'); await wait(`document.body.innerText.includes('Check the connection and retry')`); await screenshot('13-quote-offline');
-  await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
-  await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: Order created')`);
+  const quoteURL=`${web}/portfolio-api/api/commercial/quotes/${quoteId}`,quoteExpected={_id:quoteId,version:quote.version,status:'CONVERTED',orderId};
+  quoteRecoveryEvidence={expected:quoteExpected,events:[],commands:[],clicks:[],completed:false};
+  const recoveryState=()=>evaluate(`(${quoteRecoveryDOMState.toString()})()`),stamp=()=>new Date().toISOString(),quoteRequestIds=new Set();
+  const recordQuoteNetwork=event=>{const p=event.params;if(!p)return;if(event.method==='Network.requestWillBeSent'&&p.request.method==='GET'&&p.request.url===quoteURL)quoteRequestIds.add(p.requestId);if(!quoteRequestIds.has(p.requestId)||!['Network.requestWillBeSent','Network.responseReceived','Network.loadingFinished','Network.loadingFailed'].includes(event.method))return;quoteRecoveryEvidence.events.push({method:event.method,requestId:p.requestId,receivedUTC:stamp(),timestamp:p.timestamp,wallTime:p.wallTime,status:p.response?.status,errorText:p.errorText,canceled:p.canceled,initiator:p.initiator?.type});};
+  const quoteSubscribe=listener=>{listeners.add(listener);return()=>listeners.delete(listener);};listeners.add(recordQuoteNetwork);
+  const emulateQuoteNetwork=async offline=>{quoteRecoveryEvidence.commands.push({phase:'before',offline,utc:stamp(),state:await recoveryState()});await call('Network.emulateNetworkConditions',{offline,latency:0,downloadThroughput:-1,uploadThroughput:-1});quoteRecoveryEvidence.commands.push({phase:'ack',offline,utc:stamp(),state:await recoveryState()});if(!offline)await wait('navigator.onLine===true','browser reports online before quote retry');quoteRecoveryEvidence.commands.push({phase:offline?'browser-state-observed':'browser-online-ready',offline,utc:stamp(),state:await recoveryState()});};
+  const clickQuoteRoot=async(failure,label)=>{const selector=failure?'#portfolio-content > .pf-error[role="alert"] > button':'#portfolio-content > section.pf-panel > button';await wait(`[...document.querySelectorAll(${JSON.stringify(selector)})].some(button=>button.textContent.trim()===${JSON.stringify(label)}&&!button.disabled)`,'exact enabled quote root button');const target=await evaluate(`(async()=>{const button=[...document.querySelectorAll(${JSON.stringify(selector)})].find(button=>button.textContent.trim()===${JSON.stringify(label)}&&!button.disabled);button.scrollIntoView({block:'center',behavior:'instant'});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));if(!button.isConnected)throw Error('Quote root changed before click');const r=button.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,button:button.textContent.trim(),scope:${JSON.stringify(failure?'top-level Resource failure':'quote primary record')},state:(${quoteRecoveryDOMState.toString()})()}})()`);quoteRecoveryEvidence.clicks.push({utc:stamp(),...target});await call('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,x:target.x,y:target.y});await call('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,x:target.x,y:target.y});};
+  try {
+    await emulateQuoteNetwork(true);
+    const offlineRead=observeOfflineQuoteRead({subscribe:quoteSubscribe,url:quoteURL});
+    try {await clickQuoteRoot(false,'Refresh record');quoteRecoveryEvidence.offline=await offlineRead.response;await wait(`(${isOfflineQuoteRoot.toString()})((${quoteRecoveryDOMState.toString()})(),${JSON.stringify(quoteId)})`,'new exact offline quote GET and top-level Resource failure');quoteRecoveryEvidence.offlineDOM=await recoveryState();}finally{offlineRead.close();}
+    await screenshot('13-quote-offline');
+    await emulateQuoteNetwork(false);
+    const onlineRead=observeTraceRead({subscribe:quoteSubscribe,call,url:quoteURL});
+    try {await clickQuoteRoot(true,'Refresh and retry');const fresh=await onlineRead.response;for(const [key,value]of Object.entries(quoteExpected))assert.equal(fresh.data[key],value,`Recovered quote ${key}`);await evaluate('(async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})()');await wait(`(${isRecoveredQuoteRoot.toString()})((${quoteRecoveryDOMState.toString()})(),${JSON.stringify(quoteExpected)})`,'fresh completed converted quote response and settled root');quoteRecoveryEvidence.online={requestId:fresh.requestId,status:fresh.status,attempts:fresh.attempts,observed:{_id:fresh.data._id,version:fresh.data.version,status:fresh.data.status,orderId:fresh.data.orderId}};quoteRecoveryEvidence.onlineDOM=await recoveryState();assert.equal(isRecoveredQuoteRoot(quoteRecoveryEvidence.onlineDOM,quoteExpected),true);quoteRecoveryEvidence.completed=true;}finally{onlineRead.close();}
+  } finally {listeners.delete(recordQuoteNetwork);quoteRecoveryEvidence.finalState=await recoveryState().catch(error=>({error:String(error)}));await writeFile(join(evidence,'quote-offline-recovery.json'),JSON.stringify(quoteRecoveryEvidence,null,2));}
   check('real quote exact strings, immutable revision, real 409, approval/acceptance/conversion, independent Mongo SO snapshot/outbox and detail; commercial forbidden/offline recovery');
   await procurementJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers });
   await warehouseJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers });
@@ -381,14 +405,20 @@ try {
   console.log(JSON.stringify({ passed: checks.length, exceptions: exceptions.length, consoleErrors: consoleErrors.length, evidence }));
   }
 } catch (error) {
-  await writeFile(join(evidence, 'failure-diagnostics.json'), JSON.stringify({ diagnosticOnly:reviewMode.diagnosticOnly,fullAcceptance:false,error:String(error), checks, exceptions, consoleErrors, network, networkFailures }, null, 2));
+  try {
+  const transportFailure=await transportTelemetry.failure(vite?.httpServer);
+  try{if(ws?.readyState===1&&session){const page=await sendCdp('Runtime.evaluate',{expression:'({href:location.href,readyState:document.readyState,online:navigator.onLine,timeOrigin:performance.timeOrigin,title:document.title,text:document.body?.innerText.slice(0,4000)})',returnByValue:true},session,1500);transportFailure.page=page.exceptionDetails?{error:page.exceptionDetails}:page.result?.value;}else transportFailure.page={unavailable:'Browser session not attached'};}catch(diagnosticError){transportFailure.page={error:String(diagnosticError)};}
+  await writeFile(join(evidence,'web-transport-failure.json'),JSON.stringify(transportFailure,null,2));
+  }catch(diagnosticError){console.warn('Transport failure diagnostics unavailable:',String(diagnosticError));}
+  await writeFile(join(evidence, 'failure-diagnostics.json'), JSON.stringify({ diagnosticOnly:reviewMode.diagnosticOnly,fullAcceptance:false,error:String(error), checks, exceptions, consoleErrors, network, networkFailures,quoteRecoveryEvidence }, null, 2));
   if (ws?.readyState === 1 && session) await screenshot('failure').catch(() => {});
-  console.log(JSON.stringify({ exceptions, consoleErrors, network }));
+  console.log(JSON.stringify({ exceptions, consoleErrors, network, networkFailures }));
   throw error;
 } finally {
   if (ws?.readyState === 1) { try { await call('Browser.close', {}, null); } catch {} ws.close(); }
   if (chrome?.exitCode === null) chrome.kill();
-  if (vite) await vite.close();
+  if (vite) {transportTelemetry.command('before','OwnedVite.close',{});await vite.close();transportTelemetry.command('ack','OwnedVite.close',{});}
+  await writeFile(join(evidence,'web-transport-lifecycle.json'),JSON.stringify(transportTelemetry.snapshot(vite?.httpServer),null,2)).catch(error=>console.warn('Transport lifecycle diagnostics unavailable:',String(error)));
   if (api) await new Promise(r => api.close(r));
   if (independent) await independent.close();
   if (runtime) { assert.ok(await runtime.db.collection('ownedRun').findOne({ _id: marker })); await runtime.db.dropDatabase(); await runtime.client.close(); }

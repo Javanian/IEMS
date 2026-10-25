@@ -1,0 +1,9 @@
+id,master_mapping,status,deliverable
+TRACE-01,P027,LOCAL_PASS,Exact unit ancestry from immutable production and attribution evidence
+TRACE-02,P027|P029,LOCAL_PASS,Reverse actual use and candidate affected outputs with loss and abandoned evidence separated
+TRACE-03,P029|P040,LOCAL_PASS,Connected operator trace investigation with permission and recovery states
+TRACE-04,P042,LOCAL_PASS,Independent no-write corruption scope and bounded traversal proof plus native regression
+TRACE-LATER-05,K2B2-05,PLANNED,Shared manufactured graph write unique parent bounded cycles and reciprocal race acceptance
+TRACE-LATER-06,K2B2-06,PLANNED,Ancestor shipment closure and descendant evidence freezing
+TRACE-LATER-CUSTOMER,P015|P031,PLANNED,Authoritative commercial item entitlement and company stock dispatch
+TRACE-F5,P042,BLOCKED,Revocation-preserving authorization contention optimization remains separate

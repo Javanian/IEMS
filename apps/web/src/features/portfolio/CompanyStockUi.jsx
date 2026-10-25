@@ -5,6 +5,7 @@ import { CatalogCommand, CatalogRead } from './CatalogControls.jsx';
 import { AuditDetails, OperatorBlockers } from './OperatorUi.jsx';
 import { displayReference, operatorStatus } from './operator.mjs';
 import { companyStockBase, companyStockCommand, companyStockHint, companyStockOptionsPath, companyStockRestriction, companyStockVersionMatches, companyUnitId, currentCompanyStock } from './company-stock.mjs';
+import { CompanyStockTrace } from './CompanyStockTraceUi.jsx';
 
 export function CompanyUnitSelect({ name = 'companyUnitIds', label = 'Actual available manufactured units', units }) {
   return <label className="pf-field">{label}<select name={name} multiple size={Math.max(2, Math.min(6, units.length))}>{units.map(unit => <option key={companyUnitId(unit)} value={companyUnitId(unit)}>{unit.serial}</option>)}</select></label>;
@@ -52,14 +53,15 @@ export function CompanyStockPanel({ source,locked,setLocked,onSaved }) {
     <h2>Company output stock receipt</h2><CompanyStockEvidence source={source} />
     <p>Company output stock is unvalued. A component issue uses its actual manufactured identity; embodied raw material is not consumed again. Customer dispatch and installation are unavailable.</p>
     <h3>Directly consumed purchased receipts</h3><ReceiptLinks ids={source.consumedReceiptIds} />
-    {source.consumedAncestryReceiptIds && <><h3>Embodied purchased receipt ancestry</h3><ReceiptLinks ids={source.consumedAncestryReceiptIds} /></>}
+    {source.consumedAncestryReceiptIds && <><h3>Consumed producer-batch purchased receipts (hold scope)</h3><ReceiptLinks ids={source.consumedAncestryReceiptIds} /></>}
+    <CatalogRead action="company.stock.read"><CompanyStockTrace key={source._id} source={source} locked={locked} /></CatalogRead>
     <CatalogRead action="company.stock.read">
       {!source.hold?.active ? <CatalogCommand {...props} title="Apply company stock hold" action="company.stock.hold" path={`${companyStockBase}/${source._id}/holds`} build={(values,key) => companyStockCommand(source,values,key)}><label className="pf-field">Hold reason<select name="reasonCode"><option value="QUALITY_SUSPECT">Quality suspect</option><option value="TRACE_REVIEW">Trace review</option></select></label><p>A hold blocks fresh component use. Existing custody and historical consumption stay recorded.</p></CatalogCommand> : <CatalogCommand {...props} title="Release company stock hold" action="company.stock.release" path={`${companyStockBase}/${source._id}/holds/release`} build={(values,key) => companyStockCommand(source,values,key,true)}><p>Release this recorded hold after reviewing the source. This does not restore consumed units or permit further reuse of final output.</p></CatalogCommand>}
       <CompanyStockHistory key={source.version} source={source} locked={locked} />
     </CatalogRead>
   </section>;
 }
-function ReceiptLinks({ ids }) { return <ul className="pf-list">{(ids || []).map(id => <li key={id}><Link to={`/portfolio/catalog-disposition/receipts/${id}`}>{displayReference('receipts',id)}</Link></li>)}</ul>; }
+function ReceiptLinks({ ids }) { const identity=useContext(IdentityContext),read=identity?.permissions?.includes('catalog.qc.read');return <ul className="pf-list">{(ids || []).map(id => <li key={id}>{read ? <Link to={`/portfolio/catalog-disposition/receipts/${id}`}>{displayReference('receipts',id)}</Link> : <span>{displayReference('receipts',id)}</span>}</li>)}</ul>; }
 function CompanyStockHistory({ source,locked }) {
   const [cursor,setCursor] = useState(''), resource = useResource(`${companyStockBase}/${source._id}/events?limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
   return <section><h3>Company stock history</h3><button type="button" disabled={!!locked} onClick={resource.reload}>Refresh company stock history</button><Resource resource={resource}>{({ data,page }) => <>{!data.length ? <p>No company stock use events recorded.</p> : <ul className="pf-list">{data.map(row => <li key={row._id}><strong>{operatorStatus(row.kind)}</strong><p>{row.reason}</p><AuditDetails action="company.stock.read"><pre>{JSON.stringify(row,null,2)}</pre></AuditDetails></li>)}</ul>}<div className="pf-actions">{cursor && <button type="button" disabled={!!locked} onClick={()=>setCursor('')}>First company stock history page</button>}{page?.nextCursor && <button type="button" disabled={!!locked} onClick={()=>setCursor(page.nextCursor)}>Next company stock history page</button>}</div></>}</Resource></section>;

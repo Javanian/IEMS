@@ -5,6 +5,7 @@ import { validateInventoryItemAuthority, requireQualifiedCompanyLocation, requir
 import { catalogStockContext } from './catalog-stock.mjs';
 import { validateCompanyStockUse, companyStockInvalid, companySourceSnapshot } from './company-stock-state.mjs';
 import { stockHash as hash, stockHashless as hashless, stockSemantic as semantic, stockUnits as units, stockDecimal as decimal } from './catalog-stock-use-state.mjs';
+import { initializeCompanyStockTrace, buildCompanyUnitTrace } from './company-stock-trace.mjs';
 
 export const companyStockActions = ['company.stock.read', 'company.stock.reserve', 'company.stock.issue', 'company.stock.hold', 'company.stock.release'];
 export const companyStockRoles = Object.fromEntries([['Reader', 'read'], ['Reserver', 'reserve'], ['Issuer', 'issue'], ['Holder', 'hold'], ['Releaser', 'release']].map(([name, action]) => [`companyStock${name}`, [...new Set(['company.stock.read', `company.stock.${action}`])]]));
@@ -71,6 +72,7 @@ export async function writeCompanyReservation(db, filter, context, reservation, 
   await saveUse(db, filter, context, actor, reason, row.status, session); return row;
 }
 export async function initializeCompanyStock(db) {
+  await initializeCompanyStockTrace(db);
   for (const [name, keys] of [['companyStockUseHeads', { tenantId: 1, plantId: 1, companyReceiptId: 1 }], ['companyStockUseUnits', { tenantId: 1, plantId: 1, companyUnitId: 1 }], ['companyStockUseEvents', { tenantId: 1, plantId: 1, companyReceiptId: 1, version: 1 }], ['companyMaterialReservationRevisions', { tenantId: 1, plantId: 1, reservationId: 1, version: 1 }], ['companyMaterialIssues', { tenantId: 1, plantId: 1, reservationId: 1 }], ['companyMaterialConsumptions', { tenantId: 1, plantId: 1, reservationId: 1 }], ['companyStockKeys', { tenantId: 1, plantId: 1, key: 1 }]]) await db.collection(name).createIndex(keys, { unique: true });
   for (const name of ['companyStockUseUnits', 'companyStockUseEvents', 'companyMaterialReservations', 'companyMaterialReservationRevisions', 'companyMaterialIssues', 'companyMaterialConsumptions', 'companyStockKeys', 'companyStockAudit', 'companyStockOutbox']) await db.collection(name).createIndex({ tenantId: 1, plantId: 1, companyReceiptId: 1 });
   await db.collection('internalCompanyStockReceipts').createIndex({ tenantId: 1, plantId: 1, itemId: 1, itemRevision: 1, _id: 1 });
@@ -81,6 +83,19 @@ export function installCompanyStock(app, runtime, { guard, fields, id }) {
   const read = async effect => { const session = runtime.client.startSession(); try { return await session.withTransaction(() => effect(session), { readConcern: { level: 'snapshot' }, readPreference: 'primary' }); } finally { await session.endSession(); } };
   app.get(root, async (req, res) => { const limit = req.query.limit === undefined ? 25 : Number(req.query.limit), cursor = req.query.cursor === undefined ? null : id(req.query.cursor), itemId = req.query.itemId === undefined ? null : id(req.query.itemId), itemRevision = req.query.itemRevision === undefined ? null : Number(req.query.itemRevision); if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 || (itemRevision !== null && (!Number.isSafeInteger(itemRevision) || itemRevision < 1 || !/^[1-9][0-9]*$/.test(req.query.itemRevision)))) fail(400, 'INVALID_PAGINATION'); res.json(await read(async session => { const rows = await db.collection('internalCompanyStockReceipts').find({ ...req.filter, ...(itemId ? { itemId } : {}), ...(itemRevision ? { itemRevision } : {}), ...(cursor ? { _id: { $gt: cursor } } : {}) }, { session }).sort({ _id: 1 }).limit(limit + 1).toArray(), data = []; for (const row of rows.slice(0, limit)) data.push(companyStockView(await companyStockContext(db, req.filter, row._id, session))); return { data, page: { limit, nextCursor: rows.length > limit ? rows[limit - 1]._id : null } }; })); });
   app.get(`${root}/:id`, async (req, res) => res.json({ data: await read(async session => companyStockView(await companyStockContext(db, req.filter, id(req.params.id), session))) }));
+  app.get(`${root}/:id/units/:unitId/trace`, async (req, res) => {
+    if (req.body && Object.keys(req.body).length) fail(400, 'INVALID_FIELDS');
+    const receiptId = id(req.params.id), unitId = id(req.params.unitId);
+    try {
+      const data = await read(async session => buildCompanyUnitTrace(db, req.filter,
+        await companyStockContext(db, req.filter, receiptId, session), unitId, session,
+        sourceId => companyStockContext(db, req.filter, sourceId, session)));
+      res.json({ data });
+    } catch (error) {
+      if (error instanceof TypeError || error instanceof RangeError) companyStockInvalid();
+      throw error;
+    }
+  });
   app.get(`${root}/:id/events`, async (req, res) => { const limit = req.query.limit === undefined ? 25 : Number(req.query.limit), cursor = req.query.cursor === undefined ? null : id(req.query.cursor); if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) fail(400, 'INVALID_PAGINATION'); res.json(await read(async session => { await companyStockContext(db, req.filter, id(req.params.id), session); const rows = await db.collection('companyStockUseEvents').find({ ...req.filter, companyReceiptId: req.params.id, ...(cursor ? { _id: { $gt: cursor } } : {}) }, { session }).sort({ _id: 1 }).limit(limit + 1).toArray(); return { data: rows.slice(0, limit), page: { limit, nextCursor: rows.length > limit ? rows[limit - 1]._id : null } }; })); });
   for (const action of ['hold', 'release']) app.post(`${root}/:id/holds${action === 'release' ? '/release' : ''}`, async (req, res) => {
     fields(req.body, ['expectedVersion', 'reason', 'idempotencyKey', ...(action === 'hold' ? ['reasonCode'] : ['expectedHoldId'])]); id(req.params.id); const body = req.body, key = body.idempotencyKey; if (!Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 1) fail(400, 'INVALID_VERSION'); if (typeof body.reason !== 'string' || body.reason.trim().length < 3 || body.reason.trim().length > 500) fail(400, 'INVALID_REASON'); if (typeof key !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(key)) fail(400, 'INVALID_IDEMPOTENCY_KEY'); if (action === 'hold' ? !['QUALITY_SUSPECT', 'TRACE_REVIEW'].includes(body.reasonCode) : !body.expectedHoldId) fail(400, 'INVALID_HOLD'); if (action === 'release') id(body.expectedHoldId);
