@@ -1,5 +1,11 @@
 # Owned portfolio CRM API
 
+## K2b2a inventory authority and internal planning
+
+Separate item revisions, company-location qualification and internal production orders establish planning evidence without customer orders. Only a current approved MANUFACTURED item revision and a qualified company location can authorize an internal plan. Engineering freezes exact typed item requirements and routing; APPROVED_DEMAND remains planning approval, with execution NOT_IMPLEMENTED and canExecute false. No execution WO, output serial, stock availability, shipment or financial entitlement is created.
+
+Read the [K2b2a contract](../../checkpoints/wave4k2b2a/CONTRACT.md) and [continuation plan](../../checkpoints/wave4k2b2a/DEVELOPMENT-PLAN.md). Source-item mapping, actual input issue/execution/QC/company-stock receipt, manufactured graphs, replacement, POD and full E01 remain later gates.
+
 ## K2b1 received component installation
 
 New WOs can opt in with `installationRequired` alongside serialized output, lot genealogy and received serial custody. Operators explicitly bind already-consumed received identities to outputs from the same WO, record process-loss identities, and finalize exact identity and lot reconciliation. Source inventory stays CONSUMED. Removal permanently quarantines the installation disposition and leaves the parent incomplete. First shipment freezes the entire finalized installation revision; shipment sources, movements and units retain its immutable pointer.

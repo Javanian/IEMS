@@ -10,8 +10,11 @@ import { installFulfillment, initializeFulfillment, fulfillmentRoles, fulfillmen
 import { installCustomerService, initializeCustomerService, customerServiceRoles, customerServiceOwnerActions } from './customer-service.mjs';
 import { installRepair, initializeRepair, repairRoles, repairActions } from './repair.mjs';
 import { installDocuments, initializeDocuments, documentRoles, documentActions } from './documents.mjs';
+import { initializeInternalPlanning, installInternalPlanning, internalPlanningActions, internalPlanningRoles } from './internal-production.mjs';
 Object.assign(roleActions, documentRoles, repairRoles, procurementRoles, warehouseRoles, manufacturingRoles, fulfillmentRoles, customerServiceRoles);
+Object.assign(roleActions, internalPlanningRoles);
 roleActions.owner.push(...documentActions, ...repairActions, ...procurementActions, ...warehouseActions, ...manufacturingActions, ...fulfillmentActions, ...customerServiceOwnerActions);
+roleActions.owner.push(...internalPlanningActions);
 const scrypt = promisify(scryptCallback);
 const actions = ['crm.read', 'crm.write'];
 export const fail = (status, code, message = code) => { throw Object.assign(new Error(message), { status, code }); };
@@ -24,6 +27,7 @@ export async function initialize({ client, db, customerService = {} }) {
   await initializeProcurement(db);
   await initializeWarehouse(db);
   await initializeManufacturing(db);
+  await initializeInternalPlanning(db);
   await initializeRepair(db);
   await initializeFulfillment(db);
   await db.collection('credentials').createIndex({ username: 1 }, { unique: true });
@@ -114,6 +118,7 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   installProcurement(app, runtime, { fail, guard, id, fields });
   installWarehouse(app, runtime, { fail, guard, id, fields });
   installManufacturing(app, runtime, { fail, guard, id, fields });
+  installInternalPlanning(app, runtime, { fail, guard, id, fields });
   installRepair(app, runtime, { fail, guard, id, fields });
   installFulfillment(app, runtime, { fail, guard, id, fields });
   installCustomerService(app, runtime, { fail, id, fields });
