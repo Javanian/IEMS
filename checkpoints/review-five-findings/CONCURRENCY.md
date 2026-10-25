@@ -108,3 +108,37 @@ Resume retained1262 cold/warm commands and120 separately reported warmup command
 Combined evidence joins the original62 complete cells with3 new complete cells:65/96 complete,1 partial and30 wholly untested. It retains26062 cold/warm commands,2600 warmup,24937 successes,1125 expected same-resource conflicts, zero unexpected errors,68587 callback retries/write conflicts and69712 abort commands. Those totals include the62 partial cold commands; they do not count that repetition as complete. CS different-plants C8 capacity remains unproven. Existing same-plant contention and the safe authority optimization/retest gate remain open, so F5 stays BLOCKED.
 
 New external evidence directory: `performance-baseline-resume-attempt2/`, containing `benchmark-attempt2.jsonl`, `benchmark-attempt2.exit.json`, `selection.json`, environment/source manifests, individual phase samples, `effect-checks.jsonl` and `summary.json`. Its `combined-baseline-summary.json` retains both attempts' per-cell rows and full IDs, labels the aggregation `COMBINED_BASELINE_NOT_OPTIMIZATION`, and preserves original guard history. No raw results were committed. The heavy token was released immediately after normal teardown; a subsequent heavy owner must check then-current resources independently.
+
+## Executed baseline resume attempt3
+
+A new exclusive window remeasured current resources rather than treating attempt2's observation as permanent. Preflight found3.180GiB free RAM and43.55% host CPU; the benchmark environment recorded3.163GiB initially. The unchanged selector selected exactly30 wholly UNTESTED IDs from attempt2's summary. CS different-plants C8 repetition1 already had62 cold samples, so it was excluded and its original partial evidence remains intact. No completed cell was rerun.
+
+The executed command used the same harness and paired inputs below. `$baselineRoot` and `$evidenceRoot` are operator-supplied local paths; the baseline must be the clean54a7 checkout and evidence must remain external. The prior summary hash was `e17b1098e223225d03b116fb87a833b5b7354b53291aa866ef6e784f9829a1b1`.
+
+```powershell
+$env:IEMS_BENCH_SOURCE = $baselineRoot
+$env:IEMS_BENCH_EXPECTED_SHA = '54a7e6db5fb1cfc48252477ca872d700c8c650ee'
+$env:IEMS_BENCH_EVIDENCE = Join-Path $evidenceRoot 'performance-baseline-resume-attempt3'
+$env:IEMS_BENCH_RESUME_SUMMARY = Join-Path $evidenceRoot 'performance-baseline-resume-attempt2/summary.json'
+$prior = Get-Content -Raw -LiteralPath $env:IEMS_BENCH_RESUME_SUMMARY | ConvertFrom-Json
+$ids = @($prior.results | Where-Object state -eq 'UNTESTED' | ForEach-Object {
+  '{0}:{1}:{2}:{3}' -f $_.workload,$_.condition,$_.concurrency,$_.repetition
+})
+if ($ids.Count -ne 30) { throw 'Expected exactly30 wholly UNTESTED cells' }
+$env:IEMS_BENCH_CELL_IDS = ConvertTo-Json -Compress -InputObject $ids
+node checkpoints/review-five-findings/qa/concurrency-benchmark.mjs
+```
+
+Attempt3 ran from2026-10-25 06:58:40.370 to07:01:59.367 UTC,198.997seconds, exit0. Nine selected cells completed every200cold/40warmup/200warm phase: CS different-plants C8 repetitions2/3, CS different-tenants C1 and C4 repetitions1/2/3, and portfolio different-tenants C4 repetition3. All nine exact effect/key/audit reconciliations passed. The attempt retained3600 measured commands, all successful, and360 separate warmup commands; expected conflicts0, unexpected errors0, instrumentation errors0. Measured callback retries/write conflicts/aborts were5070 each; including warmup they were5547 each. These are repeated transaction attempts, not duplicate business effects.
+
+The two complete CS different-plants C8 warm repetitions contain400 samples: p50=201.89ms, p95=738.19ms, p99=956.87ms and28.54 successful commands/s. Their admission-queue p95 was6462.71ms and queue-inclusive response p95 was6729.60ms. This is2 complete repetitions plus the retained partial repetition1, not the required3 complete repetitions or a completed C8 target proof. No latency or throughput target changed after observation.
+
+The remaining21 selected cells were all C16 and stayed UNTESTED at their pre-cell guards. Their sampled free RAM was2.330–2.783GiB, below the unchanged3GiB requirement; their maximum sampled host CPU was30.18%. No running phase crossed the1.5GiB admission floor: minimum running-phase free RAM was2.564GiB. Measured-phase host CPU peaked64.21%, Node RSS346.96MiB and Mongo resident memory341MiB. No user process was stopped, no threshold was reduced and no incomplete cell was promoted.
+
+All879 files matched before/after again, with digest `8d64aa65cfc17015b8537e875f30d9020ca9a320950abe6448f8114cc0f3e121`; the baseline remained clean. Original summary hash `9d205e4ecb27640d3a454777f08604d4abf0a5af55be381ca4eb7895bc413a0b` and attempt2's hash above remain unchanged. Attempt3 summary hash is `75ede14b6562484fc56957fa639d2e1f5750c51710496bdcebf4ccf0f45b26e7`.
+
+Combined coverage is62+3+9=74/96 complete,1 partial and21 UNTESTED. All three attempts retain29662 measured commands plus2960 warmup,28537 measured successes,1125 expected same-resource conflicts and zero unexpected errors. Measured callback retries/write conflicts total73657 and abort commands74782; the62 partial cold commands remain included without counting their cell as complete. The external attempt3 `combined-baseline-summary.json` preserves every canonical cell ID and each attempt's original rows. Its kind remains `COMBINED_BASELINE_NOT_OPTIMIZATION`.
+
+A standalone targeted repeat with only `IEMS_BENCH_CELL_IDS` is unsupported: the frozen harness requires paired summary/IDs, and the selector rejects any cell already measured in any phase. No selector patch or bypass was made. The partial C8 repetition remains a capacity gap. Independently, measured material contention and the absence of an accepted proof-preserving authorization optimization/retest remain blockers, so F5 stays BLOCKED even if later resources permit more baseline measurements.
+
+External `performance-baseline-resume-attempt3/` retains stdout/exit, selection/prior hash, source manifests, phase samples, effect checks, summary and the combined report. Normal marker-verified database cleanup and owned-replica shutdown completed, with zero remaining mongod processes observed before token release. No production source or other checkpoint document was changed for this resume.

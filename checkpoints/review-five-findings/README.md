@@ -32,7 +32,7 @@ The separate typed catalog/internal-production browser journey runs reservation,
 Run independent correctness probes:
 
 ```powershell
-$env:IEMS_QA_EVIDENCE = Join-Path $env:TEMP 'iems-independent-evidence'
+$env:IEMS_QA_EVIDENCE = Join-Path $env:TEMP ('iems-independent-' + [guid]::NewGuid().ToString('N'))
 node --test --test-concurrency=1 checkpoints/review-five-findings/qa/authorization-ordering.test.mjs checkpoints/review-five-findings/qa/picker-search-authority.test.mjs checkpoints/review-five-findings/qa/internal-stock-execution.test.mjs checkpoints/review-five-findings/qa/delivery-evidence.test.mjs checkpoints/review-five-findings/qa/canonical-e01-review.test.mjs checkpoints/review-five-findings/qa/required-labor-proof.test.mjs
 ```
 
@@ -42,7 +42,7 @@ Connected browser reproduction, including prior regression journeys:
 foreach ($flag in @('PAGINATION','REPAIR','DOCUMENTS','WMS','ENGINEERING','LABOR','VAT','INQUIRY','LOT_SERIAL','GENEALOGY','SERIAL_CUSTODY','INSTALLATION','INTERNAL_PLANNING','CATALOG','CATALOG_QC','REVIEW_OPERATOR','INTERNAL_EXECUTION','REVIEW_E01')) {
   Set-Item -Path "Env:PORTFOLIO_$flag" -Value '1'
 }
-$env:PORTFOLIO_EVIDENCE_DIR = Join-Path $env:TEMP 'iems-review-browser-evidence'
+$env:PORTFOLIO_EVIDENCE_DIR = Join-Path $env:TEMP ('iems-review-browser-' + [guid]::NewGuid().ToString('N'))
 $env:PORTFOLIO_REVIEW_DEBUG_ONLY = '0'
 $env:PORTFOLIO_TEXT_DIAGNOSTIC_ONLY = '0'
 npm --prefix apps/web run test:portfolio:browser
