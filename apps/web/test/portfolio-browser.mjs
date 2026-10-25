@@ -43,6 +43,8 @@ import { catalogJourney } from './portfolio-wave4map-catalog-browser.mjs';
 import { catalogDispositionJourney } from './portfolio-wave4qc-catalog-disposition-browser.mjs';
 import { quoteEditorInquiryJourney } from './portfolio-wave4j-pr4-browser.mjs';
 import { responseLoss } from './portfolio-wave3d-transport.mjs';
+import { observeTraceRead } from './company-trace-readiness.mjs';
+import { observeOfflineQuoteRead,quoteRecoveryDOMState,isOfflineQuoteRoot,isRecoveredQuoteRoot } from './quote-offline-readiness.mjs';
 import { holdJourney } from './wave4f-holds-browser.mjs';
 import { csOnboardingJourney } from './wave4f-cs-browser.mjs';
 import { textEnlargementJourney } from './wave4f-text-browser.mjs';
@@ -68,6 +70,7 @@ let mongo, runtime, independent, api, vite, chrome, ws, session;
 const pending = new Map(), exceptions = [], consoleErrors = [], network = [], checks = [], layouts = [];
 const requests = new Map(), networkFailures = [];
 const listeners = new Set();
+let quoteRecoveryEvidence;
 const loseResponse = responseLoss({ call, subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener); } });
 let sequence = 0;
 async function sendCdp(method, params = {}, sessionId = session) {
@@ -295,10 +298,22 @@ try {
   await click('Refresh record'); await wait(`document.body.innerText.includes('Access denied')`); await screenshot('12-quote-forbidden');
   await db.collection('memberships').updateOne({_id:commercialMembership._id},{$set:{roles:commercialMembership.roles}});
   await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: Order created')`);
-  await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1});
-  await click('Refresh record'); await wait(`document.body.innerText.includes('Check the connection and retry')`); await screenshot('13-quote-offline');
-  await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
-  await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: Order created')`);
+  const quoteURL=`${web}/portfolio-api/api/commercial/quotes/${quoteId}`,quoteExpected={_id:quoteId,version:quote.version,status:'CONVERTED',orderId};
+  quoteRecoveryEvidence={expected:quoteExpected,events:[],commands:[],clicks:[],completed:false};
+  const recoveryState=()=>evaluate(`(${quoteRecoveryDOMState.toString()})()`),stamp=()=>new Date().toISOString(),quoteRequestIds=new Set();
+  const recordQuoteNetwork=event=>{const p=event.params;if(!p)return;if(event.method==='Network.requestWillBeSent'&&p.request.method==='GET'&&p.request.url===quoteURL)quoteRequestIds.add(p.requestId);if(!quoteRequestIds.has(p.requestId)||!['Network.requestWillBeSent','Network.responseReceived','Network.loadingFinished','Network.loadingFailed'].includes(event.method))return;quoteRecoveryEvidence.events.push({method:event.method,requestId:p.requestId,receivedUTC:stamp(),timestamp:p.timestamp,wallTime:p.wallTime,status:p.response?.status,errorText:p.errorText,canceled:p.canceled,initiator:p.initiator?.type});};
+  const quoteSubscribe=listener=>{listeners.add(listener);return()=>listeners.delete(listener);};listeners.add(recordQuoteNetwork);
+  const emulateQuoteNetwork=async offline=>{quoteRecoveryEvidence.commands.push({phase:'before',offline,utc:stamp(),state:await recoveryState()});await call('Network.emulateNetworkConditions',{offline,latency:0,downloadThroughput:-1,uploadThroughput:-1});quoteRecoveryEvidence.commands.push({phase:'ack',offline,utc:stamp(),state:await recoveryState()});if(!offline)await wait('navigator.onLine===true','browser reports online before quote retry');quoteRecoveryEvidence.commands.push({phase:offline?'browser-state-observed':'browser-online-ready',offline,utc:stamp(),state:await recoveryState()});};
+  const clickQuoteRoot=async(failure,label)=>{const selector=failure?'#portfolio-content > .pf-error[role="alert"] > button':'#portfolio-content > section.pf-panel > button';await wait(`[...document.querySelectorAll(${JSON.stringify(selector)})].some(button=>button.textContent.trim()===${JSON.stringify(label)}&&!button.disabled)`,'exact enabled quote root button');const target=await evaluate(`(async()=>{const button=[...document.querySelectorAll(${JSON.stringify(selector)})].find(button=>button.textContent.trim()===${JSON.stringify(label)}&&!button.disabled);button.scrollIntoView({block:'center',behavior:'instant'});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));if(!button.isConnected)throw Error('Quote root changed before click');const r=button.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,button:button.textContent.trim(),scope:${JSON.stringify(failure?'top-level Resource failure':'quote primary record')},state:(${quoteRecoveryDOMState.toString()})()}})()`);quoteRecoveryEvidence.clicks.push({utc:stamp(),...target});await call('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,x:target.x,y:target.y});await call('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,x:target.x,y:target.y});};
+  try {
+    await emulateQuoteNetwork(true);
+    const offlineRead=observeOfflineQuoteRead({subscribe:quoteSubscribe,url:quoteURL});
+    try {await clickQuoteRoot(false,'Refresh record');quoteRecoveryEvidence.offline=await offlineRead.response;await wait(`(${isOfflineQuoteRoot.toString()})((${quoteRecoveryDOMState.toString()})(),${JSON.stringify(quoteId)})`,'new exact offline quote GET and top-level Resource failure');quoteRecoveryEvidence.offlineDOM=await recoveryState();}finally{offlineRead.close();}
+    await screenshot('13-quote-offline');
+    await emulateQuoteNetwork(false);
+    const onlineRead=observeTraceRead({subscribe:quoteSubscribe,call,url:quoteURL});
+    try {await clickQuoteRoot(true,'Refresh and retry');const fresh=await onlineRead.response;for(const [key,value]of Object.entries(quoteExpected))assert.equal(fresh.data[key],value,`Recovered quote ${key}`);await evaluate('(async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})()');await wait(`(${isRecoveredQuoteRoot.toString()})((${quoteRecoveryDOMState.toString()})(),${JSON.stringify(quoteExpected)})`,'fresh completed converted quote response and settled root');quoteRecoveryEvidence.online={requestId:fresh.requestId,status:fresh.status,attempts:fresh.attempts,observed:{_id:fresh.data._id,version:fresh.data.version,status:fresh.data.status,orderId:fresh.data.orderId}};quoteRecoveryEvidence.onlineDOM=await recoveryState();assert.equal(isRecoveredQuoteRoot(quoteRecoveryEvidence.onlineDOM,quoteExpected),true);quoteRecoveryEvidence.completed=true;}finally{onlineRead.close();}
+  } finally {listeners.delete(recordQuoteNetwork);quoteRecoveryEvidence.finalState=await recoveryState().catch(error=>({error:String(error)}));await writeFile(join(evidence,'quote-offline-recovery.json'),JSON.stringify(quoteRecoveryEvidence,null,2));}
   check('real quote exact strings, immutable revision, real 409, approval/acceptance/conversion, independent Mongo SO snapshot/outbox and detail; commercial forbidden/offline recovery');
   await procurementJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers });
   await warehouseJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers });
@@ -383,7 +398,7 @@ try {
   console.log(JSON.stringify({ passed: checks.length, exceptions: exceptions.length, consoleErrors: consoleErrors.length, evidence }));
   }
 } catch (error) {
-  await writeFile(join(evidence, 'failure-diagnostics.json'), JSON.stringify({ diagnosticOnly:reviewMode.diagnosticOnly,fullAcceptance:false,error:String(error), checks, exceptions, consoleErrors, network, networkFailures }, null, 2));
+  await writeFile(join(evidence, 'failure-diagnostics.json'), JSON.stringify({ diagnosticOnly:reviewMode.diagnosticOnly,fullAcceptance:false,error:String(error), checks, exceptions, consoleErrors, network, networkFailures,quoteRecoveryEvidence }, null, 2));
   if (ws?.readyState === 1 && session) await screenshot('failure').catch(() => {});
   console.log(JSON.stringify({ exceptions, consoleErrors, network, networkFailures }));
   throw error;

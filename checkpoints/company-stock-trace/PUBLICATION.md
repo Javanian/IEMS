@@ -6,6 +6,8 @@ The local gates and source/import closure must pass before the checkpoint commit
 
 Final immutable commit identity, current-head checks and run links are attested in the stacked draft PR and external publication evidence. This file intentionally does not embed a future self-referential commit hash or call pending CI green. A same-head CI failure must retain its failure disposition even if a later attempt passes.
 
+The feature checkpoint ca854ad was published in draft PR14. Its first PR Portfolio run failed in the legacy quotation offline-recovery wait; its complete log and uploaded diagnostics are retained externally. A narrow test-harness follow-up must receive fresh local frontend/browser and exact-head remote acceptance. This is a new source revision, not a claim that the old failure was fixed by a same-source rerun. The historical request/emulation ordering remains unknown.
+
 The workflow now retains synthetic browser JSON/screenshots for seven days even after failure and prints collected network failures in failure stdout. This improves future observability. It does not establish a cause or a fix for the parent's historical browser reload failure.
 
 Raw TAP/logs, screenshots, PDFs and database files remain outside the commit. The source auditor includes the new checkpoint and every literal relative import in its scoped source manifest. A separate changed-content inspection checks raw-file and selected credential patterns; it is not a full history, entropy or personal-data certification.

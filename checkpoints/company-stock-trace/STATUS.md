@@ -2,7 +2,9 @@
 
 The bounded read-only P027/P029 investigation increment passed local acceptance. Operators can inspect exact unit ancestry and distinguish actual downstream output, loss, active claims and abandoned history. Existing stock eligibility and mutation permissions remain authoritative.
 
-Observed gates: owner7, independent9, maintained API285, frontend185, focused native10 and full normal browser156; production build passed. Full browser acceptance uses all20 journeys. TEST-RESULTS.md records the earlier failed focused attempts and verification boundaries.
+Observed gates: owner7, independent9, maintained API285, final frontend189, focused native10 and final full normal browser156; production build passed. Full browser acceptance uses all20 journeys. The harness follow-up changes only browser tests and checkpoint documentation; production/API sources are unchanged. TEST-RESULTS.md records the earlier failed focused attempts and verification boundaries.
+
+The first published PR Portfolio run failed at legacy quotation offline recovery. Its log and13 diagnostic files are retained. The follow-up binds one native retry to actual quotation request completion and the expected rendered record, and fixes an async wait bypass in test readiness. Fresh local frontend189/browser156 gates pass; historical request ordering and a unique cause remain unknown.
 
 Source/import closure and protection of the14 older worktrees and3 master-plan sources are required before commit. The final commit identity, ordinary push and exact-head remote checks are attested in the stacked draft PR and external evidence. They are pending at this source freeze.
 

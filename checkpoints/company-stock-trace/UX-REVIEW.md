@@ -79,3 +79,5 @@ Three observed issues are closed in the final frames: released reservation histo
 | R-31 reasons | PASS: layout follows the quality investigation; panels separate authority scopes; Audit contains technical proof |
 
 This gate does not establish screen-reader acceptance, physical kiosk hardware, every possible viewport/theme, production capacity or deployment. General graph/cycle writes, customer dispatch and F5 remain outside this increment. The whole integration is accepted only after the separate normal20/source/publication gates pass.
+
+The test-only readiness follow-up subsequently passed full normal20 with156 checks and repeated20 exact trace reads,9 phases and19 layouts with no measured overflow/contrast failures. The lead re-inspected the terminal ancestry and downstream360px frames; production UI is unchanged from the19-frame review above. Quotation recovery additionally records an exact completed offline read followed by one native retry, fresh expected200 body and matching root DOM. Remote acceptance remains a separate current-head gate.

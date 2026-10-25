@@ -42,7 +42,8 @@ export async function companyStockTraceJourney({db,call,wait,evaluate,screenshot
     const observed=observeTraceRead({subscribe,call,url});
     try {
       await action();const response=await observed.response;assert.equal(response.data.companyReceiptId,receiptId);assert.equal(response.data.companyUnitId,unitId);if(stockVersion!==undefined)assert.equal(response.data.current.stockVersion,stockVersion);
-      await ready(`(async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const panel=document.querySelector('${root}'),data=${auditScript};return !!panel?.querySelector('[data-trace-complete="true"]')&&!panel.querySelector('[role="alert"]')&&![...panel.querySelectorAll('[role="status"]')].some(x=>x.textContent.includes('Loading manufactured unit trace'))&&JSON.stringify(data)===${js(JSON.stringify(response.data))}})()`);
+      await checked('(async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})()');
+      await ready(`(()=>{const panel=document.querySelector('${root}'),data=${auditScript};return !!panel?.querySelector('[data-trace-complete="true"]')&&!panel.querySelector('[role="alert"]')&&![...panel.querySelectorAll('[role="status"]')].some(x=>x.textContent.includes('Loading manufactured unit trace'))&&JSON.stringify(data)===${js(JSON.stringify(response.data))}})()`);
       await traceReady(unitId,job);assert.deepEqual(await checked(auditScript),response.data);assert.equal(await checked(`document.querySelector('${formSelector} [name=traceUnitId]').selectedOptions[0].textContent`),response.data.serial);reads.push({requestId:response.requestId,status:response.status,attempts:response.attempts,companyUnitId:unitId,stockVersion:response.data.current.stockVersion,unitVersion:response.data.current.unitVersion,exactResponseMatch:true});
       return response.data;
     } finally {observed.close();}

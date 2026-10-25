@@ -11,6 +11,7 @@ Six actual `npm ci --no-audit --no-fund` installations completed successfully fo
 | Frontend1 | PASS179/179, 4.849s, exit0 | Seven new trace behavior tests; focused trace/mode12 also passed |
 | Frontend2 | PASS182/182, 4.343s, exit0 | Three initial fresh-read observer regressions; this preceded the lifecycle-cancellation repair |
 | Final frontend4 | PASS185/185, 4.260s, exit0 | Six observer regressions; focused trace/mode/observer18 also passed. Intermediate184 passed before independent review exposed an older-response fallback gap, which final4 closes |
+| Harness follow-up frontend | PASS189/189, 5.087s, exit0 | Four additional quotation recovery regressions; final runner/helper syntax passed; production/API source unchanged |
 | API syntax | PASS, exit0 | All maintained API source/test/script entry files |
 | Maintained API | PASS285/285, 658.126s, exit0, no skips |44 maintained files/62 top-level entries; actual regression, cleanup0mongod.32 nonfatal Mongo reset diagnostic blocks are retained in the full raw log |
 | Production web build1 | PASS, 21.531s command, exit0 |194 PWA entries; existing chunk/Browserslist warnings. Precedes the later label/spacing refinements |
@@ -18,9 +19,11 @@ Six actual `npm ci --no-audit --no-fund` installations completed successfully fo
 | Final production build2 | PASS, 19.547s command, exit0 |194 PWA entries; final label/spacing refinements; unchanged existing warnings |
 | Focused native2 | FAIL, 76.766s command, exit1 | The first fresh trace GET emitted canceled=true/ERR_ABORTED and the observer refused immediately; no trace screenshots or application exceptions/console errors. Initiator and successful replacement were not established by this attempt |
 | Final focused native3 | PASS10 named checks, 121.344s command, exit0 | Browser exceptions0/console errors0;20 exact completed-response/DOM matches,9 retained canceled candidates,9 real phases,19 layouts/pixels reviewed by lead and B; desktop44px/kiosk48px, no overflow/contrast failure, cleanup0mongod. DiagnosticOnly=true/fullAcceptance=false |
-| Full normal browser | PASS156 named checks, 471.750s command, exit0 | All20 flags enabled, all3 diagnostic modes0, customer service not skipped; current worktree UI explicitly selected; exceptions0/console errors0; cleanup0mongod |
+| Full normal browser1 | PASS156 named checks, 471.750s command, exit0 | All20 flags enabled, all3 diagnostic modes0, customer service not skipped; current worktree UI explicitly selected; exceptions0/console errors0; cleanup0mongod |
+| Final full normal browser2 | PASS156 named checks, 519.891s command, exit0 | Same normal20 configuration; exact offline/online quotation request and root DOM proof; strict synchronous trace readiness,20 response matches/9 phases/19 layouts.171 source hashes unchanged; exceptions0/console errors0; cleanup0mongod. One nonfatal Mongo reset diagnostic block retained |
 | Source closure/preservation | Required before commit | Final source/import audit and14 protected worktrees plus3 master sources are attested in external publication evidence |
-| Exact-head remote CI | PENDING PUBLICATION | Requires new commit and push |
+| Initial remote CI on ca854ad | PR Portfolio attempt1 FAIL after6 browser checks | Trace API and frontend steps passed. Legacy quotation offline recovery timed out; no application exceptions/console errors. Full log and13 uploaded diagnostic files retained; artifact ZIP digest verified |
+| Follow-up publication | Local gates PASS; remote PENDING | New source revision requires ordinary push and exact-head CI; final identity/run links belong in PR14 and external attestation |
 
 Required local gates:
 
@@ -38,3 +41,11 @@ python checkpoints/review-five-findings/audit-publication.py
 The native integration gate enables all twenty optional journeys in `.github/workflows/portfolio-vat.yml`, including COMPANY_STOCK_TRACE, and disables all three diagnostic-only modes. A focused company/trace diagnostic is useful during development but does not replace that full gate. Owner and independent fixtures are separately maintained; the native trace helper may reuse the independent fixture.
 
 Raw failed attempts are retained with their actual disposition. A green local run, commit, push and exact-head remote CI are separate outcomes. Historical F5 capacity contention and the broader PostgreSQL/platform migration remain outside this increment.
+
+## Initial remote browser failure
+
+PR Portfolio run40195949138 failed on ca854ad at the legacy quotation offline-recovery wait, before the trace screen journey. Both offline and final screenshots show the outer quotation resource error. Two quotation GETs report ERR_INTERNET_DISCONNECTED, but the historical collector did not retain request IDs, timestamps or emulation boundaries; their exact ordering and a unique cause remain unknown.
+
+Source review exposed an ambiguous readiness condition: the old wait accepts generic failure copy and the global retry locator can also match the nested customer lookup. The bounded follow-up binds the offline failure and online retry to actual quotation requests and the outer resource state. It must keep the existing conversion, quantity, snapshot, audit, outbox and exact-key assertions. It does not add business retries, change production request behavior or establish the cause of the historical failure.
+
+Review also found that an async two-frame predicate passed through the existing Boolean-based wait is truthy before its Promise resolves. The initial trace helper had that pattern; its following synchronous selected-unit/consumer checks, exact response-versus-audit equality and serial assertions still executed. Screenshot measurement used a separately awaited frame barrier. The follow-up separately awaits the frame barrier and then waits on the synchronous full-result/no-loading/no-alert predicate. The quotation candidate received the same correction during review before native execution. No prior failure or proof boundary is relabelled by this repair.
