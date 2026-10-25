@@ -15,6 +15,7 @@ on:
       - 'checkpoints/wave4k2b2a/**'
       - 'checkpoints/wave4map/**'
       - 'checkpoints/wave4qc/**'
+      - 'checkpoints/review-five-findings/**'
       - '.github/workflows/portfolio-vat.yml'
   pull_request:
     paths:
@@ -30,6 +31,7 @@ on:
       - 'checkpoints/wave4k2b2a/**'
       - 'checkpoints/wave4map/**'
       - 'checkpoints/wave4qc/**'
+      - 'checkpoints/review-five-findings/**'
       - '.github/workflows/portfolio-vat.yml'
 
 permissions:
@@ -43,12 +45,14 @@ jobs:
   vat:
     name: VAT API, PDF and connected browser
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       MONGOMS_DISABLE_POSTINSTALL: '1'
       MONGOMS_VERSION: '7.0.14'
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -71,7 +75,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - name: Audit publication manifest and imports
-        run: python checkpoints/wave4h/audit-publication.py checkpoints/wave4qc/SOURCE-MANIFEST.json
+        run: python checkpoints/review-five-findings/audit-publication.py
       - name: Validate API syntax
         run: npm --prefix apps/portfolio-api run check
       - name: Check renderer public types
@@ -94,6 +98,12 @@ jobs:
         run: node --test --test-concurrency=1 checkpoints/wave4map/qa/catalog-receipt-boundary.test.mjs
       - name: Test independent catalog QC and qualified putaway
         run: node --test --test-concurrency=1 checkpoints/wave4qc/qa/qc-putaway-authority.test.mjs
+      - name: Test independent authorization, stock, picker and delivery evidence
+        run: node --test --test-concurrency=1 checkpoints/review-five-findings/qa/authorization-ordering.test.mjs checkpoints/review-five-findings/qa/picker-search-authority.test.mjs checkpoints/review-five-findings/qa/internal-stock-execution.test.mjs checkpoints/review-five-findings/qa/delivery-evidence.test.mjs checkpoints/review-five-findings/qa/canonical-e01-review.test.mjs checkpoints/review-five-findings/qa/required-labor-proof.test.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-independent-evidence
+      - name: Test guarded benchmark resume selection
+        run: node --test checkpoints/review-five-findings/qa/benchmark-selection.test.mjs
       - name: Test connected browser workflow
         run: npm --prefix apps/web run test:portfolio:browser
         env:
@@ -112,5 +122,14 @@ jobs:
           PORTFOLIO_INTERNAL_PLANNING: '1'
           PORTFOLIO_CATALOG: '1'
           PORTFOLIO_CATALOG_QC: '1'
+          PORTFOLIO_REVIEW_OPERATOR: '1'
+          PORTFOLIO_INTERNAL_EXECUTION: '1'
+          PORTFOLIO_REVIEW_E01: '1'
+          PORTFOLIO_REVIEW_DEBUG_ONLY: '0'
+          PORTFOLIO_TEXT_DIAGNOSTIC_ONLY: '0'
+      - name: Test intentional module failure and native reload recovery
+        run: node checkpoints/review-five-findings/qa/module-fetch-recovery-browser.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-module-fetch-recovery
       - name: Test maintained API contract
         run: npm --prefix apps/portfolio-api test

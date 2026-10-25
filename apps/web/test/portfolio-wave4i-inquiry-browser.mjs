@@ -1,3 +1,4 @@
+import { waitForTechnicalDetails } from './browser-readiness.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
@@ -21,7 +22,7 @@ export async function inquiryJourney({ db, call, wait, click, fill, evaluate, sc
   await click('Add inquiry line');
   for (const [i, line] of source.entries()) for (const [field, value] of Object.entries(line)) { await wait(`document.querySelector('[aria-label="Save inquiry"] [name="${field}${i}"]:enabled')`); await fill(`${field}${i}`, value); }
   assert.equal(await evaluate('Boolean(document.querySelector("[name=unitPrice0]"))'), false);
-  await click('Save inquiry'); await wait('document.body.innerText.includes("Inquiry ID:")');
+  await click('Save inquiry'); await waitForTechnicalDetails({wait,evaluate},'Inquiry ID:');
   const id = await evaluate('location.pathname.split("/").at(-1)');
   let inquiry = await db.collection('inquiries').findOne({ _id: id });
   assert.equal(inquiry.accountId, account._id); assert.equal(inquiry.stage, 'DRAFT');
@@ -43,23 +44,23 @@ export async function inquiryJourney({ db, call, wait, click, fill, evaluate, sc
     await reload('document.querySelector("[role=alert]")?.innerText.includes("Access denied")');
     assert.deepEqual(await db.collection('inquiries').findOne({ _id: id }), beforeDenied);
   } finally { await db.collection('memberships').updateOne({ _id: member._id }, { $set: { roles: member.roles } }); }
-  await reload('document.body.innerText.includes("Stage: DRAFT")&&document.querySelector("[name=reason]")');
+  await reload('document.body.innerText.includes("Stage: Draft")&&document.querySelector("[name=reason]")');
   check('wave4i inquiry real membership revocation, denied refresh/hard reload, immutable persisted record and restored session');
   await api(`/commercial/inquiries/${id}/stage`, { expectedVersion: inquiry.version, toStage: 'SUBMITTED', reason: 'Synthetic submit inquiry', idempotencyKey: randomUUID() });
-  await fill('reason', 'Stale writer must not commit'); await click('Submit inquiry'); await wait('document.body.innerText.includes("Refresh the record")');
+  await fill('reason', 'Stale writer must not commit'); await click('Submit inquiry'); await waitForTechnicalDetails({wait,evaluate},'VERSION_CONFLICT');
   assert.equal((await db.collection('inquiries').findOne({ _id: id })).history.length, 1);
-  await click('Refresh record'); await wait('document.body.innerText.includes("Stage: SUBMITTED")&&document.querySelector("[name=reason]:enabled")');
+  await click('Refresh record'); await wait('document.body.innerText.includes("Stage: Submitted")&&document.querySelector("[name=reason]:enabled")');
   check('wave4i inquiry genuine stale second writer 409, no duplicate history and explicit current-record recovery');
   assert.equal(await evaluate('Boolean(document.querySelector("[name=quantity0]"))'), false);
   await fill('reason', 'Synthetic review inquiry');
   await evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent==='Start inquiry review');b.focus()})()`);
   assert.notEqual(await evaluate('getComputedStyle(document.activeElement).outlineStyle'), 'none');
   await call('Input.dispatchKeyEvent', { type: 'char', text: '\r', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-  await wait('document.body.innerText.includes("Stage: IN_REVIEW")');
+  await wait('document.body.innerText.includes("Stage: Under review")');
   inquiry = await db.collection('inquiries').findOne({ _id: id }); const frozen = structuredClone(inquiry.revisions);
   assert.deepEqual(inquiry.history.map(h => [h.from, h.to, h.reason]), [['DRAFT', 'SUBMITTED', 'Synthetic submit inquiry'], ['SUBMITTED', 'IN_REVIEW', 'Synthetic review inquiry']]);
   for (const h of inquiry.history) { assert.equal(h.actorId, credential._id); assert.ok(h.occurredAt instanceof Date); }
-  await reload('document.body.innerText.includes("Stage: IN_REVIEW")&&document.querySelector("[name=unitPrice0]")');
+  await reload('document.body.innerText.includes("Stage: Under review")&&document.querySelector("[name=unitPrice0]")');
   assert.ok(await evaluate('document.body.innerText.includes("Synthetic submit inquiry")&&document.body.innerText.includes("Synthetic review inquiry")'));
   assert.equal(await evaluate('Boolean(document.querySelector("[name=quantity0],[name=itemCode0],[name=drawingNumber0]"))'), false);
   await fill('expiresAt', '2027-01-01T00:00:00.000Z'); await fill('taxPolicy', 'FIXTURE_VAT_11_V1');
@@ -77,7 +78,7 @@ export async function inquiryJourney({ db, call, wait, click, fill, evaluate, sc
     assert.equal(await db.collection('quotes').countDocuments({ inquiryId: id }), 1);
   });
   await wait('document.body.innerText.includes("Retry same request")');
-  await click('Retry same request'); await wait('document.body.innerText.includes("Stage: QUOTED")');
+  await click('Retry same request'); await wait('document.body.innerText.includes("Stage: Quoted")');
   assert.equal((await api(`/commercial/inquiries/${id}`)).quoteId, (await db.collection('inquiries').findOne({ _id: id })).quoteId);
   assert.ok(loss.command.idempotencyKey);
   assert.deepEqual(await effectCounts(), committedCounts);
@@ -97,18 +98,18 @@ export async function inquiryJourney({ db, call, wait, click, fill, evaluate, sc
   };
   quote.revisions[0].lines.forEach(provenance);
   assert.deepEqual(quote.revisions[0].lines.map(l => l.quantity), ['10.000000', '1.250000']);
-  await click('Open converted quote'); await wait('document.body.innerText.includes("Quote ID:")&&document.querySelector("[name=unitPrice0]")');
+  await click('Open converted quote'); await waitForTechnicalDetails({wait,evaluate},'Quote ID:');await wait('document.querySelector("[name=unitPrice0]")');
   assert.equal(await evaluate('Boolean(document.querySelector("[name=quantity0],[name=description0],[name=uom0],[name=drawingRevision0]"))'), false);
   await fill('unitPrice0', '12000.00'); await click('Save commercial revision'); await wait('document.body.innerText.includes("Revision: 2")');
   quote = await db.collection('quotes').findOne({ _id: quote._id }); quote.revisions[1].lines.forEach(provenance);
   assert.equal(quote.revisions[1].lines[0].quantity, '10.000000');
-  await click('Approve revision'); await wait('document.body.innerText.includes("Status: APPROVED")'); await click('Record acceptance'); await wait('document.body.innerText.includes("Status: ACCEPTED")');
+  await click('Approve revision'); await wait('document.body.innerText.includes("Status: Approved")'); await click('Record acceptance'); await wait('document.body.innerText.includes("Status: Accepted")');
   await click('Convert to sales order'); await wait('document.querySelector("[data-order-id]")');
   const orderId = await evaluate('document.querySelector("[data-order-id]").dataset.orderId');
   const order = await db.collection('salesOrders').findOne({ _id: orderId }); order.snapshot.lines.forEach(provenance);
-  await click('Open sales order'); await wait('document.body.innerText.includes("Order ID:")');
-  await reload(`document.body.innerText.includes(${JSON.stringify(orderId)})&&document.body.innerText.includes("SYNTH-DWG-A")`);
-  await click('Open source inquiry'); await wait('document.body.innerText.includes("Stage: QUOTED")');
+  await click('Open sales order'); await waitForTechnicalDetails({wait,evaluate},'Order ID:');
+  await reload(`location.pathname.split('/').at(-1)===${JSON.stringify(orderId)}&&document.body.innerText.includes("SYNTH-DWG-A")`);
+  await click('Open source inquiry'); await wait('document.body.innerText.includes("Stage: Quoted")');
   check('wave4i inquiry stage/history hard reload, offline retained-key conversion, single quote, commercial-only revision, approval/SO frozen lineage and native source navigation');
   await screenshot('wave4i-inquiry-quoted');
 
@@ -138,7 +139,7 @@ export async function inquiryJourney({ db, call, wait, click, fill, evaluate, sc
   await fill('amount', invoice.grossAmount); await fill('reference', 'Synthetic Wave4i gross settlement'); await click('Allocate payment');
   await wait('document.querySelector(".pf-dl dd:last-child")?.textContent==="USD 0.00"');
   invoice = await db.collection('fulfillmentInvoices').findOne({ _id: invoice._id }); assert.equal(invoice.status, 'PAID'); invoice.lines.forEach(l => provenance(l, 0));
-  await reload('document.body.innerText.includes("PAID")&&document.body.innerText.includes("SYNTH-DWG-A")');
+  await reload('document.querySelector(".pf-summary .pf-status")?.textContent==="Paid"&&document.body.innerText.includes("SYNTH-DWG-A")');
   await call('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: downloadPath.replaceAll('/', '\\') });
   await click('Issue immutable PDF'); await wait('document.body.innerText.includes("Issued artifact loaded")');
   const intent = await db.collection('documentIntents').findOne({ kind: 'invoice', sourceId: invoice._id, sourceVersion: 1 });
@@ -160,7 +161,7 @@ export async function inquiryJourney({ db, call, wait, click, fill, evaluate, sc
   assert.equal(await db.collection('documentIntents').countDocuments({ kind: 'invoice', sourceId: invoice._id }), 1);
   check('wave4i sourced VAT invoice real Chrome issue/download, parsed exact net/tax/gross, SHA256 and immutable issuance replay');
   for (const width of [375, 768, 1280]) { await call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 600 }); await wait(`innerWidth===${width}`); assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'), false); await screenshot(`wave4i-invoice-${width}`); }
-  await click('Open source inquiry'); await wait('document.body.innerText.includes("Stage: QUOTED")');
+  await click('Open source inquiry'); await wait('document.body.innerText.includes("Stage: Quoted")');
   check('wave4i genuine upstream manufacture, native partial shipment/invoice/payment, independent exact VAT totals, persisted lineage, reload/source navigation and responsive widths');
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
 }

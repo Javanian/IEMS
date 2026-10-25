@@ -1,4 +1,5 @@
 import { randomUUID, createHash } from 'node:crypto';
+import { saveCatalogOptionProjection } from './catalog-option-index.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 
 export const procurementRoles = Object.fromEntries(['read', 'write', 'approve', 'convert', 'issue', 'confirm'].map(action => [`procurement${action[0].toUpperCase()}${action.slice(1)}`, [...new Set(['procurement.read', `procurement.${action}`])]]));
@@ -71,7 +72,7 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
   app.post('/api/procurement/vendors', async (req, res) => {
     fields(req.body, ['name']);
     if (typeof req.body.name !== 'string' || !req.body.name.trim() || req.body.name.length > 200) fail(400, 'INVALID_TEXT');
-    const data = await tx(req, 'vendor.created', async session => { const row = { ...base(req), name: req.body.name.trim() }; await c('vendors').insertOne(row, { session }); return row; });
+    const data = await tx(req, 'vendor.created', async session => { const row = { ...base(req), name: req.body.name.trim() }; await c('vendors').insertOne(row, { session }); await saveCatalogOptionProjection(runtime.db, 'vendors', row, session); return row; });
     res.status(201).json({ data });
   });
   app.post('/api/procurement/requests', async (req, res) => {

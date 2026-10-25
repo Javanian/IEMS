@@ -1,3 +1,4 @@
+import { waitForTechnicalDetails } from './browser-readiness.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { parseExpression } from '@babel/parser';
@@ -23,8 +24,8 @@ export async function genealogyJourney({ db, call, wait, click, fill, evaluate, 
   const api = async (path, body, extra) => { const response = await request(path, body, extra); assert.ok([200, 201].includes(response.status), `${path}: ${JSON.stringify(response)}`); return response.data; };
   const navigate = async (path, expression) => { await call('Page.navigate', { url:`${process.env.PORTFOLIO_WEB_ORIGIN}/portfolio/${path}` }); await ready(expression); };
   const base = id => `/manufacturing/work-orders/${id}/genealogy`;
-  const versionVisible = version => `document.querySelector('#lot-genealogy')?.innerText.includes(${js(`Genealogy version: ${version} ·`)})`;
-  const waitForView = async view => { await ready(versionVisible(view.version)); await ready(`document.querySelector(${js(UNIT)})?.querySelector('fieldset')?.disabled===false`); };
+  const versionReady = version => `document.querySelector('#lot-genealogy [data-genealogy-version]')?.dataset.genealogyVersion===${js(String(version))}`;
+  const waitForView = async view => { await ready(versionReady(view.version)); await ready(`document.querySelector(${js(UNIT)})?.querySelector('fieldset')?.disabled===false`); };
   const effects = () => Promise.all(['manufacturingWorkOrders', 'manufacturingOutputUnits', 'manufacturingAudit', 'manufacturingOutbox', 'manufacturingKeys', 'genealogyHeads', 'genealogyRevisions', 'genealogyAllocations', 'genealogyBalances', 'genealogyAttributionLedger'].map(name => db.collection(name).find({}).sort({ _id:1 }).toArray()));
   const inspectLayout = async mode => {
     const target = mode === 'editable' ? UNIT : '#lot-genealogy';
@@ -102,7 +103,7 @@ export async function genealogyJourney({ db, call, wait, click, fill, evaluate, 
   };
   const saveUnit = async (wo, unit, reason) => {
     const view = await api(base(wo._id)); await prepareUnit(view, unit, reason); await form.clickIn(UNIT, 'Save unit lot attribution');
-    await ready(versionVisible(view.version + 1));
+    await ready(versionReady(view.version + 1));
     return api(base(wo._id));
   };
   let replayCommand;
@@ -134,7 +135,7 @@ export async function genealogyJourney({ db, call, wait, click, fill, evaluate, 
       for (const row of rows) { const source = receipts.find(receipt => receipt._id === row.receiptId); assert.equal(row.quantity, source.definition.ratio.replace(/\.0+$/, '')); assert.equal(row.uom, source.uom); }
     }
     await form.fillIn(LOSSES, 'reason', 'Synthetic explicit no-loss disposition after complete allocation');
-    await form.clickIn(LOSSES, 'Save process losses'); await ready(versionVisible(current.version + 1));
+    await form.clickIn(LOSSES, 'Save process losses'); await ready(versionReady(current.version + 1));
     current = await api(base(wo._id)); assert.deepEqual(current.losses, []);
     const storedLossRevision = await api(`${base(wo._id)}/revisions/${current.currentRevision}`); assert.deepEqual(storedLossRevision.losses, []);
     if (woIndex === 0) {
@@ -143,7 +144,9 @@ export async function genealogyJourney({ db, call, wait, click, fill, evaluate, 
       await click('Refresh lot genealogy');
       await ready('document.querySelector("#lot-genealogy")?.innerText.includes("Active source receipt holds block")');
       assert.match(await form.disabledReason(FINALIZE, 'Finalize lot genealogy'), /source holds/);
-      await form.clickLink('#lot-genealogy', `Review or release source holds on receipt ${receipt._id}`);
+      const holdActionSelector = `#lot-genealogy a[href="/portfolio/warehouse/receipts/${receipt._id}"]`, holdActionPrefix = 'Review or release source holds on RCV-';
+      await ready(`[...document.querySelectorAll(${js(holdActionSelector)})].some(link=>link.textContent.trim().startsWith(${js(holdActionPrefix)}))`);
+      assert.equal(await checked(`(()=>{const links=[...document.querySelectorAll(${js(holdActionSelector)})].filter(link=>link.textContent.trim().startsWith(${js(holdActionPrefix)}));if(links.length!==1)return false;links[0].click();return true})()`), true, 'exact source receipt hold action link');
       await ready(`document.querySelector('[data-testid=receipt-holds]')&&document.querySelector('[data-hold-id=${js(held.hold.id)}]')`);
       assert.equal(await checked('location.pathname'), `/portfolio/warehouse/receipts/${receipt._id}`);
       await navigate(`manufacturing/work-orders/${wo._id}`, `document.querySelector(${js(UNIT)})&&document.querySelector('#lot-genealogy')?.innerText.includes('Active source receipt holds block')`);
@@ -163,10 +166,10 @@ export async function genealogyJourney({ db, call, wait, click, fill, evaluate, 
       assert.equal(await checked('document.activeElement.textContent'), 'Finalize lot genealogy'); assert.equal(await checked('getComputedStyle(document.activeElement).outlineStyle'), 'solid');
       await call('Input.dispatchKeyEvent', { type:'char', text:'\r', key:'Enter', code:'Enter', windowsVirtualKeyCode:13 });
     } else await form.clickIn(FINALIZE, 'Finalize lot genealogy');
-    await ready('document.querySelector("#lot-genealogy")?.innerText.includes("Status: COMPLETE")');
+    await ready('document.querySelector("#lot-genealogy [data-genealogy-version]")?.innerText.includes("Status: Complete")');
     current = await api(base(wo._id)); assert.equal(current.status, 'COMPLETE'); assert.equal(current.incompleteUnits.length, 0);
     const snapshot = await api(`${base(wo._id)}/revisions/${current.currentRevision}`); assert.equal(snapshot.status, 'COMPLETE'); assert.equal(snapshot.allocations.length, units.length * 5);
-    const origin = await checked('performance.timeOrigin'); await call('Page.reload'); await ready(`performance.timeOrigin!==${origin}&&document.querySelector('#lot-genealogy')?.innerText.includes('Status: COMPLETE')`);
+    const origin = await checked('performance.timeOrigin'); await call('Page.reload'); await ready(`performance.timeOrigin!==${origin}&&document.querySelector('#lot-genealogy [data-genealogy-version]')?.innerText.includes('Status: Complete')`);
     assert.deepEqual(await api(`${base(wo._id)}/revisions/${current.currentRevision}`), snapshot);
   }
   assert.deepEqual(await stock(), originalStock); assert.deepEqual(await consumed(), originalConsumption);
@@ -221,8 +224,8 @@ export async function genealogyJourney({ db, call, wait, click, fill, evaluate, 
     if (frozenPointers.has(dispatch.wo._id)) assert.deepEqual(pointer, frozenPointers.get(dispatch.wo._id)); else frozenPointers.set(dispatch.wo._id, pointer);
     const storedUnits = await db.collection('manufacturingOutputUnits').find({ _id:{ $in:dispatch.units.map(unit => unit._id) } }).toArray(); assert.equal(storedUnits.length, dispatch.units.length); for (const unit of storedUnits) { assert.equal(unit.status, 'SHIPPED'); assert.equal(unit.shipmentId, shipment._id); assert.deepEqual(unit.genealogy, pointer); }
     const move = await db.collection('warehouseMovements').findOne({ shipmentId:shipment._id, kind:'SHIP' }); assert.deepEqual(move.genealogy, pointer);
-    await navigate(`fulfillment/shipments/${shipment._id}`, `document.body.innerText.includes(${js(`Frozen lot genealogy revision ${pointer.revision}`)})`); assert.ok(await checked(`document.body.innerText.includes(${js(pointer.contentHash)})`));
-    await navigate(`manufacturing/work-orders/${dispatch.wo._id}`, 'document.querySelector("#lot-genealogy")?.innerText.includes("Status: FROZEN")');
+    await navigate(`fulfillment/shipments/${shipment._id}`, `document.body.innerText.includes(${js(`Frozen lot genealogy revision ${pointer.revision}`)})`); await waitForTechnicalDetails({wait:ready,evaluate:checked},pointer.contentHash);assert.ok(await checked(`document.body.innerText.includes(${js(pointer.contentHash)})`));
+    await navigate(`manufacturing/work-orders/${dispatch.wo._id}`, 'document.querySelector("#lot-genealogy [data-genealogy-version]")?.innerText.includes("Status: Locked after dispatch")');
     assert.equal(await checked(`Boolean(document.querySelector(${js(UNIT)}))`), false); assert.equal(await checked(`Boolean(document.querySelector(${js(LOSSES)}))`), false); assert.equal(await checked(`Boolean(document.querySelector(${js(FINALIZE)}))`), false);
     if (index === 0) {
       const frozen = await api(base(first._id)), unshipped = unitsByWo.get(first._id)[1];
@@ -251,12 +254,12 @@ export async function genealogyJourney({ db, call, wait, click, fill, evaluate, 
   const lossStockBefore = await db.collection('warehouseReceipts').findOne({ _id:lossReceipt._id }), lossConsumptionBefore = await db.collection('manufacturingMovements').find({ workOrderId:lossWo._id, kind:'MATERIAL_CONSUMED' }).toArray();
   await navigate(`manufacturing/work-orders/${lossWo._id}`, `document.querySelector(${js(LOSSES)})`);
   for (const [index, quantity] of ['1.000000', '', '1.000000'].entries()) {
-    const view = await api(base(lossWo._id)); await ready(versionVisible(view.version));
+    const view = await api(base(lossWo._id)); await ready(versionReady(view.version));
     await form.fillIn(LOSSES, 'lossQuantity0', quantity); await form.fillIn(LOSSES, 'lossReason0', quantity ? 'Synthetic consumed material became process scrap' : ''); await form.fillIn(LOSSES, 'reason', index === 1 ? 'Synthetic correction clears the previous loss disposition' : 'Synthetic explicit zero-good material disposition');
-    await form.clickIn(LOSSES, 'Save process losses'); await ready(versionVisible(view.version + 1));
+    await form.clickIn(LOSSES, 'Save process losses'); await ready(versionReady(view.version + 1));
     const stored = await api(base(lossWo._id)); assert.equal(stored.units.length, 0); assert.equal(stored.allocations.length, 0); assert.equal(stored.losses.length, quantity ? 1 : 0); assert.equal(stored.balances[0].remainingQuantity, quantity ? '0' : '1');
   }
-  await form.fillIn(FINALIZE, 'reason', 'Synthetic explicit process-loss budget reconciled'); await form.clickIn(FINALIZE, 'Finalize lot genealogy'); await ready('document.querySelector("#lot-genealogy")?.innerText.includes("Status: COMPLETE")');
+  await form.fillIn(FINALIZE, 'reason', 'Synthetic explicit process-loss budget reconciled'); await form.clickIn(FINALIZE, 'Finalize lot genealogy'); await ready('document.querySelector("#lot-genealogy [data-genealogy-version]")?.innerText.includes("Status: Complete")');
   assert.equal(await db.collection('manufacturingOutputUnits').countDocuments({ workOrderId:lossWo._id }), 0);
   assert.deepEqual(await db.collection('manufacturingMovements').find({ workOrderId:lossWo._id, kind:'MATERIAL_CONSUMED' }).toArray(), lossConsumptionBefore);
   assert.equal((await db.collection('warehouseReceipts').findOne({ _id:lossReceipt._id })).manufacturingConsumedQuantity, lossStockBefore.manufacturingConsumedQuantity);
@@ -264,7 +267,7 @@ export async function genealogyJourney({ db, call, wait, click, fill, evaluate, 
   assert.equal((await api(`${base(lossWo._id)}/revisions/2`)).losses.length, 0);
   check('K1 supplemental zero-good browser native positive process loss, explicit clear and reassignment reconcile consumed budget without invented units or repeated consumption; immutable prior loss revision retained');
 
-  await navigate(`manufacturing/work-orders/${first._id}`, 'document.querySelector("#lot-genealogy")?.innerText.includes("Status: FROZEN")');
+  await navigate(`manufacturing/work-orders/${first._id}`, 'document.querySelector("#lot-genealogy [data-genealogy-version]")?.innerText.includes("Status: Locked after dispatch")');
   await inspectLayout('frozen');
   check('K1 actual frozen genealogy section scrolled into view at four widths, screenshots saved, no page overflow or controls below 44px; this bounded lot proof does not claim serialized component installation or full E01');
 }

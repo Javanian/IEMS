@@ -75,7 +75,7 @@ export async function catalogDispositionJourney({ db, call, wait, click, evaluat
   await click('Inspect catalog inspection revision 1'); await ready('document.body.innerText.includes("Immutable recorded inspection")&&document.body.innerText.includes("Synthetic actual LOT dimensional inspection")');
   check('QC native exact fractional LOT inspection revisions retain immutable physical origin and prior evidence without creating approved or available stock');
   const held = await hold(lot, 'Synthetic hold after historical inspection'); await navigate(lot);
-  assert.match(await form.disabledReason(APPROVE, 'Approve catalog receipt inspection'), /SOURCE_HELD/); assert.equal((await view(lot)).canRecord, true);
+  assert.match(await form.disabledReason(APPROVE, 'Approve catalog receipt inspection'), /quality hold is active/i); assert.equal((await view(lot)).canRecord, true);
   await release(held); await navigate(lot); current = await approve(lot, true);
   assert.equal(current.status, 'APPROVED'); assert.equal(current.stock.acceptedPendingQuantity, '1.75'); assert.equal(current.stock.physicalAvailableQuantity, '0'); assert.equal(current.stock.rejectedQuantity, '0.75'); assert.equal(current.canAllocate, false);
   check('QC native approval is blocked by actual source hold, recovers after authoritative release, and keyboard approval binds the exact revision as pending accepted stock');
@@ -100,7 +100,7 @@ export async function catalogDispositionJourney({ db, call, wait, click, evaluat
   await layout('serial-stock');
   check('QC native SERIAL partition selects actual incoming IDs explicitly; accepted identities become typed available once while rejected identity remains quarantine and shared registry is unchanged');
   await navigate(rejected); await inspect(rejected, '0', '1', 'Synthetic all rejected receipt inspection'); current = await approve(rejected);
-  assert.equal(current.receipt.status, 'CATALOG_REJECTED'); assert.equal(current.stock.physicalAvailableQuantity, '0'); assert.equal(current.canPutaway, false); assert.equal(await db.collection('catalogStockMovements').countDocuments({ receiptId: rejected._id }), 0); assert.match(await form.disabledReason(PUTAWAY, 'Put away accepted catalog stock'), /ALL_REJECTED/);
+  assert.equal(current.receipt.status, 'CATALOG_REJECTED'); assert.equal(current.stock.physicalAvailableQuantity, '0'); assert.equal(current.canPutaway, false); assert.equal(await db.collection('catalogStockMovements').countDocuments({ receiptId: rejected._id }), 0); assert.match(await form.disabledReason(PUTAWAY, 'Put away accepted catalog stock'), /All received material was rejected/i);
   check('QC native all-rejected approval is terminal quarantine with no putaway, zero available stock and no procurement entitlement reversal');
 
   const balanceNames = ['catalogStockBalances', 'catalogStockUnits', 'catalogStockMovements'], beforeEligibility = await snapshot(balanceNames), laterHold = await hold(lot, 'Synthetic hold on already stored typed stock');
@@ -119,7 +119,7 @@ export async function catalogDispositionJourney({ db, call, wait, click, evaluat
   await call('Page.reload'); await ready('document.querySelector("#catalog-receipt-qc")');
   const beforeDenied = await stock(), denied = await send(`/warehouse/receipts/${lot._id}/release`, { expectedVersion:current.receiptVersion, reason:'Synthetic denied legacy stock release',idempotencyKey:randomUUID() }); assert.equal(denied.error.code, 'CATALOG_RECEIPT_UNSUPPORTED'); assert.deepEqual(await stock(), beforeDenied);
   const reconciliation = await api(`/warehouse/receipts/${lot._id}/reconciliation`); assert.equal(reconciliation.matches, true); assert.equal(reconciliation.cached.availableQuantity, '0'); assert.equal(reconciliation.catalog.stockIsSeparate, true);
-  await call('Page.navigate', { url: `${process.env.PORTFOLIO_WEB_ORIGIN}/portfolio/warehouse/receipts/${lot._id}` }); await ready('document.body.innerText.includes("Legacy operations blocked")&&document.body.innerText.includes("CATALOG_STORED")');
+  await call('Page.navigate', { url: `${process.env.PORTFOLIO_WEB_ORIGIN}/portfolio/warehouse/receipts/${lot._id}` }); await ready('document.body.innerText.includes("legacy receipt actions are unavailable")&&document.body.innerText.includes("Status: Stored")');
   assert.equal(await checked(`[...document.querySelectorAll('form h2')].some(heading=>/Record QC release|Put away|Reserve for sales order|Transfer stock|Record count/.test(heading.textContent))`), false);
   await navigate(lot);
   assert.deepEqual(await snapshot(immutableNames), immutable); assert.deepEqual(await snapshot(forbiddenNames), beforeForbidden);

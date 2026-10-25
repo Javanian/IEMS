@@ -134,7 +134,7 @@ export async function holdJourney(ctx) {
   await wait(`document.querySelector('[data-testid=stock-exceptions]') && document.querySelector('[name=goodQuantity]')`, 'WO stock exception');
   const woText = await evaluate(`document.querySelector('[data-testid=stock-exceptions]').innerText`);
   assert.match(woText, /is on hold/); assert.match(woText, /has not been cancelled/); assert.doesNotMatch(woText, /safe to|can continue/i);
-  assert.ok(await evaluate(`document.body.innerText.includes('Status: RELEASED')`));
+  assert.ok(await evaluate(`document.body.innerText.includes('Status: Ready to start')`));
   const RECORD = 'form:has([name=goodQuantity])';
   await fillIn(RECORD, 'goodQuantity', '2'); await fillIn(RECORD, 'scrapQuantity', '0'); await fillIn(RECORD, 'evidence', 'Attempt to consume held material');
   await clickIn(RECORD, 'Record operation');

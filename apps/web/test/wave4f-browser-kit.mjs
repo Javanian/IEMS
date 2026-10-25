@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { navigationContextChanged } from './browser-readiness.mjs';
 
 // Shared Wave 4f browser helpers. Readiness always waits on the exact target element being present and enabled;
 // there are no fixed sleeps. Values are set with the native setter plus input/change events, as earlier journeys do.
@@ -47,7 +48,7 @@ export async function openContext({ call, web, password }, username, path) {
   await c('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   const evaluate = async expression => { const r = await c('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw Error(JSON.stringify(r.exceptionDetails)); return r.result.value; };
   const wait = async (expression, label = expression) => {
-    for (let i = 0; i < 300; i++) { if (await evaluate(`Boolean(document.body && (${expression}))`)) return; await new Promise(r => setTimeout(r, 100)); }
+    for (let i = 0; i < 300; i++) { try { if (await evaluate(`Boolean(document.body && (${expression}))`)) return; } catch(error) { if(!navigationContextChanged(error))throw error; } await new Promise(r => setTimeout(r, 100)); }
     throw Error(`Timed out (${username}): ${label}. Page: ${await evaluate('document.body.innerText')}`);
   };
   const kit = scoped({ evaluate, wait });

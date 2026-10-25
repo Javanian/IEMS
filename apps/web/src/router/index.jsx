@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import RequireFeature from '../rbac/RequireFeature';
+import PortfolioRouteError from '../features/portfolio/PortfolioRouteError';
 
 const page = (loader) => async () => {
   const module = await loader();
@@ -52,6 +53,7 @@ const router = createBrowserRouter([
   {
     path: '/portfolio/*',
     lazy: page(() => import('../pages/PORTFOLIO/PortfolioPage')),
+    errorElement: <PortfolioRouteError />,
   },
   {
     path: '/LandingPage',

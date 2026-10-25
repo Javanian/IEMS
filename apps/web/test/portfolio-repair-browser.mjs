@@ -1,3 +1,4 @@
+import { waitForTechnicalDetails } from './browser-readiness.mjs';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -9,8 +10,8 @@ export async function repairJourney({db,call,wait,click,fill,evaluate,screenshot
  const formFill=async(title,name,value)=>{await evaluate(`(()=>{const f=[...document.querySelectorAll('form')].find(f=>f.querySelector('h2')?.textContent===${JSON.stringify(title)});const x=f.querySelector('[name="${name}"]');const p=x.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:x.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(x,${JSON.stringify(value)});x.dispatchEvent(new Event('input',{bubbles:true}));x.dispatchEvent(new Event('change',{bubbles:true}));})()`);};
  const command=async(title,values,status,version)=>{await wait(`[...document.querySelectorAll('form h2')].some(h=>h.textContent===${JSON.stringify(title)})`);for(const [n,v] of Object.entries(values))await formFill(title,n,v);await click(title);if(status)await wait(`document.body.innerText.includes('Status: ${status}')&&document.body.innerText.includes('Version: ${version}')`);};
  await click('Quotes');await click('Create quote');await wait(`document.querySelector('[name=accountId]')`);
- await fill('accountId',account._id);await fill('expiresAt','2027-12-31T00:00:00.000Z');await fill('description0','Owned repair scope');await fill('quantity0','1.250');await fill('uom0','EA');await fill('unitPrice0','100.01');await click('Save quote');await wait(`document.body.innerText.includes('Status: DRAFT')`);
- const quoteId=await evaluate(`location.pathname.split('/').at(-1)`);await click('Approve revision');await wait(`document.body.innerText.includes('Status: APPROVED')`);
+ await fill('accountId',account._id);await fill('expiresAt','2027-12-31T00:00:00.000Z');await fill('description0','Owned repair scope');await fill('quantity0','1.250');await fill('uom0','EA');await fill('unitPrice0','100.01');await click('Save quote');await wait(`document.body.innerText.includes('Status: Draft')`);
+ const quoteId=await evaluate(`location.pathname.split('/').at(-1)`);await click('Approve revision');await wait(`document.body.innerText.includes('Status: Approved')`);
  const quote=await db.collection('quotes').findOne({_id:quoteId});assert.equal(quote.revisions[0].total,'125.01');
  await click('Repair');await wait(`document.body.innerText.includes('No repair cases')`);await click('Intake repair');await wait(`document.querySelector('[name=accountId] option[value="${account._id}"]')`);
  async function intake(serial){await fill('accountId',account._id);await fill('serial',serial);await fill('condition','Owned synthetic unit, casing worn');await click('Create repair case');await wait(`document.body.innerText.includes('Status: INTAKE')`);return evaluate(`location.pathname.split('/').at(-1)`);}
@@ -21,10 +22,10 @@ export async function repairJourney({db,call,wait,click,fill,evaluate,screenshot
  await command('Freeze repair scope',{quoteId,revision:'1',depositRequired:'50.00',evidence:'Owned frozen scope'},'SCOPE_QUOTED',4);
  let row=await db.collection('repairCases').findOne({_id:id});assert.deepEqual(row.scopes[0].snapshot,quote.approvals[0].snapshot);assert.equal(row.scopes[0].snapshot.lines[0].quantity,'1.250');assert.equal(row.scopes[0].snapshot.lines[0].unitPrice,'100.01');assert.equal(row.scopes[0].snapshot.lines[0].uom,'EA');
  await command('Record repair decision',{decision:'ACCEPT',evidence:'Owned internal acceptance'},'AUTHORIZED',5);
- await command('Start repair',{},null);await wait(`document.body.innerText.includes('DEPOSIT_REQUIRED')`);assert.equal((await db.collection('repairCases').findOne({_id:id})).version,5);
+ await command('Start repair',{},null);await waitForTechnicalDetails({wait,evaluate},'DEPOSIT_REQUIRED');assert.equal((await db.collection('repairCases').findOne({_id:id})).version,5);
  await click('Discard repair command and refresh');await wait(`document.body.innerText.includes('Status: AUTHORIZED')`);
  await command('Record deposit',{amount:'20.00',reference:'wave3b-deposit-1'},'AUTHORIZED',6);
- await command('Start repair',{},null);await wait(`document.body.innerText.includes('DEPOSIT_REQUIRED')`);await click('Discard repair command and refresh');await wait(`document.body.innerText.includes('Version: 6')`);
+ await command('Start repair',{},null);await waitForTechnicalDetails({wait,evaluate},'DEPOSIT_REQUIRED');await click('Discard repair command and refresh');await wait(`document.body.innerText.includes('Version: 6')`);
  await command('Record deposit',{amount:'30.00',reference:'wave3b-deposit-2'},'AUTHORIZED',7);
  await command('Start repair',{},'IN_PROGRESS',8);
  await command('Record execution',{evidence:'Owned exact scoped dispositions'},'TESTING',9);
@@ -33,11 +34,11 @@ export async function repairJourney({db,call,wait,click,fill,evaluate,screenshot
  await command('Record rework',{evidence:'Owned housing rework'},'TESTING',11);
  await command('Record test',{result:'PASS',evidence:'Owned passing retest'},'TEST_PASSED',12);
  await command('Record hold decision',{active:'true',evidence:'Owned custody hold'},'TEST_PASSED',13);
- await command('Record repair QC',{evidence:'Owned blocked QC attempt'},null);await wait(`document.body.innerText.includes('QC_BLOCKED')`);await screenshot('wave3b-repair-qc-held');await click('Discard repair command and refresh');await wait(`document.body.innerText.includes('Version: 13')`);
+ await command('Record repair QC',{evidence:'Owned blocked QC attempt'},null);await waitForTechnicalDetails({wait,evaluate},'QC_BLOCKED');await screenshot('wave3b-repair-qc-held');await click('Discard repair command and refresh');await wait(`document.body.innerText.includes('Version: 13')`);
  await command('Record hold decision',{active:'false',evidence:'Owned hold released'},'TEST_PASSED',14);
  // Genuine second writer makes the browser version stale, without bypassing the repair API.
  const competing=await api(`repair/cases/${id}/hold`,{expectedVersion:14,idempotencyKey:crypto.randomUUID(),active:false,evidence:'Owned second writer confirms hold release'});assert.equal(competing.status,200);
- await command('Record repair QC',{evidence:'Owned stale QC attempt'},null);await wait(`document.body.innerText.includes('Refresh the record')`);assert.equal((await db.collection('repairCases').findOne({_id:id})).version,15);await screenshot('wave3b-repair-conflict');await click('Discard repair command and refresh');await wait(`document.body.innerText.includes('Version: 15')`);
+ await command('Record repair QC',{evidence:'Owned stale QC attempt'},null);await waitForTechnicalDetails({wait,evaluate},'VERSION_CONFLICT');assert.equal((await db.collection('repairCases').findOne({_id:id})).version,15);await screenshot('wave3b-repair-conflict');await click('Discard repair command and refresh');await wait(`document.body.innerText.includes('Version: 15')`);
  await db.collection('memberships').updateOne({_id:membership._id},{$set:{roles:[{role:'repairRead',plantIds:membership.plantIds}]}});
  await command('Record repair QC',{evidence:'Owned forbidden QC attempt'},null);await wait(`document.body.innerText.includes('Access denied')`);assert.equal((await db.collection('repairCases').findOne({_id:id})).version,15);await screenshot('wave3b-repair-forbidden');
  await db.collection('memberships').updateOne({_id:membership._id},{$set:{roles:membership.roles}});await click('Discard repair command and refresh');await wait(`document.body.innerText.includes('Version: 15')`);
@@ -48,19 +49,19 @@ export async function repairJourney({db,call,wait,click,fill,evaluate,screenshot
  await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});assert.equal(await evaluate('document.activeElement.textContent'),'Return custody');assert.equal(await evaluate('getComputedStyle(document.activeElement).outlineStyle'),'solid');
  const box=await evaluate(`(()=>{const r=document.activeElement.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:innerHeight}})()`);assert.ok(box.top>=0&&box.bottom<=box.height);
  await call('Input.dispatchKeyEvent',{type:'char',text:'\r',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});await wait(`document.body.innerText.includes('Status: RETURNED')&&document.body.innerText.includes('Version: 17')`);
- await call('Page.reload');await wait(`document.body.innerText.includes('Owned passing retest')&&document.body.innerText.includes('Status: RETURNED')`);await screenshot('wave3b-repair-returned-mobile');
+ const returnedOrigin=await evaluate('performance.timeOrigin');await call('Page.reload');await wait(`performance.timeOrigin!==${returnedOrigin}&&location.pathname==='/portfolio/repair/cases/${id}'&&document.body.innerText.includes('Owned passing retest')&&document.body.innerText.includes('Status: RETURNED')&&document.body.innerText.includes('Version: 17')&&[...document.querySelectorAll('button')].some(button=>button.textContent.trim()==='Refresh repair record'&&!button.disabled)`);await screenshot('wave3b-repair-returned-mobile');
  row=await db.collection('repairCases').findOne({_id:id});assert.equal(row.ownerAccountId,account._id);assert.equal(row.depositVerified,'50.00');assert.deepEqual(row.tests.map(t=>t.result),['FAIL','PASS']);assert.equal(row.reworks.length,1);assert.equal(row.qc.testRun,2);assert.equal(row.holdActive,false);assert.equal(row.custody.at(-1).kind,'RETURNED_TO_CUSTOMER');assert.equal(row.status,'RETURNED');assert.equal(row.version,17);
  const deposits=await db.collection('repairDeposits').find({caseId:id}).toArray();assert.deepEqual(deposits.map(d=>d.amount),['20.00','30.00']);assert.ok(deposits.every(d=>d.accountId===account._id&&d.currency==='USD'));assert.equal(await db.collection('repairInvoices').countDocuments({caseId:id}),0);
  check('repair accepted UI: linked approved quote exact snapshot, persisted partial/full deposits gate start, failed test -> rework -> pass, hold blocks QC, actual 409/403 recovery, mobile keyboard custody return and persisted deep link');
- await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1});await click('Refresh repair record');await wait(`document.body.innerText.includes('Retry to load')`);await screenshot('wave3b-repair-offline');await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});await click('Refresh and retry');await wait(`document.body.innerText.includes('Status: RETURNED')`);
+ await wait(`performance.timeOrigin!==${returnedOrigin}&&[...document.querySelectorAll('button')].some(button=>button.textContent.trim()==='Refresh repair record'&&!button.disabled)`);await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1});await click('Refresh repair record');await wait(`document.body.innerText.includes('The current records could not be loaded')`);await screenshot('wave3b-repair-offline');await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});await click('Refresh and retry');await wait(`document.body.innerText.includes('Status: RETURNED')`);
  await call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});await click('Intake repair');await wait(`document.querySelector('[name=serial]')`);const rejected=await intake('WAVE3B-REJECTED');
  await command('Authorize diagnosis',{feeCap:'25.00',evidence:'Owned rejection diagnostic cap'},'DIAGNOSIS_AUTHORIZED',2);await command('Record teardown',{component0:'Housing',disposition0:'REUSE',evidence:'Owned rejected teardown'},'TEARDOWN',3);await wait(`document.querySelector('[name=quoteId] option[value="${quoteId}"]')`);await command('Freeze repair scope',{quoteId,revision:'1',depositRequired:'0.00',evidence:'Owned rejectable scope'},'SCOPE_QUOTED',4);await command('Record repair decision',{decision:'REJECT',diagnosticFee:'12.34',evidence:'Owned internal rejection'},'REJECTED',5);
  const rejectedRow=await db.collection('repairCases').findOne({_id:rejected}),invoice=await db.collection('repairInvoices').findOne({_id:rejectedRow.diagnosticInvoiceId});assert.deepEqual([invoice.caseId,invoice.accountId,invoice.kind,invoice.currency,invoice.total,invoice.remaining],[rejected,account._id,'DIAGNOSTIC','USD','12.34','12.34']);assert.deepEqual(invoice.snapshot.lines[0],{description:'Authorized diagnostic inspection',quantity:'1',uom:'EA',unitPrice:'12.34',currency:'USD'});assert.equal(rejectedRow.custodyState,'RELEASED_FOR_RETURN');
  await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1});await command('Return custody',{evidence:'Owned unrepaired customer handover'},null);await wait(`document.body.innerText.includes('Retry same repair command')`);assert.equal((await db.collection('repairCases').findOne({_id:rejected})).version,5);await screenshot('wave3b-uncertain-command');await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});await click('Retry same repair command');await wait(`document.body.innerText.includes('Status: RETURNED')&&document.body.innerText.includes('Version: 6')`);const returned=await db.collection('repairCases').findOne({_id:rejected});assert.equal(returned.custody.at(-1).kind,'RETURNED_UNREPAIRED_TO_CUSTOMER');assert.equal(returned.ownerAccountId,account._id);
- await click('Repair invoices');await wait(`document.body.innerText.includes('${invoice._id}')`);await click(invoice._id);await wait(`document.body.innerText.includes('12.34')&&document.body.innerText.includes('DIAGNOSTIC')`);await call('Page.reload');await wait(`document.body.innerText.includes('12.34')&&document.body.innerText.includes('DIAGNOSTIC')`);await screenshot('wave3b-diagnostic-invoice');await click('Open repair case');await wait(`document.body.innerText.includes('WAVE3B-REJECTED')&&document.body.innerText.includes('Status: RETURNED')`);
+ await click('Repair invoices');await wait(`(location.pathname.split('/').at(-1)==='${invoice._id}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${invoice._id}'))`);await click(invoice._id);await wait(`document.body.innerText.includes('12.34')&&document.body.innerText.includes('DIAGNOSTIC')`);await call('Page.reload');await wait(`document.body.innerText.includes('12.34')&&document.body.innerText.includes('DIAGNOSTIC')`);await screenshot('wave3b-diagnostic-invoice');await click('Open repair case');await wait(`document.body.innerText.includes('WAVE3B-REJECTED')&&document.body.innerText.includes('Status: RETURNED')`);
  const audits=await db.collection('repairAudit').find({}).toArray(),outbox=await db.collection('repairOutbox').find({}).toArray();assert.equal(audits.length,23);assert.equal(outbox.length,23);assert.ok(outbox.every(o=>o.state==='PENDING'));assert.equal(await db.collection('repairKeys').countDocuments({}),23);assert.equal(await db.collection('repairInvoices').countDocuments({}),1);assert.equal((await db.collection('quotes').findOne({_id:quoteId})).status,'APPROVED');
  check('repair rejected UI: bounded exact diagnostic invoice, customer ownership retained, explicit unrepaired custody return, invoice persisted deep link; independent Mongo 23 audits/PENDING outbox/keys, no duplicate effects');
- await click('Repair deposits');await wait(`document.body.innerText.includes('${deposits[0]._id}')`);await click(deposits[0]._id);await wait(`document.body.innerText.includes('20.00')`);await screenshot('wave3b-deposit-detail');await click('Open repair case');await wait(`document.body.innerText.includes('WAVE3B-ACCEPTED')`);
+ await click('Repair deposits');await wait(`(location.pathname.split('/').at(-1)==='${deposits[0]._id}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${deposits[0]._id}'))`);await click(deposits[0]._id);await wait(`document.body.innerText.includes('20.00')`);await screenshot('wave3b-deposit-detail');await click('Open repair case');await wait(`document.body.innerText.includes('WAVE3B-ACCEPTED')`);
  check('repair real offline recovery and deposit detail linked back to persisted case; five responsive widths with zero overflow and sub-44px targets');
  await click('Issue final repair invoice');
  await wait(`document.body.innerText.includes('Open final repair invoice')`);
@@ -92,7 +93,7 @@ export async function repairJourney({db,call,wait,click,fill,evaluate,screenshot
    assert.equal(await db.collection('documentAudit').countDocuments({sourceId:final._id}),1);
  });
  await wait(`document.querySelector('[role=alert]')`);
- await click('Refresh and retry');await wait(`document.body.innerText.includes('PDF SHA-256')`);
+ await click('Refresh and retry');await waitForTechnicalDetails({wait,evaluate},'PDF SHA-256');
  const docReplay=await api('documents/issues',lostDocument.command);
  assert.deepEqual(docReplay.data,lostDocument.receipt.data);
  console.log('WAVE3D committed response loss: settlement exact command/receipt replay and one payment; document READY receipt/hash replay and one audit');
@@ -125,7 +126,7 @@ export async function repairJourney({db,call,wait,click,fill,evaluate,screenshot
  await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1});await click('Issue immutable PDF');await wait(`document.querySelector('[role=alert]')`);
  await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});await click('Refresh and retry');await wait(`!document.querySelector('[role=alert]')`);
  await call('Page.reload');await wait(`document.body.innerText.includes('PAID')`);
- await click('Issue immutable PDF');await wait(`document.body.innerText.includes('PDF SHA-256')`);
+ await click('Issue immutable PDF');await waitForTechnicalDetails({wait,evaluate},'PDF SHA-256');
  const issues=await db.collection('documentIntents').find({kind:'repairInvoice',sourceId:final._id}).toArray();
  assert.equal(issues.length,1);
  assert.equal((await db.collection('repairCases').findOne({_id:id})).custody.at(-1).kind,'RETURNED_TO_CUSTOMER');
@@ -143,10 +144,16 @@ export async function repairJourney({db,call,wait,click,fill,evaluate,screenshot
  await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Issue immutable PDF').focus()`);
  assert.equal(await evaluate('getComputedStyle(document.activeElement).outlineStyle'),'solid');
  await call('Input.dispatchKeyEvent',{type:'char',text:'\r',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
- await wait(`document.body.innerText.includes('PDF SHA-256')`);
+ await waitForTechnicalDetails({wait,evaluate},'PDF SHA-256');
+ await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+ await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+ assert.equal(await evaluate('document.activeElement.textContent'),'Audit details');
+ assert.equal(await evaluate('getComputedStyle(document.activeElement).outlineStyle'),'solid');
+ assert.equal(await evaluate(`document.activeElement.closest('details')?.open&&document.activeElement.closest('details').innerText.includes('PDF SHA-256')`),true);
  await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
  await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
  assert.equal(await evaluate('document.activeElement.textContent'),'Download verified PDF');
+ assert.equal(await evaluate('getComputedStyle(document.activeElement).outlineStyle'),'solid');
  await call('Input.dispatchKeyEvent',{type:'char',text:'\r',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
  let diagnosticFile;
  for(let n=0;n<100;n++){diagnosticFile=(await readdir(downloadPath)).find(f=>f.startsWith('repairInvoice-')&&f.endsWith('.pdf')&&f!==downloaded);if(diagnosticFile)break;await new Promise(r=>setTimeout(r,100));}

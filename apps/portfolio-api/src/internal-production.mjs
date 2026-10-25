@@ -1,4 +1,5 @@
 import { randomUUID, createHash } from 'node:crypto';
+import { saveCatalogOptionProjection } from './catalog-option-index.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 
 export const internalPlanningActions = ['master.read', 'master.item.write', 'master.item.approve', 'master.item.deactivate', 'master.location.write', 'master.location.qualify', 'master.location.deactivate', 'internal.read', 'internal.plan', 'internal.engineering.write', 'internal.engineering.approve', 'internal.engineering.revoke', 'internal.cancel'];
@@ -22,15 +23,37 @@ const uom = v => { if (typeof v !== 'string' || !/^[A-Z][A-Z0-9_]{0,15}$/.test(v
 const qty = v => { if (typeof v !== 'string' || !/^(0|[1-9][0-9]{0,17})(\.[0-9]{1,6})?$/.test(v) || !/[1-9]/.test(v)) fail(400, 'INVALID_INTERNAL_PLAN'); return BigInt(v.split('.')[0]) * 1000000n + BigInt((v.split('.')[1] || '').padEnd(6, '0')); };
 const decimal = n => { const s = n.toString().padStart(7, '0'); return `${s.slice(0, -6)}.${s.slice(-6)}`.replace(/0+$/, '').replace(/\.$/, ''); };
 
-export async function requireCatalogInventoryItem(db, filter, itemId, itemVersion, itemRevision, session, fence = false) {
+export async function validateInventoryItemAuthority(db, filter, itemId, session) {
   const row = await db.collection('inventoryItems').findOne({ ...filter, _id: itemId }, { session });
   if (!row) fail(404, 'NOT_FOUND');
   const event = await db.collection('internalPlanningEvents').findOne({ ...filter, _id: row.eventId, subjectType: 'ITEM', subjectId: row._id }, { session });
   const rev = await db.collection('inventoryItemRevisions').findOne({ ...filter, subjectId: row._id, revision: row.currentRevision }, { session });
   if (!Number.isSafeInteger(row.version) || row.version < 1 || !Number.isSafeInteger(row.currentRevision) || row.currentRevision < 1 || !['DRAFT', 'APPROVED', 'INACTIVE'].includes(row.status) || !event || event.version !== row.version || event.status !== row.status || event.contentHash !== row.authorityHash || hash(event.snapshot) !== row.authorityHash || hash(semantic(row)) !== row.authorityHash || !rev || hash(revisionContent(rev)) !== rev.contentHash || rev.ownerLegalEntityId !== row.ownerLegalEntityId || row.contentHash !== rev.contentHash || hash(row.content) !== hash(rev.content) || (row.status === 'APPROVED' && (row.approval?.revision !== row.currentRevision || row.approval?.contentHash !== row.contentHash))) fail(409, 'MASTER_SOURCE_INVALID');
+  return row;
+}
+export async function requireCatalogInventoryItem(db, filter, itemId, itemVersion, itemRevision, session, fence = false) {
+  const row = await validateInventoryItemAuthority(db, filter, itemId, session);
   if (row.status !== 'APPROVED' || row.version !== itemVersion || row.currentRevision !== itemRevision || row.content.schema !== 'INVENTORY_ITEM_V2' || !['LOT', 'SERIAL'].includes(row.content.trackingPolicy) || row.content.kind !== 'PURCHASED') fail(409, 'CATALOG_DEPENDENCY_CHANGED');
   if (fence) { const result = await db.collection('inventoryItems').updateOne({ ...filter, _id: row._id, version: row.version }, { $inc: { useFence: 1 } }, { session }); if (result.matchedCount !== 1) fail(409, 'VERSION_CONFLICT'); }
   return row;
+}
+
+export async function requireInternalExecutionDemand(db, filter, orderId, expectedVersion, engineeringRevision, ownerLegalEntityId, session, fence = false) {
+  const row = await db.collection('internalProductionOrders').findOne({ ...filter, _id: orderId }, { session }); if (!row) fail(404, 'NOT_FOUND');
+  const event = await db.collection('internalPlanningEvents').findOne({ ...filter, subjectType: 'ORDER', subjectId: row._id, _id: row.eventId }, { session });
+  const revision = await db.collection('internalEngineeringRevisions').findOne({ ...filter, subjectId: row._id, revision: row.engineering?.currentRevision }, { session });
+  if (!Number.isSafeInteger(row.version) || row.version < 1 || row.ownerLegalEntityId !== ownerLegalEntityId || !event || event.version !== row.version || event.status !== row.status || hash(event.snapshot) !== row.authorityHash || event.contentHash !== row.authorityHash || hash(semantic(row)) !== row.authorityHash || !revision || hash(revisionContent(revision)) !== revision.contentHash || row.engineering.contentHash !== revision.contentHash || hash(row.engineering.content) !== hash(revision.content)) fail(409, 'MASTER_SOURCE_INVALID');
+  if (row.schema !== 'INTERNAL_PLAN_V1' || row.purpose !== 'INTERNAL_STOCK' || row.version !== expectedVersion || row.status !== 'PLANNED' || row.engineering.currentRevision !== engineeringRevision || row.engineering.status !== 'APPROVED_DEMAND' || row.engineering.approval?.revision !== engineeringRevision || row.engineering.approval?.contentHash !== revision.contentHash) fail(409, 'INTERNAL_DEMAND_CHANGED');
+  const item = await validateInventoryItemAuthority(db, filter, row.itemSnapshot._id, session);
+  if (item.status !== 'APPROVED' || item.version !== row.itemSnapshot.version || item.currentRevision !== row.itemSnapshot.currentRevision || item.contentHash !== row.itemSnapshot.contentHash || item.ownerLegalEntityId !== ownerLegalEntityId || item.content.kind !== 'MANUFACTURED' || item.content.schema !== 'INVENTORY_ITEM_V2' || item.content.trackingPolicy !== 'SERIAL') fail(409, 'INTERNAL_DEMAND_CHANGED');
+  const location = await requireQualifiedCompanyLocation(db, filter, row.locationSnapshot._id, row.locationSnapshot.version, ownerLegalEntityId, session, fence);
+  if (location.authorityHash !== row.locationSnapshot.authorityHash) fail(409, 'INTERNAL_DEMAND_CHANGED');
+  for (const material of revision.content.materials) { const source = await requireCatalogInventoryItem(db, filter, material.itemId, material.itemVersion, material.itemRevision, session, fence); if (source.ownerLegalEntityId !== ownerLegalEntityId || source.contentHash !== material.itemSnapshot.contentHash || source.content.uom !== material.uom) fail(409, 'INTERNAL_DEMAND_CHANGED'); }
+  if (fence) {
+    const changed = await db.collection('internalProductionOrders').updateOne({ ...filter, _id: row._id, version: row.version }, { $inc: { useFence: 1 } }, { session }), itemWrite = await db.collection('inventoryItems').updateOne({ ...filter, _id: item._id, version: item.version }, { $inc: { useFence: 1 } }, { session });
+    if (changed.matchedCount !== 1 || itemWrite.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+  }
+  return { ...semantic(row), authorityHash: row.authorityHash };
 }
 
 export async function requireQualifiedCompanyLocation(db, filter, locationId, expectedVersion, ownerLegalEntityId, session, fence = false) {
@@ -133,6 +156,7 @@ export function installInternalPlanning(app, runtime, { guard, fields, id }) {
     row.eventId = eventId; row.authorityHash = authorityHash;
     if (previous) { const changed = await c(HEADS[type]).replaceOne({ ...scope(req), _id: row._id, version: previous }, row, { session }); if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT'); }
     else await c(HEADS[type]).insertOne(row, { session });
+    if (type === 'ITEM') await saveCatalogOptionProjection(db, 'items', row, session);
     return view(type, req, row, session);
   }
   async function addRevision(type, req, row, revision, content, reason, session) {

@@ -15,7 +15,7 @@ export async function startOwned(t, initOptions = {}) {
   await db.collection('ownedRun').insertOne({ _id: marker });
   let server;
   t.after(async () => { if (server) await new Promise(r => server.close(r)); assert.ok(await db.collection('ownedRun').findOne({ _id: marker })); await db.dropDatabase(); await client.close(); await repl.stop(); });
-  const runtime = await initialize({ client, db, ...initOptions }), password = randomUUID(), seeded = await seedSynthetic(runtime, { password });
+  const runtime = await initialize({ client, db, ...initOptions, ...(initOptions.businessClock ? { ownedRunMarker: marker } : {}) }), password = randomUUID(), seeded = await seedSynthetic(runtime, { password, ...initOptions.seedOptions });
   server = createApp(runtime, { origins: [ORIGIN] }).listen(0, '127.0.0.1');
   await new Promise(r => server.once('listening', r));
   const base = () => `http://127.0.0.1:${server.address().port}/api`;

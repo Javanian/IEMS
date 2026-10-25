@@ -1,3 +1,4 @@
+import { waitForTechnicalDetails } from './browser-readiness.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID, createHash } from 'node:crypto';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
@@ -14,19 +15,19 @@ export async function vatJourney({ db, call, wait, click, fill, evaluate, screen
   const content = price => ({ expiresAt: '2027-01-01T00:00:00.000Z', taxPolicy: 'FIXTURE_VAT_11_V1', roundingPolicy: 'LINE_HALF_UP', lines: [{ description: 'Synthetic Wave4h ten units', quantity: '10', unitPrice: price, currency: 'USD', uom: 'UN' }] });
   await navigate('quotes/new'); await wait('document.querySelector("[name=taxPolicy]")');
   for (const [name, value] of Object.entries({ accountId: account._id, expiresAt: content('').expiresAt, taxPolicy: 'FIXTURE_VAT_11_V1', description0: content('').lines[0].description, quantity0: '10', uom0: 'UN', unitPrice0: '12800.00', currency0: 'USD' })) await fill(name, value);
-  await click('Save quote'); await wait('document.querySelector(".pf-id")?.textContent.startsWith("Quote ID:")');
+  await click('Save quote'); await waitForTechnicalDetails({wait,evaluate},'Quote ID:');
   let quote = await db.collection('quotes').findOne({ accountId: account._id });
   assert.deepEqual(triple(quote.revisions[0]), ['128000.00', '14080.00', '142080.00']);
-  await click('Approve revision'); await wait('document.body.innerText.includes("Status: APPROVED")');
+  await click('Approve revision'); await wait('document.body.innerText.includes("Status: Approved")');
   await wait('document.querySelector("[name=taxPolicy]")?.value==="FIXTURE_VAT_11_V1"');
   // Genuine second writer makes the rendered revision form stale.
   await api(`/commercial/quotes/${quote._id}/revisions`, { expectedVersion: 2, ...content('12250.00') });
   for (const [name, value] of Object.entries({ description0: content('').lines[0].description, quantity0: '10', uom0: 'UN', unitPrice0: '12250.00' })) await fill(name, value);
-  await click('Save revision'); await wait('document.body.innerText.includes("Refresh the record")');
+  await click('Save revision'); await waitForTechnicalDetails({wait,evaluate},'VERSION_CONFLICT');
   assert.equal((await db.collection('quotes').findOne({ _id: quote._id })).revisions.length, 2);
   await click('Refresh record'); await wait('document.body.innerText.includes("Revision: 2")');
-  await click('Approve revision'); await wait('document.body.innerText.includes("Status: APPROVED")');
-  await click('Record acceptance'); await wait('document.body.innerText.includes("Status: ACCEPTED")');
+  await click('Approve revision'); await wait('document.body.innerText.includes("Status: Approved")');
+  await click('Record acceptance'); await wait('document.body.innerText.includes("Status: Accepted")');
   await click('Convert to sales order'); await wait('document.querySelector("[data-order-id]")');
   quote = await db.collection('quotes').findOne({ _id: quote._id });
   const order = await db.collection('salesOrders').findOne({ quoteId: quote._id });
@@ -88,7 +89,7 @@ export async function vatJourney({ db, call, wait, click, fill, evaluate, screen
     for (const expected of [row._id, ...triple(kind === 'quote' ? quote.revisions[revision - 1] : row)]) assert.ok(text.includes(expected), `PDF missing ${expected}`);
     await writeFile(`${downloadPath}/wave4h-${kind}-${row._id}-${revision}-parsed.txt`, text);
     const time = await evaluate('performance.timeOrigin'); await call('Page.reload'); await wait(`performance.timeOrigin!==${time}&&document.body.innerText.includes('Source ${kind}, revision ${revision}.')`);
-    await control('Issue immutable PDF'); await wait(`document.body.innerText.includes('${metadata.pdfHash}')`);
+    await control('Issue immutable PDF'); await waitForTechnicalDetails({wait,evaluate},metadata.pdfHash);
     for (const width of [375, 768, 1280]) { await call('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 }); assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'), false); await screenshot(`wave4h-${kind}-${revision}-${row._id}-${width}`); }
     for (const collection of ['documentIntents', 'documentAudit', 'documentOutbox']) assert.equal(await db.collection(collection).countDocuments({ sourceId: row._id, sourceVersion: revision }), 1);
     artifacts.push({ kind, sourceId: row._id, revision, issueId: metadata._id, pdfHash: metadata.pdfHash, filename });

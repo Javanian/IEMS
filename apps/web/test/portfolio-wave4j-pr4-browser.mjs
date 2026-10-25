@@ -1,3 +1,4 @@
+import { waitForTechnicalDetails } from './browser-readiness.mjs';
 import assert from 'node:assert/strict';
 
 export async function quoteEditorInquiryJourney({ db, call, wait, fill, evaluate, check, headers }) {
@@ -26,7 +27,7 @@ export async function quoteEditorInquiryJourney({ db, call, wait, fill, evaluate
     await evaluate('(()=>{const b=[...document.querySelectorAll("button")].find(b=>b.textContent === "Save inquiry");b.focus()})()');
     assert.notEqual(await evaluate('getComputedStyle(document.activeElement).outlineStyle'), 'none');
     await call('Input.dispatchKeyEvent', { type: 'char', text: '\r', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-    await wait('document.body.innerText.includes("Inquiry ID:")&&document.body.innerText.includes("Stage: DRAFT")');
+    await waitForTechnicalDetails({wait,evaluate},'Inquiry ID:');await wait('document.body.innerText.includes("Inquiry ID:")&&document.body.innerText.includes("Stage: Draft")');
     const id = await evaluate('location.pathname.split("/").at(-1)');
     const row = await db.collection('inquiries').findOne({ _id: id });
     assert.equal(row.accountId, account._id);
@@ -35,7 +36,7 @@ export async function quoteEditorInquiryJourney({ db, call, wait, fill, evaluate
     assert.deepEqual(content, line);
     const before = await evaluate('performance.timeOrigin');
     await call('Page.reload');
-    await wait(`performance.timeOrigin!==${before}&&document.body.innerText.includes("Inquiry ID:")&&document.body.innerText.includes("ROLE-PART")`);
+    await wait(`performance.timeOrigin!==${before}`);await waitForTechnicalDetails({wait,evaluate},'Inquiry ID:');await wait(`document.body.innerText.includes("Inquiry ID:")&&document.body.innerText.includes("ROLE-PART")`);
     assert.deepEqual(await db.collection('inquiries').findOne({ _id: id }), row);
     await api('/crm/accounts', undefined, 403);
     check('PR4 corrective quoteEditor known-account keyboard create and reload persist exact inquiry source while CRM browse stays denied');
