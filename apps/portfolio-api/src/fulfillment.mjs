@@ -6,6 +6,7 @@ import { freezeShipmentGenealogy } from './genealogy.mjs';
 import { freezeShipmentInstallation } from './component-installation.mjs';
 import { requireQuantityOnlyReceipt } from './serial-custody.mjs';
 import { requireLegacyReceipt } from './receipt-origin.mjs';
+import { businessNow } from './business-clock.mjs';
 
 const verbs = ['read', 'ship', 'invoice', 'pay'];
 export const fulfillmentActions = verbs.map(v => `fulfillment.${v}`);
@@ -203,7 +204,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       }
       const total = sources.reduce((a, s) => a + s.amount, 0n);
       await tally(req, 'SO_LINE_SHIPPED', so._id, lineIndex, total, units(line.quantity), session);
-      const row = { ...base(req), ...(line.provenance ? { provenance: structuredClone(line.provenance) } : {}), _id: shipmentId, salesOrderId: so._id, accountId: so.accountId, lineIndex, uom, quantity: decimal(total), stockMovementCount: sources.length, sources: sources.map(({ amount: _, ...s }) => s), reference, status: 'SHIPPED', dispatchMode: 'OPERATOR_RECORDED', shippedBy: req.scope.userId, shippedAt: new Date() };
+      const row = { ...base(req), ...(line.provenance ? { provenance: structuredClone(line.provenance) } : {}), _id: shipmentId, salesOrderId: so._id, accountId: so.accountId, lineIndex, uom, quantity: decimal(total), stockMovementCount: sources.length, sources: sources.map(({ amount: _, ...s }) => s), reference, status: 'SHIPPED', dispatchMode: 'OPERATOR_RECORDED', shippedBy: req.scope.userId, shippedAt: businessNow(runtime), ...(runtime.businessClock ? { recordedAt: new Date(), businessClockMode: runtime.businessClockMode } : {}) };
       await c('fulfillmentShipments').insertOne(row, { session });
       return row;
     }); res.status(201).json({ data });

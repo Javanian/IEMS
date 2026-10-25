@@ -1,8 +1,9 @@
+import { waitForTechnicalDetails } from './browser-readiness.mjs';
 import assert from 'node:assert/strict';
 export async function procurementJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers }) {
   await click('Sales orders'); await wait(`document.querySelector('h1')?.textContent==='Sales orders'`);
   const salesOrder = await db.collection('salesOrders').findOne({});
-  await click(salesOrder._id); const reloadOrigin = await evaluate('performance.timeOrigin'); await call('Page.reload'); await wait(`performance.timeOrigin!==${reloadOrigin}&&document.body.innerText.includes('${salesOrder._id}')&&document.body.innerText.includes('250.03')`);
+  await click(salesOrder._id); const reloadOrigin = await evaluate('performance.timeOrigin'); await call('Page.reload'); await wait(`performance.timeOrigin!==${reloadOrigin}&&(location.pathname.split('/').at(-1)==='${salesOrder._id}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${salesOrder._id}'))&&document.body.innerText.includes('250.03')`);
   check('persisted SO list/detail GET and hard reload restore exact snapshot without response-state fallback');
   await click('Procurement'); await wait(`document.querySelector('h1')?.textContent==='Vendors'`);
   await fill('name', 'Synthetic procurement vendor'); await click('Create vendor');
@@ -16,22 +17,22 @@ export async function procurementJourney({ db, call, wait, click, fill, evaluate
   }
   await click('Add line'); await click('Remove last line');
   await fill('vendorId',vendorId); await fill('description0',' Synthetic procurement material '); await fill('quantity0','1.250'); await fill('uom0','KG'); await fill('unitPrice0','100.01');
-  await click('Save purchase request'); await wait(`document.body.innerText.includes('Status: DRAFT')`);
+  await click('Save purchase request'); await wait(`document.body.innerText.includes('Status: Draft')`);
   const requestId = await evaluate(`location.pathname.split('/').at(-1)`);
   let pr = await db.collection('purchaseRequests').findOne({_id:requestId});
   assert.equal(pr.version,1); assert.equal(pr.snapshot.total,'125.01'); assert.equal(pr.vendorId,vendorId);
   const post = (path,body) => fetch(`http://127.0.0.1:4313/api/procurement/${path}`,{method:'POST',headers,body:JSON.stringify(body)});
   assert.equal((await post(`requests/${requestId}/approve`,{expectedVersion:1})).status,200);
-  await click('Approve purchase request'); await wait(`document.body.innerText.includes('Refresh the record')`);
+  await click('Approve purchase request'); await waitForTechnicalDetails({wait,evaluate},'VERSION_CONFLICT');
   assert.equal(await db.collection('procurementAudit').countDocuments({kind:'purchaseRequest.approve'}),1);
-  await screenshot('14-procurement-conflict'); await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: APPROVED')`);
+  await screenshot('14-procurement-conflict'); await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: Approved')`);
   await click('Convert to purchase order'); await wait(`document.querySelector('h1')?.textContent==='Purchase order'`);
   const orderId = await evaluate(`location.pathname.split('/').at(-1)`);
   let po = await db.collection('purchaseOrders').findOne({_id:orderId});
   pr = await db.collection('purchaseRequests').findOne({_id:requestId});
   assert.equal(pr.status,'CONVERTED'); assert.equal(pr.version,3); assert.equal(pr.orderId,orderId);
   assert.equal(po.requestId,requestId); assert.equal(po.version,1); assert.deepEqual(po.snapshot,pr.approval.snapshot);
-  await click('Issue locally'); await wait(`document.body.innerText.includes('Status: ISSUED')`);
+  await click('Issue locally'); await wait(`document.body.innerText.includes('Status: Issued')`);
   await call('Emulation.setDeviceMetricsOverride',{width:375,height:500,deviceScaleFactor:1,mobile:true});
   await fill('reference','Synthetic operator reference');
   await evaluate(`document.querySelector('[name=reference]').focus()`);
@@ -40,11 +41,11 @@ export async function procurementJourney({ db, call, wait, click, fill, evaluate
   assert.equal(await evaluate('getComputedStyle(document.activeElement).outlineStyle'),'solid');
   await call('Input.dispatchKeyEvent',{type:'rawKeyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13}); await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
   await call('Input.dispatchKeyEvent',{type:'char',text:'\r',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
-  await wait(`document.body.innerText.includes('Status: CONFIRMED')`);
+  await wait(`document.body.innerText.includes('Status: Confirmed')`);
   const beforeReload = await evaluate('performance.timeOrigin');
   await call('Page.reload');
-  await wait(`performance.timeOrigin!==${beforeReload}&&document.body.innerText.includes('OPERATOR_RECORDED')&&[...document.querySelectorAll('button')].some(b=>b.textContent==='Refresh record')`);
-  assert.ok(await evaluate(`document.body.innerText.includes('Status: CONFIRMED')`));
+  await wait(`performance.timeOrigin!==${beforeReload}`);await waitForTechnicalDetails({wait,evaluate},'OPERATOR_RECORDED');await wait(`document.body.innerText.includes('OPERATOR_RECORDED')&&[...document.querySelectorAll('button')].some(b=>b.textContent==='Refresh record')`);
+  assert.ok(await evaluate(`document.body.innerText.includes('Status: Confirmed')`));
   po = await db.collection('purchaseOrders').findOne({_id:orderId});
   assert.equal(po.version,3); assert.equal(po.confirmation.reference,'Synthetic operator reference'); assert.equal(po.confirmation.vendorId,vendorId);
   assert.deepEqual(po.snapshot,pr.approval.snapshot); assert.equal(po.snapshot.lines[0].quantity,'1.250');
@@ -62,10 +63,10 @@ export async function procurementJourney({ db, call, wait, click, fill, evaluate
   await db.collection('memberships').updateOne({_id:membership._id},{$set:{roles:[]}});
   await click('Refresh record'); await wait(`document.body.innerText.includes('Access denied')`);
   await db.collection('memberships').updateOne({_id:membership._id},{$set:{roles:membership.roles}});
-  await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: CONFIRMED')`);
-  await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1}); await click('Refresh record'); await wait(`document.body.innerText.includes('Retry to load')`);
-  await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1}); await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: CONFIRMED')`);
-  await click('Open source purchase request'); await wait(`document.body.innerText.includes('Status: CONVERTED')`); await click('Open purchase order'); await wait(`document.body.innerText.includes('Status: CONFIRMED')`);
+  await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: Confirmed')`);
+  await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1}); await click('Refresh record'); await wait(`document.body.innerText.includes('The current records could not be loaded')`);
+  await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1}); await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: Confirmed')`);
+  await click('Open source purchase request'); await wait(`document.body.innerText.includes('Status: Order created')`); await click('Open purchase order'); await wait(`document.body.innerText.includes('Status: Confirmed')`);
   await click('Open vendor'); await wait(`document.querySelector('h1')?.textContent==='Synthetic procurement vendor'`); await click('Back to vendors');
   await click('Purchase requests'); await wait(`document.querySelector('h1')?.textContent==='Purchase requests'`); await click(requestId); await click('Back to purchase requests'); await click('Purchase orders'); await wait(`document.querySelector('h1')?.textContent==='Purchase orders'`); await click(orderId); await click('Back to purchase orders');
   check('real procurement vendor/PR/approval/PO/issue/operator confirmation; independent Mongo lineage, exact snapshot, six atomic audit/outbox events, versions and reload');

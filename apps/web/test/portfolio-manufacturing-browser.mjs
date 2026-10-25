@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { waitForTechnicalDetails } from './browser-readiness.mjs';
 // Mounted manufacturing journey: actual SO line and STORED receipt left by the commercial and warehouse journeys.
 export async function manufacturingJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers }) {
   const api = (path, body) => fetch(`http://127.0.0.1:4313/api/${path}`, { method: body ? 'POST' : 'GET', headers, body: body && JSON.stringify(body) });
@@ -7,7 +8,7 @@ export async function manufacturingJourney({ db, call, wait, click, fill, evalua
   assert.equal(receiptBefore.availableQuantity, '1.5'); assert.equal(so.snapshot.lines[0].quantity, '2.500');
   await click('Manufacturing'); await wait(`document.querySelector('h1')?.textContent==='Manufacturing work orders'`);
   await wait(`document.body.innerText.includes('No work orders in this plant yet')`);
-  await click('Plan from sales order'); await wait(`document.body.innerText.includes('${so._id}')`);
+  await click('Plan from sales order'); await wait(`(location.pathname.split('/').at(-1)==='${so._id}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${so._id}'))`);
   await click(so._id); await wait(`document.querySelector('[name=quantities]')`);
   await fill('lineIndex', '0'); await fill('quantities', '0.75\n0.5'); await click('Plan work orders');
   await wait(`document.body.innerText.includes('Planned 2 work orders')`);
@@ -19,11 +20,11 @@ export async function manufacturingJourney({ db, call, wait, click, fill, evalua
   // Over-capacity split: 1.25 planned + 1.5 exceeds the 2.500 EA line; the server must reject without effects.
   await fill('quantities', '1.5'); await click('Plan work orders'); await wait(`document.body.innerText.includes('exceed the sales order line')`);
   assert.equal(await db.collection('manufacturingWorkOrders').countDocuments({}), 2);
-  await click('Discard command and refresh'); await wait(`document.body.innerText.includes('${first._id}')`);
+  await click('Discard command and refresh'); await wait(`(location.pathname.split('/').at(-1)==='${first._id}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${first._id}'))`);
   await click(first._id); await wait(`document.body.innerText.includes('Release with routing and materials')`); await wait(`document.querySelector('[name=receiptId0] option')`);
   await fill('code0', 'MIX'); await fill('instruction0', 'Operator records mixing'); await click('Add operation'); await wait(`document.querySelector('[name=code1]')`);
   await fill('code1', 'PACK'); await fill('instruction1', 'Operator records packing'); await fill('receiptId0', receiptBefore._id); await fill('quantityPerUnit0', '2');
-  await click('Release work order'); await wait(`document.body.innerText.includes('Status: RELEASED')`);
+  await click('Release work order'); await wait(`document.body.innerText.includes('Status: Ready to start')`);
   let receipt = await db.collection('warehouseReceipts').findOne({ _id: receiptBefore._id });
   assert.equal(receipt.availableQuantity, '0'); assert.equal(receipt.manufacturingReservedQuantity, '1.5'); assert.equal(receipt.version, receiptBefore.version + 1);
   check('manufacturing split WOs from real SO line, over-capacity 409 without effects, release freezes routing and reserves 1.5 EA from STORED receipt (independent Mongo)');
@@ -31,13 +32,13 @@ export async function manufacturingJourney({ db, call, wait, click, fill, evalua
   const competing = await api(`manufacturing/work-orders/${first._id}/record`, { expectedVersion: 2, operationIndex: 0, inputQuantity: '0.75', goodQuantity: '0.7', scrapQuantity: '0.05', uom: 'EA', evidence: 'Synthetic second operator MIX entry', idempotencyKey: crypto.randomUUID() });
   assert.equal(competing.status, 200);
   await fill('goodQuantity', '0.75'); await fill('scrapQuantity', '0'); await fill('evidence', 'Synthetic stale browser entry'); await click('Record operation');
-  await wait(`document.body.innerText.includes('Refresh the record')`);
+  await waitForTechnicalDetails({wait,evaluate},'VERSION_CONFLICT');
   let wo = await db.collection('manufacturingWorkOrders').findOne({ _id: first._id });
   assert.equal(wo.records.length, 1); assert.equal(wo.version, 3); assert.equal(await db.collection('manufacturingMovements').countDocuments({ kind: 'MATERIAL_CONSUMED' }), 1);
   await screenshot('18-manufacturing-record-conflict');
   await click('Refresh and retry'); await wait(`document.body.innerText.includes('Record operation 2 of 2: PACK')&&document.body.innerText.includes('Input: 0.7 EA')`);
   await fill('goodQuantity', '0.650'); await fill('scrapQuantity', '0.05'); await fill('evidence', 'Synthetic browser PACK entry'); await click('Record operation');
-  await wait(`document.body.innerText.includes('Status: QUARANTINED')&&document.body.innerText.includes('Final output: 0.65 EA')`);
+  await wait(`document.body.innerText.includes('Status: Awaiting inspection')&&document.body.innerText.includes('Final output: 0.65 EA')`);
   // Role grant limited to read: QC must be forbidden by the server while reads still work.
   const credential = await db.collection('credentials').findOne({ username: 'alpha.owner' }), membership = await db.collection('memberships').findOne({ userId: credential._id });
   await db.collection('memberships').updateOne({ _id: membership._id }, { $set: { roles: [{ role: 'manufacturingRead', plantIds: membership.plantIds }] } });
@@ -58,7 +59,7 @@ export async function manufacturingJourney({ db, call, wait, click, fill, evalua
   assert.equal(await evaluate('document.activeElement.textContent'), 'Record QC');
   assert.equal(await evaluate('getComputedStyle(document.activeElement).outlineStyle'), 'solid');
   await call('Input.dispatchKeyEvent', { type: 'char', text: '\r', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-  await wait(`document.body.innerText.includes('Status: QC_COMPLETED')`);
+  await wait(`document.body.innerText.includes('Status: Quality complete')`);
   await call('Page.reload'); await wait(`document.body.innerText.includes('Accepted: 0.6 EA')&&document.body.innerText.includes('Synthetic browser PACK entry')`);
   await screenshot('20-manufacturing-qc-mobile');
   wo = await db.collection('manufacturingWorkOrders').findOne({ _id: first._id });
@@ -72,7 +73,7 @@ export async function manufacturingJourney({ db, call, wait, click, fill, evalua
   assert.deepEqual([receipt.availableQuantity, receipt.manufacturingReservedQuantity, receipt.manufacturingConsumedQuantity, receipt.reservedQuantity, receipt.version], ['0', '0', '1.5', '0.5', receiptBefore.version + 2]);
   // Release the second split against the now-empty receipt: insufficient stock must leave balances untouched.
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-  await click('Work orders'); await wait(`document.body.innerText.includes('${second._id}')`); await click(second._id);
+  await click('Work orders'); await wait(`(location.pathname.split('/').at(-1)==='${second._id}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${second._id}'))`); await click(second._id);
   await wait(`document.querySelector('[name=receiptId0] option')`);
   await fill('code0', 'MIX'); await fill('instruction0', 'Operator records mixing'); await fill('receiptId0', receiptBefore._id); await fill('quantityPerUnit0', '1');
   await click('Release work order'); await wait(`document.body.innerText.includes('lacks available quantity')`);

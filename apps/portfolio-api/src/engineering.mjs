@@ -1,6 +1,6 @@
 import { requireLegacyReceipt } from './receipt-origin.mjs';
 
-export function installEngineering(app, { db, c, find, base, tx, fail, fields, id, qty, text }) {
+export function installEngineering(app, { db, c, find, base, tx, fail, fields, id, qty, text, now = () => new Date() }) {
   const positive = n => { if (!Number.isSafeInteger(n) || n < 1) fail(400, 'INVALID_VERSION'); return n; };
   const revisionNumber = raw => { if (!/^[1-9][0-9]*$/.test(raw)) fail(400, 'INVALID_REVISION'); return positive(Number(raw)); };
   const revision = async (req, head, number, session) => {
@@ -75,7 +75,7 @@ export function installEngineering(app, { db, c, find, base, tx, fail, fields, i
           await source(req, head, session);
           const rev = await revision(req, head, b.revision, session);
           await content(req, rev, session);
-          const releaseSnapshot = { operations: rev.operations, materials: rev.materials, releasedBy: req.scope.userId, releasedAt: new Date() };
+          const releaseSnapshot = { operations: rev.operations, materials: rev.materials, releasedBy: req.scope.userId, releasedAt: now(), releaseRecordedAt: new Date() };
           await c('engineeringRevisions').updateOne({ ...req.filter, _id: rev._id }, { $set: { releaseSnapshot } }, { session });
           head.status = 'RELEASED';
         } else { head.status = 'REVOKED'; head.revocation = { revision: b.revision, reason: text(b.reason), revokedBy: req.scope.userId, revokedAt: new Date() }; }

@@ -79,7 +79,7 @@ export async function serviceJourney({ db, runtime, call, wait, click, fill, eva
       await db.collection('memberships').updateOne({_id:membership._id},{$set:{roles:membership.roles}});
       await call('Page.reload'); await wait(`document.querySelector('[name=replyText]')`);
       await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1});
-      await click('Refresh conversation'); await wait(`document.body.innerText.includes('Retry to load')`);
+      await click('Refresh conversation'); await wait(`document.body.innerText.includes('The current records could not be loaded')`);
       await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
       await call('Page.reload'); await wait(`document.querySelector('[name=replyText]')`);
       await fill('replyText','Synthetic uncertain reply'); await click('Reply to customer');

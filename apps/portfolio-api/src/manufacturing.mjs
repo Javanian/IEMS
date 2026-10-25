@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { installEngineering } from './engineering.mjs';
 import { installLabor } from './labor.mjs';
+import { businessNow } from './business-clock.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { requireEligibleReceipt, workOrderStockExceptions } from './stock-holds.mjs';
 import { initializeGenealogy, installGenealogy, genealogyActions, genealogyRoles } from './genealogy.mjs';
@@ -25,6 +26,18 @@ const units = s => BigInt(s.split('.')[0]) * 1000000n + BigInt((s.split('.')[1] 
 const decimal = n => { const s = n.toString().padStart(7, '0'); return `${s.slice(0, -6)}.${s.slice(-6)}`.replace(/0+$/, '').replace(/\.$/, ''); };
 export function installManufacturing(app, runtime, { fail, guard, id, fields }) {
   const c = n => runtime.db.collection(n);
+  const validRequiredLabor = (row, entry) => {
+    const elapsed = entry.durationMs, active = Object.hasOwn(entry, 'activeDurationMs') ? entry.activeDurationMs : elapsed;
+    const start = new Date(entry.startedAt).getTime(), end = new Date(entry.endedAt).getTime();
+    return entry.workOrderId === row._id && entry.tenantId === row.tenantId && entry.plantId === row.plantId &&
+      entry.code === row.routing.operations[entry.operationIndex]?.code && entry.recordedBy === entry.operatorId &&
+      typeof entry.operatorId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(entry.operatorId) &&
+      Number.isSafeInteger(entry.version) && entry.version > 1 && entry.version === entry.workOrderVersion && entry.version <= row.version &&
+      Number.isSafeInteger(elapsed) && elapsed > 0 && elapsed <= (Object.hasOwn(entry, 'activeDurationMs') ? 604800000 : 86400000) &&
+      Number.isSafeInteger(active) && active > 0 && active <= elapsed && active <= 86400000 &&
+      Number.isFinite(start) && Number.isFinite(end) && end - start === elapsed && start >= new Date(row.routing.releasedAt).getTime() && end <= businessNow(runtime).getTime() &&
+      typeof entry.evidence === 'string' && entry.evidence.trim().length > 0 && entry.executionMode === 'OPERATOR_RECORDED';
+  };
   const qty = (s, zero = false) => {
     if (typeof s !== 'string' || !/^(0|[1-9][0-9]{0,17})(\.[0-9]{1,6})?$/.test(s) || (!zero && !/[1-9]/.test(s))) fail(400, 'INVALID_QUANTITY');
     return units(s);
@@ -107,7 +120,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     res.json({ data });
   });
   app.post('/api/manufacturing/work-orders', async (req, res) => {
-    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'quantities', 'uom', 'serialized', 'genealogyRequired', 'serialCustodyRequired', 'installationRequired', 'idempotencyKey']);
+    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'quantities', 'uom', 'serialized', 'genealogyRequired', 'serialCustodyRequired', 'installationRequired', 'requiredLaborOperationIndices', 'idempotencyKey']);
     const { salesOrderId, lineIndex, quantities, uom, expectedVersion } = req.body;
     id(salesOrderId);
     if (!Number.isSafeInteger(lineIndex) || lineIndex < 0 || !Array.isArray(quantities) || !quantities.length || quantities.length > 100) fail(400, 'INVALID_SPLIT');
@@ -120,6 +133,8 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     if (req.body.serialCustodyRequired && (!req.body.serialized || !req.body.genealogyRequired || amounts.some(a => a > 100000000n))) fail(400, 'INVALID_SERIAL_CUSTODY');
     if (Object.hasOwn(req.body, 'installationRequired') && typeof req.body.installationRequired !== 'boolean') fail(400, 'INVALID_INSTALLATION');
     if (req.body.installationRequired && !req.body.serialCustodyRequired) fail(400, 'INVALID_INSTALLATION');
+    const requiredLabor = req.body.requiredLaborOperationIndices;
+    if (requiredLabor !== undefined && (!Array.isArray(requiredLabor) || !requiredLabor.length || requiredLabor.length > 50 || requiredLabor.some(index => !Number.isSafeInteger(index) || index < 0 || index >= 50) || new Set(requiredLabor).size !== requiredLabor.length)) fail(400, 'INVALID_LABOR_REQUIREMENTS');
     const data = await tx(req, 'workOrders.planned', async session => {
       const so = await find('salesOrders', req, salesOrderId, session);
       if (so.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
@@ -131,13 +146,13 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
       if (total > units(line.quantity)) fail(409, 'QUANTITY_EXCEEDED');
       if (allocated) await c('manufacturingAllocated').updateOne({ _id: allocated._id }, { $set: { quantity: decimal(total) } }, { session });
       else await c('manufacturingAllocated').insertOne({ ...base(req), ...filter, quantity: decimal(total) }, { session });
-      const batch = base(req), workOrders = amounts.map(a => ({ ...base(req), splitId: batch._id, salesOrderId, salesOrderVersion: so.version, accountId: so.accountId, lineIndex, sourceLine: line, quantity: decimal(a), uom, ...(req.body.serialized ? { serialized: true } : {}), ...(req.body.genealogyRequired ? { genealogyRequired: true } : {}), ...(req.body.serialCustodyRequired ? { serialCustodyRequired: true } : {}), ...(req.body.installationRequired ? { installationRequired: true } : {}), status: 'PLANNED', executionMode: 'OPERATOR_RECORDED', records: [] }));
+      const batch = base(req), workOrders = amounts.map(a => ({ ...base(req), splitId: batch._id, salesOrderId, salesOrderVersion: so.version, accountId: so.accountId, lineIndex, sourceLine: line, quantity: decimal(a), uom, ...(req.body.serialized ? { serialized: true } : {}), ...(req.body.genealogyRequired ? { genealogyRequired: true } : {}), ...(req.body.serialCustodyRequired ? { serialCustodyRequired: true } : {}), ...(req.body.installationRequired ? { installationRequired: true } : {}), ...(requiredLabor ? { requiredLaborOperationIndices: [...requiredLabor].sort((left, right) => left - right) } : {}), status: 'PLANNED', executionMode: 'OPERATOR_RECORDED', records: [] }));
       await c('manufacturingWorkOrders').insertMany(workOrders, { session });
       return { ...batch, workOrders };
     }); res.status(201).json({ data });
   });
-  installLabor(app, { c, find, tx, fail, fields, id, text });
-  const engineeringRouting = installEngineering(app, { db: runtime.db, c, find, base, tx, fail, fields, id, qty, text });
+  installLabor(app, { c, find, tx, fail, fields, id, text, now: () => businessNow(runtime) });
+  const engineeringRouting = installEngineering(app, { db: runtime.db, c, find, base, tx, fail, fields, id, qty, text, now: () => businessNow(runtime) });
   const movement = async (req, wo, kind, values, session) => c('manufacturingMovements').insertOne({ ...base(req), workOrderId: wo._id, kind, ...values }, { session });
   for (const action of ['release', 'release-engineering', 'record', 'qc']) app.post(`/api/manufacturing/work-orders/:id/${action}`, async (req, res) => {
     const allowed = { 'release-engineering': ['engineeringId', 'engineeringVersion', 'revision', 'serialClaims'], release: ['operations', 'materials', 'serialClaims'], record: ['operationIndex', 'inputQuantity', 'goodQuantity', 'scrapQuantity', 'uom', 'evidence', 'outputSerials'], qc: ['acceptedQuantity', 'rejectedQuantity', 'uom', 'evidence', 'acceptedSerials', 'rejectedSerials'] }[action];
@@ -154,6 +169,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
         if ([...releaseBody.operations, ...releaseBody.materials].some(v => !v || typeof v !== 'object' || Array.isArray(v))) fail(400, 'INVALID_ROUTING');
         if (row.genealogyRequired && releaseBody.materials.length > 20) fail(400, 'INVALID_GENEALOGY');
         const operations = releaseBody.operations.map(op => { fields(op, ['code', 'instruction']); return { code: text(op.code), instruction: text(op.instruction) }; });
+        if (row.requiredLaborOperationIndices?.some(index => !operations[index])) fail(409, 'LABOR_REQUIREMENT_CONFLICT');
         if (new Set(operations.map(o => o.code)).size !== operations.length || new Set(releaseBody.materials.map(m => m.receiptId)).size !== releaseBody.materials.length) fail(400, 'INVALID_ROUTING');
         for (const m of releaseBody.materials) { fields(m, ['receiptId', 'quantityPerUnit', 'uom']); id(m.receiptId); qty(m.quantityPerUnit); }
         const custody = await reserveSerialCustody(runtime.db, row, releaseBody.materials, b.serialClaims, req.scope.userId, session);
@@ -172,11 +188,15 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
           const material = { receiptId: receipt._id, quantityPerUnit: decimal(ratio), quantity: decimal(required), uom: m.uom, ...(receipt.lotNumber !== undefined ? { materialTrace: { receiptId: receipt._id, lotNumber: receipt.lotNumber, heatNumber: receipt.heatNumber } } : {}), ...(custody.has(receipt._id) ? { serialCustody: custody.get(receipt._id) } : {}) };
           materials.push(material); await movement(req, row, 'MATERIAL_RESERVED', material, session);
         }
-        row.routing = { operations, materials, releasedBy: req.scope.userId, releasedAt: new Date() }; row.status = 'RELEASED';
+        row.routing = { operations, materials, releasedBy: req.scope.userId, releasedAt: businessNow(runtime), ...(runtime.businessClock ? { releaseRecordedAt: new Date(), businessClockMode: runtime.businessClockMode } : {}) }; row.status = 'RELEASED';
       }
       if (action === 'record') {
         if (!['RELEASED', 'IN_PROGRESS'].includes(row.status)) fail(409, 'STATE_CONFLICT');
         if (!Number.isSafeInteger(b.operationIndex) || b.operationIndex !== row.records.length || !row.routing.operations[b.operationIndex]) fail(409, 'OPERATION_SEQUENCE_CONFLICT');
+        if (row.requiredLaborOperationIndices?.includes(b.operationIndex)) {
+          const entry = await c('manufacturingLabor').findOne({ ...req.filter, workOrderId: row._id, operationIndex: b.operationIndex }, { session });
+          if (!entry || !validRequiredLabor(row, entry)) fail(409, 'LABOR_EVIDENCE_REQUIRED');
+        }
         if (b.uom !== row.uom) fail(409, 'UOM_CONFLICT');
         const input = qty(b.inputQuantity, true), good = qty(b.goodQuantity, true), scrap = qty(b.scrapQuantity, true);
         const expected = units(row.records.at(-1)?.goodQuantity || row.quantity);
@@ -211,6 +231,11 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
       }
       if (action === 'qc') {
         if (row.status !== 'QUARANTINED') fail(409, 'STATE_CONFLICT');
+        if (row.requiredLaborOperationIndices?.length) {
+          const labor = await c('manufacturingLabor').find({ ...req.filter, workOrderId: row._id, operationIndex: { $in: row.requiredLaborOperationIndices } }, { session }).toArray();
+          if (labor.length !== row.requiredLaborOperationIndices.length || new Set(labor.map(entry => entry.operationIndex)).size !== labor.length || labor.some(entry => !validRequiredLabor(row, entry))) fail(409, 'LABOR_EVIDENCE_REQUIRED');
+          row.laborEvidence = labor.map(entry => ({ entryId: entry._id, operationIndex: entry.operationIndex, operatorId: entry.operatorId, durationMs: entry.durationMs, activeDurationMs: entry.activeDurationMs ?? entry.durationMs }));
+        }
         if (b.uom !== row.uom) fail(409, 'UOM_CONFLICT');
         const accepted = qty(b.acceptedQuantity, true), rejected = qty(b.rejectedQuantity, true);
         if (accepted + rejected !== units(row.output.quantity)) fail(409, 'CONSERVATION_CONFLICT');

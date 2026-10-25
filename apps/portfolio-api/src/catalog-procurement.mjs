@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { requireCatalogInventoryItem } from './internal-production.mjs';
 import { validateCatalogDispositionState } from './catalog-disposition-state.mjs';
+import { initializeCatalogOptions, installCatalogOptions } from './catalog-options.mjs';
 
 export const catalogActions = ['read', 'write', 'approve', 'convert', 'issue', 'receive'].map(action => `catalog.${action}`);
 export const catalogRoles = Object.fromEntries(['Reader', 'Writer', 'Approver', 'Converter', 'Issuer', 'Receiver'].map((role, index) => [`catalog${role}`, [...new Set(['catalog.read', catalogActions[index]])]]));
@@ -83,6 +84,7 @@ function traceInput(body, policy, stored = false) {
 }
 
 export async function initializeCatalogProcurement(db) {
+  await initializeCatalogOptions(db);
   for (const [name, keys] of [
     ['catalogPurchaseOrders', { tenantId: 1, plantId: 1, requestId: 1 }], ['catalogRequestRevisions', { tenantId: 1, plantId: 1, subjectId: 1, revision: 1 }], ['catalogOrderRevisions', { tenantId: 1, plantId: 1, subjectId: 1, revision: 1 }],
     ['catalogRequestLineIds', { tenantId: 1, plantId: 1, requestId: 1, itemId: 1 }], ['catalogReceived', { tenantId: 1, plantId: 1, purchaseOrderId: 1, lineId: 1 }], ['catalogKeys', { tenantId: 1, plantId: 1, key: 1 }], ['warehouseReceiptOrigins', { tenantId: 1, plantId: 1, receiptId: 1 }],
@@ -124,9 +126,26 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
     const action = req.method === 'GET' ? 'read' : req.method === 'POST' ? /^\/requests(?:\/[^/]+\/revisions)?$/.test(req.path) ? 'write' : /^\/requests\/[^/]+\/(approve|convert)$/.exec(req.path)?.[1] || (/^\/orders\/[^/]+\/issue$/.test(req.path) ? 'issue' : req.path === '/receipts' ? 'receive' : null) : null;
     if (!action) fail(404, 'NOT_FOUND'); req.catalogAction = `catalog.${action}`; await runtime.foundation.authorize(req.scope, { ...req.filter, action: req.catalogAction }); next();
   });
+  installCatalogOptions(app, runtime, { read, owner, id });
+  async function requireFreshVendor(req, vendorId, session) {
+    const vendor = await c('vendors').findOne({ ...req.filter, _id: vendorId }, { session });
+    if (!vendor) fail(404, 'NOT_FOUND');
+    if (!positive(vendor.version) || typeof vendor.name !== 'string' || !vendor.name.trim() || vendor.name.length > 200 || (Object.hasOwn(vendor, 'active') && ![true, false].includes(vendor.active))) invalid();
+    if (vendor.active === false) fail(409, 'VENDOR_INACTIVE');
+    const changed = await c('vendors').updateOne({ ...req.filter, _id: vendor._id, version: vendor.version, name: vendor.name, active: Object.hasOwn(vendor, 'active') ? true : { $exists: false } }, { $inc: { catalogUseFence: 1 } }, { session });
+    if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+    return vendor;
+  }
   async function dependencies(req, row, session, fence = false) {
     const blockers = [], legalEntityId = await owner(req, session);
     if (row.ownerLegalEntityId !== legalEntityId) invalid();
+    if (fence) await requireFreshVendor(req, row.content.vendorId, session);
+    else {
+      const vendor = await c('vendors').findOne({ ...req.filter, _id: row.content.vendorId }, { session });
+      if (!vendor) invalid();
+      if (vendor.active === false) blockers.push('VENDOR_INACTIVE');
+      else if (Object.hasOwn(vendor, 'active') && vendor.active !== true) blockers.push('VENDOR_SOURCE_INVALID');
+    }
     for (const line of row.content.lines) {
       try { const item = await requireCatalogInventoryItem(db, req.filter, line.itemId, line.itemVersion, line.itemRevision, session, fence); if (item.ownerLegalEntityId !== legalEntityId || item.contentHash !== line.itemContentHash) invalid(); }
       catch (error) { if (!['CATALOG_DEPENDENCY_CHANGED', 'NOT_FOUND'].includes(error.code)) throw error; blockers.push('ITEM_CHANGED'); }
@@ -186,7 +205,7 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
     const body = req.body;
     if (body.taxPolicy !== 'NO_TAX' || body.roundingPolicy !== 'LINE_HALF_UP') fail(400, 'INVALID_POLICY');
     if (!Array.isArray(body.lines) || !body.lines.length || body.lines.length > 20) fail(400, 'INVALID_LINES');
-    const vendorId = id(body.vendorId); if (!await c('vendors').findOne({ ...req.filter, _id: vendorId }, { session })) fail(404, 'NOT_FOUND');
+    const vendorId = id(body.vendorId); await requireFreshVendor(req, vendorId, session);
     const lines = [], seen = new Set(); let currency, total = 0n;
     for (const line of body.lines) {
       fields(line, ['itemId', 'itemVersion', 'itemRevision', 'quantity', 'unitPrice', 'currency']);

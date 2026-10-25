@@ -63,7 +63,7 @@ export async function paginationJourney({ db, runtime, headers, call, wait, clic
     }
     assert.equal(seen.size, expected, `${path} exact Mongo count`);
     await call('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
-    await click(path.startsWith('service') ? 'Refresh inbox' : 'Refresh list'); await wait(`document.body.innerText.includes('Retry to load')`);
+    await click(path.startsWith('service') ? 'Refresh inbox' : 'Refresh list'); await wait(`document.body.innerText.includes('The current records could not be loaded')`);
     await call('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await click('Refresh and retry'); await wait(`document.querySelector('.pf-rows')`);
     const credential = await db.collection('credentials').findOne({ username: 'alpha.owner' }), membership = await db.collection('memberships').findOne({ userId: credential._id });

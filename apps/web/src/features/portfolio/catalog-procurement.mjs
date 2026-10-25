@@ -6,7 +6,8 @@ export function receiptDetailPath(receipt,permissions) {
   return Array.isArray(permissions) && permissions.includes('catalog.qc.read') && !permissions.includes('catalog.read') ? `/portfolio/catalog-disposition/receipts/${receipt._id}` : `${catalogUi}/receipts/${receipt._id}`;
 }
 export function catalogCapability(action, permissions) {
-  return Array.isArray(permissions) && permissions.includes(action) ? { enabled:true,reason:'' } : { enabled:false,reason:Array.isArray(permissions) ? `You need ${action} permission for this action.` : 'Effective catalog permissions are unavailable. Refresh your session.' };
+  const names={ 'catalog.read':'read purchasing records','catalog.write':'prepare purchase requests','catalog.approve':'approve purchase requests','catalog.convert':'create purchase orders','catalog.issue':'issue purchase orders','catalog.receive':'record receipts','catalog.qc.read':'read receipt inspections','catalog.qc.record':'record receipt inspections','catalog.qc.approve':'approve receipt inspections','catalog.putaway':'put away accepted stock' };
+  return Array.isArray(permissions) && permissions.includes(action) ? { enabled:true,reason:'' } : { enabled:false,reason:Array.isArray(permissions) ? `Your role cannot ${names[action] || 'perform this action'}. Ask an administrator to review your access.` : 'Your current permissions are unavailable. Refresh your session.' };
 }
 export function catalogItems(items) { return items.filter(item => item.status === 'APPROVED' && item.content?.kind === 'PURCHASED' && item.content.schema === 'INVENTORY_ITEM_V2' && ['LOT','SERIAL'].includes(item.content.trackingPolicy) && item.approval?.revision === item.currentRevision && item.approval?.contentHash === item.contentHash && Array.isArray(item.blockers) && !item.blockers.length); }
 const common = (head,values,key) => ({ expectedVersion:head?.version ?? 1,reason:values.reason,idempotencyKey:key });

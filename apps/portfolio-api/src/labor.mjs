@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-export function installLabor(app, { c, find, tx, fail, fields, id, text }) {
+export function installLabor(app, { c, find, tx, fail, fields, id, text, now = () => new Date() }) {
   app.get('/api/manufacturing/work-orders/:id/labor', async (req, res) => {
     await find('manufacturingWorkOrders', req, req.params.id);
     const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
@@ -11,7 +11,7 @@ export function installLabor(app, { c, find, tx, fail, fields, id, text }) {
     res.json({ data, page: { limit, nextCursor: rows.length > limit ? data.at(-1)._id : null } });
   });
   app.post('/api/manufacturing/work-orders/:id/labor', async (req, res) => {
-    fields(req.body, ['expectedVersion', 'idempotencyKey', 'operationIndex', 'operatorId', 'startedAt', 'endedAt', 'durationMs', 'evidence']);
+    fields(req.body, ['expectedVersion', 'idempotencyKey', 'operationIndex', 'operatorId', 'startedAt', 'endedAt', 'durationMs', 'activeDurationMs', 'evidence']);
     const b = req.body;
     id(b.operatorId);
     if (b.operatorId !== req.scope.userId) fail(403, 'OPERATOR_DENIED');
@@ -22,18 +22,20 @@ export function installLabor(app, { c, find, tx, fail, fields, id, text }) {
       return d;
     };
     const startedAt = date(b.startedAt), endedAt = date(b.endedAt), evidence = text(b.evidence);
-    if (!Number.isSafeInteger(b.operationIndex) || b.operationIndex < 0 || b.operationIndex >= 50 || !Number.isSafeInteger(b.durationMs) || b.durationMs < 1 || b.durationMs > 86400000 || endedAt - startedAt !== b.durationMs) fail(400, 'INVALID_LABOR');
+    const reportedActive = Object.hasOwn(b, 'activeDurationMs'), activeDurationMs = reportedActive ? b.activeDurationMs : b.durationMs;
+    if (!Number.isSafeInteger(b.operationIndex) || b.operationIndex < 0 || b.operationIndex >= 50 || !Number.isSafeInteger(b.durationMs) || b.durationMs < 1 || b.durationMs > (reportedActive ? 604800000 : 86400000) || endedAt - startedAt !== b.durationMs || !Number.isSafeInteger(activeDurationMs) || activeDurationMs < 1 || activeDurationMs > b.durationMs || activeDurationMs > 86400000) fail(400, 'INVALID_LABOR');
     const data = await tx(req, 'workOrder.labor', async session => {
       const row = await find('manufacturingWorkOrders', req, req.params.id, session);
       if (row.version !== b.expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (!['RELEASED', 'IN_PROGRESS'].includes(row.status)) fail(409, 'STATE_CONFLICT');
-      if (b.operationIndex !== (row.laborCount || 0) || b.operationIndex > row.records.length || !row.routing.operations[b.operationIndex]) fail(409, 'OPERATION_SEQUENCE_CONFLICT');
+      const nextOperation = row.requiredLaborOperationIndices ? row.requiredLaborOperationIndices[row.laborCount || 0] : row.laborCount || 0;
+      if (b.operationIndex !== nextOperation || b.operationIndex > row.records.length || !row.routing.operations[b.operationIndex]) fail(409, 'OPERATION_SEQUENCE_CONFLICT');
       const recordedAt = new Date();
-      if (startedAt < row.routing.releasedAt || endedAt > recordedAt || (row.lastLaborEndedAt && startedAt < row.lastLaborEndedAt)) fail(409, 'LABOR_TIME_CONFLICT');
+      if (startedAt < row.routing.releasedAt || endedAt > now() || (row.lastLaborEndedAt && startedAt < row.lastLaborEndedAt)) fail(409, 'LABOR_TIME_CONFLICT');
       // The transaction's user write fence serializes this predicate across WOs.
       if (await c('manufacturingLabor').findOne({ ...req.filter, operatorId: b.operatorId, startedAt: { $lt: endedAt }, endedAt: { $gt: startedAt } }, { session })) fail(409, 'LABOR_TIME_CONFLICT');
       const version = row.version + 1;
-      const entry = { _id: randomUUID(), ...req.filter, workOrderId: row._id, workOrderVersion: version, version, operationIndex: b.operationIndex, code: row.routing.operations[b.operationIndex].code, operatorId: b.operatorId, startedAt, endedAt, durationMs: b.durationMs, evidence, recordedBy: req.scope.userId, recordedAt, executionMode: 'OPERATOR_RECORDED' };
+      const entry = { _id: randomUUID(), ...req.filter, workOrderId: row._id, workOrderVersion: version, version, operationIndex: b.operationIndex, code: row.routing.operations[b.operationIndex].code, operatorId: b.operatorId, startedAt, endedAt, durationMs: b.durationMs, ...(reportedActive ? { activeDurationMs } : {}), evidence, recordedBy: req.scope.userId, recordedAt, executionMode: 'OPERATOR_RECORDED' };
       await c('manufacturingLabor').insertOne(entry, { session });
       const saved = await c('manufacturingWorkOrders').updateOne({ ...req.filter, _id: row._id, version: b.expectedVersion }, { $inc: { version: 1, laborCount: 1 }, $set: { lastLaborEndedAt: endedAt, updatedAt: recordedAt } }, { session });
       if (!saved.matchedCount) fail(409, 'VERSION_CONFLICT');

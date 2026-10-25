@@ -1,3 +1,4 @@
+import { waitForTechnicalDetails } from './browser-readiness.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { parseExpression } from '@babel/parser';
@@ -126,14 +127,14 @@ export async function installationJourney({ db, call, wait, click, fill, evaluat
     await ready(`Array.from(document.querySelector('[name=shipmentId]')?.options||[]).some(option=>option.textContent.includes(${js(reference)}))`);
     const shipment=await db.collection('fulfillmentShipments').findOne({salesOrderId:so._id,reference}),pointer=shipment.sources[0].installation;assert.ok(pointer?.contentHash);if(frozenPointer)assert.deepEqual(pointer,frozenPointer);else frozenPointer=pointer;
     assert.deepEqual((await db.collection('warehouseMovements').findOne({shipmentId:shipment._id,kind:'SHIP'})).installation,pointer);assert.deepEqual((await db.collection('manufacturingOutputUnits').findOne({_id:unit._id})).installation,pointer);
-    await navigate(`fulfillment/shipments/${shipment._id}`,`document.body.innerText.includes(${js(pointer.contentHash)})`);
+    await navigate(`fulfillment/shipments/${shipment._id}`,`document.querySelector('h1')?.textContent.startsWith('Shipment ')`);await waitForTechnicalDetails({wait:ready,evaluate:checked},pointer.contentHash);
     await navigate(`manufacturing/work-orders/${main._id}`,'document.querySelector("#component-installation")?.innerText.includes("FROZEN")');
     const frozen=await api(base(main._id));assert.equal(frozen.status,'FROZEN');assert.equal(await checked(`Boolean(document.querySelector(${js(RECORD)}))`),false);
     if(index===0){const failed=await send(`${base(main._id)}/remove`,{expectedVersion:frozen.workOrderVersion,expectedInstallationVersion:frozen.version,edgeId:frozen.edges[0]._id,expectedEdgeVersion:frozen.edges[0].version,expectedUnitVersion:frozen.components.find(component=>component._id===frozen.edges[0].childId).version,reason:'Synthetic frozen remaining unit edit denied',idempotencyKey:randomUUID()});assert.equal(failed.status,409);assert.equal(failed.error.code,'INSTALLATION_FROZEN');}
   }
   await inspectLayout('frozen');assert.deepEqual(await stock(),stockBefore);assert.deepEqual(await consumption(),consumptionBefore);assert.ok((await db.collection('serialCustodyUnits').find({receiptId:{$in:receiptIds}}).toArray()).every(unit=>unit.status==='CONSUMED'));
   const history=await send(`${base(main._id)}/revisions?limit=1`);assert.equal(history.status,200);assert.equal(history.data.length,1);assert.ok(history.page.nextCursor);const more=await send(`${base(main._id)}/revisions?limit=1&cursor=${history.page.nextCursor}`);assert.equal(more.status,200);assert.notEqual(more.data[0]._id,history.data[0]._id);
-  await click(`Inspect installation revision ${frozenPointer.revision}`);await ready(`document.querySelector('#component-installation').innerText.includes(${js(`Immutable installation revision ${frozenPointer.revision}`)})`);assert.equal(await checked(`document.querySelector('#component-installation').innerText.includes(${js(frozenPointer.contentHash)})`),true);
+  await click(`Inspect installation revision ${frozenPointer.revision}`);await ready(`document.querySelector('#component-installation').innerText.includes(${js(`Immutable installation revision ${frozenPointer.revision}`)})`);await waitForTechnicalDetails({wait:ready,evaluate:checked},frozenPointer.contentHash);assert.equal(await checked(`document.querySelector('#component-installation').innerText.includes(${js(frozenPointer.contentHash)})`),true);
   check('K2b1 native partial dispatches freeze the entire installation head and retain identical immutable source/movement/output pointers through reload; later edits fail and no material is consumed twice');
 
   const lossQuote=await api('/commercial/quotes',{accountId:account._id,expiresAt:'2027-01-01T00:00:00.000Z',taxPolicy:'NO_TAX',roundingPolicy:'LINE_HALF_UP',lines:[{description:'Synthetic zero-good installation loss',quantity:'1',uom:'UN',unitPrice:'1.00',currency:'USD'}]});

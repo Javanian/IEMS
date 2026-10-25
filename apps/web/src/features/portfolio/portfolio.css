@@ -1,5 +1,23 @@
 @tailwind components;
   .portfolio-root { @apply min-h-dvh bg-canvas text-ink; font-size: 1rem; }
+  .pf-record-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: start; margin-block: 16px; }
+  .pf-reference { @apply font-semibold text-slate-600; }
+  .pf-next-action { @apply rounded-xl border border-brand-200 bg-brand-50 p-3; display: flex; flex-direction: column; max-width: 28rem; }
+  .pf-audit { @apply border-t border-slate-200; margin-top: 12px; }
+  .pf-audit > div { @apply text-sm text-slate-600; padding-block: 12px; overflow-wrap: anywhere; }
+  .pf-audit pre { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
+  .portfolio-root legend { max-width: 100%; overflow-wrap: anywhere; }
+  .pf-workflow { margin-block: 16px; overflow-x: auto; }
+  .pf-workflow ol { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+  .pf-workflow li { @apply text-sm text-slate-600; padding-block: 8px; }
+  .pf-workflow li[aria-current] { @apply text-brand-700 font-semibold; border-bottom: 2px solid currentColor; }
+  .pf-operator-blockers { @apply border border-amber-600 bg-amber-50 rounded-xl p-3; margin-block: 12px; }
+  .pf-operator-blockers ul { padding-left: 20px; list-style: disc; }
+  .pf-source-picker { grid-column: 1 / -1; }
+  .pf-source-picker > .pf-fields { grid-template-columns: minmax(0,1fr) auto; align-items: end; }
+  @media (max-width: 639px) { .pf-source-picker > .pf-fields { grid-template-columns: minmax(0,1fr); } }
+  .portfolio-root[data-kiosk=true] :is(a,button,input,select,textarea,summary) { min-height: 48px; }
+  @media (prefers-reduced-motion: reduce) { .portfolio-root *, .portfolio-root *::before, .portfolio-root *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
   .portfolio-root * { min-width: 0; }
   .portfolio-root :is(h1, h2, p, a, button, label, input, select, textarea, span, strong, dt, dd, time) { line-height: 1.5; }
   .portfolio-root .pf-main :is(h1, h2) { line-height: 1.2; }

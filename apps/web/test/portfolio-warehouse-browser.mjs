@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { waitForTechnicalDetails } from './browser-readiness.mjs';
 export async function warehouseJourney({db,call,wait,click,fill,evaluate,screenshot,check,headers}) {
   await click('Warehouse'); await wait(`document.querySelector('h1')?.textContent==='Warehouse receipts'`);
   await wait(`document.body.innerText.includes('No receipts')`);
@@ -9,23 +10,23 @@ export async function warehouseJourney({db,call,wait,click,fill,evaluate,screens
   await post(`procurement/requests/${pr._id}/approve`,{expectedVersion:1});
   const draft=await post(`procurement/requests/${pr._id}/convert`,{expectedVersion:2,idempotencyKey:crypto.randomUUID()});
   const po=await post(`procurement/orders/${draft._id}/issue`,{expectedVersion:1});
-  await call('Page.reload'); await wait(`document.body.innerText.includes('${po._id}')`);
+  await call('Page.reload'); await wait(`(location.pathname.split('/').at(-1)==='${po._id}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${po._id}'))`);
   await click(po._id); await wait(`document.querySelector('[name=quantity]')`);
   await fill('quantity','2.000'); await fill('uom','EA'); await fill('serials','Trace_01\nTrace-02'); await click('Receive into quarantine');
-  await wait(`document.body.innerText.includes('Status: QUARANTINED')`);
+  await wait(`document.body.innerText.includes('Status: Awaiting inspection')`);
   const receiptId = await evaluate(`location.pathname.split('/').at(-1)`);
   let receipt = await db.collection('warehouseReceipts').findOne({_id:receiptId});
   assert.equal(receipt.quantity,'2.000'); assert.deepEqual(receipt.serials,['Trace_01','Trace-02']); assert.equal(receipt.purchaseOrderId,po._id); assert.equal(receipt.availableQuantity,'0');
-  await fill('reason','Synthetic operator QC decision'); await click('Record QC release'); await wait(`document.body.innerText.includes('Status: RELEASED')`);
-  await fill('location','Synthetic rack A'); await click('Put away'); await wait(`document.body.innerText.includes('Status: STORED')`);
+  await fill('reason','Synthetic operator QC decision'); await click('Record QC release'); await wait(`document.body.innerText.includes('Status: Quality released')`);
+  await fill('location','Synthetic rack A'); await click('Put away'); await wait(`document.body.innerText.includes('Status: Stored')`);
   check('warehouse actual PO receipt quarantine, operator QC release and putaway through mounted controls');
   const so=await db.collection('salesOrders').findOne({});
   async function reserveFields() { await fill('salesOrderId',so._id); await fill('accountId',so.accountId); await fill('lineIndex','0'); await fill('quantity','0.250000'); await fill('uom','EA'); }
   const competing=await post(`warehouse/receipts/${receiptId}/reserve`,{expectedVersion:3,salesOrderId:so._id,accountId:so.accountId,lineIndex:0,quantity:'0.250',uom:'EA',idempotencyKey:crypto.randomUUID()});
   assert.equal(competing.version,4);
-  await reserveFields(); await click('Reserve quantity'); await wait(`document.body.innerText.includes('Refresh the record')`);
+  await reserveFields(); await click('Reserve quantity'); await waitForTechnicalDetails({wait,evaluate},'VERSION_CONFLICT');
   assert.equal(await db.collection('warehouseReservations').countDocuments({receiptId}),1);
-  await screenshot('16-warehouse-conflict'); await click('Refresh and retry'); await wait(`document.body.innerText.includes('Version: 4')`);
+  await screenshot('16-warehouse-conflict'); await click('Refresh and retry'); await wait(`document.querySelector('[data-warehouse-record-version="4"]')`);
   await reserveFields();
   for (const width of [360,375,768,1024,1440]) {
     await call('Emulation.setDeviceMetricsOverride',{width,height:800,deviceScaleFactor:1,mobile:width<600});
@@ -38,7 +39,7 @@ export async function warehouseJourney({db,call,wait,click,fill,evaluate,screens
   assert.equal(await evaluate('document.activeElement.textContent'),'Reserve quantity');
   assert.equal(await evaluate('getComputedStyle(document.activeElement).outlineStyle'),'solid');
   await call('Input.dispatchKeyEvent',{type:'char',text:'\r',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
-  await wait(`document.body.innerText.includes('Version: 5')`);
+  await wait(`document.querySelector('[data-warehouse-record-version="5"]')`);
   await call('Page.reload'); await wait(`document.body.innerText.includes('Trace_01')&&document.body.innerText.includes('Reserved: 0.5 EA')`);
   receipt=await db.collection('warehouseReceipts').findOne({_id:receiptId});
   assert.equal(receipt.version,5); assert.equal(receipt.availableQuantity,'1.5'); assert.equal(receipt.reservedQuantity,'0.5'); assert.equal(receipt.quantity,'2.000');
@@ -53,20 +54,20 @@ export async function warehouseJourney({db,call,wait,click,fill,evaluate,screens
   const audits=await db.collection('warehouseAudit').find({}).toArray(), outbox=await db.collection('warehouseOutbox').find({}).toArray();
   assert.equal(audits.length,5); assert.equal(outbox.length,5); assert.ok(outbox.every(r=>r.state==='PENDING'));
   const credential=await db.collection('credentials').findOne({username:'alpha.owner'}), membership=await db.collection('memberships').findOne({userId:credential._id});
-  await wait(`document.body.innerText.includes('Version: 5') && [...document.querySelectorAll('button')].some(b=>b.textContent==='Refresh record')`);
+  await wait(`document.querySelector('[data-warehouse-record-version="5"]') && [...document.querySelectorAll('button')].some(b=>b.textContent==='Refresh record')`);
   await db.collection('memberships').updateOne({_id:membership._id},{$set:{roles:[]}});
   await click('Refresh record'); await wait(`document.body.innerText.includes('Access denied')`);
   await db.collection('memberships').updateOne({_id:membership._id},{$set:{roles:membership.roles}});
-  await click('Refresh and retry'); await wait(`document.body.innerText.includes('Version: 5')`);
-  await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1}); await click('Refresh record'); await wait(`document.body.innerText.includes('Retry to load')`);
-  await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1}); await click('Refresh and retry'); await wait(`document.body.innerText.includes('Version: 5')`);
+  await click('Refresh and retry'); await wait(`document.querySelector('[data-warehouse-record-version="5"]')`);
+  await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1}); await click('Refresh record'); await wait(`document.body.innerText.includes('The current records could not be loaded')`);
+  await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1}); await click('Refresh and retry'); await wait(`document.querySelector('[data-warehouse-record-version="5"]')`);
   await screenshot('17-warehouse-stored-mobile');
   await click('RESERVE'); await wait(`document.querySelector('h1')?.textContent==='Warehouse movement'`); await wait(`document.body.innerText.includes('Open linked reservation')`);
   await click('Open linked reservation'); await wait(`document.querySelector('h1')?.textContent==='Warehouse reservation'`);
   await click('Open reserved sales order'); await wait(`document.body.innerText.includes('250.03')`);
-  await click('Warehouse'); await click('Reservations'); await wait(`document.body.innerText.includes('${reservations[0]._id}')`); await click(reservations[0]._id); await click('Open reserved customer'); await wait(`document.querySelector('h1')?.textContent==='Synthetic browser account'`);
-  await click('Warehouse'); await wait(`document.body.innerText.includes('${receiptId}')`); await click(receiptId); await click('Open source purchase order'); await wait(`document.body.innerText.includes('${po._id}')`);
-  await click('Warehouse'); await click('Movement history'); await wait(`document.body.innerText.includes('${movements[0]._id}')`); await click(movements[0]._id); await click('Open linked receipt'); await wait(`document.body.innerText.includes('Trace-02')`); await click('Open receipt vendor'); await wait(`document.querySelector('h1')?.textContent==='Synthetic procurement vendor'`);
+  await click('Warehouse'); await click('Reservations'); await wait(`(location.pathname.split('/').at(-1)==='${reservations[0]._id}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${reservations[0]._id}'))`); await click(reservations[0]._id); await click('Open reserved customer'); await wait(`document.querySelector('h1')?.textContent==='Synthetic browser account'`);
+  await click('Warehouse'); await wait(`(location.pathname.split('/').at(-1)==='${receiptId}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${receiptId}'))`); await click(receiptId); await click('Open source purchase order'); await wait(`(location.pathname.split('/').at(-1)==='${po._id}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${po._id}'))`);
+  await click('Warehouse'); await click('Movement history'); await wait(`(location.pathname.split('/').at(-1)==='${movements[0]._id}'||[...document.querySelectorAll('a[href]')].some(a=>new URL(a.href).pathname.split('/').at(-1)==='${movements[0]._id}'))`); await click(movements[0]._id); await click('Open linked receipt'); await wait(`document.body.innerText.includes('Trace-02')`); await click('Open receipt vendor'); await wait(`document.querySelector('h1')?.textContent==='Synthetic procurement vendor'`);
   check('warehouse exact serial trace, real SO/customer reservations, independent Mongo balances/lineage/five immutable movements/audit/outbox, persisted deep links');
   check('warehouse genuine version conflict/role denial/offline recovery, five viewport measurements and mobile Tab/Enter reservation');
 }

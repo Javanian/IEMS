@@ -13,20 +13,32 @@ import { installDocuments, initializeDocuments, documentRoles, documentActions }
 import { initializeInternalPlanning, installInternalPlanning, internalPlanningActions, internalPlanningRoles } from './internal-production.mjs';
 import { initializeCatalogProcurement, installCatalogProcurement, catalogActions, catalogRoles } from './catalog-procurement.mjs';
 import { initializeCatalogDisposition, installCatalogDisposition, catalogDispositionActions, catalogDispositionRoles } from './catalog-disposition.mjs';
+import { initializeDelivery, installDelivery, deliveryActions, deliveryRoles } from './delivery.mjs';
+import { initializeCatalogStock, installCatalogStock, catalogStockActions, catalogStockRoles } from './catalog-stock.mjs';
+import { initializeInternalExecution, installInternalExecution, internalExecutionActions, internalExecutionRoles } from './internal-execution.mjs';
+import { bindBusinessClock, businessNow } from './business-clock.mjs';
 Object.assign(roleActions, documentRoles, repairRoles, procurementRoles, warehouseRoles, manufacturingRoles, fulfillmentRoles, customerServiceRoles);
 Object.assign(roleActions, internalPlanningRoles);
 Object.assign(roleActions, catalogRoles);
 Object.assign(roleActions, catalogDispositionRoles);
+Object.assign(roleActions, deliveryRoles);
+Object.assign(roleActions, catalogStockRoles);
+Object.assign(roleActions, internalExecutionRoles);
 roleActions.owner.push(...documentActions, ...repairActions, ...procurementActions, ...warehouseActions, ...manufacturingActions, ...fulfillmentActions, ...customerServiceOwnerActions);
 roleActions.owner.push(...internalPlanningActions);
 roleActions.owner.push(...catalogActions);
 roleActions.owner.push(...catalogDispositionActions);
+roleActions.owner.push(...deliveryActions);
+roleActions.owner.push(...catalogStockActions);
+roleActions.owner.push(...internalExecutionActions);
 const scrypt = promisify(scryptCallback);
 const actions = ['crm.read', 'crm.write'];
 export const fail = (status, code, message = code) => { throw Object.assign(new Error(message), { status, code }); };
 const hash = value => createHash('sha256').update(value).digest('hex');
 const c = (runtime, name) => runtime.db.collection(name);
-export async function initialize({ client, db, customerService = {} }) {
+export async function initialize({ client, db, customerService = {}, businessClock, ownedRunMarker }) {
+  const runtime = { client, db };
+  await bindBusinessClock(runtime, businessClock, ownedRunMarker);
   const foundation = createTenantFoundation({ client, db, roleActions });
   await foundation.initialize();
   await initializeCommercial(db);
@@ -38,13 +50,16 @@ export async function initialize({ client, db, customerService = {} }) {
   await initializeCatalogDisposition(db);
   await initializeRepair(db);
   await initializeFulfillment(db);
+  await initializeDelivery(db);
+  await initializeCatalogStock(db);
+  await initializeInternalExecution(db);
   await db.collection('credentials').createIndex({ username: 1 }, { unique: true });
-  const runtime = { client, db, foundation };
+  runtime.foundation = foundation;
   runtime.documents = await initializeDocuments(runtime);
   runtime.customerService = await initializeCustomerService(runtime, customerService);
   return runtime;
 }
-export async function seedSynthetic(runtime, { password }) {
+export async function seedSynthetic(runtime, { password, e01Operators = false }) {
   if (typeof password !== 'string' || password.length < 12 || password.length > 256) fail(400, 'PASSWORD_POLICY');
   if (!/^portfolio_(owned|test)_/.test(runtime.db.databaseName)) fail(403, 'OWNED_DATABASE_REQUIRED');
   if (await c(runtime, 'credentials').countDocuments()) fail(409, 'ALREADY_SEEDED');
@@ -64,7 +79,7 @@ export async function seedSynthetic(runtime, { password }) {
   }
   // Wave 4f separation-of-duties users (alpha tenant/plant only): apply-only, apply+release, read-only.
   const alpha = result[0], legalEntityId = (await c(runtime, 'plants').findOne({ _id: alpha.plantId })).legalEntityId;
-  for (const [username, roles] of [['alpha.inspector', ['warehouseHoldApply']], ['alpha.quality', ['warehouseQuality']], ['alpha.viewer', ['warehouseRead']]]) {
+  for (const [username, roles] of [['alpha.inspector', ['warehouseHoldApply']], ['alpha.quality', ['warehouseQuality']], ['alpha.viewer', ['warehouseRead']], ...(e01Operators ? [['alpha.operator.cnc', ['manufacturingRecord']], ['alpha.operator.assembly', ['manufacturingRecord']]] : [])]) {
     const userId = randomUUID(), membershipId = randomUUID();
     await runtime.foundation.provisionUser({ id: userId, tenantId: alpha.tenantId });
     await runtime.foundation.provisionMembership({ id: membershipId, tenantId: alpha.tenantId, userId, legalEntityIds: [legalEntityId], plantIds: [alpha.plantId], roles: roles.map(role => ({ role, plantIds: [alpha.plantId] })) });
@@ -113,7 +128,7 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
     const credential = await c(runtime, 'credentials').findOne({ _id: req.scope.userId });
     const membership = await c(runtime, 'memberships').findOne({ _id: req.scope.membershipId, tenantId: req.scope.tenantId, active: true });
     const permissions = [...new Set((membership?.roles || []).filter(g => g.tenantWide || g.plantIds.includes(req.scope.selectedPlantId)).flatMap(g => roleActions[g.role] || []))].sort();
-    res.json({ data: { ...identity(req.scope, credential?.username), permissions } });
+    res.json({ data: { ...identity(req.scope, credential?.username), permissions, ...(runtime.businessClock ? { fixtureReplay: { mode: runtime.businessClockMode, businessTime: businessNow(runtime).toISOString(), recordedAt: new Date().toISOString() } } : {}) } });
   });
   app.post('/api/session/logout', async (req, res) => {
     const session = await c(runtime, 'sessions').findOne({ tokenHash: hash(req.token) });
@@ -131,6 +146,9 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   installCatalogDisposition(app, runtime, { fail, guard, id, fields });
   installRepair(app, runtime, { fail, guard, id, fields });
   installFulfillment(app, runtime, { fail, guard, id, fields });
+  installDelivery(app, runtime, { guard, id, fields });
+  installCatalogStock(app, runtime, { id });
+  installInternalExecution(app, runtime, { guard, fields, id });
   installCustomerService(app, runtime, { fail, id, fields });
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } }));
   app.use((error, req, res, next) => {

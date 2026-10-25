@@ -1,3 +1,4 @@
+import { waitForTechnicalDetails } from './browser-readiness.mjs';
 import assert from 'node:assert/strict';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -34,7 +35,7 @@ export async function documentJourney({db,call,wait,click,evaluate,screenshot,ch
    assert.equal(await db.collection('documentAudit').countDocuments({sourceId:row._id,sourceVersion}),1);
   });
   await wait(`document.querySelector('[role=alert]')`);await control('Issue immutable PDF');
-  await wait(`document.body.innerText.includes('${lost.receipt.data.pdfHash}')`);
+  await waitForTechnicalDetails({wait,evaluate},lost.receipt.data.pdfHash);
   const metadata=lost.receipt.data;
   assert.equal(metadata.sourceId,row._id);assert.equal(metadata.sourceVersion,sourceVersion);
   await db.collection('memberships').updateOne({_id:membership._id},{$set:{roles:[{role:'documentIssuer',plantIds:membership.plantIds}]}});
@@ -56,7 +57,7 @@ export async function documentJourney({db,call,wait,click,evaluate,screenshot,ch
   await writeFile(`${evidence}/wave3e-${kind}-parsed.txt`,text);
   const origin=await evaluate('performance.timeOrigin');await call('Page.reload');
   await wait(`performance.timeOrigin!==${origin}&&document.body.innerText.includes('Source ${kind}, revision ${sourceVersion}.')`);
-  await control('Issue immutable PDF');await wait(`document.body.innerText.includes('${metadata.pdfHash}')`);
+  await control('Issue immutable PDF');await waitForTechnicalDetails({wait,evaluate},metadata.pdfHash);
   for(const width of [375,768,1280]) {
    await call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<600});
    assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'),false);

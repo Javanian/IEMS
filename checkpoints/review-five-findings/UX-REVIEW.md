@@ -1,0 +1,71 @@
+# Operator UX review
+
+Status: canonical E01 completed in isolated debug attempt1, with bounded lead pixel review. A subsequent real supplemental stock UI crash made that diagnostic fail. Corrections and complete acceptance remain pending rerun; a static source check or production build does not prove browser behavior.
+
+## Evidence provenance
+
+BEFORE images are actual screenshots from the previously accepted local Chromium run on 2026-10-25, baseline `54a7e6db5fb1cfc48252477ca872d700c8c650ee`. They were not recaptured or labeled as a new run. The external baseline checkpoint verification records that commit, clean source, 313 committed-source hashes and the 137-check browser evidence. Use `$PORTFOLIO_BASELINE_EVIDENCE_DIR/browser-attempt1/`; the baseline evidence package is `wave4qc-20261025`.
+
+These baseline images use the original feature-specific synthetic records, not a claim that the original canonical E01 customer journey already existed. AFTER canonical E01 evidence is produced by the new native journey and labeled separately from its API material setup.
+
+The agent directly reopened and visually inspected `wave4map-request-form-360.png`, `wave4k2b2a-approved-1440.png` and `wave4i-inquiry-quoted.png`. The remaining BEFORE filenames below were verified in that accepted evidence inventory; their prior acceptance remains the lead's historical review, not a new pixel inspection by this agent.
+
+## Design decisions and observed BEFORE problems
+
+The intended users are sales staff, plant operators, material/QC staff and authorized reviewers. Their primary questions are which document/item this is, what quantity is due or available, what blocks it, and what to do next. UUIDs, hashes, schemas and concurrency fences are support evidence rather than the main reading order.
+
+The inspected baseline mobile request form retained comfortable native controls but placed long server-policy explanations before the actual item choice. The approved internal-planning desktop screenshot exposed order/company/plant UUIDs, schema, authority hashes and source hashes above its next operational step. The baseline inquiry screenshot showed UUID document/source/actor identifiers and concatenated refresh/navigation actions. These are observable reading-order problems; they do not establish a measured task-time improvement.
+
+Preserved PF colors, Plus Jakarta Sans, native fields, calm panels and existing action spacing. Added a bounded source-backed Sales/Operations work queue, workflow-stage context, friendly display references, actual item/customer/supplier labels and exact quantities. The queue explicitly describes records on the current page, with no invented global totals, overdue dates or performance graphs. Original authoritative IDs remain in links and command bindings.
+
+Current state, source lot/heat, actual serials and exact balances remain visible. Technical evidence is placed under permission-aware Audit/Technical details. Errors explain the recovery step; exact diagnostic codes remain inspectable. Read-only and unavailable states explain missing authority. Retained commands lock complete captured bodies, keys and source pickers until exact retry or explicit discard/read recovery.
+
+## BEFORE-to-AFTER comparison map
+
+The18 canonical `review-e01-*` AFTER images below exist under the lead's `browser-debug-attempt1` evidence directory. The lead inspected quotation360, genealogy1440, invoice768 and POD2-360; the images precede the bounded banner/audit/document copy correction. Supplemental/operator AFTER images remain pending. A filename in this table is not whole-suite acceptance.
+
+| Surface | Accepted BEFORE image | Authored AFTER evidence | Review focus |
+| --- | --- | --- | --- |
+| Inquiry | `wave4i-inquiry-quoted.png` | canonical native inquiry/quotation state and manifest | Actual customer/item, display reference and next step; source/actor UUIDs under audit |
+| Quotation | `wave4h-quote-2-*-1280.png`, `09-quote-form-360.png` | `review-e01-quotation-r2-{360,768,1440}.png` | Original price R1/R2 and preserved source; human status, readable terms |
+| Sales-order/production planning | `10-sales-order-snapshot.png`, `11-sales-order-detail.png` | `review-e01-planned-six-four-{360,768,1440}.png` | Actual target 10 and native split6/4, friendly WO links, required labor |
+| Customer production/QC | `20-manufacturing-qc-mobile.png`, `wave4j-serial-units-1440.png` | `review-e01-qc-and-complete-genealogy-{360,768,1440}.png` | Actual ten serial identities, five material ratios and explicit source reconciliation |
+| Catalog source form | `wave4map-request-form-{360,1440}.png` | `review-after-purchase-source-form-{360,768,1440}.png` | Server search/page navigation, selected-source retention, exact revision review |
+| Catalog approved request | `wave4map-quarantine-1440.png` is receipt context, not a same-screen request baseline | `review-after-purchase-approved-{360,768,1440}.png` | No false pixel-equivalent baseline; current approval and diagnostics reading order |
+| Internal plan | `wave4k2b2a-approved-{360,768,1440}.png` | new internal execution editable/output images | Separate planning approval from actual reservation, issue, production and stock |
+| Internal execution | No execution UI existed at baseline | `review-supplemental-reserved-material-form-*`, `review-supplemental-explicit-output-attribution-*`, `review-supplemental-company-output-stock-*` | Mixed LOT/SERIAL selection, current availability, output/loss/QC/company receipt evidence |
+| Shipment and POD | `wave3e-shipment-{375,768,1280}.png` | `review-e01-pod-{1,2}-{360,768,1440}.png` | Shipped and delivered remain distinct; actual receiver/reference/serial sets, retained retry |
+| Invoice/settlement | `wave2d-invoice-mobile.png`, `wave4i-invoice-768.png` | `review-e01-settled-invoice-{360,768,1440}.png` | Original net/tax/gross and exact settlement; policy code under audit |
+| Work queue | No work-queue surface existed at baseline | `review-after-work-queue-*`, `review-after-work-queue-kiosk-*` | Source-backed action counts, clear current-page scope, desktop/kiosk control sizing |
+
+## Acceptance checks authored
+
+- Native server-backed item/vendor choices from250 actual eligible records each, selecting sources beyond the first100; deterministic cursor traversal, explicit source revision rebind, obsolete-response guard and exact retained retry.
+- Actual mounted E01 customer/commercial/engineering/WO/labor/QC/genealogy/shipment/POD/invoice/payment commands through native controls. Only scoped vendor/procurement/receiving source setup uses the explicitly labeled actual HTTP helper. No happy-path database mutation substitutes for a native action.
+- Separate supplemental native internal execution from actual mixed typed stock; source quantity and identity conservation, process loss, output rejection and company receipt, with no fabricated customer SO or second consumption.
+- Screenshots and real DOM overflow/control measurements at360/768/1440; at least44px desktop targets and48px kiosk targets. Native Tab/Enter assertions preserve visible focus and primary-action order. Source tables retain their contained keyboard-scroll proof.
+- Hard reload/read-only recovery, stale-source refusal, committed-response loss with identical key/body retry, and fresh authorization before old replay. Diagnostic code checks explicitly inspect the technical accordion; they do not replace visual assertions with a blanket hidden-text check.
+
+## Verification state and limits
+
+Current broad frontend suite after operational queue/current-job navigation, actual confirmation eligibility, transport corrections and isolated text-probe configuration:162/162 pass, zero failures/skips (`frontend-full-agentb-attempt12.log`). Strict UTF8 recheck of105 changed/new JS files passed without rewriting files. Three review modules and the runner have syntax checks;43 embedded literal expressions and60 dynamic-expression skeletons parse successfully (`agentb-source-parser-attempt3.json`). Existing palette contrast calculations are recorded in UI-HANDOFF.
+
+Focused browser attempt1 failed after17 earlier core checks on an obsolete invoice display-label assertion and exposed8 React nested-paragraph console errors, with0 JavaScript exceptions. Async customer/supplier loading states now have block containers on all affected surfaces; a semantic JSX regression covers future block evidence placement. No console filtering or weakened assertion was used. The canonical/new supplemental journeys were not reached, so their AFTER acceptance remains pending the rerun.
+
+Focused attempt2 recorded37 earlier checks with0 exceptions/console errors but omitted fixture flags required by W4F-C10, so the lead moved to the complete18-flag configuration. Full attempt1 recorded28 checks with0 exceptions/console errors, then stopped at repair offline recovery, consistent with old-document status being read before hard reload completed. A shared document-origin/readiness barrier and explicit repair route/version/evidence checks address that harness race without changing product behavior or suppressing failures. These incomplete attempts do not constitute acceptance of the new journeys.
+
+Full attempt2 passed that reload/offline recovery and reached30 checks with0 exceptions/console errors, stopping at an old keyboard expectation which had not accounted for the new Audit details control. The explicit keyboard/hash/download assertion was updated. An isolated `PORTFOLIO_REVIEW_DEBUG_ONLY=1` mode now runs the same three new native journeys on its own fresh services and records `review-debug-results.json` with old137 coverage explicitly absent. Diagnostic evidence is labeled separately and cannot replace the required full18-flag run with `PORTFOLIO_REVIEW_DEBUG_ONLY=0`.
+
+Isolated debug1 completed the native original E01 through exact settlement135975, including44px/overflow checks at360/768/1440 and the actual manifest. It then failed when the internal stock picker rendered stale list-array data as selected detail, causing6 React console errors with0 uncaught exceptions. A separate keyed detail reader and shape/identity/version guards correct that real UI defect; own-job consumed serial choices also exclude other jobs sharing the receipt. The lead found the inspected E01 views readable but requested the truthful session-check clock wording, human genealogy status/Audit versions and simpler document wording now implemented. Corrected AFTER pixels, complete supplemental/operator journeys, kiosk48 and full18-flag acceptance remain pending.
+
+Debug2 finished14 checks with0 exceptions/console errors, with one manually dispatched Enter char recorded in `diagnostic-intervention.json`; it is not unattended acceptance. The callback now includes the required native char event, and a60-second response-loss deadline prevents an absent submission from hanging forever. Actual debug2 views exposed completed deliveries and already-created production jobs incorrectly counted as new actions. Those queues now hydrate actual delivery/existing-job authority with four concurrent scoped reads per page and explicit loading/error. Plan detail opens the unique existing job rather than offering duplicate creation. These final corrections still require a fresh full18-flag run.
+
+Full attempt3 reached37 checks with0 exceptions/console errors, stopping on a legacy WMS409 recovery-text mismatch owned by Agent A. The final bounded copy/correctness pass now treats pending delivery `canConfirm:false` as an evidence/restriction review task and keeps the approved-plan header neutral about whether a production job already exists. The current fetched job link is the authority for continuing work. Full unattended acceptance remains pending.
+
+Full attempt4 reached68 checks with0 exceptions/console errors, failing application text size16px where32px was expected; the old pre-cleanup DOM identity/style was not captured, so its cause remains unproven. Three actual invoice-only diagnostic probes used real HTTP setup with an earlier frozen JSX snapshot. Probe1 verified application/target200% but exposed duplicate human Audit labels being mistaken for the same focused node. Probe2 passed distinct DOM-node proof but experienced CSS HMR from integration Tailwind watchers; it is not isolated CSS-watch evidence. After source freeze, probe3 passed with0 HMR/reload log entries: app/target16-to32px, browser root16, target height24-to96, same DOM identity through keyboard, twelve visible controls including closed Audit summaries, four distinct visible outlined focus targets, and no overflow. The agent reopened `browser-text-probe-attempt3/wave4f-invoice-text200-375.png`: monetary values wrap readably and audit controls remain visible. The proof JSON retains immediate and post-keyboard measurements. No product CSS change or removed200% assertion was used. Current integration invoice-plus-ticket text coverage remains mandatory in the unattended full run with both diagnostic flags0.
+
+Bounded clarity follow-up: attribution legends currently describe the receipt's overall eligible balance, while selection and quantities concern this job's consumed identities. The data and restrictions are correct; a later copy refinement should label those two scopes more explicitly without changing inventory or lineage authority.
+
+Historical runtime engineering approval is explicitly Apr17 because the adapter requires received material; the fixture's Apr15 approval remains a disclosed reference. Fixture VAT is a scenario policy, and reported POD/labor evidence is operator recorded. Current proof does not certify PostgreSQL behavior, production deployment, payroll, machine telemetry, electronic signatures or an external carrier.
+
+The bounded scope preserves older standalone legacy forms that accept known authority IDs. They remain a documented follow-up where their roles lack a source-browse capability; the new catalog and actual production paths use native source choices. Do not describe this work as a complete redesign of every historical screen.

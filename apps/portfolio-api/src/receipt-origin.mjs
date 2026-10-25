@@ -14,6 +14,11 @@ export async function classifyReceiptOrigin(db, receipt, session) {
     const proof = name === 'catalogDispositionHeads' ? { ...filter, $or: [{ _id: receipt._id }, { receiptId: receipt._id }] } : { ...filter, receiptId: receipt._id };
     if (await db.collection(name).findOne(proof, options)) return { cohort: 'CATALOG', legacyEligible: false };
   }
+  for (const name of ['catalogUseHeads', 'catalogUseEvents', 'catalogMaterialReservations', 'catalogMaterialReservationRevisions', 'catalogMaterialIssues', 'catalogMaterialConsumptions']) {
+    const proof = name === 'catalogUseHeads' ? { ...filter, $or: [{ _id: receipt._id }, { receiptId: receipt._id }] } : { ...filter, receiptId: receipt._id };
+    if (await db.collection(name).findOne(proof, options)) return { cohort: 'CATALOG', legacyEligible: false };
+  }
+  for (const name of ['internalExecutions', 'internalExecutionEvents', 'internalExecutionKeys', 'internalExecutionAudit', 'internalExecutionOutbox', 'internalOutputUnits', 'internalAttributionRevisions', 'internalCompanyStockReceipts', 'internalCompanyStockUnits']) if (await db.collection(name).findOne({ ...filter, sourceReceiptIds: receipt._id }, options)) return { cohort: 'CATALOG', legacyEligible: false };
   const movements = await db.collection('warehouseMovements').find({ ...filter, receiptId: receipt._id, kind: 'RECEIVE' }, options).limit(2).toArray();
   if (movements.length !== 1) return invalid();
   const receive = movements[0];

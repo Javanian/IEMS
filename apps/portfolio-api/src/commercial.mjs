@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { installInquiries, initializeInquiries } from './inquiries.mjs';
 import { fixtureVat, fixtureTax, taxAmounts, formatMoney } from './fixture-tax.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
+import { businessNow } from './business-clock.mjs';
 export const commercialActions = ['quote.read', 'quote.write', 'quote.approve', 'quote.accept', 'quote.convert'];
 export const roleActions = { owner: ['crm.read', 'crm.write', ...commercialActions], quoteEditor: ['quote.read', 'quote.write'], quoteApprover: ['quote.read', 'quote.approve'], quoteAcceptor: ['quote.read', 'quote.accept'], quoteConverter: ['quote.read', 'quote.convert'], quoteReader: ['quote.read'] };
 const scales = { USD: 2, EUR: 2, GBP: 2, IDR: 2, JPY: 0, KWD: 3 };
@@ -18,7 +19,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
   const c = name => runtime.db.collection(name);
   const validate = body => {
     if (!['NO_TAX', 'FIXTURE_VAT_11_V1'].includes(body.taxPolicy) || body.roundingPolicy !== 'LINE_HALF_UP') fail(400, 'INVALID_POLICY');
-    if (typeof body.expiresAt !== 'string' || !Number.isFinite(Date.parse(body.expiresAt)) || new Date(body.expiresAt).toISOString() !== body.expiresAt || Date.parse(body.expiresAt) <= Date.now()) fail(400, 'INVALID_EXPIRY');
+    if (typeof body.expiresAt !== 'string' || !Number.isFinite(Date.parse(body.expiresAt)) || new Date(body.expiresAt).toISOString() !== body.expiresAt || Date.parse(body.expiresAt) <= businessNow(runtime).getTime()) fail(400, 'INVALID_EXPIRY');
     if (!Array.isArray(body.lines) || !body.lines.length || body.lines.length > 100) fail(400, 'INVALID_LINES');
     let total = 0n, taxTotal = 0n, currency;
     const lines = body.lines.map(line => {
@@ -126,7 +127,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
         delete row.acceptedRevision;
       } else {
         if (latest.number !== revision) fail(409, 'STALE_REVISION');
-        if (latest.expiresAt <= new Date()) fail(409, 'QUOTE_EXPIRED');
+        if (latest.expiresAt <= businessNow(runtime)) fail(409, 'QUOTE_EXPIRED');
         if (operation === 'approve') {
           if (row.status !== 'DRAFT') fail(409, 'STATE_CONFLICT');
           row.approvals = [...(row.approvals || []), { revision, snapshot: structuredClone(latest), approvedBy: req.scope.userId, approvedAt: new Date() }]; row.status = 'APPROVED';
