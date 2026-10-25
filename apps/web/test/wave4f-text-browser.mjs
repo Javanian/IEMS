@@ -38,7 +38,7 @@ export async function textEnlargementJourney({ db, call, wait, evaluate, screens
     assert.equal(before.root, 16, 'baseline browser default font size'); assert.equal(before.overflow, false);
     const immediate=await evaluate(`(()=>{const app=document.querySelector('.portfolio-root'),nodes=[app,...app.querySelectorAll('*')];window.__portfolioTextResize={app,target:document.querySelector(${JSON.stringify(view.target)}),nodes:nodes.map(node=>({node,size:parseFloat(getComputedStyle(node).fontSize),original:node.style.getPropertyValue('font-size'),priority:node.style.getPropertyPriority('font-size')}))};for(const row of window.__portfolioTextResize.nodes)row.node.style.setProperty('font-size',row.size*2+'px');return ${measureScript(view.target)}})()`);
     try {
-      await wait(`parseFloat(getComputedStyle(document.querySelector('${view.target}')).fontSize)===${before.font * 2}`, `${view.name} target text doubled`);
+      await wait(`window.__portfolioTextResize?.app===document.querySelector('.portfolio-root') && window.__portfolioTextResize?.target===document.querySelector('${view.target}') && parseFloat(getComputedStyle(document.querySelector('.portfolio-root')).fontSize)===${before.app * 2} && parseFloat(getComputedStyle(document.querySelector('${view.target}')).fontSize)===${before.font * 2}`, `${view.name} same application and target text doubled`);
       const after = await evaluate(measureScript(view.target));
       assert.equal(after.text, before.text, 'same text element');
       assert.equal(after.sameApp,true,'same application root after enlargement');assert.equal(after.sameTarget,true,'same target DOM node after enlargement');
