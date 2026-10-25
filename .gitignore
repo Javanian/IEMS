@@ -205,3 +205,9 @@ jobs/.pycache_legacy/
 /checkpoints/company-stock-trace/**/*.png
 /checkpoints/company-stock-trace/**/*.pdf
 /checkpoints/company-stock-trace/**/*.db
+
+!/checkpoints/quote-catalog-entitlement/**/*.md
+/checkpoints/quote-catalog-entitlement/**/*.log
+/checkpoints/quote-catalog-entitlement/**/*.png
+/checkpoints/quote-catalog-entitlement/**/*.pdf
+/checkpoints/quote-catalog-entitlement/**/*.db

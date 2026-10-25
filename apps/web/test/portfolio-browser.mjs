@@ -16,6 +16,7 @@ import { reviewOperatorJourney } from './portfolio-review-operator-browser.mjs';
 import { reviewInternalExecutionJourney } from './portfolio-review-internal-execution-browser.mjs';
 import { companyStockJourney } from './portfolio-company-stock-browser.mjs';
 import { companyStockTraceJourney } from './portfolio-company-stock-trace-browser.mjs';
+import { quoteCatalogJourney } from './portfolio-quote-catalog-browser.mjs';
 import { canonicalE01Journey } from './portfolio-review-e01-browser.mjs';
 import { createApp,seedSynthetic } from '../../portfolio-api/src/app.mjs';
 import { initializeCustomerService } from '../../portfolio-api/src/customer-service.mjs';
@@ -114,6 +115,7 @@ async function runReviewJourneys({db,headers}) {
   if(reviewMode.internalExecution){const internal=await reviewInternalExecutionJourney(reviewKit);reviewKit.internalPlanId=internal.planId;}
   if(reviewMode.companyStock)await companyStockJourney(reviewKit);
   if(reviewMode.companyTrace)await companyStockTraceJourney(reviewKit);
+  if(reviewMode.quoteCatalog)await quoteCatalogJourney(reviewKit);
   if(reviewMode.operator)await reviewOperatorJourney(reviewKit);
 }
 async function runTextProbe({db,headers}) {
@@ -210,13 +212,14 @@ try {
   assert.deepEqual(await evaluate(`({local:Object.keys(localStorage),session:Object.keys(sessionStorage)})`), { local: [], session: [] });
   check('HttpOnly cookie not exposed; no localStorage/sessionStorage bearer or auth data');
   if(reviewMode.diagnosticOnly){
-    console.log(`DIAGNOSTIC ONLY: ${reviewMode.companyOnly?'company stock journey and any explicitly selected trace':reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'review journeys'}; prior137 journey coverage is absent. Full acceptance requires all diagnostic modes0 and all20 flags.`);
+    console.log(`DIAGNOSTIC ONLY: ${reviewMode.quoteCatalogOnly?'catalog quotation journey':reviewMode.companyOnly?'company stock journey and any explicitly selected trace':reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'review journeys'}; prior137 journey coverage is absent. Full acceptance requires all four diagnostic modes0 and all21 flags.`);
     const cookie=(await call('Network.getCookies',{urls:[web]})).cookies.find(row=>row.name==='portfolio_session');
     assert.ok(cookie?.httpOnly);
     const headers={origin:web,'content-type':'application/json',cookie:`portfolio_session=${cookie.value}`};
     if(reviewMode.textProbeOnly)await runTextProbe({db,headers});else await runReviewJourneys({db,headers});
     assert.deepEqual(exceptions,[]);assert.deepEqual(consoleErrors,[]);
-    await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp with marker-validated owned canonical business clock',prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:reviewMode.companyOnly?['supplemental one-generation company stock; prerequisite HTTP producer setup',...(reviewMode.companyTrace?['readonly unit trace; staged actual HTTP fixture']:[])]:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:['canonical E01','supplemental internal execution','operator/source selectors',...(reviewMode.companyTrace?['readonly unit trace; staged actual HTTP fixture']:[])],checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
+    const diagnosticJourneys=reviewMode.quoteCatalogOnly?['catalog quote identity; prerequisite HTTP masters and account, native target commercial actions']:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:[...(reviewMode.e01?['canonical E01']:[]),...(reviewMode.internalExecution?['supplemental internal execution']:[]),...(reviewMode.operator?['operator/source selectors']:[]),...(reviewMode.companyStock?['supplemental one-generation company stock; prerequisite HTTP producer setup']:[]),...(reviewMode.companyTrace?['readonly unit trace; staged actual HTTP fixture']:[]),...(reviewMode.quoteCatalog?['catalog quote identity; prerequisite HTTP masters and account, native target commercial actions']:[])];
+    await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp; guarded business clock only for explicitly selected historical fixture',priorJourneyCoverage:false,prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:diagnosticJourneys,checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
     console.log(JSON.stringify({diagnosticOnly:true,fullAcceptance:false,passed:checks.length,exceptions:exceptions.length,consoleErrors:consoleErrors.length,evidence,resultsFile:reviewMode.resultsFile}));
   }else{
   await fill('name', 'Synthetic browser account'); await click('Create account');

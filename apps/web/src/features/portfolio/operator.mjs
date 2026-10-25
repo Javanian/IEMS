@@ -14,6 +14,7 @@ export function operatorFailure(error,mutation = false) {
   if(error?.status === 401)return 'Your session expired. Sign in again to continue.';
   if(error?.status === 403)return 'Access denied. You do not have permission for this action. Ask an administrator to review your access.';
   if(error?.status === 404)return 'This record is unavailable in your selected plant. Return to the list and choose another record.';
+  if(error?.code === 'CATALOG_ORDER_UNSUPPORTED')return 'This catalog sales order is awaiting item-aware fulfillment. Legacy stock, production and dispatch actions cannot use it.';
   if(mutation && (!error?.status || error.status >= 500))return 'The result is uncertain. Keep the current inputs locked and retry the same command, or discard it and refresh the record before making changes.';
   if(error?.status === 409)return BLOCKERS[error.code] || 'The record or one of its sources changed. Refresh it, review the current status, then try again.';
   if(error?.status === 400 || error?.status === 422)return 'Some inputs could not be accepted. Check the quantities, required selections and evidence, then submit again.';

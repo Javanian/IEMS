@@ -1,3 +1,4 @@
+import { requireUnboundSalesOrder } from './quote-catalog.mjs';
 import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { initializeStockHolds, installStockHolds, requireEligibleReceipt, holdActions, holdRoles } from './stock-holds.mjs';
@@ -51,6 +52,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
       await guard(runtime, req, session, req.warehouseAction);
+      if (req.body.salesOrderId) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, req.body.salesOrderId, session), session);
       const prior = await c('warehouseKeys').findOne({ ...req.filter, key }, { session });
       if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
       const result = await effect(session);

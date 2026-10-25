@@ -9,7 +9,8 @@ export function catalogOptionProjection(type, source) {
   for (const value of values) if (typeof value === 'string') { const normalized = normalizeCatalogSearch(value); for (let length = 1; length <= Math.min(80, normalized.length); length++) prefixes.add(normalized.slice(0, length)); }
   const eligible = type === 'items' ? source.status === 'APPROVED' && source.content?.kind === 'PURCHASED' && source.content?.schema === 'INVENTORY_ITEM_V2' && ['LOT', 'SERIAL'].includes(source.content?.trackingPolicy) : !Object.hasOwn(source, 'active') || source.active === true;
   const binding = type === 'items' ? [source.version, source.authorityHash] : [source.version, source.name, Object.hasOwn(source, 'active'), source.active];
-  return { _id: source._id, tenantId: source.tenantId, plantId: source.plantId, type, ownerLegalEntityId: type === 'items' ? source.ownerLegalEntityId : null, eligible, prefixes: [...prefixes].sort(), sourceVersion: source.version, sourceAuthorityHash: digest(binding) };
+  const quoteEligible = type === 'items' && source.status === 'APPROVED' && source.content?.schema === 'INVENTORY_ITEM_V2' && (source.content?.kind === 'PURCHASED' && ['LOT', 'SERIAL'].includes(source.content?.trackingPolicy) || source.content?.kind === 'MANUFACTURED' && source.content?.trackingPolicy === 'SERIAL');
+  return { quoteEligible, _id: source._id, tenantId: source.tenantId, plantId: source.plantId, type, ownerLegalEntityId: type === 'items' ? source.ownerLegalEntityId : null, eligible, prefixes: [...prefixes].sort(), sourceVersion: source.version, sourceAuthorityHash: digest(binding) };
 }
 export async function saveCatalogOptionProjection(db, type, source, session) {
   const projection = catalogOptionProjection(type, source);

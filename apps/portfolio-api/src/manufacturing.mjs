@@ -1,3 +1,4 @@
+import { requireUnboundSalesOrder } from './quote-catalog.mjs';
 import { randomUUID, createHash } from 'node:crypto';
 import { installEngineering } from './engineering.mjs';
 import { installLabor } from './labor.mjs';
@@ -78,6 +79,13 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
       await guard(runtime, req, session, req.manufacturingAction);
+      let sourceOrderId = req.body.salesOrderId;
+      if (!sourceOrderId && req.params.id) {
+        const collection = req.path.startsWith('/engineering/') ? 'engineeringPackages' : 'manufacturingWorkOrders';
+        const subject = await c(collection).findOne({ ...req.filter, _id: req.params.id }, { session });
+        sourceOrderId = subject?.salesOrderId;
+      }
+      if (sourceOrderId) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, sourceOrderId, session), session);
       const prior = await c('manufacturingKeys').findOne({ ...req.filter, key }, { session });
       if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
       const result = await effect(session);
