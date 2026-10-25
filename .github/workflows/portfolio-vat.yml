@@ -17,6 +17,7 @@ on:
       - 'checkpoints/wave4qc/**'
       - 'checkpoints/review-five-findings/**'
       - 'checkpoints/company-stock-use/**'
+      - 'checkpoints/company-stock-trace/**'
       - '.github/workflows/portfolio-vat.yml'
   pull_request:
     paths:
@@ -34,6 +35,7 @@ on:
       - 'checkpoints/wave4qc/**'
       - 'checkpoints/review-five-findings/**'
       - 'checkpoints/company-stock-use/**'
+      - 'checkpoints/company-stock-trace/**'
       - '.github/workflows/portfolio-vat.yml'
 
 permissions:
@@ -110,6 +112,10 @@ jobs:
         run: node --test --test-concurrency=1 checkpoints/company-stock-use/qa/company-stock-use.test.mjs
         env:
           IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-company-stock-evidence
+      - name: Test independent company unit trace
+        run: node --test --test-concurrency=1 checkpoints/company-stock-trace/qa/company-stock-trace.test.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-company-trace-evidence
       - name: Test connected browser workflow
         run: npm --prefix apps/web run test:portfolio:browser
         env:
@@ -131,13 +137,25 @@ jobs:
           PORTFOLIO_REVIEW_OPERATOR: '1'
           PORTFOLIO_INTERNAL_EXECUTION: '1'
           PORTFOLIO_COMPANY_STOCK: '1'
+          PORTFOLIO_COMPANY_STOCK_TRACE: '1'
           PORTFOLIO_REVIEW_E01: '1'
           PORTFOLIO_REVIEW_DEBUG_ONLY: '0'
           PORTFOLIO_TEXT_DIAGNOSTIC_ONLY: '0'
           PORTFOLIO_COMPANY_STOCK_DIAGNOSTIC_ONLY: '0'
+          PORTFOLIO_EVIDENCE_DIR: ${{ runner.temp }}/iems-native-browser
       - name: Test intentional module failure and native reload recovery
         run: node checkpoints/review-five-findings/qa/module-fetch-recovery-browser.mjs
         env:
           IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-module-fetch-recovery
       - name: Test maintained API contract
         run: npm --prefix apps/portfolio-api test
+      - name: Retain synthetic browser diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-browser-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/iems-native-browser/*.json
+            ${{ runner.temp }}/iems-native-browser/*.png
+          if-no-files-found: ignore
+          retention-days: 7

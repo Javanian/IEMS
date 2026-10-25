@@ -15,6 +15,7 @@ import { reviewRunPlan } from './portfolio-review-mode.mjs';
 import { reviewOperatorJourney } from './portfolio-review-operator-browser.mjs';
 import { reviewInternalExecutionJourney } from './portfolio-review-internal-execution-browser.mjs';
 import { companyStockJourney } from './portfolio-company-stock-browser.mjs';
+import { companyStockTraceJourney } from './portfolio-company-stock-trace-browser.mjs';
 import { canonicalE01Journey } from './portfolio-review-e01-browser.mjs';
 import { createApp,seedSynthetic } from '../../portfolio-api/src/app.mjs';
 import { initializeCustomerService } from '../../portfolio-api/src/customer-service.mjs';
@@ -95,7 +96,7 @@ async function fill(name, value) {
 async function screenshot(name) { await call('Page.bringToFront'); await delay(150); const shot = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); await writeFile(join(evidence, name + '.png'), Buffer.from(shot.data, 'base64')); }
 function check(name) { checks.push(name); console.log('PASS', name); }
 async function runReviewJourneys({db,headers}) {
-  const reviewKit={db,call,wait,click,fill,evaluate,screenshot,check,headers,loseResponse,password,web,seedIdentities,writeEvidence:(name,value)=>writeFile(join(evidence,name),JSON.stringify(value,null,2))};
+  const reviewKit={db,call,wait,click,fill,evaluate,screenshot,check,headers,loseResponse,password,web,seedIdentities,subscribe:listener=>{listeners.add(listener);return()=>listeners.delete(listener);},writeEvidence:(name,value)=>writeFile(join(evidence,name),JSON.stringify(value,null,2))};
   if(reviewMode.e01){
     const priorClock=runtime.businessClock,priorMode=runtime.businessClockMode;let instant=new Date('2026-03-10T08:15:00.000Z');
     await bindBusinessClock(runtime,()=>new Date(instant),marker);
@@ -104,6 +105,7 @@ async function runReviewJourneys({db,headers}) {
   }
   if(reviewMode.internalExecution){const internal=await reviewInternalExecutionJourney(reviewKit);reviewKit.internalPlanId=internal.planId;}
   if(reviewMode.companyStock)await companyStockJourney(reviewKit);
+  if(reviewMode.companyTrace)await companyStockTraceJourney(reviewKit);
   if(reviewMode.operator)await reviewOperatorJourney(reviewKit);
 }
 async function runTextProbe({db,headers}) {
@@ -198,13 +200,13 @@ try {
   assert.deepEqual(await evaluate(`({local:Object.keys(localStorage),session:Object.keys(sessionStorage)})`), { local: [], session: [] });
   check('HttpOnly cookie not exposed; no localStorage/sessionStorage bearer or auth data');
   if(reviewMode.diagnosticOnly){
-    console.log(`DIAGNOSTIC ONLY: ${reviewMode.companyOnly?'company stock journey':reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'review journeys'}; prior137 journey coverage is absent. Full acceptance requires all diagnostic modes0 and all19 flags.`);
+    console.log(`DIAGNOSTIC ONLY: ${reviewMode.companyOnly?'company stock journey and any explicitly selected trace':reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'review journeys'}; prior137 journey coverage is absent. Full acceptance requires all diagnostic modes0 and all20 flags.`);
     const cookie=(await call('Network.getCookies',{urls:[web]})).cookies.find(row=>row.name==='portfolio_session');
     assert.ok(cookie?.httpOnly);
     const headers={origin:web,'content-type':'application/json',cookie:`portfolio_session=${cookie.value}`};
     if(reviewMode.textProbeOnly)await runTextProbe({db,headers});else await runReviewJourneys({db,headers});
     assert.deepEqual(exceptions,[]);assert.deepEqual(consoleErrors,[]);
-    await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp with marker-validated owned canonical business clock',prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:reviewMode.companyOnly?['supplemental one-generation company stock; prerequisite HTTP producer setup']:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:['canonical E01','supplemental internal execution','operator/source selectors'],checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
+    await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp with marker-validated owned canonical business clock',prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:reviewMode.companyOnly?['supplemental one-generation company stock; prerequisite HTTP producer setup',...(reviewMode.companyTrace?['readonly unit trace; staged actual HTTP fixture']:[])]:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:['canonical E01','supplemental internal execution','operator/source selectors',...(reviewMode.companyTrace?['readonly unit trace; staged actual HTTP fixture']:[])],checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
     console.log(JSON.stringify({diagnosticOnly:true,fullAcceptance:false,passed:checks.length,exceptions:exceptions.length,consoleErrors:consoleErrors.length,evidence,resultsFile:reviewMode.resultsFile}));
   }else{
   await fill('name', 'Synthetic browser account'); await click('Create account');
@@ -383,7 +385,7 @@ try {
 } catch (error) {
   await writeFile(join(evidence, 'failure-diagnostics.json'), JSON.stringify({ diagnosticOnly:reviewMode.diagnosticOnly,fullAcceptance:false,error:String(error), checks, exceptions, consoleErrors, network, networkFailures }, null, 2));
   if (ws?.readyState === 1 && session) await screenshot('failure').catch(() => {});
-  console.log(JSON.stringify({ exceptions, consoleErrors, network }));
+  console.log(JSON.stringify({ exceptions, consoleErrors, network, networkFailures }));
   throw error;
 } finally {
   if (ws?.readyState === 1) { try { await call('Browser.close', {}, null); } catch {} ws.close(); }
