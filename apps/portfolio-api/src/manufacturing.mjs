@@ -5,10 +5,11 @@ import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.m
 import { requireEligibleReceipt, workOrderStockExceptions } from './stock-holds.mjs';
 import { initializeGenealogy, installGenealogy, genealogyActions, genealogyRoles } from './genealogy.mjs';
 import { custodyActions, custodyRoles, installManufacturingSerialCustody, reserveSerialCustody, consumeSerialCustody } from './serial-custody.mjs';
+import { initializeComponentInstallation, installationActions, installationRoles, installComponentInstallation } from './component-installation.mjs';
 
 const verbs = ['read', 'plan', 'release', 'record', 'qc'];
-export const manufacturingActions = [...verbs.map(v => `manufacturing.${v}`), ...genealogyActions, ...custodyActions];
-export const manufacturingRoles = { ...Object.fromEntries(verbs.map(v => [`manufacturing${v[0].toUpperCase()}${v.slice(1)}`, [...new Set(['manufacturing.read', `manufacturing.${v}`])]])), ...genealogyRoles, ...custodyRoles };
+export const manufacturingActions = [...verbs.map(v => `manufacturing.${v}`), ...genealogyActions, ...custodyActions, ...installationActions];
+export const manufacturingRoles = { ...Object.fromEntries(verbs.map(v => [`manufacturing${v[0].toUpperCase()}${v.slice(1)}`, [...new Set(['manufacturing.read', `manufacturing.${v}`])]])), ...genealogyRoles, ...custodyRoles, ...installationRoles };
 export async function initializeManufacturing(db) {
   await db.collection('manufacturingLabor').createIndex({ tenantId: 1, plantId: 1, workOrderId: 1, operationIndex: 1 }, { unique: true });
   await db.collection('manufacturingLabor').createIndex({ tenantId: 1, plantId: 1, operatorId: 1, startedAt: 1, endedAt: 1 });
@@ -18,6 +19,7 @@ export async function initializeManufacturing(db) {
   await db.collection('manufacturingOutputUnits').createIndex({ tenantId: 1, plantId: 1, serial: 1 }, { unique: true });
   await db.collection('manufacturingOutputUnits').createIndex({ tenantId: 1, plantId: 1, workOrderId: 1 });
   await initializeGenealogy(db);
+  await initializeComponentInstallation(db);
 }
 const units = s => BigInt(s.split('.')[0]) * 1000000n + BigInt((s.split('.')[1] || '').padEnd(6, '0'));
 const decimal = n => { const s = n.toString().padStart(7, '0'); return `${s.slice(0, -6)}.${s.slice(-6)}`.replace(/0+$/, '').replace(/\.$/, ''); };
@@ -46,8 +48,10 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     const tail = req.path.split('/').at(-1);
     const genealogyPath = /^\/work-orders\/[^/]+\/genealogy(?:\/|$)/.test(req.path) || req.path.startsWith('/genealogy/');
     const custodyPath = /^\/work-orders\/[^/]+\/serial-claims(?:\/|$)/.test(req.path);
+    const installationPath = /^\/work-orders\/[^/]+\/installations(?:\/|$)/.test(req.path);
     req.manufacturingAction = genealogyPath ? req.method === 'GET' ? 'genealogy.read' : ['allocations', 'losses'].includes(tail) ? 'genealogy.record' : tail === 'finalize' ? 'genealogy.finalize' : null : `manufacturing.${req.method === 'GET' ? 'read' : ['/work-orders', '/engineering'].includes(req.path) || (req.path.startsWith('/engineering/') && tail === 'revisions') ? 'plan' : ['release-engineering', 'revoke'].includes(tail) ? 'release' : tail === 'labor' ? 'record' : tail}`;
     if (custodyPath) req.manufacturingAction = req.method === 'GET' ? 'custody.read' : req.method === 'POST' ? tail === 'abandon' ? 'custody.abandon' : tail === 'serial-claims' ? 'custody.claim' : null : null;
+    if (installationPath) req.manufacturingAction = req.method === 'GET' ? 'installation.read' : req.method === 'POST' && ['record', 'losses', 'remove', 'finalize'].includes(tail) ? `installation.${tail === 'losses' ? 'record' : tail}` : null;
     if (!req.manufacturingAction) fail(404, 'NOT_FOUND');
     await runtime.foundation.authorize(req.scope, { ...req.filter, action: req.manufacturingAction }); next();
   });
@@ -76,6 +80,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
   };
   installGenealogy(app, runtime, { tx, find, fail, fields, id });
   installManufacturingSerialCustody(app, runtime, { tx, find, fail, fields, id });
+  installComponentInstallation(app, runtime, { tx, find, fail, fields, id });
   app.get('/api/manufacturing/work-orders', async (req, res) => {
     const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
     if (!Number.isInteger(limit) || limit < 1 || limit > 100 || (req.query.limit !== undefined && !/^[0-9]+$/.test(req.query.limit))) fail(400, 'INVALID_PAGINATION');
@@ -102,7 +107,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     res.json({ data });
   });
   app.post('/api/manufacturing/work-orders', async (req, res) => {
-    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'quantities', 'uom', 'serialized', 'genealogyRequired', 'serialCustodyRequired', 'idempotencyKey']);
+    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'quantities', 'uom', 'serialized', 'genealogyRequired', 'serialCustodyRequired', 'installationRequired', 'idempotencyKey']);
     const { salesOrderId, lineIndex, quantities, uom, expectedVersion } = req.body;
     id(salesOrderId);
     if (!Number.isSafeInteger(lineIndex) || lineIndex < 0 || !Array.isArray(quantities) || !quantities.length || quantities.length > 100) fail(400, 'INVALID_SPLIT');
@@ -113,6 +118,8 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     if (req.body.genealogyRequired && (!req.body.serialized || amounts.some(a => a > 100000000n))) fail(400, 'INVALID_GENEALOGY');
     if (Object.hasOwn(req.body, 'serialCustodyRequired') && typeof req.body.serialCustodyRequired !== 'boolean') fail(400, 'INVALID_SERIAL_CUSTODY');
     if (req.body.serialCustodyRequired && (!req.body.serialized || !req.body.genealogyRequired || amounts.some(a => a > 100000000n))) fail(400, 'INVALID_SERIAL_CUSTODY');
+    if (Object.hasOwn(req.body, 'installationRequired') && typeof req.body.installationRequired !== 'boolean') fail(400, 'INVALID_INSTALLATION');
+    if (req.body.installationRequired && !req.body.serialCustodyRequired) fail(400, 'INVALID_INSTALLATION');
     const data = await tx(req, 'workOrders.planned', async session => {
       const so = await find('salesOrders', req, salesOrderId, session);
       if (so.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
@@ -124,7 +131,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
       if (total > units(line.quantity)) fail(409, 'QUANTITY_EXCEEDED');
       if (allocated) await c('manufacturingAllocated').updateOne({ _id: allocated._id }, { $set: { quantity: decimal(total) } }, { session });
       else await c('manufacturingAllocated').insertOne({ ...base(req), ...filter, quantity: decimal(total) }, { session });
-      const batch = base(req), workOrders = amounts.map(a => ({ ...base(req), splitId: batch._id, salesOrderId, salesOrderVersion: so.version, accountId: so.accountId, lineIndex, sourceLine: line, quantity: decimal(a), uom, ...(req.body.serialized ? { serialized: true } : {}), ...(req.body.genealogyRequired ? { genealogyRequired: true } : {}), ...(req.body.serialCustodyRequired ? { serialCustodyRequired: true } : {}), status: 'PLANNED', executionMode: 'OPERATOR_RECORDED', records: [] }));
+      const batch = base(req), workOrders = amounts.map(a => ({ ...base(req), splitId: batch._id, salesOrderId, salesOrderVersion: so.version, accountId: so.accountId, lineIndex, sourceLine: line, quantity: decimal(a), uom, ...(req.body.serialized ? { serialized: true } : {}), ...(req.body.genealogyRequired ? { genealogyRequired: true } : {}), ...(req.body.serialCustodyRequired ? { serialCustodyRequired: true } : {}), ...(req.body.installationRequired ? { installationRequired: true } : {}), status: 'PLANNED', executionMode: 'OPERATOR_RECORDED', records: [] }));
       await c('manufacturingWorkOrders').insertMany(workOrders, { session });
       return { ...batch, workOrders };
     }); res.status(201).json({ data });
