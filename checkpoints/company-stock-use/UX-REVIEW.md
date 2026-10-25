@@ -1,0 +1,15 @@
+# Company stock use UX
+
+Reading this as an operations workspace for planners and storekeepers, continuing the existing English PF visual system, dial ENERGY1/RHYTHM2/MOTION1. Existing type, palette, native fields and scoped audit hierarchy remain; no new assets or decorative dashboard.
+
+Before: the accepted parent shows real company output/QC/putaway evidence but explicitly cannot allocate it to another job. A planning record can describe manufactured demand while the V1 execution gate permits purchased inputs only. This is an authority gap, not an opportunity to toggle a UI flag.
+
+After target: explicit planning opt-in for stored manufactured components; typed source picker with current stock/unit evidence; exact actual UUID-backed unit selection labeled by serial; same retained-command recovery/locks; separate physical/reserved/issued/consumed/eligible counters; native hold/release and producer/source navigation; typed per-output/loss attribution; terminal descendant stock with an explained reuse/dispatch boundary. Schema names, full UUIDs/hashes/fences remain under scoped Audit details.
+
+The dedicated `/portfolio/company-stock/receipts/:id` page is gated by company.stock.read, allowing a company reader/quality holder to inspect or hold the receipt without an execution read grant. Producer job links require their own permission. There is no placeholder global stock dashboard or link to an unimplemented list page.
+
+Final focused native attempt2 passed7 diagnostic checks, zero browser exceptions/console errors, exit0 and cleanup0mongod. Actual360/768/1440 evidence covers the source picker, typed output attribution and terminal output in desktop/kiosk modes; geometry checks enforce44px/48px controls and zero document overflow. New command submissions use native mouse/Tab/Enter; multiselect values use DOM selection/change. Permission-only deep link, committed-response loss, exact retry, revoked retained-key403 and sibling locks are independently reconciled with actual persisted effects. Prerequisite producer setup is explicitly actual HTTP, not native operator work.
+
+Lead viewed final mobile source selection,768 terminal stock and1440 attribution. Agent B independently inspected all12 final screenshots. The observed touching source links now use the existing pf-actions gap, and purchased attribution/loss identifies consumed sources rather than current available stock. Build2 and frontend172/172 pass after those markup/copy edits. The first full normal19-flag run passed153 checks before the two refinements; final published-head full regression remains separately attested in the draft PR. Focused diagnostics are not full prior-journey coverage.
+
+Historical BEFORE images remain under the parent browser-full-attempt10/review-supplemental-company-output-stock-* evidence. AFTER images are under company-stock-use-20261025/browser-company-focused-attempt2/company-stock-*.png, separate from the retained first focused and full runs. This review does not claim screen-reader testing, physical kiosk hardware or every possible long code/content length. Nonfatal Mongo teardown diagnostics stay in raw logs.

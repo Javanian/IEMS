@@ -14,6 +14,7 @@ import { navigationContextChanged,waitForTechnicalDetails,documentNavigationCall
 import { reviewRunPlan } from './portfolio-review-mode.mjs';
 import { reviewOperatorJourney } from './portfolio-review-operator-browser.mjs';
 import { reviewInternalExecutionJourney } from './portfolio-review-internal-execution-browser.mjs';
+import { companyStockJourney } from './portfolio-company-stock-browser.mjs';
 import { canonicalE01Journey } from './portfolio-review-e01-browser.mjs';
 import { createApp,seedSynthetic } from '../../portfolio-api/src/app.mjs';
 import { initializeCustomerService } from '../../portfolio-api/src/customer-service.mjs';
@@ -102,6 +103,7 @@ async function runReviewJourneys({db,headers}) {
     finally { if(priorClock===undefined)delete runtime.businessClock;else runtime.businessClock=priorClock;if(priorMode===undefined)delete runtime.businessClockMode;else runtime.businessClockMode=priorMode; }
   }
   if(reviewMode.internalExecution){const internal=await reviewInternalExecutionJourney(reviewKit);reviewKit.internalPlanId=internal.planId;}
+  if(reviewMode.companyStock)await companyStockJourney(reviewKit);
   if(reviewMode.operator)await reviewOperatorJourney(reviewKit);
 }
 async function runTextProbe({db,headers}) {
@@ -196,13 +198,13 @@ try {
   assert.deepEqual(await evaluate(`({local:Object.keys(localStorage),session:Object.keys(sessionStorage)})`), { local: [], session: [] });
   check('HttpOnly cookie not exposed; no localStorage/sessionStorage bearer or auth data');
   if(reviewMode.diagnosticOnly){
-    console.log(`DIAGNOSTIC ONLY: ${reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'three review journeys'}; prior137 journey coverage is absent. Full acceptance requires both diagnostic modes0 and all18 flags.`);
+    console.log(`DIAGNOSTIC ONLY: ${reviewMode.companyOnly?'company stock journey':reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'review journeys'}; prior137 journey coverage is absent. Full acceptance requires all diagnostic modes0 and all19 flags.`);
     const cookie=(await call('Network.getCookies',{urls:[web]})).cookies.find(row=>row.name==='portfolio_session');
     assert.ok(cookie?.httpOnly);
     const headers={origin:web,'content-type':'application/json',cookie:`portfolio_session=${cookie.value}`};
     if(reviewMode.textProbeOnly)await runTextProbe({db,headers});else await runReviewJourneys({db,headers});
     assert.deepEqual(exceptions,[]);assert.deepEqual(consoleErrors,[]);
-    await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp with marker-validated owned canonical business clock',prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:['canonical E01','supplemental internal execution','operator/source selectors'],checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
+    await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp with marker-validated owned canonical business clock',prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:reviewMode.companyOnly?['supplemental one-generation company stock; prerequisite HTTP producer setup']:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:['canonical E01','supplemental internal execution','operator/source selectors'],checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
     console.log(JSON.stringify({diagnosticOnly:true,fullAcceptance:false,passed:checks.length,exceptions:exceptions.length,consoleErrors:consoleErrors.length,evidence,resultsFile:reviewMode.resultsFile}));
   }else{
   await fill('name', 'Synthetic browser account'); await click('Create account');
