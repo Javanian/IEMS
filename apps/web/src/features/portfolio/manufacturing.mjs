@@ -5,7 +5,7 @@ const words = text => (text || '').trim().split(/\s+/).filter(Boolean);
 
 export function planCommand(order, values, key) {
   const lineIndex = Number(values.lineIndex);
-  return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex]?.uom, quantities: words(values.quantities), ...(values.serialized === 'true' || values.serialized === true ? { serialized:true } : {}), idempotencyKey: key };
+  return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex]?.uom, quantities: words(values.quantities), ...(values.serialized === 'true' || values.serialized === true ? { serialized:true } : {}), ...(values.genealogyRequired === 'true' || values.genealogyRequired === true ? { genealogyRequired:true } : {}), idempotencyKey: key };
 }
 export function releaseCommand(wo, values, operationCount, materialCount, key) {
   const operations = Array.from({ length: operationCount }, (_, i) => ({ code: values[`code${i}`], instruction: values[`instruction${i}`] }));
@@ -37,5 +37,6 @@ const hints = {
   SERIAL_QUANTITY_CONFLICT:'Serial counts must match the exact quantities. QC must classify each output serial once, as accepted or rejected.',
   SERIAL_STATE_CONFLICT:'A selected serial is no longer accepted and available to ship. Refresh serial statuses before selecting output units.',
   SERIAL_SOURCE_CONFLICT:'A serial does not belong to this work order. Review the registered output identities.',
+  MATERIAL_TRACE_REQUIRED:'Lot genealogy requires every released material receipt to have recorded lot and heat identifiers. Select traced receipts before release.',
 };
 export function manufacturingHint(error) { return error?.code ? hints[error.code] || null : null; }

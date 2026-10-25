@@ -26,6 +26,7 @@ import { documentJourney } from './portfolio-wave3e-documents-browser.mjs';
 import { vatJourney } from './portfolio-wave4h-vat-browser.mjs';
 import { inquiryJourney } from './portfolio-wave4i-inquiry-browser.mjs';
 import { lotSerialJourney } from './portfolio-wave4j-lot-serial-browser.mjs';
+import { genealogyJourney } from './portfolio-wave4k-genealogy-browser.mjs';
 import { quoteEditorInquiryJourney } from './portfolio-wave4j-pr4-browser.mjs';
 import { responseLoss } from './portfolio-wave3d-transport.mjs';
 import { holdJourney } from './wave4f-holds-browser.mjs';
@@ -103,7 +104,7 @@ try {
       try {
         const [port, route] = (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).trim().split(/\r?\n/);
         if (/^\d+$/.test(port) && Number(port) > 0 && Number(port) <= 65535 && /^\/devtools\/browser\/[a-zA-Z0-9-]+$/.test(route)) endpoint = `ws://127.0.0.1:${port}${route}`;
-      } catch (error) { if (error.code !== 'ENOENT') throw error; }
+      } catch (error) { if (!['ENOENT', 'EBUSY'].includes(error.code)) throw error; }
     }
     if (chrome.exitCode !== null || chrome.signalCode !== null) throw Error(`Owned Chrome exited before readiness (${chrome.exitCode}/${chrome.signalCode}): ${stderr.slice(-4000)}`);
     if (!endpoint) await delay(100);
@@ -243,6 +244,7 @@ try {
   if (process.env.PORTFOLIO_INQUIRY === '1') await inquiryJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse, downloadPath: evidence });
   if (process.env.PORTFOLIO_LOT_SERIAL === '1') await lotSerialJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse });
   if (process.env.PORTFOLIO_LOT_SERIAL === '1') await quoteEditorInquiryJourney({ db, call, wait, fill, evaluate, check, headers });
+  if (process.env.PORTFOLIO_GENEALOGY === '1') await genealogyJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, loseResponse });
   await click('Opportunities'); await click('Synthetic browser opportunity'); await wait(`document.body.innerText.includes('Stage: WON')`);
   for (const width of [1440, 1280, 1100, 1024, 900, 768, 430, 375, 360]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 600 }); await wait(`innerWidth===${width}`);

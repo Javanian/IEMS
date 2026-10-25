@@ -1,5 +1,11 @@
 # Owned portfolio CRM API
 
+## Wave4k K1 consumed-lot attribution
+
+Planning can explicitly require per-output lot genealogy with `serialized: true` and `genealogyRequired: true`. Scoped genealogy commands attribute already-consumed materials, reconcile exact per-unit ratios and explicit process losses, and retain immutable revisions. Dedicated read/record/finalize capabilities are separate from existing manufacturing roles. First shipment freezes the whole work order's finalized revision; every new shipment still checks current whole-receipt holds. Legacy planning and shipment remain compatible when not opted in.
+
+See the [wire contract](../../checkpoints/wave4k/CONTRACT.md), [handoff](../../checkpoints/wave4k/HANDOFF.md) and [executed acceptance status](../../checkpoints/wave4k/STATUS.md). This is lot attribution, not component-serial custody/installation, POD or full E01 acceptance. No additional material is consumed by attribution.
+
 ## Wave4h VAT documents
 
 Approved quote revisions and issued fulfillment invoices now support additive schema2/template3 PDFs under the existing scoped `/api/documents` source/issue/read/download routes. See [HANDOFF.md](./HANDOFF.md) for exact consumer mapping. Issue requests still contain only kind/sourceId/sourceVersion; no caller financial data is accepted. VAT snapshot header and lines retain `netAmount`, `taxAmount`, `grossAmount`, `FIXTURE_VAT_11_V1`, version1, rate `0.11` and exact rounding provenance. This is a fixture policy, not a statutory determination. Line `amount` is net; VAT PDF `total` is gross. Baseline Wave4g quote/SO VAT `total` was already gross, despite the Wave4h planning text describing it as legacy net; that upstream contract and original golden are preserved. Consumers must use explicit amounts. NO_TAX schema1/templates1/2 and historical artifact bytes remain unchanged.

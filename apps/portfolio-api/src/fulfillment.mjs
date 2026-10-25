@@ -2,6 +2,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { fixtureVat, fixtureTax, taxAmounts } from './fixture-tax.mjs';
 import { requireEligibleReceipt } from './stock-holds.mjs';
+import { freezeShipmentGenealogy } from './genealogy.mjs';
 
 const verbs = ['read', 'ship', 'invoice', 'pay'];
 export const fulfillmentActions = verbs.map(v => `fulfillment.${v}`);
@@ -167,6 +168,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
             if (!Array.isArray(s.serials)) fail(400, 'INVALID_SERIALS');
             if (BigInt(s.serials.length) * 1000000n !== s.amount) fail(409, 'SERIAL_QUANTITY_CONFLICT');
             if (s.serials.some(serial => !wo.qc.acceptedSerials.includes(serial))) fail(409, 'SERIAL_SOURCE_CONFLICT');
+            if (wo.genealogyRequired) s.genealogy = await freezeShipmentGenealogy(runtime.db, wo, s.serials, shipmentId, session);
             const shipped = await c('manufacturingOutputUnits').updateMany({ ...req.filter, workOrderId: wo._id, serial: { $in: s.serials }, status: 'ACCEPTED' }, { $set: { status: 'SHIPPED', shipmentId, shippedBy: req.scope.userId, shippedAt: new Date() }, $inc: { version: 1 } }, { session });
             if (shipped.matchedCount !== s.serials.length) fail(409, 'SERIAL_STATE_CONFLICT');
           } else if (Object.hasOwn(s, 'serials')) fail(400, 'INVALID_SERIALS');
@@ -188,7 +190,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
           const moved = await c('warehouseReceipts').updateOne({ ...req.filter, _id: receipt._id, version: receipt.version }, { $set: { reservedQuantity: decimal(units(receipt.reservedQuantity) - s.amount), shippedQuantity: decimal(units(receipt.shippedQuantity || '0') + s.amount), updatedAt: new Date() }, $inc: { version: 1 } }, { session });
           if (!moved.matchedCount) fail(409, 'VERSION_CONFLICT');
         }
-        await c('warehouseMovements').insertOne({ ...base(req), shipmentId, salesOrderId: so._id, accountId: so.accountId, lineIndex, sourceType: s.sourceType, sourceId: s.sourceId, ...(receipt ? { receiptId: receipt._id, reservationId: s.sourceId } : { workOrderId: s.sourceId }), ...(s.serials ? { serials: [...s.serials] } : {}), ...(s.materialTrace ? { materialTrace: structuredClone(s.materialTrace) } : {}), uom, quantity: decimal(s.amount), kind: 'SHIP', from: receipt ? 'RESERVED' : 'QC_ACCEPTED_OUTPUT', to: 'SHIPPED' }, { session });
+        await c('warehouseMovements').insertOne({ ...base(req), shipmentId, salesOrderId: so._id, accountId: so.accountId, lineIndex, sourceType: s.sourceType, sourceId: s.sourceId, ...(receipt ? { receiptId: receipt._id, reservationId: s.sourceId } : { workOrderId: s.sourceId }), ...(s.serials ? { serials: [...s.serials] } : {}), ...(s.materialTrace ? { materialTrace: structuredClone(s.materialTrace) } : {}), ...(s.genealogy ? { genealogy: structuredClone(s.genealogy) } : {}), uom, quantity: decimal(s.amount), kind: 'SHIP', from: receipt ? 'RESERVED' : 'QC_ACCEPTED_OUTPUT', to: 'SHIPPED' }, { session });
       }
       const total = sources.reduce((a, s) => a + s.amount, 0n);
       await tally(req, 'SO_LINE_SHIPPED', so._id, lineIndex, total, units(line.quantity), session);
