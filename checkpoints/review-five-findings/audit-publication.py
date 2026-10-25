@@ -13,6 +13,9 @@ scopes = (
     'apps/wa-demo-bridge/', 'packages/tenant-foundation/', 'packages/customer-service/',
     'packages/document-rendering/', 'packages/domain-test-fixtures/',
     'checkpoints/review-five-findings/',
+    'checkpoints/wave4k/qa/', 'checkpoints/wave4k2a/qa/',
+    'checkpoints/wave4k2b1/qa/', 'checkpoints/wave4k2b2a/qa/',
+    'checkpoints/wave4map/qa/', 'checkpoints/wave4qc/qa/',
 )
 specific = {'.gitignore', '.github/workflows/portfolio-vat.yml', 'apps/web/package.json',
             'apps/web/package-lock.json', 'apps/web/vite.config.js',

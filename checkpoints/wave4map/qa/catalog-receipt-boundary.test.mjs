@@ -30,13 +30,31 @@ test('independent typed receiving, immutable origin and every legacy stock bound
     return Object.fromEntries(await Promise.all([...names].sort().map(async name => [name, await h.db.collection(name).find({}).sort({ _id: 1 }).toArray()])));
   };
   const baseline = await forbidden();
+  // F4 fresh vendor authority writes this one technical fence; no vendor business field may change.
+  const freshReceipts = new Map(), vendorScope = { tenantId: legacy.vendor.tenantId, plantId: legacy.vendor.plantId };
+  const vendorAuthority = async () => {
+    const vendor = await h.db.collection('vendors').findOne({ ...vendorScope, _id: legacy.vendor._id });
+    assert.ok(vendor && Number.isSafeInteger(vendor.catalogUseFence) && vendor.catalogUseFence >= 0, 'Fresh-use fence must remain a nonnegative safe integer');
+    return vendor;
+  };
+  const receivingKeys = () => h.db.collection('catalogKeys').find({ ...vendorScope, 'result.vendorId': legacy.vendor._id, 'result.catalogSource': { $exists: true } }).sort({ key: 1 }).toArray();
+  const originalReceivingKeys = new Set((await receivingKeys()).map(row => row.key));
+  const assertVendorAdvance = async (before, advances) => assert.deepEqual(await vendorAuthority(), { ...before, catalogUseFence: before.catalogUseFence + advances });
+  const freshReceive = async body => {
+    const before = await vendorAuthority();
+    assert.equal(await h.db.collection('catalogKeys').countDocuments({ ...vendorScope, key: body.idempotencyKey }), 0, 'Fresh receiving helper must not count replay as a new commit');
+    const receipt = await h.ok(`${base}/receipts`, body, 201);
+    freshReceipts.set(body.idempotencyKey, receipt._id);
+    await assertVendorAdvance(before, 1);
+    return receipt;
+  };
   let lotReceipt, serialReceipt, retainedBody, retainedReceipt;
 
   await t.test('actual fractional LOT and SERIAL partial receipts reconcile one source and RECEIVE per physical receipt', async () => {
     assert.equal(po.content.total, '55.00');
-    retainedBody = receiveBody(po, lotLine, '1.25'); retainedReceipt = await h.ok(`${base}/receipts`, retainedBody, 201); lotReceipt = retainedReceipt;
-    const second = await h.ok(`${base}/receipts`, receiveBody(po, lotLine, '1.25'), 201);
-    serialReceipt = await h.ok(`${base}/receipts`, receiveBody(po, serialLine, '2', ['MAP-QA-SERIAL-A', 'MAP-QA-SERIAL-B']), 201);
+    retainedBody = receiveBody(po, lotLine, '1.25'); retainedReceipt = await freshReceive(retainedBody); lotReceipt = retainedReceipt;
+    const second = await freshReceive(receiveBody(po, lotLine, '1.25'));
+    serialReceipt = await freshReceive(receiveBody(po, serialLine, '2', ['MAP-QA-SERIAL-A', 'MAP-QA-SERIAL-B']));
     for (const receipt of [lotReceipt, second, serialReceipt]) {
       assert.equal(receipt.status, 'QUARANTINED'); assert.equal(receipt.availableQuantity, '0'); assert.equal(receipt.reservedQuantity, '0'); assert.equal(receipt.usable, false);
       assert.deepEqual(receipt.receiptOrigin, { cohort: 'CATALOG', legacyEligible: false });
@@ -69,8 +87,12 @@ test('independent typed receiving, immutable origin and every legacy stock bound
     const before = await domainSnapshot(h), duplicate = await h.req(`${base}/receipts`, receiveBody(po, serialLine, '1', ['MAP-QA-SERIAL-A']), h.alpha);
     assert.equal(duplicate.status, 409); assert.deepEqual(await domainSnapshot(h), before);
     const commands = ['MAP-QA-LAST-A', 'MAP-QA-LAST-B'].map(serial => receiveBody(po, serialLine, '1', [serial]));
+    const vendorBeforeRace = await vendorAuthority();
     const responses = await Promise.all(commands.map(body => h.req(`${base}/receipts`, body, h.alpha)));
     assert.deepEqual(responses.map(row => row.status).sort(), [201, 409], JSON.stringify(responses));
+    const committed = responses.map((response, index) => ({ response, body: commands[index] })).filter(row => row.response.status === 201);
+    await assertVendorAdvance(vendorBeforeRace, committed.length);
+    for (const { response, body } of committed) freshReceipts.set(body.idempotencyKey, response.data._id);
     const loser = commands[responses.findIndex(row => row.status !== 201)]; assert.equal(await h.db.collection('catalogKeys').countDocuments({ key: loser.idempotencyKey }), 0);
     const tally = await h.db.collection('catalogReceived').findOne({ purchaseOrderId: po._id, lineId: serialLine.lineId });
     assert.equal(tally.quantity, '3'); assert.equal(tally.receiptCount, 2);
@@ -216,7 +238,7 @@ test('independent typed receiving, immutable origin and every legacy stock bound
     await h.db.command({ collMod: 'catalogOutbox', validator: { qaForbidden: { $exists: true } }, validationLevel: 'strict' });
     try { const response = await h.req(`${base}/receipts`, body, h.alpha); assert.equal(response.status, 500); assert.deepEqual(await domainSnapshot(h), before); }
     finally { await h.db.command({ collMod: 'catalogOutbox', validator: {} }); }
-    const receipt = await h.ok(`${base}/receipts`, body, 201); assert.equal(receipt.quantity, '1');
+    const receipt = await freshReceive(body); assert.equal(receipt.quantity, '1');
   });
 
   await t.test('committing authorization revocation denies an acknowledged receipt replay before key lookup', async () => {
@@ -229,7 +251,13 @@ test('independent typed receiving, immutable origin and every legacy stock bound
   });
 
   await t.test('typed quarantine receiving changes no customer, legacy production or downstream entitlement', async () => {
-    assert.deepEqual(await forbidden(), baseline);
+    const committed = (await receivingKeys()).filter(row => !originalReceivingKeys.has(row.key));
+    assert.deepEqual(committed.map(row => [row.key, row.result._id]), [...freshReceipts].sort(([left], [right]) => left.localeCompare(right)), 'Fence advances must match distinct actually committed receiving keys, not requests, retries or failures');
+    const expected = structuredClone(baseline), vendor = expected.vendors.find(row => row._id === legacy.vendor._id);
+    assert.ok(Number.isSafeInteger(vendor.catalogUseFence) && vendor.catalogUseFence >= 0);
+    vendor.catalogUseFence += committed.length;
+    assert.equal((await vendorAuthority()).catalogUseFence, vendor.catalogUseFence);
+    assert.deepEqual(await forbidden(), expected);
     const receipts = await h.db.collection('warehouseReceipts').find({ catalogSource: { $exists: true } }).toArray();
     assert.ok(receipts.length >= 4); assert.ok(receipts.every(row => row.status === 'QUARANTINED' && row.availableQuantity === '0' && row.reservedQuantity === '0'));
     for (const row of receipts) {

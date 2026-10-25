@@ -27,3 +27,13 @@ These are real original accepted commits, published without rewriting dates/pare
 | 11 | [40159671788](https://github.com/Javanian/IEMS/actions/runs/40159671788) |
 
 Source/import closure, tracked-file/security inspection and a clean install/test must precede publication acceptance. Raw evidence, generated PDFs/screenshots/databases, credentials and local environment files are excluded. The tracked .gitignore remains part of the source.
+
+## Integration checkpoint under review
+
+Commit `e322141ce992ca4283239d8730a1d8cddf53c641` was pushed normally to `feat/review-five-findings` with parent `54a7e6db5fb1cfc48252477ca872d700c8c650ee`. [Draft PR12](https://github.com/Javanian/IEMS/pull/12) targets `feat/catalog-receipt-qc-putaway` / PR11. This is an implementation checkpoint with F1-F4 still IN_PROGRESS and F5 BLOCKED, not final acceptance.
+
+Before this push, the staged-source audit passed321 normalized hashes and541 literal relative-import edges. A targeted changed-source scan inspected129 staged files with zero raw-output candidates and zero targeted secret-pattern hits; its limits exclude historical/entropy/PII certification. The separate clean clone checked out this exact commit with no source changes and passed the same321/541 audit; final implementation install/tests remain a later gate.
+
+At the first exact-head observation, [basic CI40167510186](https://github.com/Javanian/IEMS/actions/runs/40167510186) and [Portfolio acceptance40167510184](https://github.com/Javanian/IEMS/actions/runs/40167510184) were in progress. These are not pass claims. The latest local full browser stopped at68 checks on ticket text-enlargement evidence, with0 exceptions/console errors; investigation and final native regression continue. Subsequent commits must retain their own source and remote-head status.
+
+Exact-head final observation: [basic CI40167510186](https://github.com/Javanian/IEMS/actions/runs/40167510186) succeeded all five jobs. [Portfolio acceptance40167510184](https://github.com/Javanian/IEMS/actions/runs/40167510184) failed in the old independent MAP full-business snapshot: the now-required vendor authority fence advanced12-to17, with all other fields unchanged. Later QC/independent/browser/API steps were skipped. This failure is retained; a bounded QA adapter preserves all business fields and matches fence increments to distinct newly durable receiving effects, with replay/rejection/rollback still exact-zero effects. Independent static review passed; runtime/future-head CI are separate gates. The exact e322141 clean clone passed all six locked installs and266/266 maintained API tests.

@@ -110,14 +110,28 @@ async function runTextProbe({db,headers}) {
   const login=async username=>{
     const response=await fetch('http://127.0.0.1:4313/api/session/login',{method:'POST',headers:{origin:web,'content-type':'application/json'},body:JSON.stringify({username,password})});assert.equal(response.status,200);return response.headers.get('set-cookie').split(';')[0];
   };
-  const req=async(path,body,cookie=headers.cookie)=>{
-    const response=await fetch(`http://127.0.0.1:4313/api${path}`,{method:body===undefined?'GET':'POST',headers:{...headers,cookie},...(body===undefined?{}:{body:JSON.stringify(body)})});return {status:response.status,...await response.json()};
+  const req=async(path,body,cookie=headers.cookie,extraHeaders={})=>{
+    const response=await fetch(`http://127.0.0.1:4313/api${path}`,{method:body===undefined?'GET':'POST',headers:{...headers,cookie,...extraHeaders},...(body===undefined?{}:{body:JSON.stringify(body)})});return {status:response.status,...await response.json()};
   };
   const ok=async(path,body,status=200,cookie=headers.cookie)=>{const result=await req(path,body,cookie);assert.equal(result.status,status,`${path}: ${JSON.stringify(result)}`);return result.data;};
   try {
-    await runE01Flow({db,runtime,seeded:seedIdentities,alpha:headers.cookie,login,req,ok},{setClock:value=>{instant=new Date(value);}});
-    console.log('TEXT DIAGNOSTIC: actual invoice was seeded through mounted API helper; this setup is not a native E01 clickthrough.');
-    await textEnlargementJourney({db,call,wait,evaluate,screenshot,check,web,invoiceOnly:true,writeEvidence:(name,value)=>writeFile(join(evidence,name),JSON.stringify(value,null,2))});
+    const flow=await runE01Flow({db,runtime,seeded:seedIdentities,alpha:headers.cookie,login,req,ok},{setClock:value=>{instant=new Date(value);}});
+    const contact=await ok(`/crm/accounts/${flow.account._id}/contacts`,{name:'Synthetic text probe contact',email:'synthetic-text-probe@example.invalid'},201);
+    const bindingResult=await req('/cs/bindings',{accountId:flow.account._id,contactId:contact._id,channel:'SIMULATED',address:'+62000555101'},headers.cookie,{'Idempotency-Key':randomUUID()});
+    assert.equal(bindingResult.status,201,JSON.stringify(bindingResult));const bindingId=bindingResult.data.binding.bindingId;
+    let inbound;
+    for(const text of ['IEMS COMPLAINT',`IEMS COMPLAINT ORDER ${flow.so.orderNumber}`,'IEMS COMPLAINT CATEGORY DELIVERY_DELAY','IEMS COMPLAINT DESCRIBE Synthetic customer asks about remaining shipment','IEMS COMPLAINT CONFIRM']){
+      inbound=await ok('/cs/simulator/inbound',{bindingId,inboundKey:randomUUID(),text});assert.equal(inbound.error,undefined,JSON.stringify(inbound));
+    }
+    assert.ok(inbound.ticket?.ticketId,'actual simulator created the diagnostic ticket');const ticketPath=`/cs/tickets/${inbound.ticket.ticketId}`;
+    await ok(`${ticketPath}/internal-notes`,{text:'Synthetic staff-only warehouse review',commandKey:randomUUID()},201);
+    let ticket=await ok(ticketPath);
+    await ok(`${ticketPath}/public-update`,{expectedVersion:ticket.version,text:'Synthetic customer-visible shipment review',commandKey:randomUUID()});
+    for(const toStage of ['ASSIGNED','IN_PROGRESS','RESOLVED']){
+      ticket=await ok(ticketPath);await ok(`${ticketPath}/stage`,{expectedVersion:ticket.version,toStage,reason:toStage==='RESOLVED'?'Synthetic shipment schedule confirmed':'Synthetic agent review',...(toStage==='ASSIGNED'?{assigneeId:seedIdentities.find(row=>row.username==='alpha.owner').userId}:{}),commandKey:randomUUID()});
+    }
+    console.log('TEXT DIAGNOSTIC: actual invoice and resolved ticket seeded only through mounted HTTP APIs; setup is not a native E01 clickthrough.');
+    await textEnlargementJourney({db,call,wait,evaluate,screenshot,check,web,writeEvidence:(name,value)=>writeFile(join(evidence,name),JSON.stringify(value,null,2))});
   }finally{if(priorClock===undefined)delete runtime.businessClock;else runtime.businessClock=priorClock;if(priorMode===undefined)delete runtime.businessClockMode;else runtime.businessClockMode=priorMode;}
 }
 try {
@@ -182,13 +196,13 @@ try {
   assert.deepEqual(await evaluate(`({local:Object.keys(localStorage),session:Object.keys(sessionStorage)})`), { local: [], session: [] });
   check('HttpOnly cookie not exposed; no localStorage/sessionStorage bearer or auth data');
   if(reviewMode.diagnosticOnly){
-    console.log(`DIAGNOSTIC ONLY: ${reviewMode.textProbeOnly?'invoice text probe':'three review journeys'}; prior137 journey coverage is absent. Full acceptance requires both diagnostic modes0 and all18 flags.`);
+    console.log(`DIAGNOSTIC ONLY: ${reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'three review journeys'}; prior137 journey coverage is absent. Full acceptance requires both diagnostic modes0 and all18 flags.`);
     const cookie=(await call('Network.getCookies',{urls:[web]})).cookies.find(row=>row.name==='portfolio_session');
     assert.ok(cookie?.httpOnly);
     const headers={origin:web,'content-type':'application/json',cookie:`portfolio_session=${cookie.value}`};
     if(reviewMode.textProbeOnly)await runTextProbe({db,headers});else await runReviewJourneys({db,headers});
     assert.deepEqual(exceptions,[]);assert.deepEqual(consoleErrors,[]);
-    await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp with marker-validated owned canonical business clock',prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:reviewMode.textProbeOnly?['invoice text probe; actual HTTP fixture setup, not native E01']:['canonical E01','supplemental internal execution','operator/source selectors'],checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
+    await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp with marker-validated owned canonical business clock',prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:['canonical E01','supplemental internal execution','operator/source selectors'],checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
     console.log(JSON.stringify({diagnosticOnly:true,fullAcceptance:false,passed:checks.length,exceptions:exceptions.length,consoleErrors:consoleErrors.length,evidence,resultsFile:reviewMode.resultsFile}));
   }else{
   await fill('name', 'Synthetic browser account'); await click('Create account');

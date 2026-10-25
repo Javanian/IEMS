@@ -29,3 +29,5 @@ New catalog options require scoped catalog.read and source-specific master.read 
 ## Authorization and performance
 
 Baseline has two actual transactional guard paths: app.guard writes crmFence, while customer-service invokes foundation.authorizeInTransaction writing authorizationFence. Both touch shared scope authority. Measure actual paths and report workload-specific results. Do not infer corruption or throughput from source shape, or infer stock capacity from a CS-only workload. CONCURRENCY.md fixes targets before experiments; any optimization needs a documented ordering invariant, deterministic revocation/race proof and before/after identical workloads.
+
+Coverage boundary: broader master planning includes a partly purchased/partly existing-stock sourcing variant. The unchanged canonical E01 fixture supplies its five materials on PO lines, so core fixture parity does not establish every broader master sourcing variant. Existing-stock paths have their own regression evidence; no canonical mixed-opening-stock demo is claimed here.
