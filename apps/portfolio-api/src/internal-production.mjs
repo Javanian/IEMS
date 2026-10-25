@@ -22,6 +22,17 @@ const uom = v => { if (typeof v !== 'string' || !/^[A-Z][A-Z0-9_]{0,15}$/.test(v
 const qty = v => { if (typeof v !== 'string' || !/^(0|[1-9][0-9]{0,17})(\.[0-9]{1,6})?$/.test(v) || !/[1-9]/.test(v)) fail(400, 'INVALID_INTERNAL_PLAN'); return BigInt(v.split('.')[0]) * 1000000n + BigInt((v.split('.')[1] || '').padEnd(6, '0')); };
 const decimal = n => { const s = n.toString().padStart(7, '0'); return `${s.slice(0, -6)}.${s.slice(-6)}`.replace(/0+$/, '').replace(/\.$/, ''); };
 
+export async function requireCatalogInventoryItem(db, filter, itemId, itemVersion, itemRevision, session, fence = false) {
+  const row = await db.collection('inventoryItems').findOne({ ...filter, _id: itemId }, { session });
+  if (!row) fail(404, 'NOT_FOUND');
+  const event = await db.collection('internalPlanningEvents').findOne({ ...filter, _id: row.eventId, subjectType: 'ITEM', subjectId: row._id }, { session });
+  const rev = await db.collection('inventoryItemRevisions').findOne({ ...filter, subjectId: row._id, revision: row.currentRevision }, { session });
+  if (!Number.isSafeInteger(row.version) || row.version < 1 || !Number.isSafeInteger(row.currentRevision) || row.currentRevision < 1 || !['DRAFT', 'APPROVED', 'INACTIVE'].includes(row.status) || !event || event.version !== row.version || event.status !== row.status || event.contentHash !== row.authorityHash || hash(event.snapshot) !== row.authorityHash || hash(semantic(row)) !== row.authorityHash || !rev || hash(revisionContent(rev)) !== rev.contentHash || rev.ownerLegalEntityId !== row.ownerLegalEntityId || row.contentHash !== rev.contentHash || hash(row.content) !== hash(rev.content) || (row.status === 'APPROVED' && (row.approval?.revision !== row.currentRevision || row.approval?.contentHash !== row.contentHash))) fail(409, 'MASTER_SOURCE_INVALID');
+  if (row.status !== 'APPROVED' || row.version !== itemVersion || row.currentRevision !== itemRevision || row.content.schema !== 'INVENTORY_ITEM_V2' || !['LOT', 'SERIAL'].includes(row.content.trackingPolicy) || row.content.kind !== 'PURCHASED') fail(409, 'CATALOG_DEPENDENCY_CHANGED');
+  if (fence) { const result = await db.collection('inventoryItems').updateOne({ ...filter, _id: row._id, version: row.version }, { $inc: { useFence: 1 } }, { session }); if (result.matchedCount !== 1) fail(409, 'VERSION_CONFLICT'); }
+  return row;
+}
+
 export async function initializeInternalPlanning(db) {
   for (const [name, keys] of [
     ['inventoryItems', { tenantId: 1, plantId: 1, code: 1 }], ['companyLocations', { tenantId: 1, plantId: 1, code: 1 }], ['companyLocations', { tenantId: 1, plantId: 1, binId: 1 }],
@@ -147,13 +158,13 @@ export function installInternalPlanning(app, runtime, { guard, fields, id }) {
     app.get(revisionPath, async (req, res) => res.json(await read(async session => { await find(type, req, req.params.id, session); const { limit, cursor } = pageArgs(req), rows = await c(REVISIONS[type]).find({ ...scope(req), subjectId: req.params.id, ...(cursor ? { _id: { $gt: cursor } } : {}) }, { session, projection: { revision: 1, contentHash: 1, recordedBy: 1, recordedAt: 1, reason: 1 } }).sort({ _id: 1 }).limit(limit + 1).toArray(); return { data: rows.slice(0, limit), page: { limit, nextCursor: rows.length > limit ? rows[limit - 1]._id : null } }; })));
     app.get(`${revisionPath}/:revision`, async (req, res) => res.json({ data: await read(async session => { const row = await find(type, req, req.params.id, session); if (!/^[1-9][0-9]*$/.test(req.params.revision) || !Number.isSafeInteger(Number(req.params.revision))) fail(400, 'INVALID_MASTER'); return revision(type, row, Number(req.params.revision), session); }) }));
   }
-  const itemContent = b => { if (!['PURCHASED', 'MANUFACTURED'].includes(b.kind)) fail(400, 'INVALID_MASTER'); return { description: text(b.description), uom: uom(b.uom), kind: b.kind }; };
+  const itemContent = b => { if (!['PURCHASED', 'MANUFACTURED'].includes(b.kind)) fail(400, 'INVALID_MASTER'); const v2 = Object.hasOwn(b, 'schema') || Object.hasOwn(b, 'trackingPolicy'); if (v2 && (b.schema !== 'INVENTORY_ITEM_V2' || !['LOT', 'SERIAL'].includes(b.trackingPolicy))) fail(400, 'INVALID_MASTER'); return { description: text(b.description), uom: uom(b.uom), kind: b.kind, ...(v2 ? { schema: b.schema, trackingPolicy: b.trackingPolicy } : {}) }; };
   app.post(paths.ITEM, async (req, res) => {
-    fields(req.body, ['expectedVersion', 'reason', 'idempotencyKey', 'code', 'description', 'uom', 'kind']); const content = itemContent(req.body), itemCode = code(req.body.code);
+    fields(req.body, ['expectedVersion', 'reason', 'idempotencyKey', 'code', 'description', 'uom', 'kind', 'schema', 'trackingPolicy']); const content = itemContent(req.body), itemCode = code(req.body.code);
     const data = await mutation(req, 'item.create', async (session, reason, legalEntityId) => { if (req.body.expectedVersion !== 1) fail(409, 'VERSION_CONFLICT'); const row = { _id: randomUUID(), ...scope(req), ownerLegalEntityId: legalEntityId, version: 1, code: itemCode, status: 'DRAFT', currentRevision: 1, content, approval: null }, rev = await addRevision('ITEM', req, row, 1, content, reason, session); row.contentHash = rev.contentHash; return save('ITEM', req, row, null, 'CREATED', reason, session); }); res.status(201).json({ data });
   });
   for (const action of ['revisions', 'approve', 'deactivate']) app.post(`${paths.ITEM}/:id/${action}`, async (req, res) => {
-    fields(req.body, ['expectedVersion', 'reason', 'idempotencyKey', ...(action === 'revisions' ? ['description', 'uom', 'kind'] : action === 'approve' ? ['revision'] : [])]); const content = action === 'revisions' ? itemContent(req.body) : null; if (action === 'approve') positive(req.body.revision);
+    fields(req.body, ['expectedVersion', 'reason', 'idempotencyKey', ...(action === 'revisions' ? ['description', 'uom', 'kind', 'schema', 'trackingPolicy'] : action === 'approve' ? ['revision'] : [])]); const content = action === 'revisions' ? itemContent(req.body) : null; if (action === 'approve') positive(req.body.revision);
     const data = await mutation(req, `item.${action}`, async (session, reason, legalEntityId) => {
       const row = await find('ITEM', req, req.params.id, session), previous = row.version; if (previous !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT'); if (row.ownerLegalEntityId !== legalEntityId) fail(409, 'MASTER_SOURCE_INVALID'); if (row.status === 'INACTIVE') fail(409, 'STATE_CONFLICT');
       if (action === 'revisions') { if (row.currentRevision >= 100) fail(409, 'REVISION_CONFLICT'); const rev = await addRevision('ITEM', req, row, row.currentRevision + 1, content, reason, session); row.currentRevision++; row.content = content; row.contentHash = rev.contentHash; row.approval = null; row.status = 'DRAFT'; }

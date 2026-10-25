@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { receiptHoldState, requireEligibleReceipt, validHoldCache } from './stock-holds.mjs';
+import { classifyReceiptOrigin, requireLegacyReceipt } from './receipt-origin.mjs';
 
 export const custodyActions = ['custody.read', 'custody.adopt', 'custody.claim', 'custody.abandon'];
 export const custodyRoles = Object.fromEntries(['Reader', 'Adopter', 'Claimer', 'Abandoner'].map((name, index) => [`custody${name}`, ['warehouse.read', 'manufacturing.read', 'custody.read', ...(index ? [custodyActions[index]] : [])]]));
@@ -47,6 +48,7 @@ async function registry(db, receipt, session) {
 }
 
 async function authority(db, receipt, session) {
+  await requireLegacyReceipt(db, receipt, session);
   if (!hasMarker(receipt)) fail(409, 'SERIAL_CUSTODY_UNTRACKED');
   if (!validMarker(receipt) || !receipt.lotNumber || !receipt.heatNumber) fail(409, 'SERIAL_CUSTODY_SOURCE_INVALID');
   const source = await registry(db, receipt, session), rows = await db.collection('serialCustodyUnits').find({ ...scope(receipt), receiptId: receipt._id }, { session }).sort({ _id: 1 }).limit(101).toArray();
@@ -76,6 +78,8 @@ async function woView(db, wo, session) {
 
 async function adoptionBlockers(db, receipt, session) {
   const blockers = [];
+  const origin = await classifyReceiptOrigin(db, receipt, session);
+  if (!origin.legacyEligible) return [origin.cohort === 'CATALOG' ? 'CATALOG_RECEIPT_UNSUPPORTED' : 'RECEIPT_ORIGIN_INVALID'];
   if (hasMarker(receipt)) return [validMarker(receipt) ? 'ALREADY_TRACKED' : 'INVALID_CUSTODY_MARKER'];
   if (receipt.status !== 'STORED') blockers.push('RECEIPT_NOT_STORED');
   if (!receipt.lotNumber || !receipt.heatNumber) blockers.push('MATERIAL_TRACE_REQUIRED');
@@ -112,6 +116,7 @@ async function fenceWo(db, wo, session) {
 }
 
 export async function requireCustodyTransfer(db, receipt, session) {
+  await requireLegacyReceipt(db, receipt, session);
   if (!hasMarker(receipt)) return;
   const units = await authority(db, receipt, session);
   await holds(db, receipt, session, true);
@@ -145,6 +150,7 @@ export function installWarehouseSerialCustody(app, runtime, { tx, find, fields, 
     fields(req.body, ['expectedVersion', 'reason', 'idempotencyKey']); const note = reason(req.body.reason);
     const data = await tx(req, 'serialCustody.adopt', { expectedVersion: req.body.expectedVersion, reason: req.body.reason }, async session => {
       const receipt = await find('warehouseReceipts', req, req.params.id, session);
+      await requireLegacyReceipt(db, receipt, session);
       if (receipt.version !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT');
       const blockers = await adoptionBlockers(db, receipt, session);
       if (blockers.includes('STOCK_ENCUMBERED')) fail(409, 'STOCK_ENCUMBERED');
@@ -178,6 +184,7 @@ export function installManufacturingSerialCustody(app, runtime, { tx, find, fiel
     b.serialUnitIds.forEach(id);
     const data = await tx(req, 'serialCustody.claim', async session => {
       const wo = await find('manufacturingWorkOrders', req, req.params.id, session), receipt = await find('warehouseReceipts', req, b.receiptId, session);
+      await requireLegacyReceipt(db, receipt, session);
       if (wo.version !== b.expectedVersion || receipt.version !== b.expectedReceiptVersion) fail(409, 'VERSION_CONFLICT');
       if (!wo.serialCustodyRequired) fail(409, 'SERIAL_CUSTODY_REQUIRED');
       if (wo.status !== 'PLANNED' || receipt.status !== 'STORED') fail(409, 'SERIAL_CUSTODY_STATE_CONFLICT');
@@ -241,6 +248,7 @@ export async function reserveSerialCustody(db, wo, materials, bindings, userId, 
   for (const material of materials) {
     const receipt = await db.collection('warehouseReceipts').findOne({ ...scope(wo), _id: material.receiptId }, { session });
     if (!receipt) fail(404, 'NOT_FOUND');
+    await requireLegacyReceipt(db, receipt, session);
     if (!wo.serialCustodyRequired) { requireQuantityOnlyReceipt(receipt); continue; }
     const ratio = number(material.quantityPerUnit), required = number(wo.quantity) * ratio / 1000000n;
     if (ratio < 1000000n || ratio % 1000000n || required > 100000000n || required < 1000000n) fail(409, 'SERIAL_CLAIM_QUANTITY_CONFLICT');
@@ -255,6 +263,7 @@ export async function reserveSerialCustody(db, wo, materials, bindings, userId, 
 }
 
 export async function consumeSerialCustody(db, wo, material, receipt, userId, session) {
+  await requireLegacyReceipt(db, receipt, session);
   if (!wo.serialCustodyRequired) { requireQuantityOnlyReceipt(receipt); return; }
   const units = await authority(db, receipt, session), snapshot = material.serialCustody;
   if (!snapshot) fail(409, 'SERIAL_CLAIM_CONFLICT');

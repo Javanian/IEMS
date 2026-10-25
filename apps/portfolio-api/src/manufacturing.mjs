@@ -137,7 +137,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     }); res.status(201).json({ data });
   });
   installLabor(app, { c, find, tx, fail, fields, id, text });
-  const engineeringRouting = installEngineering(app, { c, find, base, tx, fail, fields, id, qty, text });
+  const engineeringRouting = installEngineering(app, { db: runtime.db, c, find, base, tx, fail, fields, id, qty, text });
   const movement = async (req, wo, kind, values, session) => c('manufacturingMovements').insertOne({ ...base(req), workOrderId: wo._id, kind, ...values }, { session });
   for (const action of ['release', 'release-engineering', 'record', 'qc']) app.post(`/api/manufacturing/work-orders/:id/${action}`, async (req, res) => {
     const allowed = { 'release-engineering': ['engineeringId', 'engineeringVersion', 'revision', 'serialClaims'], release: ['operations', 'materials', 'serialClaims'], record: ['operationIndex', 'inputQuantity', 'goodQuantity', 'scrapQuantity', 'uom', 'evidence', 'outputSerials'], qc: ['acceptedQuantity', 'rejectedQuantity', 'uom', 'evidence', 'acceptedSerials', 'rejectedSerials'] }[action];

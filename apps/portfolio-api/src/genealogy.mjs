@@ -1,5 +1,6 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { receiptHoldState, requireEligibleReceipt, validHoldCache } from './stock-holds.mjs';
+import { requireLegacyReceipt } from './receipt-origin.mjs';
 
 export const genealogyActions = ['genealogy.read', 'genealogy.record', 'genealogy.finalize'];
 export const genealogyRoles = {
@@ -55,6 +56,7 @@ async function sourceHolds(db, wo, sources, session, fence = false) {
     if (!receipt) abort(409, 'GENEALOGY_SOURCE_INVALID');
     const invalidCache = receipt.hold !== undefined && receipt.hold !== null && !validHoldCache(receipt.hold);
     if (fence) {
+      await requireLegacyReceipt(db, receipt, session);
       if (invalidCache) abort(409, 'STOCK_ENCUMBERED');
       await requireEligibleReceipt(db, receipt, session);
       const changed = await db.collection('warehouseReceipts').updateOne({ ...scopeOf(wo), _id: receipt._id }, { $inc: { genealogyFence: 1 } }, { session });

@@ -1,4 +1,6 @@
-export function installEngineering(app, { c, find, base, tx, fail, fields, id, qty, text }) {
+import { requireLegacyReceipt } from './receipt-origin.mjs';
+
+export function installEngineering(app, { db, c, find, base, tx, fail, fields, id, qty, text }) {
   const positive = n => { if (!Number.isSafeInteger(n) || n < 1) fail(400, 'INVALID_VERSION'); return n; };
   const revisionNumber = raw => { if (!/^[1-9][0-9]*$/.test(raw)) fail(400, 'INVALID_REVISION'); return positive(Number(raw)); };
   const revision = async (req, head, number, session) => {
@@ -21,6 +23,7 @@ export function installEngineering(app, { c, find, base, tx, fail, fields, id, q
       fields(m, ['receiptId', 'quantityPerUnit', 'uom']); id(m.receiptId); qty(m.quantityPerUnit);
       if (typeof m.uom !== 'string' || !/^[A-Z][A-Z0-9_]{0,15}$/.test(m.uom)) fail(400, 'INVALID_UOM');
       const receipt = await find('warehouseReceipts', req, m.receiptId, session);
+      await requireLegacyReceipt(db, receipt, session);
       if (receipt.uom !== m.uom) fail(409, 'UOM_CONFLICT');
       materials.push({ receiptId: m.receiptId, quantityPerUnit: m.quantityPerUnit, uom: m.uom });
     }

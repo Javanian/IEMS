@@ -2,6 +2,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { initializeStockHolds, installStockHolds, requireEligibleReceipt, holdActions, holdRoles } from './stock-holds.mjs';
 import { initializeSerialCustody, installWarehouseSerialCustody, requireQuantityOnlyReceipt, requireCustodyTransfer } from './serial-custody.mjs';
+import { classifyReceiptOrigin, requireLegacyReceipt } from './receipt-origin.mjs';
 
 export const warehouseActions = [...['read', 'receive', 'release', 'putaway', 'reserve', 'bin', 'transfer', 'count'].map(a => `warehouse.${a}`), ...holdActions];
 // QC receipt release (`warehouse.release`) and stock-hold release (`warehouse.hold.release`) are separate grants.
@@ -86,9 +87,13 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
       if (!Number.isInteger(limit) || limit < 1 || limit > 100 || (req.query.limit !== undefined && !/^[0-9]+$/.test(req.query.limit))) fail(400, 'INVALID_PAGINATION');
       const filter = { ...req.filter }; if (req.query.cursor !== undefined) filter._id = { $gt: id(req.query.cursor) };
       const rows = await c(name).find(filter).sort({ _id: 1 }).limit(limit + 1).toArray(), data = rows.slice(0, limit);
-      res.json({ data, page: { limit, nextCursor: rows.length > limit ? data.at(-1)._id : null } });
+      const result = name === 'warehouseReceipts' ? await Promise.all(data.map(async row => ({ ...row, receiptOrigin: await classifyReceiptOrigin(runtime.db, row) }))) : data;
+      res.json({ data: result, page: { limit, nextCursor: rows.length > limit ? data.at(-1)._id : null } });
     });
-    app.get(`/api/warehouse/${path}/:id`, async (req, res) => res.json({ data: await find(name, req, req.params.id) }));
+    app.get(`/api/warehouse/${path}/:id`, async (req, res) => {
+      const row = await find(name, req, req.params.id);
+      res.json({ data: name === 'warehouseReceipts' ? { ...row, receiptOrigin: await classifyReceiptOrigin(runtime.db, row) } : row });
+    });
   }
   app.get('/api/warehouse/receipts/:id/reconciliation', async (req, res) => {
     const session = runtime.client.startSession();
@@ -129,6 +134,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
     const trace = traced ? { lotNumber: req.body.lotNumber, heatNumber: req.body.heatNumber } : {};
     const payload = { purchaseOrderId, expectedVersion, vendorId, lineIndex, quantity: qty, uom, serials, ...trace };
     const data = await tx(req, 'receipt.received', payload, async session => {
+      if (await c('catalogPurchaseOrders').findOne({ ...req.filter, _id: purchaseOrderId }, { session })) fail(409, 'CATALOG_RECEIPT_UNSUPPORTED');
       const order = await find('purchaseOrders', req, purchaseOrderId, session);
       await find('vendors', req, vendorId, session);
       if (order.vendorId !== vendorId) fail(409, 'VENDOR_CONFLICT');
@@ -157,6 +163,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
     const payload = Object.fromEntries(['expectedVersion', target, 'uom', 'reason'].map(k => [k, req.body[k]]));
     const data = await tx(req, `receipt.${operation}`, payload, async session => {
       const row = await find('warehouseReceipts', req, req.params.id, session);
+      await requireLegacyReceipt(runtime.db, row, session);
       if (row.version !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (row.status !== 'STORED') fail(409, 'STATE_CONFLICT');
       if (row.uom !== req.body.uom) fail(409, 'UOM_CONFLICT');
@@ -192,6 +199,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
     if (operation === 'reserve') { quantity(req.body.quantity); id(req.body.salesOrderId); id(req.body.accountId); }
     const data = await tx(req, `receipt.${operation}`, payload, async session => {
       const row = await find('warehouseReceipts', req, req.params.id, session);
+      await requireLegacyReceipt(runtime.db, row, session);
       if (row.version !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (row.status !== { release: 'QUARANTINED', putaway: 'RELEASED', reserve: 'STORED' }[operation]) fail(409, 'STATE_CONFLICT');
       if (operation === 'release') { row.status = 'RELEASED'; row.qc = { reason: req.body.reason.trim(), releasedBy: req.scope.userId, releasedAt: new Date() }; await movement(req, row, 'QC_RELEASE', row.quantity, 'QUARANTINE', 'RELEASED', session); }

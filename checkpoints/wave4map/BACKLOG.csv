@@ -1,0 +1,17 @@
+id,depends_on,status,owner,deliverable
+MAP-01,K2B2A-06,FROZEN,contract,Approved V2 policy and typed procurement receipt contract
+MAP-02,MAP-01,ACCEPTED_LOCAL,api,Typed request revisions approval conversion and immutable issued PO
+MAP-03,MAP-02,ACCEPTED_LOCAL,api,Actual quarantine receipt origin proof exact entitlement and legacy denial
+MAP-04,MAP-03,ACCEPTED_LOCAL,review,Independent attacks native operator workflow regression and local checkpoint
+MAP-05,MAP-04,PLANNED,contract,Typed incoming QC qualified putaway and usable stock contract
+MAP-06,MAP-04,PLANNED,ui,Source picker cursor selection beyond first100 approved items and vendors
+K2B2B-01,MAP-05,PLANNED,contract,Immutable internal execution origin and mixed LOT SERIAL input adapters
+K2B2B-02,K2B2B-01,PLANNED,api,Actual input reserve issue execution serial output and QC partition
+K2B2B-03,K2B2B-02,PLANNED,api,Complete provenance and authorized company-stock receipt
+K2B2-03,K2B2B-03,PLANNED,api,Company-stock reservation issue and evidence locks
+K2B2-04,K2B2-03,PLANNED,api,Manufactured-source genealogy without second raw consumption
+K2B2-05,K2B2-04,PLANNED,api,Unique parent shared graph write bounded cycles and reciprocal race proof
+K2B2-06,K2B2-05,PLANNED,api,Ancestor shipment freeze across descendant source authorities
+K2B2-07,K2B2-03|K2B2-05,PLANNED,contract,Authorized rework spare issue removal and inspection
+K2B2-08,K2B2-07,PLANNED,api,Controlled physical replacement and permanent removed quarantine
+E01-COMPLETE,K2B2-06|K2B2-08,PLANNED,review,Original full-chain acceptance including financial entitlement and POD
