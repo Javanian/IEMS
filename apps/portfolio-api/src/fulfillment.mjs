@@ -1,3 +1,4 @@
+import { requireUnboundSalesOrder } from './quote-catalog.mjs';
 import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { fixtureVat, fixtureTax, taxAmounts } from './fixture-tax.mjs';
@@ -62,6 +63,13 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       const session = runtime.client.startSession();
       try { return await session.withTransaction(async () => {
         await guard(runtime, req, session, req.fulfillmentAction);
+        if (req.body.salesOrderId) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, req.body.salesOrderId, session), session);
+        if (kind === 'payment.recorded') {
+          for (const allocation of req.body.allocations) {
+            const invoice = await c('fulfillmentInvoices').findOne({ ...req.filter, _id: allocation.invoiceId }, { session });
+            if (invoice) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, invoice.salesOrderId, session), session);
+          }
+        }
         const prior = await c('fulfillmentKeys').findOne({ ...req.filter, key }, { session });
         if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
         const result = await effect(session);

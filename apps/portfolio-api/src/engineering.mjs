@@ -1,3 +1,4 @@
+import { requireUnboundSalesOrder } from './quote-catalog.mjs';
 import { requireLegacyReceipt } from './receipt-origin.mjs';
 
 export function installEngineering(app, { db, c, find, base, tx, fail, fields, id, qty, text, now = () => new Date() }) {
@@ -9,6 +10,7 @@ export function installEngineering(app, { db, c, find, base, tx, fail, fields, i
   };
   const source = async (req, head, session) => {
     const so = await find('salesOrders', req, head.salesOrderId, session);
+    await requireUnboundSalesOrder(db, req.filter, so, session);
     if (so.version !== head.salesOrderVersion) fail(409, 'VERSION_CONFLICT');
     if (so.status !== 'OPEN') fail(409, 'STATE_CONFLICT');
     if (!Number.isSafeInteger(head.lineIndex) || head.lineIndex < 0 || !so.snapshot.lines[head.lineIndex]) fail(400, 'INVALID_LINE');

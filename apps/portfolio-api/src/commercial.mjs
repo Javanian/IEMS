@@ -4,6 +4,7 @@ import { installInquiries, initializeInquiries } from './inquiries.mjs';
 import { fixtureVat, fixtureTax, taxAmounts, formatMoney } from './fixture-tax.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { businessNow } from './business-clock.mjs';
+import { catalogQuoteSchema, initializeQuoteCatalog, typedQuoteInput, bindQuoteRevision, validateCatalogQuote, quoteCurrentDependencies, catalogQuoteView, catalogOrderView, saveCatalogQuote, saveCatalogOrder, quoteCatalogKey, quoteCatalogPayloadHash, quoteCatalogReplay, installQuoteCatalogOptions } from './quote-catalog.mjs';
 export const commercialActions = ['quote.read', 'quote.write', 'quote.approve', 'quote.accept', 'quote.convert'];
 export const roleActions = { owner: ['crm.read', 'crm.write', ...commercialActions], quoteEditor: ['quote.read', 'quote.write'], quoteApprover: ['quote.read', 'quote.approve'], quoteAcceptor: ['quote.read', 'quote.accept'], quoteConverter: ['quote.read', 'quote.convert'], quoteReader: ['quote.read'] };
 const scales = { USD: 2, EUR: 2, GBP: 2, IDR: 2, JPY: 0, KWD: 3 };
@@ -11,6 +12,7 @@ const scales = { USD: 2, EUR: 2, GBP: 2, IDR: 2, JPY: 0, KWD: 3 };
 export const orderNumberFor = ({ tenantId, plantId }, orderId) => `SO-${createHash('sha256').update(`${tenantId}:${plantId}:${orderId}`).digest('hex').slice(0, 16).toUpperCase()}`;
 export async function initializeCommercial(db) {
   await initializeInquiries(db);
+  await initializeQuoteCatalog(db);
   await db.collection('salesOrders').createIndex({ tenantId: 1, plantId: 1, quoteId: 1 }, { unique: true });
   await db.collection('salesOrders').createIndex({ tenantId: 1, plantId: 1, orderNumber: 1 }, { unique: true, partialFilterExpression: { orderNumber: { $type: 'string' } } });
   await db.collection('quoteConversions').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
@@ -68,45 +70,78 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
     }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' }); }
     finally { await session.endSession(); }
   };
-  app.get('/api/commercial/quotes', async (req, res) => {
-    const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
-    if (!Number.isInteger(limit) || limit < 1 || limit > 100 || (req.query.limit !== undefined && !/^[0-9]+$/.test(req.query.limit))) fail(400, 'INVALID_PAGINATION');
-    const filter = { ...req.filter }; if (req.query.cursor !== undefined) filter._id = { $gt: id(req.query.cursor) };
-    const rows = await c('quotes').find(filter).sort({ _id: 1 }).limit(limit + 1).toArray(); const data = rows.slice(0, limit);
-    res.json({ data, page: { limit, nextCursor: rows.length > limit ? data.at(-1)._id : null } });
-  });
-  app.get('/api/commercial/orders', async (req, res) => {
-    const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
-    if (!Number.isInteger(limit) || limit < 1 || limit > 100 || (req.query.limit !== undefined && !/^[0-9]+$/.test(req.query.limit))) fail(400, 'INVALID_PAGINATION');
-    const filter = { ...req.filter }; if (req.query.cursor !== undefined) filter._id = { $gt: id(req.query.cursor) };
-    const rows = await c('salesOrders').find(filter).sort({ _id: 1 }).limit(limit + 1).toArray(), data = rows.slice(0, limit);
-    res.json({ data, page: { limit, nextCursor: rows.length > limit ? data.at(-1)._id : null } });
-  });
+  installQuoteCatalogOptions(app, runtime, { id, fail });
+  const read = async effect => {
+    const session = runtime.client.startSession();
+    try { return await session.withTransaction(() => effect(session), { readConcern: { level: 'snapshot' }, readPreference: 'primary' }); }
+    finally { await session.endSession(); }
+  };
+  for (const [path, collection, view] of [['quotes', 'quotes', catalogQuoteView], ['orders', 'salesOrders', catalogOrderView]]) {
+    app.get(`/api/commercial/${path}`, async (req, res) => {
+      const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100 || (req.query.limit !== undefined && !/^[0-9]+$/.test(req.query.limit))) fail(400, 'INVALID_PAGINATION');
+      const filter = { ...req.filter };
+      if (req.query.cursor !== undefined) filter._id = { $gt: id(req.query.cursor) };
+      const result = await read(async session => {
+        const rows = await c(collection).find(filter, { session }).sort({ _id: 1 }).limit(limit + 1).toArray(), data = [];
+        for (const row of rows.slice(0, limit)) data.push(await view(runtime.db, req.filter, row, session));
+        return { data, page: { limit, nextCursor: rows.length > limit ? data.at(-1)._id : null } };
+      });
+      res.json(result);
+    });
+  }
   app.get('/api/commercial/orders/:id', async (req, res) => {
-    const data = await c('salesOrders').findOne({ ...req.filter, _id: id(req.params.id) });
-    if (!data) fail(404, 'NOT_FOUND'); res.json({ data });
+    const data = await read(async session => {
+      const order = await c('salesOrders').findOne({ ...req.filter, _id: id(req.params.id) }, { session });
+      if (!order) fail(404, 'NOT_FOUND');
+      return catalogOrderView(runtime.db, req.filter, order, session);
+    });
+    res.json({ data });
   });
-  app.get('/api/commercial/quotes/:id', async (req, res) => res.json({ data: await find(req, req.params.id) }));
+  app.get('/api/commercial/quotes/:id', async (req, res) => res.json({ data: await read(async session => catalogQuoteView(runtime.db, req.filter, await find(req, req.params.id, session), session)) }));
   app.post('/api/commercial/quotes', async (req, res) => {
-    fields(req.body, ['accountId', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy']);
-    if (Array.isArray(req.body.lines) && req.body.lines.some(l => l?.provenance !== undefined)) fail(422, 'SOURCE_TAMPER');
-    const accountId = id(req.body.accountId), revision = validate(req.body);
+    const typed = Object.hasOwn(req.body, 'schema');
+    fields(req.body, ['accountId', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy', ...(typed ? ['schema', 'idempotencyKey'] : [])]);
+    if (Array.isArray(req.body.lines) && req.body.lines.some(line => line?.provenance !== undefined)) fail(422, 'SOURCE_TAMPER');
+    const accountId = id(req.body.accountId), input = typed ? typedQuoteInput(req.body) : null;
+    const key = typed ? quoteCatalogKey(req.body.idempotencyKey) : null;
+    const payloadHash = typed ? quoteCatalogPayloadHash({ kind: 'create', body: req.body }) : null;
     const data = await tx(req, 'quote.created', async session => {
+      if (typed) {
+        const prior = await quoteCatalogReplay(runtime.db, req.filter, key, payloadHash, session);
+        if (prior) return prior;
+        if (await c('quoteConversions').findOne({ ...req.filter, key }, { session })) fail(409, 'IDEMPOTENCY_CONFLICT');
+      }
       if (!await c('accounts').findOne({ ...req.filter, _id: accountId }, { session })) fail(404, 'NOT_FOUND');
-      const row = { _id: randomUUID(), ...req.filter, accountId, version: 1, status: 'DRAFT', revisions: [{ ...revision, number: 1 }], createdAt: new Date(), updatedAt: new Date() };
-      await c('quotes').insertOne(row, { session }); return row;
-    }); res.status(201).json({ data });
+      let revision = validate(typed ? { ...req.body, lines: input.map(line => line.financial) } : req.body);
+      if (typed) revision = await bindQuoteRevision(runtime.db, req.filter, revision, input.map(line => line.selector), session);
+      const row = { _id: randomUUID(), ...req.filter, accountId, version: 1, status: 'DRAFT', revisions: [{ ...revision, number: 1 }], createdAt: new Date(), updatedAt: new Date(), ...(typed ? { schema: catalogQuoteSchema, ownerLegalEntityId: revision.lines[0].catalogBinding.ownerLegalEntityId } : {}) };
+      if (typed) await saveCatalogQuote(runtime.db, req.filter, row, session, { key, kind: 'create', payloadHash });
+      await c('quotes').insertOne(row, { session });
+      return typed ? catalogQuoteView(runtime.db, req.filter, row, session) : row;
+    });
+    const { replay, ...record } = data;
+    res.status(201).json({ data: record });
   });
   for (const operation of ['revisions', 'approve', 'accept', 'convert']) app.post(`/api/commercial/quotes/:id/${operation}`, async (req, res) => {
-    fields(req.body, operation === 'revisions' ? ['expectedVersion', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy', 'accountId'] : operation === 'convert' ? ['expectedVersion', 'revision', 'idempotencyKey'] : ['expectedVersion', 'revision']);
+    fields(req.body, operation === 'revisions' ? ['expectedVersion', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy', 'accountId', 'schema', 'idempotencyKey'] : operation === 'convert' ? ['expectedVersion', 'revision', 'idempotencyKey'] : ['expectedVersion', 'revision', 'idempotencyKey']);
     const { expectedVersion, revision, idempotencyKey } = req.body;
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 || (operation !== 'revisions' && (!Number.isSafeInteger(revision) || revision < 1))) fail(400, 'INVALID_VERSION');
-    const nextRevision = operation === 'revisions' ? validate(req.body) : null;
-    if (operation === 'convert' && (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(idempotencyKey))) fail(400, 'INVALID_IDEMPOTENCY_KEY');
+    if (operation === 'convert') quoteCatalogKey(idempotencyKey);
+    const typedHash = quoteCatalogPayloadHash({ kind: operation, quoteId: req.params.id, body: req.body });
     const payloadHash = createHash('sha256').update(JSON.stringify({ quoteId: req.params.id, expectedVersion, revision })).digest('hex');
     const data = await tx(req, operation === 'convert' ? 'quote.converted' : `quote.${operation}`, async session => {
+      if (idempotencyKey !== undefined) {
+        const prior = await quoteCatalogReplay(runtime.db, req.filter, quoteCatalogKey(idempotencyKey), typedHash, session);
+        if (prior) return prior;
+      }
       const row = await find(req, req.params.id, session);
-      if (operation === 'convert') {
+      const typed = await validateCatalogQuote(runtime.db, req.filter, row, session);
+      if (typed) {
+        quoteCatalogKey(idempotencyKey);
+        if (await c('quoteConversions').findOne({ ...req.filter, key: idempotencyKey }, { session })) fail(409, 'IDEMPOTENCY_CONFLICT');
+      } else if (Object.hasOwn(req.body, 'schema') || operation !== 'convert' && idempotencyKey !== undefined) fail(400, 'QUOTE_COHORT_CONFLICT');
+      if (!typed && operation === 'convert') {
         const prior = await c('quoteConversions').findOne({ ...req.filter, key: idempotencyKey }, { session });
         if (prior) {
           if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
@@ -119,36 +154,48 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
       const latest = row.revisions.at(-1);
       if (operation === 'revisions') {
         if (req.body.accountId !== undefined && req.body.accountId !== row.accountId) fail(400, 'ACCOUNT_CONFLICT');
+        if (typed && (req.body.schema !== catalogQuoteSchema || row.revisions.length >= 50)) fail(req.body.schema !== catalogQuoteSchema ? 400 : 409, req.body.schema !== catalogQuoteSchema ? 'QUOTE_COHORT_CONFLICT' : 'REVISION_CONFLICT');
+        const input = typed ? typedQuoteInput(req.body) : null;
+        let nextRevision = validate(typed ? { ...req.body, lines: input.map(line => line.financial) } : req.body);
         if (row.inquiryId) {
           if (nextRevision.lines.length !== latest.lines.length || nextRevision.lines.some((line, i) => ['description', 'quantity', 'uom'].some(k => line[k] !== latest.lines[i][k]) || !isDeepStrictEqual(line.provenance, latest.lines[i].provenance))) fail(422, 'SOURCE_TAMPER');
           nextRevision.lines = nextRevision.lines.map((line, i) => ({ ...line, provenance: structuredClone(latest.lines[i].provenance) }));
-        } else if (nextRevision.lines.some(l => l.provenance !== undefined)) fail(422, 'SOURCE_TAMPER');
+        } else if (nextRevision.lines.some(line => line.provenance !== undefined)) fail(422, 'SOURCE_TAMPER');
+        if (typed) nextRevision = await bindQuoteRevision(runtime.db, req.filter, nextRevision, input.map(line => line.selector), session);
         row.revisions.push({ ...nextRevision, number: latest.number + 1 }); row.status = 'DRAFT';
         delete row.acceptedRevision;
       } else {
         if (latest.number !== revision) fail(409, 'STALE_REVISION');
         if (latest.expiresAt <= businessNow(runtime)) fail(409, 'QUOTE_EXPIRED');
+        if (typed) await quoteCurrentDependencies(runtime.db, req.filter, row, session, true);
         if (operation === 'approve') {
           if (row.status !== 'DRAFT') fail(409, 'STATE_CONFLICT');
           row.approvals = [...(row.approvals || []), { revision, snapshot: structuredClone(latest), approvedBy: req.scope.userId, approvedAt: new Date() }]; row.status = 'APPROVED';
         } else if (operation === 'accept') {
-          if (row.status !== 'APPROVED' || !row.approvals?.some(a => a.revision === revision)) fail(409, 'NOT_APPROVED');
+          if (row.status !== 'APPROVED' || !row.approvals?.some(approval => approval.revision === revision)) fail(409, 'NOT_APPROVED');
           row.acceptedRevision = revision; row.acceptedBy = req.scope.userId; row.acceptedAt = new Date(); row.status = 'ACCEPTED';
         } else {
           if (row.status !== 'ACCEPTED' || row.acceptedRevision !== revision) fail(409, 'NOT_ACCEPTED');
           const orderId = randomUUID();
-          const order = { _id: orderId, ...req.filter, orderNumber: orderNumberFor(req.filter, orderId), quoteId: row._id, quoteRevision: revision, accountId: row.accountId, version: 1, status: 'OPEN', snapshot: structuredClone(row.approvals.find(a => a.revision === revision).snapshot), createdAt: new Date(), createdBy: req.scope.userId };
+          const order = { _id: orderId, ...req.filter, orderNumber: orderNumberFor(req.filter, orderId), quoteId: row._id, quoteRevision: revision, accountId: row.accountId, version: 1, status: 'OPEN', snapshot: structuredClone(row.approvals.find(approval => approval.revision === revision).snapshot), createdAt: new Date(), createdBy: req.scope.userId, ...(typed ? { schema: 'CATALOG_SALES_ORDER_V1', ownerLegalEntityId: row.ownerLegalEntityId } : {}) };
           await c('salesOrders').insertOne(order, { session });
           await c('quoteConversions').insertOne({ _id: randomUUID(), ...req.filter, key: idempotencyKey, payloadHash, quoteId: row._id, orderId: order._id }, { session });
           await c('commercialOutbox').insertOne({ _id: randomUUID(), ...req.filter, kind: 'salesOrder.created', subjectId: order._id, quoteId: row._id, occurredAt: new Date(), state: 'PENDING' }, { session });
-          row.status = 'CONVERTED'; row.orderId = order._id;
-          row.version++; row.updatedAt = new Date();
-          await c('quotes').replaceOne({ ...req.filter, _id: row._id, version: expectedVersion }, row, { session });
-          return order;
+          row.status = 'CONVERTED'; row.orderId = order._id; row.version++; row.updatedAt = new Date();
+          if (typed) {
+            await saveCatalogQuote(runtime.db, req.filter, row, session, { key: idempotencyKey, kind: operation, payloadHash: typedHash, result: order });
+            await saveCatalogOrder(runtime.db, req.filter, row, order, session);
+          }
+          const changed = await c('quotes').replaceOne({ ...req.filter, _id: row._id, version: expectedVersion }, row, { session });
+          if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+          return typed ? catalogOrderView(runtime.db, req.filter, order, session) : order;
         }
       }
       row.version++; row.updatedAt = new Date();
-      await c('quotes').replaceOne({ ...req.filter, _id: row._id, version: expectedVersion }, row, { session }); return row;
+      if (typed) await saveCatalogQuote(runtime.db, req.filter, row, session, { key: idempotencyKey, kind: operation, payloadHash: typedHash });
+      const changed = await c('quotes').replaceOne({ ...req.filter, _id: row._id, version: expectedVersion }, row, { session });
+      if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+      return typed ? catalogQuoteView(runtime.db, req.filter, row, session) : row;
     });
     const { replay, ...record } = data;
     res.json({ data: record });

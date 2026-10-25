@@ -1,3 +1,4 @@
+import { validateCatalogQuote } from './quote-catalog.mjs';
 import { randomUUID } from 'node:crypto';
 import { fixtureVat } from './fixture-tax.mjs';
 import { isDeepStrictEqual } from 'node:util';
@@ -35,6 +36,7 @@ export function installDocuments(app, runtime, { fail, guard, id }) {
     if (!row) fail(404, 'NOT_FOUND');
     let source;
     if (key.kind === 'quote') {
+      await validateCatalogQuote(runtime.db, req.filter, row, session);
       const approval = row.approvals?.find(a => a.revision === key.sourceVersion);
       if (!approval) fail(409, 'SOURCE_NOT_ISSUED');
       source = { snapshot: approval.snapshot };

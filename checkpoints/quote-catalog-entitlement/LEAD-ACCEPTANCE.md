@@ -1,0 +1,17 @@
+# Lead acceptance
+
+Local acceptance passed for this bounded increment. Owner plus commercial/inquiry regression passed26/26; independently authored HTTP QA passed15/15; maintained API passed295/295; frontend passed202/202; renderer passed18/18; public renderer types, API syntax and production build passed. The focused native run passed8 diagnostic checks, followed by the normal all21 run with161 checks and0 application exceptions/console errors. No current-head remote acceptance is inherited from the parent; publication evidence is recorded separately.
+
+This is a bounded P015 commercial identity prerequisite. Current item authority applies to fresh commands; independently validated frozen evidence supports historical reads and exact-key replay. Existing quotation arithmetic, inquiry provenance, scope and authorization remain requirements. Unsupported catalog sales-order material and fulfillment commands fail closed until P031 supplies item-aware allocation.
+
+Legacy quotations remain supported and unbound. Inquiry retrofit, mixed bound/unbound lines, sales amendments/schedules, customer dispatch, general genealogy writes, recall, PostgreSQL migration and F5 optimization stay outside this increment.
+
+Acceptance requires owner and independent HTTP proof, maintained API regression, frontend behavior, production build, all existing native journeys plus the new catalog quotation journey, source closure, and preservation of fifteen older worktrees and three planning sources. Actual attempts belong in TEST-RESULTS.md; exact-head remote CI is separate.
+
+All92 captured API/test/QA hashes remained unchanged through the final owner, independent and maintained campaign. Both native runs kept all798 captured repository source hashes unchanged and cleaned up their owned Mongo processes. The lead and both independent reviewers inspected the twelve focused workflow screenshots; LEAD-UI-GATE.md records the measured visual scope and native-control limitation.
+
+Successful replay still writes exactly the six current authorization crmFences, preserving the existing revocation protocol. It does not write item useFence or duplicate business effects. Read-only and rejected requests retain full equality across all durable collections. A conversion outbox fault rolls back every preceding effect, and its unchanged key succeeds after restoration. Distinct simultaneous conversion keys prove one durable HTTP winner; common authorization fences may serialize those transactions, so this is not independent domain-overlap or F5 throughput proof.
+
+The source-only maxima of100 lines,50 revisions and201 event versions are enforced but are not certified by positive maximum-size fixtures or production load tests. Event snapshot/command identity and approval/acceptance actor/time are hash-bound. Event-envelope recordedAt is diagnostic metadata outside that snapshot hash. Financial PDFs validate source authority before rendering, then omit catalog bindings; they are not standalone catalog identity evidence.
+
+Failed launcher, authorization-snapshot and BSON-snapshot attempts remain external with their dispositions. Those corrections preserve strict assertions; they do not remove authorization fences or normalize away BSON data. Historical-result readiness was corrected separately to describe the returned revision rather than a different latest revision. General dispatch and platform migration remain later gates.

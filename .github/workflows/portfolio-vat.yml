@@ -18,6 +18,7 @@ on:
       - 'checkpoints/review-five-findings/**'
       - 'checkpoints/company-stock-use/**'
       - 'checkpoints/company-stock-trace/**'
+      - 'checkpoints/quote-catalog-entitlement/**'
       - '.github/workflows/portfolio-vat.yml'
   pull_request:
     paths:
@@ -36,6 +37,7 @@ on:
       - 'checkpoints/review-five-findings/**'
       - 'checkpoints/company-stock-use/**'
       - 'checkpoints/company-stock-trace/**'
+      - 'checkpoints/quote-catalog-entitlement/**'
       - '.github/workflows/portfolio-vat.yml'
 
 permissions:
@@ -116,6 +118,10 @@ jobs:
         run: node --test --test-concurrency=1 checkpoints/company-stock-trace/qa/company-stock-trace.test.mjs
         env:
           IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-company-trace-evidence
+      - name: Test independent commercial catalog entitlement
+        run: node --test --test-concurrency=1 checkpoints/quote-catalog-entitlement/qa/quote-catalog-entitlement.test.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-quote-catalog-evidence
       - name: Test connected browser workflow
         run: npm --prefix apps/web run test:portfolio:browser
         env:
@@ -138,10 +144,12 @@ jobs:
           PORTFOLIO_INTERNAL_EXECUTION: '1'
           PORTFOLIO_COMPANY_STOCK: '1'
           PORTFOLIO_COMPANY_STOCK_TRACE: '1'
+          PORTFOLIO_QUOTE_CATALOG: '1'
           PORTFOLIO_REVIEW_E01: '1'
           PORTFOLIO_REVIEW_DEBUG_ONLY: '0'
           PORTFOLIO_TEXT_DIAGNOSTIC_ONLY: '0'
           PORTFOLIO_COMPANY_STOCK_DIAGNOSTIC_ONLY: '0'
+          PORTFOLIO_QUOTE_CATALOG_DIAGNOSTIC_ONLY: '0'
           PORTFOLIO_EVIDENCE_DIR: ${{ runner.temp }}/iems-native-browser
       - name: Test intentional module failure and native reload recovery
         run: node checkpoints/review-five-findings/qa/module-fetch-recovery-browser.mjs

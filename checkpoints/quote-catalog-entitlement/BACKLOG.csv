@@ -1,0 +1,8 @@
+id,master_mapping,status,deliverable
+QUOTE-CATALOG-01,P015,LOCAL_PASS,Explicit scoped approved item and revision binding on commercial lines
+QUOTE-CATALOG-02,P014|P015,LOCAL_PASS,Frozen line identity through approval acceptance and native sales order
+QUOTE-CATALOG-03,P040,LOCAL_PASS,Operator selection recovery and historical evidence presentation
+QUOTE-CATALOG-04,P042,LOCAL_PASS,Independent corruption scope replay concurrency and native acceptance
+QUOTE-CATALOG-LATER-05,P031,PLANNED,Company stock allocation packing dispatch and shipment evidence
+QUOTE-CATALOG-LATER-06,P015,PLANNED,General sales order amendments schedules and cross-plant fulfillment
+QUOTE-CATALOG-F5,P042,BLOCKED,Revocation-preserving authorization contention optimization remains separate
