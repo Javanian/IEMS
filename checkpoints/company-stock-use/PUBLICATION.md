@@ -1,5 +1,7 @@
 # Publication boundary
 
+Published-head outcome: [final PR13 attestation and exact workflow attempts](../review-five-findings/ACCEPTANCE-INDEX.md). The publication protocol below was frozen before those results and remains unchanged.
+
 This increment starts at accepted parent f4cf6fd on `feat/review-five-findings` and belongs to `feat/company-stock-use`. The existing parent was rechecked and normal push returned Everything up-to-date before development. The new checkpoint is a real descendant commit; normal push and a stacked draft pull request target the actual predecessor branch.
 
 Before publication, verify all six lockfile installs, current source/import closure, frontend/build, owner and independent API proof, normal nineteen-flag browser regression, maintained API and preservation of the thirteen original worktrees. Raw TAP, screenshots, database files, browser profiles, run credentials and failure diagnostics stay in the external evidence root. No local dependency junction supplies unpublished source.

@@ -1,5 +1,7 @@
 # Independent lead acceptance
 
+For the final published runtime head and subsequent company-stock checkpoints, start with the [acceptance index](ACCEPTANCE-INDEX.md). The source-freeze assessment below remains unchanged.
+
 Runtime source freeze: `5bdb765f4b123e20304b83582c60ab3829055879`, integration branch `feat/review-five-findings`, parent checkpoint54a7. Agent reports were reviewed independently; they were not treated as acceptance automatically. The subsequent recovery publication must also pass checks on its own remote head.
 
 | Finding | Verdict | Decisive evidence |

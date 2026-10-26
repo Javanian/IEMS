@@ -1,5 +1,7 @@
 # Publication boundary
 
+Final published outcome: [PR14 attestation at23d2023, successful exact-head workflows and retained failures](../review-five-findings/ACCEPTANCE-INDEX.md). The pending/follow-up statements below record earlier source revisions and remain historical.
+
 Base commit is `9ad677a3fabedbe2005cdb2fefbc8d0e7d8ee140` on `feat/company-stock-use`, with [draft PR13](https://github.com/Javanian/IEMS/pull/13) still open and unmerged when checked for this increment. New development is isolated on `feat/company-stock-trace`. Fourteen older worktrees and the original dated master-plan sources have before snapshots outside Git.
 
 The local gates and source/import closure must pass before the checkpoint commit and ordinary push. Commit text describes the functional change briefly. No merge, force push, history rewrite, deployment or production-data migration is part of publication.

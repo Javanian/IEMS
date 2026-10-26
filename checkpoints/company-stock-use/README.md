@@ -1,5 +1,7 @@
 # Reproduce company stock use
 
+Final published acceptance: [PR13 at9ad677a and its dependency on PR12](../review-five-findings/ACCEPTANCE-INDEX.md). The source-freeze and reproduction notes below are historical; [the current dependency review](../review-five-findings/DEPENDENCY-REVIEW-13-14.md) records an open P2 readiness finding.
+
 This supplemental checkpoint follows accepted parent f4cf6fd. Its implementation and verification state is in [STATUS.md](STATUS.md); commands below reproduce the gates, while actual observed results are in [TEST-RESULTS.md](TEST-RESULTS.md). Contract and master-plan boundaries are in [CONTRACT.md](CONTRACT.md) and [MASTER-PLAN-MAP.md](MASTER-PLAN-MAP.md).
 
 Use Node24.x, Python3 and an existing local Chrome. Run from repository root. Install all six existing lockfiles, without junctions or ignored source dependencies:

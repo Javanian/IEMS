@@ -1,5 +1,7 @@
 # Five findings implementation status
 
+Published-head results: [final acceptance index for PR12–14](ACCEPTANCE-INDEX.md). F1–F4 remain VERIFIED within their documented scope, including original E01. General graph and company-stock customer dispatch are separate extensions. See the [PR13→14 review](DEPENDENCY-REVIEW-13-14.md) and [dedicated F5 plan](F5-DESIGN-PLAN.md). Earlier source-freeze statements below remain historical.
+
 Baseline: `54a7e6db5fb1cfc48252477ca872d700c8c650ee`, accepted controlled catalog QC and putaway. This integration branch is `feat/review-five-findings`. Existing checkpoints and the original dirty checkout are preserved. The earlier review's uncommitted-QC observation is superseded by this verified local commit, not by an assumption that all operations are complete.
 
 | Finding | Status | Current evidence and remaining gate |
