@@ -1,5 +1,7 @@
 # Follow-up status
 
+Current P2 remote status and immutable final-head acceptance are recorded in [draft PR17](https://github.com/Javanian/IEMS/pull/17). The local/source-freeze notes below precede completion of remote CI and remain historical.
+
 Current local result: P2 acceptance gates passed. Maintained API292/292, frontend196/196, syntax and independent boundary5/5 passed. Existing company-use15/trace9 passed separately on the same API runtime; the first combined attempt retains its outer-timeout failure. The final UI refinement passed a new frontend196, production build and focused native8/0 application exceptions/0 console errors, with796 source hashes unchanged. Focused is not normal20 acceptance. Staged-source audit, commit/publication and exact-head remote CI remain separate final gates.
 
 F1–F4 remain VERIFIED only for their earlier PR12 acceptance, including original E01. Original E01 settlement does not imply automatic order lifecycle closure. General graph and manufactured customer dispatch are excluded extensions.

@@ -17,6 +17,7 @@ External root: D:/Project AI/GITHUB/IEMS-evidence/p2-f5a-dispatch-followup-20261
 | Final P2 native/source | p2-native2.* binds8/0/0,796 unchanged hashes,423.515s and cleanup0. Its actual PNGs/manifest/debug results remain under p2-native2/; p2-native1/ and its pixel-review refinement are retained separately |
 | Final UI/build | agent-b-p2-source-freeze2.json, p2-frontend-lead2.* and p2-build2.* bind the narrow final JSX correction, frontend196 and194-entry production build |
 | Protected checkout recheck | after-p2-prepublication1.json confirms all18 original checkout HEAD/status/staged/unstaged/raw hashes and five explicit protected sources unchanged |
+| Staged source and publication | p2-precommit-source1.json binds27 changed paths/raw and staged hashes/tree to409-hash/698-import closure and final native source. Feature e169f9d is published in draft PR17; the PR description carries final exact-head remote attestation when verified |
 
 Historical baseline: PR12 f4cf6fd accepted F1–F4 including original E01; PR13 9ad677a company-use; PR14 23d2023 read-only trace; PR15 692463a quote/catalog entitlement. Read the final attestations under review-five-findings-20261025, company-stock-use-20261025, next-development-20261025 and quote-catalog-20261025 respectively. The sparse company-stock-trace evidence directory is not the complete PR14 record.
 

@@ -1,6 +1,8 @@
 # Publication and dependency
 
-This source is not yet committed or published. Final current-head checks and attestation must be linked here and from the associated draft PR before publication is accepted. Historical source-freeze notes remain historical.
+Current P2 publication: [draft PR17 and its final exact-head attestation](https://github.com/Javanian/IEMS/pull/17), based on PR14. Feature commit e169f9d6ee3c6f0973bad5244c2d3b2159ea54da passed the recorded local gates and was pushed. At this documentation freeze, final-head remote checks are pending; the PR description must state the immutable accepted head/run URLs only after verification. This permanent link gives repository readers the final result without rewriting historical source-freeze notes.
+
+Precommit source audit passed409 normalized hashes/698 relative imports;27 reviewed changed paths were bound to actual staged bytes, with CRLF-to-LF normalization recorded separately. The final native capture had796 unchanged source hashes, and all18 original checkout/index snapshots plus five protected sources matched. Raw source-to-commit associations remain in the external evidence index.
 
 | Candidate | Starting source | Review base |
 | --- | --- | --- |
