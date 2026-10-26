@@ -9,9 +9,24 @@ const companyRestrictions = {
   COMPANY_DEPENDENCY_CHANGED:'A producer, item, location or source approval changed. Refresh the manufactured stock and review its current restrictions.',
   COMPANY_SOURCE_HELD:'A company stock hold blocks new component use. Review or release the hold with the appropriate permission.',
   ANCESTOR_HELD:'A consumed purchased source is on hold. Review that receipt before continuing this job.',
+  RESERVATION_HISTORY_LIMIT:'This receipt has reached its reservation history limit. No new reservation can be added, even while physical stock remains available.',
+  STOCK_EVENT_HISTORY_LIMIT:'This receipt has reached its stock event history limit. No further stock-changing command can be recorded. Ask an authorized reviewer to inspect its retained history.',
+  STOCK_HISTORY_LIMIT:'This command exceeds the receipt history capacity. Refresh the stock evidence and review the reservation and stock event limits.',
 };
 export const companyStockRestriction = code => companyRestrictions[code];
 export const companyStockHint = error => error?.local ? error.message : companyRestrictions[error?.code];
+export function companyStockActionBlockedReason(source, action) {
+  const flag = { reserve:'canReserve',hold:'canHold',releaseHold:'canReleaseHold' }[action];
+  if (!flag) throw Error('Unknown company stock action');
+  if (source?.[flag] === true) return null;
+  if (source?.capacity?.eventLimitReached === true) return companyRestrictions.STOCK_EVENT_HISTORY_LIMIT;
+  if (action === 'reserve') {
+    const reasons = (source?.reserveBlockers || []).map(companyStockRestriction).filter(Boolean);
+    if (reasons.length) return [...new Set(reasons)].join(' ');
+    return 'Refresh this receipt and review its current restrictions before reserving manufactured units.';
+  }
+  return 'Refresh this receipt and review its current hold and command capacity before continuing.';
+}
 export function companyStockOptionsPath(material, cursor = '') {
   return `${companyStockBase}?itemId=${encodeURIComponent(material.itemId)}&itemRevision=${material.itemRevision}&limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
 }

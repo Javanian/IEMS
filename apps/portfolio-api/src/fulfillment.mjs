@@ -1,3 +1,5 @@
+import { purchasedReadContext, purchasedReconciliation } from './purchased-fulfillment.mjs';
+import { preparePurchasedFinancial, recordPurchasedFinancial, purchasedFinancialReplay, validatePurchasedShipment, validatePurchasedInvoice, validatePurchasedPayment } from './purchased-financial.mjs';
 import { requireUnboundSalesOrder } from './quote-catalog.mjs';
 import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
@@ -63,41 +65,58 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       const session = runtime.client.startSession();
       try { return await session.withTransaction(async () => {
         await guard(runtime, req, session, req.fulfillmentAction);
-        if (req.body.salesOrderId) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, req.body.salesOrderId, session), session);
-        if (kind === 'payment.recorded') {
-          for (const allocation of req.body.allocations) {
+        const prior = await c('fulfillmentKeys').findOne({ ...req.filter, key }, { session });
+        if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+        const purchased = await preparePurchasedFinancial(runtime.db, req.filter, kind, req.body, session, Boolean(prior));
+        if (!purchased) {
+          if (req.body.salesOrderId) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, req.body.salesOrderId, session), session);
+          if (kind === 'payment.recorded') for (const allocation of req.body.allocations) {
             const invoice = await c('fulfillmentInvoices').findOne({ ...req.filter, _id: allocation.invoiceId }, { session });
             if (invoice) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, invoice.salesOrderId, session), session);
           }
         }
-        const prior = await c('fulfillmentKeys').findOne({ ...req.filter, key }, { session });
-        if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+        if (prior) { await purchasedFinancialReplay(runtime.db, req.filter, kind, prior, session, Boolean(purchased)); return prior.result; }
+        if (await c('purchasedFulfillmentKeys').findOne({ ...req.filter, key }, { session })) fail(409, 'IDEMPOTENCY_CONFLICT');
         const result = await effect(session);
+        const purchasedProofHash = await recordPurchasedFinancial(runtime.db, req.filter, kind, req.body, result, purchased, req.scope.userId, session);
         const event = { ...req.filter, kind, subjectId: result._id, version: result.version, userId: req.scope.userId, occurredAt: new Date() };
         await c('fulfillmentAudit').insertOne({ _id: randomUUID(), ...event }, { session });
         await c('fulfillmentOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
-        await c('fulfillmentKeys').insertOne({ ...base(req), key, payloadHash, result }, { session });
+        await c('fulfillmentKeys').insertOne({ ...base(req), key, payloadHash, result, ...(purchasedProofHash ? { purchasedProofHash } : {}), ...(result.sourceReceiptIds ? { sourceReceiptIds: result.sourceReceiptIds, salesOrderId: result.salesOrderId } : {}) }, { session });
         return result;
       }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' }); }
       catch (error) { if (error?.code === 11000 && attempt < 4) continue; throw error; }
       finally { await session.endSession(); }
     }
   };
+  const read = async effect => { const session = runtime.client.startSession(); try { return await session.withTransaction(() => effect(session), { readConcern: { level: 'snapshot' }, readPreference: 'primary' }); } finally { await session.endSession(); } };
+  const verifyRead = async (name, req, row, session) => {
+    if (name === 'fulfillmentShipments') await validatePurchasedShipment(runtime.db, req.filter, row._id, session);
+    else if (name === 'fulfillmentInvoices') await validatePurchasedInvoice(runtime.db, req.filter, row._id, session);
+    else await validatePurchasedPayment(runtime.db, req.filter, row._id, session);
+    return row;
+  };
   for (const [path, name] of [['shipments', 'fulfillmentShipments'], ['invoices', 'fulfillmentInvoices'], ['payments', 'fulfillmentPayments']]) {
     app.get(`/api/fulfillment/${path}`, async (req, res) => {
       const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
       if (!Number.isInteger(limit) || limit < 1 || limit > 100 || (req.query.limit !== undefined && !/^[0-9]+$/.test(req.query.limit))) fail(400, 'INVALID_PAGINATION');
       const filter = { ...req.filter }; if (req.query.cursor !== undefined) filter._id = { $gt: id(req.query.cursor) };
-      const rows = await c(name).find(filter).sort({ _id: 1 }).limit(limit + 1).toArray(), data = rows.slice(0, limit);
-      res.json({ data, page: { limit, nextCursor: rows.length > limit ? data.at(-1)._id : null } });
+      res.json(await read(async session => {
+        const rows = await c(name).find(filter, { session }).sort({ _id: 1 }).limit(limit + 1).toArray(), data = [];
+        for (const row of rows.slice(0, limit)) data.push(await verifyRead(name, req, row, session));
+        return { data, page: { limit, nextCursor: rows.length > limit ? data.at(-1)._id : null } };
+      }));
     });
-    app.get(`/api/fulfillment/${path}/:id`, async (req, res) => res.json({ data: await find(name, req, req.params.id) }));
+    app.get(`/api/fulfillment/${path}/:id`, async (req, res) => res.json({ data: await read(async session => verifyRead(name, req, await find(name, req, req.params.id, session), session)) }));
   }
   app.get('/api/fulfillment/orders/:id/balances', async (req, res) => {
-    const so = await find('salesOrders', req, req.params.id);
-    const tallies = await c('fulfillmentTallies').find({ ...req.filter, subjectId: so._id }).toArray();
+    res.json({ data: await read(async session => {
+    const so = await find('salesOrders', req, req.params.id, session);
+    await purchasedReadContext(runtime.db, req.filter, so, session);
+    const tallies = await c('fulfillmentTallies').find({ ...req.filter, subjectId: so._id }, { session }).toArray();
     const of = (kind, lineIndex) => tallies.find(t => t.kind === kind && t.lineIndex === lineIndex)?.quantity || '0';
-    res.json({ data: { salesOrderId: so._id, currency: so.snapshot.currency, lines: so.snapshot.lines.map((line, lineIndex) => ({ lineIndex, uom: line.uom, orderedQuantity: line.quantity, shippedQuantity: of('SO_LINE_SHIPPED', lineIndex), invoicedQuantity: of('SO_LINE_INVOICED', lineIndex) })) } });
+    return { salesOrderId: so._id, currency: so.snapshot.currency, lines: so.snapshot.lines.map((line, lineIndex) => ({ lineIndex, uom: line.uom, orderedQuantity: line.quantity, shippedQuantity: of('SO_LINE_SHIPPED', lineIndex), invoicedQuantity: of('SO_LINE_INVOICED', lineIndex) })) };
+    }) });
   });
 
   app.get('/api/fulfillment/orders/:id/entitlement', async (req, res) => {
@@ -106,6 +125,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
     try {
       await session.withTransaction(async () => {
         const so = await find('salesOrders', req, req.params.id, session);
+        await purchasedReadContext(runtime.db, req.filter, so, session);
         const tallies = await c('fulfillmentTallies').find({ ...req.filter, kind: 'SO_LINE_INVOICED', subjectId: so._id }, { session }).toArray();
         const scale = scales[so.snapshot.currency], vat = fixtureVat(so.snapshot.taxPolicy);
         let authorizedNet = 0n, authorizedTax = 0n, billedNet = 0n, billedTax = 0n;
@@ -123,16 +143,19 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
   });
 
   app.get('/api/fulfillment/orders/:id/reconciliation', async (req, res) => {
-    const so = await find('salesOrders', req, req.params.id);
     const session = runtime.client.startSession();
-    let tallies, shipments, moves;
+    let so, tallies, shipments, moves, purchased;
     try {
       await session.withTransaction(async () => {
+        so = await find('salesOrders', req, req.params.id, session);
+        const current = await purchasedReadContext(runtime.db, req.filter, so, session);
+        if (current) { purchased = await purchasedReconciliation(runtime.db, req.filter, current, session); return; }
         shipments = await c('fulfillmentShipments').find({ ...req.filter, salesOrderId: so._id }, { session }).toArray();
         moves = await c('warehouseMovements').find({ ...req.filter, salesOrderId: so._id, kind: 'SHIP' }, { session }).toArray();
         tallies = await c('fulfillmentTallies').find({ ...req.filter, subjectId: { $in: [so._id, ...moves.map(m => m.sourceId)] } }, { session }).toArray();
       }, { readConcern: { level: 'snapshot' }, readPreference: 'primary' });
     } finally { await session.endSession(); }
+    if (purchased) return res.json({ data: purchased });
     const sum = rows => rows.reduce((a, r) => a + units(r.quantity), 0n);
     const lines = so.snapshot.lines.map((line, lineIndex) => {
       const tallied = units(tallies.find(t => t.kind === 'SO_LINE_SHIPPED' && t.subjectId === so._id && t.lineIndex === lineIndex)?.quantity || '0');

@@ -1,12 +1,12 @@
 import { AuditDetails,CustomerName } from './OperatorUi.jsx';
 import { displayReference,operatorStatus,quantitySummary } from './operator.mjs';
-import { useRef, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 import { OrderStockExceptions } from './HoldsWorkspace.jsx';
 import { DocumentIssue } from './DocumentIssue.jsx';
 import { MonetarySummary } from './MonetarySummary.jsx';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { portfolioRequest as request } from './client.mjs';
-import { Failure, Resource, useResource } from './PortfolioWorkspace.jsx';
+import { Failure, Resource, useResource,IdentityContext } from './PortfolioWorkspace.jsx';
 import { quoteContent, conversionAttempt } from './commercial.mjs';
 import { sourcedQuoteContent } from './inquiry.mjs';
 import { InquiryCommand } from './InquiryWorkspace.jsx';
@@ -92,4 +92,4 @@ export function Order() {
   const resource = useResource(`/api/commercial/orders/${id}`);
   return <><h1>Sales order</h1><Link to="/portfolio/orders">Back to sales orders</Link><Resource resource={resource}>{({data}) => <>{data.schema!=='CATALOG_SALES_ORDER_V1'&&<OrderStockExceptions orderId={data._id} />}<OrderContent order={data} /></>}</Resource></>;
 }
-function OrderContent({order}) { const typed=order.schema==='CATALOG_SALES_ORDER_V1';return <section className="pf-panel" {...(typed?{id:'catalog-sales-order','data-order-id':order._id}:{})}><h2>{displayReference("orders",order)}</h2><p>Status: {operatorStatus(order.status)}</p><div>Customer: <CustomerName id={order.accountId} /></div><p className="pf-next-action">Next: {typed?'Catalog identities are captured. Stock allocation, production and fulfillment require the later catalog fulfillment workflow.':'Plan or review production, then dispatch accepted output and issue invoices against shipped quantities.'}</p><AuditDetails action="quote.read"><p className="pf-id">Order ID: {order._id} · Version {order.version}</p></AuditDetails><p>Quote revision: {order.quoteRevision}</p>{!typed&&<Link to={`/portfolio/fulfillment/orders/${order._id}`}>Manage fulfillment</Link>}<CatalogEntitlement record={order} /><Lines snapshot={order.snapshot} /><div className="pf-actions"><Link to={`/portfolio/quotes/${order.quoteId}`}>Open source quote</Link><Link to={`/portfolio/accounts/${order.accountId}`}>Open related account</Link></div></section>; }
+function OrderContent({order}) { const typed=order.schema==='CATALOG_SALES_ORDER_V1',identity=useContext(IdentityContext),purchased=typed&&order.snapshot.lines.some(line=>line.catalogBinding.itemSnapshot.content.kind==='PURCHASED'),canReadPurchased=['fulfillment.read','catalog.stock.read'].every(action=>identity?.permissions?.includes(action));return <section className="pf-panel" {...(typed?{id:'catalog-sales-order','data-order-id':order._id}:{})}><h2>{displayReference("orders",order)}</h2><p>Status: {operatorStatus(order.status)}</p><div>Customer: <CustomerName id={order.accountId} /></div><p className="pf-next-action">Next: {typed?'Catalog identities are captured. Purchased lines can use purchased stock fulfillment; manufactured lines require the later catalog fulfillment workflow.':'Plan or review production, then dispatch accepted output and issue invoices against shipped quantities.'}</p><AuditDetails action="quote.read"><p className="pf-id">Order ID: {order._id} · Version {order.version}</p></AuditDetails><p>Quote revision: {order.quoteRevision}</p>{!typed&&<Link to={`/portfolio/fulfillment/orders/${order._id}`}>Manage fulfillment</Link>}{purchased&&canReadPurchased&&<Link to={`/portfolio/fulfillment/orders/${order._id}?catalog=1`}>Manage purchased fulfillment</Link>}<CatalogEntitlement record={order} /><Lines snapshot={order.snapshot} /><div className="pf-actions"><Link to={`/portfolio/quotes/${order.quoteId}`}>Open source quote</Link><Link to={`/portfolio/accounts/${order.accountId}`}>Open related account</Link></div></section>; }

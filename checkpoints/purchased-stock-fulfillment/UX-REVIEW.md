@@ -1,0 +1,27 @@
+# Current UX evidence pointer, 26 October 2026
+
+Final integration passes frontend223, focused native4/8 and normal all22/167. Agent B inspected all21 native4 purchased screenshots at360/768/1440; lead inspected all21 native3 and three native4 representative pixels on unchanged production UI. Recorded outer-control/painted-text measurements do not certify native option-row geometry or physical hardware. See [current acceptance](../p2-f5a-dispatch-followup/DISPATCH-ACCEPTANCE.md) and [actual test chronology](../p2-f5a-dispatch-followup/TEST-RESULTS.md). Earlier213/build4/pending notes below are retained historical source-freeze records. Exact-head remote acceptance remains a separate publication gate.
+
+## Earlier UX review, retained
+
+# Purchased fulfillment UX review
+
+Status: bounded corrections and latest pure213 complete; final native and final pixel closure pending. Two failed focused runs are preserved. This document does not attest screenshots that have not been produced or treat those failures as acceptance.
+
+The primary path reuses the existing Fulfillment section: purchased order list, immutable order line demand, checked stock source, reservation, partial dispatch, then actual shipment delivery and billing. A purchased-reader role can reach the new list/detail without commercial or inventory-master grants. The existing commercial order offers the purchased link only when the order has a purchased line and both read grants; manufactured lines retain their unsupported boundary.
+
+ENERGY1 / RHYTHM1 / MOTION1 preserves the accepted Portfolio visual direction. Long financial/source records use existing panels and vertical line cards instead of squeezing multiple quantity columns into a mobile table. Actual code, revision, lot/heat, serial labels and amounts remain primary. UUIDs, hashes, optimistic versions and full historical source snapshots live in existing permission-scoped Audit details. New assets and CSS are unnecessary for this slice.
+
+Explicit states are authored for missing grants, loading, failed read/retry, empty stock results, stale captured stock, source holds, unsupported lines, retained unknown mutation results and explicit discard. An empty filtered stock page may still expose a real next cursor. Refresh does not silently change a captured source version. A released reservation means only its unshipped remainder was freed; shipped serials remain terminal.
+
+The converted quotation's next action now points to the retained SO and its permitted workflow. The historical quotation identity statement remains accurate: identity alone does not reserve or dispatch stock. Source holds or later master withdrawal can block new physical use while historical dispatched delivery and billing remain separately valid.
+
+Before reference: accepted parent quote-catalog images at `quote-native-attempt1/quote-catalog-sales-order-{360,768,1440}.png` show the prior bound SO with fulfillment deferred. There was no purchased fulfillment form in the baseline. These are historical parent captures, not new BEFORE measurements or a browser replay of this worktree.
+
+DeliveryGate pending actual lead runtime: native source selection, complete keyboard dispatch, body/key retention with sibling and document locks, reader-only PDF permission reasons, all21 planned360/768/1440 desktop/kiosk screenshots, unrounded painted-text contrast in the current viewport, 44/48px HTML control boxes, focus visibility, open Audit wrapping, no overflow and actual source/partial-shipment/delivery/settlement content scrolled into view. Native multiselect sampling measures the outer box, not individual option-row targets; physical touch hardware is unverified. Native select text may be clipped by the browser's collapsed selector at narrow widths; the selected receipt and actual serials must also be readable in nearby evidence before accepting that limit. No current pixel claim is made.
+
+Actual focused1 visual finding: B inspected `purchased-native-attempt1/purchased-serial-source-selection-360.png`; the long SERIAL option suffixes were clipped and there was no nearby full-label preview. Lead also reviewed LOT and SERIAL frames. Matching local numbers plus complete wrap-readable labels and selected states are now present near both source/reservation multiselects. UUID selection authority is unchanged. Their visual closure requires fresh focused3 pixels; no AFTER pixel PASS is claimed yet.
+
+Focused1 stopped on a helper selector parsing defect; its artifacts also exposed25 duplicate-human-hint React warnings. The selector is safely serialized, and displayed human hints are deduplicated without suppressing warnings or changing stock rules. Focused2 stopped on a transient missing PAY form in a readiness predicate. Presence-safe synchronous waits retain the exact settlement assertions. Both failures remain visible in the handoff and raw evidence.
+
+Latest pure verification: frontend attempt8 has213/213,0 fail/skip. Initial invalid paragraph nesting was corrected, decoded expression literals now have a parser regression, and repeated blocker texts have a separate regression. Builds1/2/3 passed earlier source; final build4, final focused runtime and full all22 acceptance belong to separate lead evidence. Financial/delivery PDFs are not standalone catalog identity certificates; operator-recorded POD is not a carrier or digital-signature verification.

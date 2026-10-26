@@ -17,6 +17,7 @@ import { initializeDelivery, installDelivery, deliveryActions, deliveryRoles } f
 import { initializeCatalogStock, installCatalogStock, catalogStockActions, catalogStockRoles } from './catalog-stock.mjs';
 import { initializeInternalExecution, installInternalExecution, internalExecutionActions, internalExecutionRoles } from './internal-execution.mjs';
 import { initializeCompanyStock, installCompanyStock, companyStockActions, companyStockRoles } from './company-stock.mjs';
+import { initializePurchasedFulfillment, installPurchasedFulfillment, purchasedFulfillmentActions, purchasedFulfillmentRoles } from './purchased-fulfillment.mjs';
 import { bindBusinessClock, businessNow } from './business-clock.mjs';
 Object.assign(roleActions, documentRoles, repairRoles, procurementRoles, warehouseRoles, manufacturingRoles, fulfillmentRoles, customerServiceRoles);
 Object.assign(roleActions, internalPlanningRoles);
@@ -26,6 +27,7 @@ Object.assign(roleActions, deliveryRoles);
 Object.assign(roleActions, catalogStockRoles);
 Object.assign(roleActions, internalExecutionRoles);
 Object.assign(roleActions, companyStockRoles);
+Object.assign(roleActions, purchasedFulfillmentRoles);
 roleActions.owner.push(...documentActions, ...repairActions, ...procurementActions, ...warehouseActions, ...manufacturingActions, ...fulfillmentActions, ...customerServiceOwnerActions);
 roleActions.owner.push(...internalPlanningActions);
 roleActions.owner.push(...catalogActions);
@@ -34,6 +36,7 @@ roleActions.owner.push(...deliveryActions);
 roleActions.owner.push(...catalogStockActions);
 roleActions.owner.push(...internalExecutionActions);
 roleActions.owner.push(...companyStockActions);
+roleActions.owner.push(...purchasedFulfillmentActions);
 const scrypt = promisify(scryptCallback);
 const actions = ['crm.read', 'crm.write'];
 export const fail = (status, code, message = code) => { throw Object.assign(new Error(message), { status, code }); };
@@ -57,6 +60,7 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await initializeCatalogStock(db);
   await initializeInternalExecution(db);
   await initializeCompanyStock(db);
+  await initializePurchasedFulfillment(db);
   await db.collection('credentials').createIndex({ username: 1 }, { unique: true });
   runtime.foundation = foundation;
   runtime.documents = await initializeDocuments(runtime);
@@ -154,6 +158,7 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   installCatalogStock(app, runtime, { id });
   installInternalExecution(app, runtime, { guard, fields, id });
   installCompanyStock(app, runtime, { guard, fields, id });
+  installPurchasedFulfillment(app, runtime, { guard, fields, id });
   installCustomerService(app, runtime, { fail, id, fields });
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } }));
   app.use((error, req, res, next) => {

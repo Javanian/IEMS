@@ -11,6 +11,8 @@ import { portfolioRequest as request, validMoney, displayMoney } from './client.
 import { Resource, Failure, useResource, IdentityContext } from './PortfolioWorkspace.jsx';
 import { capabilityState, permissionReason } from './customer-service.mjs';
 import { shipmentCommand, invoiceCommand, paymentCommand, validQuantity } from './fulfillment.mjs';
+import { PurchasedFulfillmentLink,PurchasedFulfillmentOrder } from './PurchasedFulfillmentUi.jsx';
+import { purchasedDocumentAccess,purchasedHint } from './purchased-fulfillment.mjs';
 
 const Boundary = () => <p className="pf-tag">Synthetic data · Operator-recorded documents</p>;
 const money = (currency, amount) => <span className="pf-money">{currency} {displayMoney(amount)}</span>;
@@ -39,6 +41,7 @@ export function CommandForm({ title, action, build, children, onSaved, permissio
   const retryable = error && attempt.current && (!error.status || error.status >= 500);
   return <form className="pf-panel pf-form" aria-label={title} onSubmit={submit}><h2>{title}</h2><fieldset className="pf-form" disabled={busy || !!attempt.current || !!deniedReason || siblingLocked}>{children}</fieldset>
     {error && (error.status === undefined ? <div className="pf-error" role="alert"><p>{error.message}</p></div> : <Failure error={error} mutation />)}
+    {purchasedHint(error)&&<p role="alert">{purchasedHint(error)}</p>}
     <div className="pf-actions"><button className="pf-primary" disabled={busy || !!attempt.current || Boolean(deniedReason) || siblingLocked} aria-describedby={reasonId}>{busy ? 'Saving...' : title}</button>{retryable && <button type="button" disabled={busy} onClick={() => send(attempt.current)}>Retry same request</button>}{attempt.current && error && <button type="button" disabled={busy} onClick={() => { attempt.current = null; onLockChange?.(''); setError(null); onSaved?.(); }}>Discard command and refresh</button>}{deniedReason && <div id={reasonId}><p className="pf-disabled-reason">You do not have permission to perform this action.</p><details><summary>Technical details</summary><p>{deniedReason}</p></details></div>}</div>
     {siblingLocked && <p className="pf-disabled-reason">Another fulfillment command is retained. Resolve it before starting this action.</p>}
     {attempt.current && error && <p>The command and its serial selection are retained. Retry the same request after an uncertain response, or discard it and review the refreshed record before changing inputs.</p>}
@@ -47,7 +50,7 @@ export function CommandForm({ title, action, build, children, onSaved, permissio
 export function Input({ label, name, ...props }) { return <label className="pf-field">{label}<input name={name} required {...props} /></label>; }
 
 function Tabs({ kind }) {
-  return <nav className="pf-tabs" aria-label="Fulfillment">{Object.entries(TITLES).map(([k, t]) => <Link key={k} aria-current={kind === k ? 'page' : undefined} to={`/portfolio/fulfillment/${k}`}>{t}</Link>)}<Link to="/portfolio/orders">Sales orders</Link></nav>;
+  return <nav className="pf-tabs" aria-label="Fulfillment">{Object.entries(TITLES).map(([k, t]) => <Link key={k} aria-current={kind === k ? 'page' : undefined} to={`/portfolio/fulfillment/${k}`}>{t}</Link>)}<PurchasedFulfillmentLink /><Link to="/portfolio/orders">Sales orders</Link></nav>;
 }
 function rowSummary(kind, row) {
   if (kind === 'shipments') return <>{row.quantity} {row.uom} · Line {row.lineIndex + 1}</>;
@@ -71,6 +74,10 @@ function Balances({ order, resource }) {
 }
 
 export function FulfillmentOrder() {
+  const query=new URLSearchParams(useLocation().search);
+  return query.get('catalog')==='1' ? <PurchasedFulfillmentOrder /> : <LegacyFulfillmentOrder />;
+}
+function LegacyFulfillmentOrder() {
   const { id } = useParams(), r = useResource(`/api/commercial/orders/${id}`), balances = useResource(`/api/fulfillment/orders/${id}/balances`);
   const [sourceType, setSourceType] = useState('WORK_ORDER'), [lineIndex, setLineIndex] = useState(0), [sourceId, setSourceId] = useState('');
   const [commandLocked,setCommandLock]=useState(''), commandLock=useRef('');
@@ -103,30 +110,32 @@ export function FulfillmentOrder() {
 
 export function FulfillmentDetail({ kind }) {
   const { id } = useParams(), r = useResource(`/api/fulfillment/${kind}/${id}`);
+  const identity=useContext(IdentityContext),documentAccess=purchasedDocumentAccess(identity?.permissions);
   const name = { shipments: 'Shipment', invoices: 'Invoice', payments: 'Payment' }[kind];
-  const [deliveryLocked,setDeliveryLocked]=useState(false),deliveryLock=useRef(false);
-  const onDeliveryLock=value=>{deliveryLock.current=Boolean(value);setDeliveryLocked(Boolean(value));};
-  const refresh=()=>{if(!deliveryLock.current)r.reload();};
+  const [commandLocked,setCommandLocked]=useState(''),commandLock=useRef('');
+  const setLocked=value=>{commandLock.current=value;setCommandLocked(value);};
+  const onDeliveryLock=value=>setLocked(value?'Confirm delivery':'');
+  const refresh=()=>{if(!commandLock.current)r.reload();};
   return <><Link to={`/portfolio/fulfillment/${kind}`}>Back to {kind}</Link><Resource resource={r}>{({ data: row }) => <>
     <h1>{name} {row.reference || row._id.slice(0, 8)}</h1><Boundary />
     <div className="pf-summary"><span className="pf-status">{operatorStatus(row.status)}</span>{kind === 'shipments' && <strong>{row.quantity} {row.uom}</strong>}{kind === 'payments' && <strong>{money(row.currency, row.amount)}</strong>}{kind === 'invoices' && <span>Quote revision {row.quoteRevision || 'not recorded'}</span>}</div>
-    <div className="pf-actions">{row.salesOrderId && <Link to={`/portfolio/fulfillment/orders/${row.salesOrderId}`}>Open order fulfillment</Link>}<Link to={`/portfolio/accounts/${row.accountId}`}>Open account</Link><button type="button" disabled={deliveryLocked} onClick={refresh}>Refresh record</button></div>
+    <div className="pf-actions">{row.salesOrderId && <Link to={`/portfolio/fulfillment/orders/${row.salesOrderId}${['PURCHASED_SHIPMENT_V1','PURCHASED_INVOICE_V1','PURCHASED_PAYMENT_V1'].includes(row.schema)?'?catalog=1':''}`}>Open order fulfillment</Link>}{identity?.permissions?.includes('crm.read') && <Link to={`/portfolio/accounts/${row.accountId}`}>Open account</Link>}<button type="button" disabled={!!commandLocked} onClick={refresh}>Refresh record</button></div>
     {kind === 'shipments' && <><SourceLineage line={row} /><ShipmentDelivery key={row._id} shipment={row} onLockChange={onDeliveryLock} /></>}
-    {kind === 'invoices' && <DocumentIssue key={row._id} kind="invoice" sourceId={row._id} />}
-    {kind === 'shipments' && row.status === 'SHIPPED' && <DocumentIssue key={row._id} kind="shipment" sourceId={row._id} />}
+    <fieldset disabled={!!commandLocked} data-fulfillment-documents>{kind === 'invoices' && <DocumentIssue key={row._id} kind="invoice" sourceId={row._id} {...(row.schema==='PURCHASED_INVOICE_V1'?documentAccess:{})} />}
+    {kind === 'shipments' && row.status === 'SHIPPED' && <DocumentIssue key={row._id} kind="shipment" sourceId={row._id} {...(row.schema==='PURCHASED_SHIPMENT_V1'?documentAccess:{})} />}</fieldset>
     <div className="pf-columns">
       <section className="pf-panel">
         {kind === 'invoices' && <><h2>Balance</h2><MonetarySummary record={row} /></>}
         <h2>Linked records</h2>
         <ul className="pf-list">
-          {kind === 'shipments' && row.sources.map((s, i) => <li key={i}><Link to={s.sourceType === 'WORK_ORDER' ? `/portfolio/manufacturing/work-orders/${s.sourceId}` : `/portfolio/warehouse/reservations/${s.sourceId}`}>{s.sourceType === 'WORK_ORDER' ? 'Work order' : 'Reservation'} {s.sourceId.slice(0, 8)}</Link><span>{s.quantity} {row.uom}</span>{s.serials && <p>Shipped serials: {s.serials.join(', ')}</p>}<>{s.genealogy && <div><Link to={`/portfolio/manufacturing/work-orders/${s.genealogy.workOrderId}#lot-genealogy`}>Frozen lot genealogy revision {s.genealogy.revision}</Link><AuditDetails action="fulfillment.read"><p className="pf-id">Content hash: {s.genealogy.contentHash}</p></AuditDetails></div>}</><>{s.installation && <div><Link to={`/portfolio/manufacturing/work-orders/${s.installation.workOrderId}#component-installation`}>Frozen received installation revision {s.installation.revision}</Link><AuditDetails action="fulfillment.read"><p className="pf-id">Installation content hash: {s.installation.contentHash}</p></AuditDetails></div>}</><MaterialTrace trace={s.materialTrace} output={s.sourceType === 'WORK_ORDER'} /></li>)}
+          {kind === 'shipments' && row.sources.map((s, i) => <li key={i}>{s.sourceType==='CATALOG_RESERVATION'?<PurchasedShipmentSource source={s} orderId={row.salesOrderId} />:<Link to={s.sourceType === 'WORK_ORDER' ? `/portfolio/manufacturing/work-orders/${s.sourceId}` : `/portfolio/warehouse/reservations/${s.sourceId}`}>{s.sourceType === 'WORK_ORDER' ? 'Work order' : 'Reservation'} {s.sourceId.slice(0, 8)}</Link>}<span>{s.quantity} {row.uom}</span>{s.serials && <p>Shipped serials: {s.serials.join(', ')}</p>}<>{s.genealogy && <div><Link to={`/portfolio/manufacturing/work-orders/${s.genealogy.workOrderId}#lot-genealogy`}>Frozen lot genealogy revision {s.genealogy.revision}</Link><AuditDetails action="fulfillment.read"><p className="pf-id">Content hash: {s.genealogy.contentHash}</p></AuditDetails></div>}</><>{s.installation && <div><Link to={`/portfolio/manufacturing/work-orders/${s.installation.workOrderId}#component-installation`}>Frozen received installation revision {s.installation.revision}</Link><AuditDetails action="fulfillment.read"><p className="pf-id">Installation content hash: {s.installation.contentHash}</p></AuditDetails></div>}</>{s.sourceType!=='CATALOG_RESERVATION'&&<MaterialTrace trace={s.materialTrace} output={s.sourceType === 'WORK_ORDER'} />}</li>)}
           {kind === 'invoices' && row.lines.map((l, i) => <li key={i}><Link to={`/portfolio/fulfillment/shipments/${l.shipmentId}`}>Shipment {l.shipmentId.slice(0, 8)}</Link><span>{l.description} · {l.quantity} {l.uom} × {money(l.currency, l.unitPrice)} = {money(l.currency, l.amount)}</span><SourceLineage line={l} /></li>)}
           {kind === 'invoices' && row.allocations.map((a, i) => <li key={`p${i}`}><Link to={`/portfolio/fulfillment/payments/${a.paymentId}`}>Payment {a.paymentId.slice(0, 8)}</Link><span>{money(row.currency, a.amount)}</span></li>)}
           {kind === 'payments' && row.allocations.map((a, i) => <li key={i}><Link to={`/portfolio/fulfillment/invoices/${a.invoiceId}`}>Invoice {a.invoiceId.slice(0, 8)}</Link><span>{money(a.currency, a.amount)} · invoice now {a.invoiceStatus}</span></li>)}
         </ul>
         <h2>History</h2><p className="pf-muted">Created {new Date(row.createdAt).toLocaleString('en-US')}</p><AuditDetails action="fulfillment.read"><p>Version: {row.version}</p></AuditDetails>
       </section>
-      {kind === 'invoices' && row.status !== 'PAID' && <CommandForm title="Allocate payment" permission="fulfillment.pay" action="/api/fulfillment/payments" build={(v, k) => { if (!validMoney(v.amount, row.currency) || !/[1-9]/.test(v.amount)) throw Error(`Enter a positive ${row.currency} amount at the currency scale.`); return paymentCommand(row, v, k); }} onSaved={r.reload}>
+      {kind === 'invoices' && row.status !== 'PAID' && <CommandForm title="Allocate payment" permission="fulfillment.pay" action="/api/fulfillment/payments" locked={commandLocked} onLockChange={setLocked} build={(v, k) => { if (!validMoney(v.amount, row.currency) || !/[1-9]/.test(v.amount)) throw Error(`Enter a positive ${row.currency} amount at the currency scale.`); return paymentCommand(row, v, k); }} onSaved={refresh}>
         <Input label={`Amount (${row.currency})`} name="amount" inputMode="decimal" autoComplete="off" />
         <Input label="Payment reference" name="reference" maxLength={200} autoComplete="off" />
         <p className="pf-muted">Applies to this invoice only. Outstanding {row.currency} {displayMoney(row.outstandingAmount)}.</p>
@@ -138,4 +147,9 @@ export function FulfillmentDetail({ kind }) {
 function ShipmentSerials({ workOrderId }) {
   const resource = useResource(`/api/manufacturing/work-orders/${workOrderId}/output-units`);
   return <Resource resource={resource}>{({ data }) => { const available = data.filter(unit => unit.status === 'ACCEPTED'); return <><p>Select one accepted serial for each unit in this shipment. Already shipped and rejected units cannot be selected. The server checks current availability when saving.</p>{available.length ? <label className="pf-field">Output serials to ship (select multiple)<select name="serials" multiple size={Math.min(8, Math.max(3, available.length))} required defaultValue={[]}>{available.map(unit => <option key={unit._id} value={unit.serial}>{unit.serial}</option>)}</select></label> : <p>No accepted, unshipped serials remain for this work order. Select another source or refresh fulfillment.</p>}</>; }}</Resource>;
+}
+
+function PurchasedShipmentSource({source,orderId}) {
+  const identity=useContext(IdentityContext),permissions=identity?.permissions||[];
+  return <><div className="pf-actions">{permissions.includes('catalog.stock.read')&&permissions.includes('fulfillment.read')?<Link to={`/portfolio/fulfillment/orders/${orderId}?catalog=1`}>Purchased reservation {displayReference('reservation',source.sourceId)}</Link>:<span>Purchased stock reservation</span>}{permissions.includes('catalog.qc.read')&&<Link to={`/portfolio/catalog-disposition/receipts/${source.receiptId}`}>Review received stock and QC</Link>}</div>{source.materialTrace?.lotNumber&&<p>Lot {source.materialTrace.lotNumber} · Heat {source.materialTrace.heatNumber}</p>}<AuditDetails action="fulfillment.read"><pre>{JSON.stringify(source,null,2)}</pre></AuditDetails></>;
 }

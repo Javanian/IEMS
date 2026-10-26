@@ -4,9 +4,16 @@ import { reviewRunPlan } from './portfolio-review-mode.mjs';
 
 test('isolated review debug forces all three actual journeys and fixture actors without claiming prior coverage',()=>{
   assert.deepEqual(reviewRunPlan({PORTFOLIO_REVIEW_DEBUG_ONLY:'1'}),{
-    diagnosticOnly:true,textProbeOnly:false,companyOnly:false,quoteCatalogOnly:false,e01:true,internalExecution:true,companyStock:false,companyTrace:false,quoteCatalog:false,operator:true,seedOperators:true,
+    diagnosticOnly:true,textProbeOnly:false,companyOnly:false,quoteCatalogOnly:false,purchasedOnly:false,e01:true,internalExecution:true,companyStock:false,companyTrace:false,quoteCatalog:false,purchasedFulfillment:false,operator:true,seedOperators:true,
     resultsFile:'review-debug-results.json',priorJourneyCoverage:false,
   });
+});
+test('purchased fulfillment diagnostic isolates only its actual journey and normal mode preserves all selected prior journeys',()=>{
+  const flags={PORTFOLIO_PURCHASED_FULFILLMENT:'1',PORTFOLIO_REVIEW_E01:'1',PORTFOLIO_INTERNAL_EXECUTION:'1',PORTFOLIO_COMPANY_STOCK:'1',PORTFOLIO_COMPANY_STOCK_TRACE:'1',PORTFOLIO_QUOTE_CATALOG:'1',PORTFOLIO_REVIEW_OPERATOR:'1'},isolated=reviewRunPlan({...flags,PORTFOLIO_PURCHASED_FULFILLMENT_DIAGNOSTIC_ONLY:'1'});
+  assert.equal(isolated.purchasedFulfillment,true);assert.equal(isolated.purchasedOnly,true);assert.equal(isolated.diagnosticOnly,true);assert.equal(isolated.priorJourneyCoverage,false);assert.equal(isolated.resultsFile,'purchased-fulfillment-debug-results.json');assert.equal(isolated.e01||isolated.internalExecution||isolated.companyStock||isolated.companyTrace||isolated.quoteCatalog||isolated.operator||isolated.seedOperators,false);
+  const normal=reviewRunPlan({...flags,PORTFOLIO_PURCHASED_FULFILLMENT_DIAGNOSTIC_ONLY:'0'});assert.equal(normal.diagnosticOnly,false);assert.equal(normal.priorJourneyCoverage,true);assert.equal(normal.resultsFile,'browser-results.json');for(const key of ['purchasedFulfillment','e01','internalExecution','companyStock','companyTrace','quoteCatalog','operator'])assert.equal(normal[key],true);
+  for(const key of ['PORTFOLIO_REVIEW_DEBUG_ONLY','PORTFOLIO_TEXT_DIAGNOSTIC_ONLY','PORTFOLIO_COMPANY_STOCK_DIAGNOSTIC_ONLY','PORTFOLIO_QUOTE_CATALOG_DIAGNOSTIC_ONLY'])assert.throws(()=>reviewRunPlan({PORTFOLIO_PURCHASED_FULFILLMENT_DIAGNOSTIC_ONLY:'1',[key]:'1'}),/Choose one diagnostic entry/);
+  for(const value of ['true','',1,null])assert.throws(()=>reviewRunPlan({PORTFOLIO_PURCHASED_FULFILLMENT_DIAGNOSTIC_ONLY:value}),/must be 0 or 1/);
 });
 test('isolated catalog quote mode ignores other selected journeys and cannot claim normal acceptance',()=>{
   const mode=reviewRunPlan({PORTFOLIO_QUOTE_CATALOG_DIAGNOSTIC_ONLY:'1',PORTFOLIO_COMPANY_STOCK:'1',PORTFOLIO_COMPANY_STOCK_TRACE:'1',PORTFOLIO_REVIEW_E01:'1',PORTFOLIO_INTERNAL_EXECUTION:'1',PORTFOLIO_REVIEW_OPERATOR:'1'});

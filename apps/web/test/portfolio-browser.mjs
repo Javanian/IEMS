@@ -17,6 +17,7 @@ import { reviewInternalExecutionJourney } from './portfolio-review-internal-exec
 import { companyStockJourney } from './portfolio-company-stock-browser.mjs';
 import { companyStockTraceJourney } from './portfolio-company-stock-trace-browser.mjs';
 import { quoteCatalogJourney } from './portfolio-quote-catalog-browser.mjs';
+import { purchasedFulfillmentJourney } from './portfolio-purchased-fulfillment-browser.mjs';
 import { canonicalE01Journey } from './portfolio-review-e01-browser.mjs';
 import { createApp,seedSynthetic } from '../../portfolio-api/src/app.mjs';
 import { initializeCustomerService } from '../../portfolio-api/src/customer-service.mjs';
@@ -45,7 +46,7 @@ import { catalogDispositionJourney } from './portfolio-wave4qc-catalog-dispositi
 import { quoteEditorInquiryJourney } from './portfolio-wave4j-pr4-browser.mjs';
 import { responseLoss } from './portfolio-wave3d-transport.mjs';
 import { observeTraceRead } from './company-trace-readiness.mjs';
-import { observeOfflineQuoteRead,quoteRecoveryDOMState,isOfflineQuoteRoot,isRecoveredQuoteRoot } from './quote-offline-readiness.mjs';
+import { observeOfflineQuoteRead,quoteRecoveryDOMState,isOfflineQuoteRoot,isRecoveredQuoteRoot,requireOwnedOnlineNetwork } from './quote-offline-readiness.mjs';
 import { assertOwnedWebAddress,webTransportTelemetry } from './web-transport-telemetry.mjs';
 import { holdJourney } from './wave4f-holds-browser.mjs';
 import { csOnboardingJourney } from './wave4f-cs-browser.mjs';
@@ -116,6 +117,7 @@ async function runReviewJourneys({db,headers}) {
   if(reviewMode.companyStock)await companyStockJourney(reviewKit);
   if(reviewMode.companyTrace)await companyStockTraceJourney(reviewKit);
   if(reviewMode.quoteCatalog)await quoteCatalogJourney(reviewKit);
+  if(reviewMode.purchasedFulfillment)await purchasedFulfillmentJourney(reviewKit);
   if(reviewMode.operator)await reviewOperatorJourney(reviewKit);
 }
 async function runTextProbe({db,headers}) {
@@ -167,7 +169,11 @@ try {
   await new Promise((r, j) => { api.once('listening', r); api.once('error', j); });
   vite = await createServer({ root:uiRoot, define: { 'import.meta.env.VITE_PORTFOLIO_API_BASE': JSON.stringify('/portfolio-api') }, server: { host: '127.0.0.1', port: webPort, strictPort: true, fs: { allow: [resolve(root, '../..'),resolve(uiRoot,'../..'), await realpath(join(root, 'node_modules')),await realpath(join(uiRoot,'node_modules'))] } } });
   transportTelemetry.attachServer(vite.httpServer);await vite.listen();assertOwnedWebAddress(vite.httpServer,webPort);
-  chrome = spawn(process.env.PORTFOLIO_CHROME_BINARY || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'google-chrome'), ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  const chromeNetLogPath=join(evidence,'chrome-netlog.json'),chromeRuntimePath=join(evidence,'browser-runtime.json'),chromeBinary=process.env.PORTFOLIO_CHROME_BINARY || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'google-chrome'),chromeArgs=['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,`--log-net-log=${chromeNetLogPath}`,'--net-log-capture-mode=Default','--net-log-max-size-mb=8','about:blank'];
+  const browserRuntime={capturedUTC:new Date().toISOString(),ownedWebOrigin:web,launch:{executable:chromeBinary,arguments:chromeArgs},platform:{host:process.platform,architecture:process.arch,browser:null},browserVersion:null,netLog:{path:chromeNetLogPath,captureMode:'Default',configuredMaxSizeMiB:8,flushVerification:'Not checked by this runner; confirm browser exit and parse the external artifact separately.',scope:'Default capture requested without sensitive or socket-byte capture. URLs, IPs and paths may remain; this is not anonymized data.'}};
+  await writeFile(chromeRuntimePath,JSON.stringify(browserRuntime,null,2)+'\n',{flag:'wx'});
+  await writeFile(chromeNetLogPath,'',{flag:'wx'});
+  chrome = spawn(chromeBinary,chromeArgs,{ stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = '', launchError, endpoint;
   chrome.stderr.on('data', d => stderr += d);
   chrome.once('error', error => { launchError = error; });
@@ -200,6 +206,9 @@ try {
   const { targetId } = await call('Target.createTarget', { url: 'about:blank' }, null);
   session = (await call('Target.attachToTarget', { targetId, flatten: true }, null)).sessionId;
   await call('Runtime.enable'); await call('Page.enable'); await call('Network.enable');await call('Log.enable');
+  browserRuntime.browserVersion=await call('Browser.getVersion',{},null);
+  browserRuntime.platform.browser=await evaluate('navigator.platform');
+  await writeFile(chromeRuntimePath,JSON.stringify(browserRuntime,null,2)+'\n');
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   await call('Page.navigate', { url: `${web}/portfolio/accounts` });
   await wait(`document.querySelector('[name=username]')`);
@@ -212,13 +221,13 @@ try {
   assert.deepEqual(await evaluate(`({local:Object.keys(localStorage),session:Object.keys(sessionStorage)})`), { local: [], session: [] });
   check('HttpOnly cookie not exposed; no localStorage/sessionStorage bearer or auth data');
   if(reviewMode.diagnosticOnly){
-    console.log(`DIAGNOSTIC ONLY: ${reviewMode.quoteCatalogOnly?'catalog quotation journey':reviewMode.companyOnly?'company stock journey and any explicitly selected trace':reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'review journeys'}; prior137 journey coverage is absent. Full acceptance requires all four diagnostic modes0 and all21 flags.`);
+    console.log(`DIAGNOSTIC ONLY: ${reviewMode.purchasedOnly?'purchased stock fulfillment journey':reviewMode.quoteCatalogOnly?'catalog quotation journey':reviewMode.companyOnly?'company stock journey and any explicitly selected trace':reviewMode.textProbeOnly?'invoice and resolved-ticket text probe':'review journeys'}; prior journey coverage is absent. Full acceptance requires all five diagnostic modes0 and all22 flags.`);
     const cookie=(await call('Network.getCookies',{urls:[web]})).cookies.find(row=>row.name==='portfolio_session');
     assert.ok(cookie?.httpOnly);
     const headers={origin:web,'content-type':'application/json',cookie:`portfolio_session=${cookie.value}`};
     if(reviewMode.textProbeOnly)await runTextProbe({db,headers});else await runReviewJourneys({db,headers});
     assert.deepEqual(exceptions,[]);assert.deepEqual(consoleErrors,[]);
-    const diagnosticJourneys=reviewMode.quoteCatalogOnly?['catalog quote identity; prerequisite HTTP masters and account, native target commercial actions']:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:[...(reviewMode.e01?['canonical E01']:[]),...(reviewMode.internalExecution?['supplemental internal execution']:[]),...(reviewMode.operator?['operator/source selectors']:[]),...(reviewMode.companyStock?['supplemental one-generation company stock; prerequisite HTTP producer setup']:[]),...(reviewMode.companyTrace?['readonly unit trace; staged actual HTTP fixture']:[]),...(reviewMode.quoteCatalog?['catalog quote identity; prerequisite HTTP masters and account, native target commercial actions']:[])];
+    const diagnosticJourneys=reviewMode.purchasedOnly?['purchased fulfillment; prerequisite HTTP accepted stock and typed SO, native target stock/delivery/billing actions']:reviewMode.quoteCatalogOnly?['catalog quote identity; prerequisite HTTP masters and account, native target commercial actions']:reviewMode.textProbeOnly?['invoice and resolved-ticket text probe; actual HTTP fixture setup, not native E01']:[...(reviewMode.e01?['canonical E01']:[]),...(reviewMode.internalExecution?['supplemental internal execution']:[]),...(reviewMode.operator?['operator/source selectors']:[]),...(reviewMode.companyStock?['supplemental one-generation company stock; prerequisite HTTP producer setup']:[]),...(reviewMode.companyTrace?['readonly unit trace; staged actual HTTP fixture']:[]),...(reviewMode.quoteCatalog?['catalog quote identity; prerequisite HTTP masters and account, native target commercial actions']:[]),...(reviewMode.purchasedFulfillment?['purchased fulfillment; prerequisite HTTP stock and SO']:[])];
     await writeFile(join(evidence,reviewMode.resultsFile),JSON.stringify({diagnosticOnly:true,fullAcceptance:false,realBrowser:true,fixtureFetch:false,api:'actual current portfolio-api createApp; guarded business clock only for explicitly selected historical fixture',priorJourneyCoverage:false,prior137JourneyCoverage:'ABSENT',priorOptionalJourneysRun:false,journeys:diagnosticJourneys,checks,exceptions,consoleErrors,network,cleanup:'marker-verified disposable DB and owned processes only'},null,2));
     console.log(JSON.stringify({diagnosticOnly:true,fullAcceptance:false,passed:checks.length,exceptions:exceptions.length,consoleErrors:consoleErrors.length,evidence,resultsFile:reviewMode.resultsFile}));
   }else{
@@ -321,6 +330,9 @@ try {
     try {await clickQuoteRoot(false,'Refresh record');quoteRecoveryEvidence.offline=await offlineRead.response;await wait(`(${isOfflineQuoteRoot.toString()})((${quoteRecoveryDOMState.toString()})(),${JSON.stringify(quoteId)})`,'new exact offline quote GET and top-level Resource failure');quoteRecoveryEvidence.offlineDOM=await recoveryState();}finally{offlineRead.close();}
     await screenshot('13-quote-offline');
     await emulateQuoteNetwork(false);
+    quoteRecoveryEvidence.networkReady={};
+    const {frameTree:{frame:quoteMainFrame}}=await call('Page.getFrameTree');
+    await requireOwnedOnlineNetwork({call,ownedOrigin:web,frameId:quoteMainFrame.id,nonce:randomUUID(),evidence:quoteRecoveryEvidence.networkReady});
     const onlineRead=observeTraceRead({subscribe:quoteSubscribe,call,url:quoteURL});
     try {await clickQuoteRoot(true,'Refresh and retry');const fresh=await onlineRead.response;for(const [key,value]of Object.entries(quoteExpected))assert.equal(fresh.data[key],value,`Recovered quote ${key}`);await evaluate('(async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})()');await wait(`(${isRecoveredQuoteRoot.toString()})((${quoteRecoveryDOMState.toString()})(),${JSON.stringify(quoteExpected)})`,'fresh completed converted quote response and settled root');quoteRecoveryEvidence.online={requestId:fresh.requestId,status:fresh.status,attempts:fresh.attempts,observed:{_id:fresh.data._id,version:fresh.data.version,status:fresh.data.status,orderId:fresh.data.orderId}};quoteRecoveryEvidence.onlineDOM=await recoveryState();assert.equal(isRecoveredQuoteRoot(quoteRecoveryEvidence.onlineDOM,quoteExpected),true);quoteRecoveryEvidence.completed=true;}finally{onlineRead.close();}
   } finally {listeners.delete(recordQuoteNetwork);quoteRecoveryEvidence.finalState=await recoveryState().catch(error=>({error:String(error)}));await writeFile(join(evidence,'quote-offline-recovery.json'),JSON.stringify(quoteRecoveryEvidence,null,2));}
@@ -419,6 +431,14 @@ try {
   throw error;
 } finally {
   if (ws?.readyState === 1) { try { await call('Browser.close', {}, null); } catch {} ws.close(); }
+  if (chrome?.exitCode === null) await new Promise(resolve => {
+    const ownedChrome=chrome;
+    let timer;
+    const finish=()=>{clearTimeout(timer);ownedChrome.removeListener('exit',finish);resolve();};
+    ownedChrome.once('exit',finish);
+    timer=setTimeout(finish,5000);
+    if(ownedChrome.exitCode!==null||ownedChrome.signalCode!==null)finish();
+  });
   if (chrome?.exitCode === null) chrome.kill();
   if (vite) {transportTelemetry.command('before','OwnedVite.close',{});await vite.close();transportTelemetry.command('ack','OwnedVite.close',{});}
   await writeFile(join(evidence,'web-transport-lifecycle.json'),JSON.stringify(transportTelemetry.snapshot(vite?.httpServer),null,2)).catch(error=>console.warn('Transport lifecycle diagnostics unavailable:',String(error)));

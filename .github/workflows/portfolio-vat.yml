@@ -19,6 +19,8 @@ on:
       - 'checkpoints/company-stock-use/**'
       - 'checkpoints/company-stock-trace/**'
       - 'checkpoints/quote-catalog-entitlement/**'
+      - 'checkpoints/p2-f5a-dispatch-followup/**'
+      - 'checkpoints/purchased-stock-fulfillment/**'
       - '.github/workflows/portfolio-vat.yml'
   pull_request:
     paths:
@@ -38,6 +40,8 @@ on:
       - 'checkpoints/company-stock-use/**'
       - 'checkpoints/company-stock-trace/**'
       - 'checkpoints/quote-catalog-entitlement/**'
+      - 'checkpoints/p2-f5a-dispatch-followup/**'
+      - 'checkpoints/purchased-stock-fulfillment/**'
       - '.github/workflows/portfolio-vat.yml'
 
 permissions:
@@ -51,7 +55,7 @@ jobs:
   vat:
     name: VAT API, PDF and connected browser
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     env:
       MONGOMS_DISABLE_POSTINSTALL: '1'
       MONGOMS_VERSION: '7.0.14'
@@ -122,6 +126,26 @@ jobs:
         run: node --test --test-concurrency=1 checkpoints/quote-catalog-entitlement/qa/quote-catalog-entitlement.test.mjs
         env:
           IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-quote-catalog-evidence
+      - name: Test independent company stock history readiness
+        run: node --test --test-concurrency=1 checkpoints/p2-f5a-dispatch-followup/qa/company-stock-readiness.test.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-company-readiness-evidence
+      - name: Test isolated F5-A authorization proof
+        run: node --test --test-concurrency=1 --test-reporter=tap checkpoints/p2-f5a-dispatch-followup/f5a/owner.test.mjs checkpoints/p2-f5a-dispatch-followup/qa/f5a-authorization.test.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-f5a-proof
+      - name: Retain isolated F5-A proof
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: f5a-authorization-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/iems-f5a-proof/*.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Test independent purchased stock fulfillment
+        run: node --test --test-concurrency=1 checkpoints/purchased-stock-fulfillment/qa/purchased-stock-fulfillment.test.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-purchased-fulfillment-evidence
       - name: Test connected browser workflow
         run: npm --prefix apps/web run test:portfolio:browser
         env:
@@ -145,11 +169,14 @@ jobs:
           PORTFOLIO_COMPANY_STOCK: '1'
           PORTFOLIO_COMPANY_STOCK_TRACE: '1'
           PORTFOLIO_QUOTE_CATALOG: '1'
+          PORTFOLIO_PURCHASED_FULFILLMENT: '1'
           PORTFOLIO_REVIEW_E01: '1'
           PORTFOLIO_REVIEW_DEBUG_ONLY: '0'
           PORTFOLIO_TEXT_DIAGNOSTIC_ONLY: '0'
           PORTFOLIO_COMPANY_STOCK_DIAGNOSTIC_ONLY: '0'
           PORTFOLIO_QUOTE_CATALOG_DIAGNOSTIC_ONLY: '0'
+          PORTFOLIO_PURCHASED_FULFILLMENT_DIAGNOSTIC_ONLY: '0'
+          PORTFOLIO_SKIP_CS: '0'
           PORTFOLIO_EVIDENCE_DIR: ${{ runner.temp }}/iems-native-browser
       - name: Test intentional module failure and native reload recovery
         run: node checkpoints/review-five-findings/qa/module-fetch-recovery-browser.mjs
