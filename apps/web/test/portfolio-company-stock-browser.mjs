@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { parseExpression } from '@babel/parser';
 import { scoped } from './wave4f-browser-kit.mjs';
 import { assertProducerConserved, makeFixture, producerEvidence } from '../../../checkpoints/company-stock-use/qa/support.mjs';
+import { companyStockReadinessJourney } from './portfolio-company-stock-readiness-browser.mjs';
 
 const js=JSON.stringify,scope=title=>`form[aria-label="${title}"]`;
 const PLAN=scope('Plan internal production'),ENGINEER=scope('Save internal engineering revision'),APPROVE=scope('Approve internal engineering demand'),CREATE=scope('Create internal execution'),RESERVE=scope('Reserve internal material'),RELEASE=scope('Release internal production'),ISSUE=scope('Issue internal materials'),RECORD=scope('Record internal operation'),ATTRIBUTE=scope('Save internal output attribution'),LOSS=scope('Save internal process loss'),QC=scope('Record internal output QC'),PUTAWAY=scope('Put away internal output'),HOLD=scope('Apply company stock hold'),UNHOLD=scope('Release company stock hold');
@@ -63,5 +64,6 @@ export async function companyStockJourney({db,call,wait,evaluate,screenshot,chec
     check('Company-stock-only Holder deep link performs a real native hold without execution-read grant; revocation blocks retained exact-key retry and direct acknowledged replay with no effects; Reader hard reload retains evidence and explains disabled action');
   } finally {await db.collection('memberships').updateOne({_id:membership._id},{$set:{roles:membership.roles}});await navigate(`company-stock/receipts/${companyId}`,'document.querySelector("#internal-company-stock")');}
   await writeEvidence?.('company-stock-native-manifest.json',{setup:'Actual mounted HTTP purchased-input producer; all new V2 and company-hold commands use native trusted mouse or Tab/Enter',producerId,companyId,planId,executionId,companyUnitIds:sourceIds,outputSerial,leafReceiptId:execution.companyStock._id,lostReservationKey:lost.command.idempotencyKey,revokedHoldKey:heldAcknowledgment?.command.idempotencyKey,scope:'One generation only; no customer dispatch or general installation graph'});
+  await companyStockReadinessJourney({db,ok,headers,call,checked,ready,form,button,nativeClick,screenshot,check,writeEvidence});
   return {executionId,companyReceiptId:execution.companyStock._id};
 }

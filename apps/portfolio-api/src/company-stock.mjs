@@ -1,3 +1,4 @@
+import { companyStockCapacity, companyStockLimits } from './company-stock-capacity.mjs';
 import { randomUUID } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { validateInternalExecution } from './internal-execution-state.mjs';
@@ -40,12 +41,17 @@ export async function companyStockContext(db, filter, companyReceiptId, session,
 }
 export function companyStockView(context) {
   const { receipt, producer, use, blockers, sourcePolicy } = context, terminal = sourcePolicy === 'LEAF_ONLY';
-  return { ...receipt, companyReceiptId: receipt._id, producerExecutionId: producer.head._id, itemSnapshot: producer.head.sourceDemand.itemSnapshot, version: use.version, sourcePolicy, openingQuantity: receipt.quantity, onHandQuantity: use.onHandQuantity, reservedQuantity: use.reservedQuantity, issuedQuantity: use.issuedQuantity, consumedQuantity: use.consumedQuantity, availableQuantity: terminal ? '0' : use.availableQuantity, blockedQuantity: terminal ? use.availableQuantity : '0', eligibleQuantity: blockers.length ? '0' : use.availableQuantity, units: use.units.map(unit => ({ ...unit, companyUnitId: unit._id, eligible: !blockers.length && unit.status === 'AVAILABLE' })), hold: use.hold, blockers, canReserve: !blockers.length && units(use.availableQuantity) > 0n, canAllocate: false, canDispatch: false };
+  const capacity = companyStockCapacity(use.version, use.reservations.length);
+  const reserveBlockers = [...blockers,
+    ...(capacity.reservationLimitReached ? ['RESERVATION_HISTORY_LIMIT'] : []),
+    ...(capacity.eventLimitReached ? ['STOCK_EVENT_HISTORY_LIMIT'] : [])];
+  return { ...receipt, companyReceiptId: receipt._id, producerExecutionId: producer.head._id, itemSnapshot: producer.head.sourceDemand.itemSnapshot, version: use.version, sourcePolicy, openingQuantity: receipt.quantity, onHandQuantity: use.onHandQuantity, reservedQuantity: use.reservedQuantity, issuedQuantity: use.issuedQuantity, consumedQuantity: use.consumedQuantity, availableQuantity: terminal ? '0' : use.availableQuantity, blockedQuantity: terminal ? use.availableQuantity : '0', eligibleQuantity: blockers.length ? '0' : use.availableQuantity, units: use.units.map(unit => ({ ...unit, companyUnitId: unit._id, eligible: !blockers.length && unit.status === 'AVAILABLE' })), hold: use.hold, blockers, reserveBlockers, capacity, canReserve: !reserveBlockers.length && units(use.availableQuantity) > 0n, canHold: capacity.remainingEvents >= 1 && !use.hold?.active, canReleaseHold: capacity.remainingEvents >= 1 && Boolean(use.hold?.active), canAllocate: false, canDispatch: false };
 }
 async function saveUse(db, filter, context, actor, reason, kind, session, hold = context.use.hold) {
   if (!session?.inTransaction()) throw new Error('company write requires transaction');
-  const receiptId = context.receipt._id, reservations = await db.collection('companyMaterialReservations').find({ ...filter, companyReceiptId: receiptId }, { session }).limit(101).toArray();
-  if (reservations.length > 100 || context.use.version >= 501) fail(409, 'STOCK_HISTORY_LIMIT');
+  const receiptId = context.receipt._id, reservations = await db.collection('companyMaterialReservations').find({ ...filter, companyReceiptId: receiptId }, { session }).limit(companyStockLimits.reservations + 1).toArray();
+  const capacity = companyStockCapacity(context.use.version, reservations.length);
+  if (reservations.length > capacity.reservationLimit || capacity.remainingEvents < 1) fail(409, 'STOCK_HISTORY_LIMIT');
   const total = status => decimal(reservations.filter(row => row.status === status).reduce((sum, row) => sum + units(row.quantity), 0n));
   const head = { _id: receiptId, ...filter, companyReceiptId: receiptId, openingHash: context.receipt.contentHash, version: context.use.version + 1, refs: reservations.map(row => ({ reservationId: row._id, version: row.version, contentHash: row.contentHash })), reservedQuantity: total('RESERVED'), issuedQuantity: total('ISSUED'), consumedQuantity: total('CONSUMED'), hold, unitHashes: [] };
   if (units(head.reservedQuantity) + units(head.issuedQuantity) + units(head.consumedQuantity) > units(context.receipt.quantity)) fail(409, 'INSUFFICIENT_STOCK');
