@@ -1,5 +1,7 @@
 # Publication and dependency tracking
 
+Final published acceptance is linked in the [PR12–14 acceptance index](ACCEPTANCE-INDEX.md), with exact runtime SHAs and workflow attempts. Publication-in-progress statements below describe their historical stage and are preserved.
+
 Remote inventory was read before mutation: main5e200eb; PR4 remains open at8324b02 and is not merged. Accepted local descendant chain is4b9eab0 →2b66c85 →f2d6f4a →cfb1b98 →bd6d7f2 →ae0602a →54a7e6d. Branches correspond to actual commits and features. No empty branch or retrospective metadata is created.
 
 Publication is in progress. Each staged PR targets its actual predecessor feature branch, with the first targeting feat/crm-order-management. Record exact tested/pushed SHA, URL and remote-head checks after execution. Parent merge requires retargeting/relevant checks; no automatic merge, protection bypass, history rewrite, force push or deployment is authorized. Existing local checkpoint histories/dates/parents are preserved.

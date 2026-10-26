@@ -1,5 +1,7 @@
 # Lead acceptance
 
+Final remote outcome: [published-head acceptance index](../review-five-findings/ACCEPTANCE-INDEX.md). The pending-at-source-freeze statement below describes its original stage and is retained.
+
 Scope is the read-only P027/P029 unit investigation described in CONTRACT.md. It supplements the current portfolio Mongo runtime. It does not complete general graph/cycle writes, ancestor shipment freezing, automatic recall/NCR/CAPA, customer stock dispatch, PostgreSQL migration or production rollout. K2B2-05/06 and F5 retain their separate planned/blocked status.
 
 The domain reader validates actual scoped receipts, immutable unit/output/attribution records, raw source and use authorities. Exact physical output attribution is separate from batch-wide hold dependencies. Reverse claim states, output candidates, explicit process loss and abandoned history have separate categories. A rejected output cannot become a fabricated company receipt. A terminal V2 unit stays terminal while its recorded upstream component remains traceable.
