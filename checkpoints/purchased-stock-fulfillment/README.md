@@ -1,3 +1,11 @@
+# Latest local correction, 26 October 2026
+
+Normal3 completes all22/167 with zero browser exceptions/console errors,823 stable hashes and Mongo cleanup0. Frontend6 passes227. The three-file QA correction requires one owned uncached resource200 with IO close before the unchanged single native quote retry and fresh quote200/body proof. It changes no production source, observer, timeout or retry loop.
+
+Prior ad861 PR Portfolio attempt1 stays FAILED7; underlying Chrome156 cause remains unproven. API313/renderer18/build3/focused8/separate module4 are reused only through explicit source association. Read [current status](../p2-f5a-dispatch-followup/STATUS.md) and [actual chronology](../p2-f5a-dispatch-followup/TEST-RESULTS.md). New commit/publication and exact-new-head CI remain pending at this freeze; the [permanent PR20 attestation](https://github.com/Javanian/IEMS/pull/20) carries the final result. F5 remains BLOCKED/candidate REJECTED.
+
+## Earlier source-freeze notes, retained
+
 # Accepted local continuation, 26 October 2026
 
 Final local integration acceptance is complete. Lead executed maintained API313/313 (47 files, including owner43 and P2owner7), renderer18/18, frontend223/223, production build3, focused native4 (8 checks) and normal all22 attempt2 (167 checks). Normal2 uses all22 normal flags, all five diagnostic modes0 and explicit customer-service inclusion; it records zero application exceptions/console errors,823 unchanged runtime hashes and Mongo cleanup0. Independent purchased15 and isolated F5-A41 are associated with the same API source except unimported publication metadata.

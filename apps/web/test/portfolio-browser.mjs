@@ -46,7 +46,7 @@ import { catalogDispositionJourney } from './portfolio-wave4qc-catalog-dispositi
 import { quoteEditorInquiryJourney } from './portfolio-wave4j-pr4-browser.mjs';
 import { responseLoss } from './portfolio-wave3d-transport.mjs';
 import { observeTraceRead } from './company-trace-readiness.mjs';
-import { observeOfflineQuoteRead,quoteRecoveryDOMState,isOfflineQuoteRoot,isRecoveredQuoteRoot } from './quote-offline-readiness.mjs';
+import { observeOfflineQuoteRead,quoteRecoveryDOMState,isOfflineQuoteRoot,isRecoveredQuoteRoot,requireOwnedOnlineNetwork } from './quote-offline-readiness.mjs';
 import { assertOwnedWebAddress,webTransportTelemetry } from './web-transport-telemetry.mjs';
 import { holdJourney } from './wave4f-holds-browser.mjs';
 import { csOnboardingJourney } from './wave4f-cs-browser.mjs';
@@ -330,6 +330,9 @@ try {
     try {await clickQuoteRoot(false,'Refresh record');quoteRecoveryEvidence.offline=await offlineRead.response;await wait(`(${isOfflineQuoteRoot.toString()})((${quoteRecoveryDOMState.toString()})(),${JSON.stringify(quoteId)})`,'new exact offline quote GET and top-level Resource failure');quoteRecoveryEvidence.offlineDOM=await recoveryState();}finally{offlineRead.close();}
     await screenshot('13-quote-offline');
     await emulateQuoteNetwork(false);
+    quoteRecoveryEvidence.networkReady={};
+    const {frameTree:{frame:quoteMainFrame}}=await call('Page.getFrameTree');
+    await requireOwnedOnlineNetwork({call,ownedOrigin:web,frameId:quoteMainFrame.id,nonce:randomUUID(),evidence:quoteRecoveryEvidence.networkReady});
     const onlineRead=observeTraceRead({subscribe:quoteSubscribe,call,url:quoteURL});
     try {await clickQuoteRoot(true,'Refresh and retry');const fresh=await onlineRead.response;for(const [key,value]of Object.entries(quoteExpected))assert.equal(fresh.data[key],value,`Recovered quote ${key}`);await evaluate('(async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})()');await wait(`(${isRecoveredQuoteRoot.toString()})((${quoteRecoveryDOMState.toString()})(),${JSON.stringify(quoteExpected)})`,'fresh completed converted quote response and settled root');quoteRecoveryEvidence.online={requestId:fresh.requestId,status:fresh.status,attempts:fresh.attempts,observed:{_id:fresh.data._id,version:fresh.data.version,status:fresh.data.status,orderId:fresh.data.orderId}};quoteRecoveryEvidence.onlineDOM=await recoveryState();assert.equal(isRecoveredQuoteRoot(quoteRecoveryEvidence.onlineDOM,quoteExpected),true);quoteRecoveryEvidence.completed=true;}finally{onlineRead.close();}
   } finally {listeners.delete(recordQuoteNetwork);quoteRecoveryEvidence.finalState=await recoveryState().catch(error=>({error:String(error)}));await writeFile(join(evidence,'quote-offline-recovery.json'),JSON.stringify(quoteRecoveryEvidence,null,2));}

@@ -75,3 +75,15 @@ The final source tree, commit, successor PR and exact-head remote checks remain 
 ## Local normal2 artifact binding
 
 local-normal2-schema1.zip -> SHA256 b2e393d59fdfda482927fe43dd3e7d84fa9c6757c4209cfdbbabc341927f6530 -> local-normal2-schema-verification1.json and local-normal2-runtime-netlog-verification1.json -> local-normal2-independent-association1.json/verdict1.json. Both verifiers use the same ZIP digest/origin. This is explicitly local-schema verification, not remote CI. dispatch-feature-precommit-association1.json separately binds staged content, actual runtime maps, closure472/784 and87 reviewed paths. after-dispatch-normal2-preservation1.json, integration-config-final1.json and e01-integration-final1.json confirm protected scope.
+
+## Quote-network correction requirement chain
+
+Actual remote fresh-request failure -> dispatch-pr-attempt1-disposition1.json/UTF8log/provider artifact metadata/failedZIP -> old actual callback contractRED -> three-file QA correction/freeze2 -> frontend6/227 and separate actual10cycle local sequence -> normal3/167 with actual networkReady UTC and unchanged target fresh200/body -> new precommit source audit/commit -> permanent PR20 exact-new-head attestation. Parent/old-head success never accepts the corrected descendant. Parser7 expects actual frontend227; artifactverifier2 additionally requires the persisted one-probe success/close/ordering. NetLog verifier2 reports requested8MiB versus actual stitched bytes under an independent16MiB parse cap; it never accepts business results.
+
+The current main-frame ID, top-frame status and owned origin are validated by the frozen helper, not independently persisted as a complete Page.getFrameTree response. Original retained retry wire bodies and per-stage full ledgers remain bounded as previously documented.
+
+## Final local normal3 artifact binding
+
+local-normal3-schema1.zip contains292 nonrecursive actual root JSON/PNG files,22,438,962 compressed/35,217,073 uncompressed bytes. SHA2563e378dd326d80cdecabbbb4fac0b352d965c6cc4ec5ecb704fa24a5dd7b8da73 passes adopted artifactverifier2 and NetLogverifier2 with the same127.0.0.1:4173 origin. local-normal3-independent-verdict1.json binds the actual22/five0/CS0 flags,167 raw checks,823 stable source hashes/Mongo0 and the new persisted probe200/IOclose/native-retry/freshquote200 order. NetLog is8,439,212 bytes under the independent16MiB parse budget; its requested8MiB configuration is unchanged. Lead read both actual verifier outputs. This is local-schema-only association to uncommitted QA bytes/precommit HEADad861, not remote or future-commit acceptance.
+
+Fresh after-quote-correction-preservation1.json confirms the same18 original checkout/index snapshots and five protected sources unchanged; integration-config-quote-correction1 and e01-quote-correction1 pass. One blank trailing-space line in the new report was caught by precommit audit and corrected before the accepted staged-source audit; no runtime/source assertion changed.

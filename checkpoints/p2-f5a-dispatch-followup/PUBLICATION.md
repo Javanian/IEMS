@@ -1,3 +1,11 @@
+# Latest local correction, 26 October 2026
+
+Normal3 completes all22/167 with zero browser exceptions/console errors,823 stable hashes and Mongo cleanup0. Frontend6 passes227. The three-file QA correction requires one owned uncached resource200 with IO close before the unchanged single native quote retry and fresh quote200/body proof. It changes no production source, observer, timeout or retry loop.
+
+Prior ad861 PR Portfolio attempt1 stays FAILED7; underlying Chrome156 cause remains unproven. API313/renderer18/build3/focused8/separate module4 are reused only through explicit source association. Read [current status](STATUS.md) and [actual chronology](TEST-RESULTS.md). New commit/publication and exact-new-head CI remain pending at this freeze; the [permanent PR20 attestation](https://github.com/Javanian/IEMS/pull/20) carries the final result. F5 remains BLOCKED/candidate REJECTED.
+
+## Earlier source-freeze notes, retained
+
 # Purchased dispatch publication and final attestation
 
 Published feature commit: db3ab8c76e273f9c6fd3d36f4fea40f871085436. The [draft PR20 and permanent final-head attestation](https://github.com/Javanian/IEMS/pull/20) targets PR15 (`feat/quote-catalog-entitlement`,692463a7c0f392717382099a02160511d71e60f0). Its normal local merge preserves PR15 first parent and accepted F5-A99c8c789/P2 ancestry as second parent. The staged tree740d40f9e3b12f1fd3ac2a349156c6f81aae3d1b exactly matches dispatch-feature-precommit-association3.json;87 reviewed paths,472 source hashes/784 relative imports, no audit errors. Feature commit is clean and normally pushed.

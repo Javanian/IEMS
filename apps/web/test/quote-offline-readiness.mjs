@@ -1,3 +1,25 @@
+export async function requireOwnedOnlineNetwork({call,ownedOrigin,frameId,nonce,evidence={}}) {
+  const origin=new URL(ownedOrigin);
+  if(origin.protocol!=='http:'||origin.hostname!=='127.0.0.1'||Number(origin.port)<1||origin.origin!==ownedOrigin||origin.username||origin.password||origin.pathname!=='/'||origin.search||origin.hash)throw Error('Network probe requires the exact owned IPv4 origin');
+  if(typeof frameId!=='string'||!frameId||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(nonce))throw Error('Network probe requires a main frame and fresh UUID nonce');
+  const {frameTree}=await call('Page.getFrameTree');
+  if(frameTree?.frame?.id!==frameId||frameTree.frame.parentId||new URL(frameTree.frame.url).origin!==ownedOrigin)throw Error('Network probe frame is not the current owned main frame');
+  const url=new URL('/',origin);url.searchParams.set('portfolio_network_probe',nonce);
+  Object.assign(evidence,{url:url.href,frameId,options:{disableCache:true,includeCredentials:false},startedUTC:new Date().toISOString(),result:null,streamReturned:false,closeAttempted:false,closed:false});
+  let stream;
+  try {
+    const {resource}=await call('Network.loadNetworkResource',{frameId,url:url.href,options:{disableCache:true,includeCredentials:false}});
+    stream=resource?.stream;
+    evidence.streamReturned=typeof stream==='string'&&stream.length>0;
+    evidence.result={success:resource?.success===true,httpStatusCode:resource?.httpStatusCode??null,netError:resource?.netError??null,netErrorName:resource?.netErrorName??null};
+    if(resource?.success!==true||resource.httpStatusCode!==200||(resource.netError!==undefined&&resource.netError!==0)||resource.netErrorName)throw Error('Owned browser network probe did not complete with HTTP200');
+  } finally {
+    if(typeof stream==='string'&&stream){evidence.closeAttempted=true;try{await call('IO.close',{handle:stream});evidence.closed=true;evidence.closedUTC=new Date().toISOString();}catch(error){evidence.closeError=String(error);throw error;}}
+  }
+  evidence.completedUTC=new Date().toISOString();
+  return evidence;
+}
+
 export function observeOfflineQuoteRead({ subscribe, url, timeoutMs=30000 }) {
   const attempts=new Map();let settled=false,unsubscribe=()=>{},timer,resolve,reject;
   const response=new Promise((yes,no)=>{resolve=yes;reject=no;});response.catch(()=>{});

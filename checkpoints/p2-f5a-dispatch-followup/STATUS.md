@@ -1,3 +1,21 @@
+# Latest local QA correction, 26 October 2026
+
+Normal all22 attempt3 completes167 checks with zero application exceptions/console errors, all five diagnostic modes0 and customer service included. Its823 runtime hashes are unchanged and Mongo cleanup0. Frontend6 passes227/227. This new local acceptance includes the explicit owned-network precondition; normal2 remains earlier accepted evidence on its own QA bytes.
+
+PR20's prior headad861cbb80ce12131c7e16339be79d24f592e481 has a retained FAILED PR Portfolio attempt1 after7 browser groups: a fresh commercial quote GET failed ERR_INTERNET_DISCONNECTED after online ACK/onLine=true and one native retry. The strict observer correctly rejected it. This is not an unhandled promise, stale offline event, or the earlier local App.jsx ERR_NO_BUFFER_SPACE. The underlying Chrome156 failure cause remains unproven.
+
+The new three-file QA correction requires one uncached harmless owned-origin resource before the existing single native quote retry. It uses the current main frame and a fresh UUID nonce, requires success/http200/no network error, closes the returned stream and records start/close/completion UTC. The native retry still must produce a fresh quote200 with exact identity/body/DOM. No production API/UI, observer, retry loop, navigation retry, fixture timeout, resource floor or authorization fence changed. Requested includeCredentials:false does not guarantee omission of same-site cookies; the helper stores neither probe headers nor body (Default NetLog retains its documented partial metadata), and this is infrastructure readiness, not app authorization/CORS/ORB proof.
+
+A separate actual local Chrome155 probe passes10/10 cycles:21 exact server requests, actual nonce/body correspondence, zero offline server hits, one probe/one online target per cycle and normal owned cleanup. This supports the proposed sequence; it does not reproduce or prove a cure for the Chrome156 CI incident. The meaningful RED executes the actual old renderer-online callback and exposes the missing network precondition, not a missing-export import error.
+
+Maintained API313, renderer18, independent purchased15 and isolated F541 remain associated with unchanged API execution source apart from known unimported publication metadata. Production build3 and separate module4 remain associated with unchanged served/standalone source: four QA files differ and are not imported by those executions. Focused native4/8 remains associated with unchanged product/purchased journey source; the three new QA changes affect only the normal legacy-quote branch, skipped in focused diagnostic mode. These are associations, not new executions. See integration-source-reuse-association5.json externally.
+
+The external NetLog verifier2 keeps strict Default/requested8MiB configuration but uses a separate16MiB parser budget. Chromium's event-file cap is soft and stitched JSON includes constants/trailer; the failed Chrome156 file is8,460,007 bytes despite the8MiB request. This is an external parser correction, not a business-oracle change. Earlier verifier1 and all results remain preserved.
+
+Publication of this correction and exact-new-head remote verification remain pending at this source freeze. The [permanent PR20 final-head attestation](https://github.com/Javanian/IEMS/pull/20) records the eventual immutable head/run/artifact results. F1-F4 keep their earlier VERIFIED scope; candidate REJECTED/F5 BLOCKED, PURCHASED-only/V2 LEAF_ONLY remain unchanged.
+
+## Earlier source freezes and evidence, retained
+
 # Published checkpoint and final review
 
 Feature db3ab8c76e273f9c6fd3d36f4fea40f871085436 is normally pushed in [draft PR20, with permanent final-head attestation](https://github.com/Javanian/IEMS/pull/20), stacked on PR15. Local acceptance below is complete. Exact-final-head remote checks remain pending at this documentation freeze; their immutable final result belongs at that PR link. Historical source-freeze pending notes are retained below. F5 remains BLOCKED and its isolated candidate REJECTED.

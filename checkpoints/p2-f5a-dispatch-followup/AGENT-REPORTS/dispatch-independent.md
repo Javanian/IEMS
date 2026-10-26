@@ -60,3 +60,7 @@ Renderer attempts1 and2 are actual failed runs, each18 tests/16 pass/2 fail with
 ## Lead-recorded final integration association, 26 October 2026
 
 Final root execution: API313, renderer18, frontend223, normal2 all22/167, focused native4/8, build3 production source and separate module4. Actual raw logs and hashes remain under the external evidence root. Agent-specific authored/reviewed scope remains as stated above; this paragraph records integration and does not claim an agent executed or visually reviewed an unassigned gate. Agent B opened all21 native4 PNGs; A reviewed actual backend313/render18; C checked actual source/log/artifact configuration. Exact-final-head remote checks remain a publication gate. Candidate REJECTED/F5 BLOCKED. Failed/refused attempts remain in TEST-RESULTS.md.
+
+## Lead-recorded quote-network correction
+
+Final actualfrontend6 passes227; normal3 completes167 on frozen three-file QA correction. B's precondition-only RED and C/A reviews do not claim actualChrome156cause reproduction. Root owns actual10cycle local155 diagnostic and normal3. No production source or observer/oracle was relaxed; one infrastructureprobe precedes one native quote retry. New exact-head remote acceptance remains pending; priorad861 PRattempt1 staysFAILED7. See TEST-RESULTS/EVIDENCE-INDEX for actual source/runtime/artifact associations.

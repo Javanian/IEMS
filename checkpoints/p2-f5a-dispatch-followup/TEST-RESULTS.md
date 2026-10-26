@@ -120,3 +120,26 @@ Agent C independently built a nonrecursive292-file JSON/PNG ZIP from actual norm
 These are local-schema-only artifacts targeting the actual precommit HEAD692463a, with823 uncommitted source hashes separately bound. They do not claim that HEAD alone contains the tested changes or that remote CI passed. local-normal2-independent-verdict1.json states those limits. Final precommit audit currently passes472 source hashes/784 literal relative-import edges, with87 reviewed paths; subsequent publication metadata must be audited again.
 
 Fresh after-dispatch-normal2-preservation1.json confirms all18 original checkout/index snapshots and five protected sources unchanged. Six config files match integration-config-freeze1; canonical E01 is unchanged across22 observed worktrees. The additional n8n worktree remains inventory-only and unowned.
+
+## Post-publication quote-network precondition
+
+| Actual gate | Outcome | Evidence |
+| --- | --- | --- |
+| PR20/ad861 PR Portfolio attempt1 |FAILED7 browser groups,0application exceptions/console errors; module and maintained API not reached |dispatch-pr-attempt1-failed.log; failed-browser.zip SHA7fb7221d03b174816d69a3fbea31f88aa7fcd92c4b5951fb989a48304ae348ae; disposition1.json |
+| Its separate isolated F5 artifact |29PASS/REJECTED content accepted; overall job remains FAILED |dispatch-final-pr-f5-verification1.json; actual guard112/candidate stale effect |
+| Actual old callback precondition |Expected RED, old callback returns with only renderer-online/ACK; not a Chrome156 causal reproduction |dispatch-quote-network-precondition-red1.mjs/.log |
+| External ordered-network sequence |10/10 actual cycles,6.766s wrapper,Chrome155; normal owned cleanup |browser-network-ordering-diagnostic1/ordering-probe-result.json; root-reviewed probe2 source SHA2cd449ead11e4ba55eebe2a5564fdc14722b16da8cd057e8612d64be456a1fa3 |
+| Final frontend6 |227/227,0fail/skip/cancel/todo;324stable hashes |dispatch-frontend6.*; freeze2 binds three final QA files |
+| Normal3 final QA source |167 checks,0application exceptions/console errors;823stable/Mongo0; all22/five0/CS included |dispatch-normal3.*; actual quote-offline-recovery.json persists networkReady success/IOclose/UTC before the unchanged one native retry |
+| Source reuse |API/renderer unchanged except known metadata; build/module4 differ only four unrelated QA files plus metadata where captured |integration-source-reuse-association5.json; native4 legacy normal-only branch excluded; no fresh rerun claimed |
+| NetLog external parser correction |Configuration8MiB unchanged;16MiB independent parse budget and reported actual overhead |verify-browser-runtime-netlog2.py; netlog-size-semantics-source1.json; pinned actual Chromium156 writer |
+
+The first frontend6 launch had an argument-parser usage error before source capture/tests; corrected scope/actual existing npm command then executed227 successfully. The first source-reuse4 draft omitted already-known manifest differences for two all-source captures and refused; source-reuse5 records those metadata differences explicitly without permitting a runtime change. These external acquisition/audit corrections are not failed product tests.
+
+Primary mechanism sources: [actual Chrome156 network handler](https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/content/browser/devtools/protocol/network_handler.cc), [actual NetLog writer](https://chromium.googlesource.com/chromium/src/+/d0c02bfad08ec92a6ffcf989e53cd995e6381a4c/net/log/file_net_log_observer.cc). One-way condition update/independent renderer state motivates the ordered factory precondition; it is not a retrospectively proven unique cause. The exact CI Chrome patch was not present in the fetched official CfT catalog; the local155 diagnostic is not an equivalent156 reproduction.
+
+## Final local normal3 artifact binding
+
+local-normal3-schema1.zip contains292 nonrecursive actual root JSON/PNG files,22,438,962 compressed/35,217,073 uncompressed bytes. SHA2563e378dd326d80cdecabbbb4fac0b352d965c6cc4ec5ecb704fa24a5dd7b8da73 passes adopted artifactverifier2 and NetLogverifier2 with the same127.0.0.1:4173 origin. local-normal3-independent-verdict1.json binds the actual22/five0/CS0 flags,167 raw checks,823 stable source hashes/Mongo0 and the new persisted probe200/IOclose/native-retry/freshquote200 order. NetLog is8,439,212 bytes under the independent16MiB parse budget; its requested8MiB configuration is unchanged. Lead read both actual verifier outputs. This is local-schema-only association to uncommitted QA bytes/precommit HEADad861, not remote or future-commit acceptance.
+
+Fresh after-quote-correction-preservation1.json confirms the same18 original checkout/index snapshots and five protected sources unchanged; integration-config-quote-correction1 and e01-quote-correction1 pass. One blank trailing-space line in the new report was caught by precommit audit and corrected before the accepted staged-source audit; no runtime/source assertion changed.
