@@ -205,3 +205,10 @@ jobs/.pycache_legacy/
 /checkpoints/company-stock-trace/**/*.png
 /checkpoints/company-stock-trace/**/*.pdf
 /checkpoints/company-stock-trace/**/*.db
+
+!/checkpoints/p2-f5a-dispatch-followup/**/*.md
+/checkpoints/p2-f5a-dispatch-followup/**/*.log
+/checkpoints/p2-f5a-dispatch-followup/**/*.png
+/checkpoints/p2-f5a-dispatch-followup/**/*.pdf
+/checkpoints/p2-f5a-dispatch-followup/**/*.db
+/checkpoints/p2-f5a-dispatch-followup/**/*.zip

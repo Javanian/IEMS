@@ -18,6 +18,7 @@ on:
       - 'checkpoints/review-five-findings/**'
       - 'checkpoints/company-stock-use/**'
       - 'checkpoints/company-stock-trace/**'
+      - 'checkpoints/p2-f5a-dispatch-followup/**'
       - '.github/workflows/portfolio-vat.yml'
   pull_request:
     paths:
@@ -36,6 +37,7 @@ on:
       - 'checkpoints/review-five-findings/**'
       - 'checkpoints/company-stock-use/**'
       - 'checkpoints/company-stock-trace/**'
+      - 'checkpoints/p2-f5a-dispatch-followup/**'
       - '.github/workflows/portfolio-vat.yml'
 
 permissions:
@@ -49,7 +51,7 @@ jobs:
   vat:
     name: VAT API, PDF and connected browser
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     env:
       MONGOMS_DISABLE_POSTINSTALL: '1'
       MONGOMS_VERSION: '7.0.14'
@@ -116,6 +118,10 @@ jobs:
         run: node --test --test-concurrency=1 checkpoints/company-stock-trace/qa/company-stock-trace.test.mjs
         env:
           IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-company-trace-evidence
+      - name: Test independent company stock history readiness
+        run: node --test --test-concurrency=1 checkpoints/p2-f5a-dispatch-followup/qa/company-stock-readiness.test.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-company-readiness-evidence
       - name: Test connected browser workflow
         run: npm --prefix apps/web run test:portfolio:browser
         env:

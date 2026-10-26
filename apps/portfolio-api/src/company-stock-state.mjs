@@ -1,3 +1,4 @@
+import { companyStockLimits } from './company-stock-capacity.mjs';
 import { stockHash as hash, stockHashless as hashless, stockSemantic as semantic, stockUnits as units, stockDecimal as decimal } from './catalog-stock-use-state.mjs';
 
 export const companyStockInvalid = () => { throw Object.assign(new Error('COMPANY_STOCK_SOURCE_INVALID'), { status: 409, code: 'COMPANY_STOCK_SOURCE_INVALID' }); };
@@ -13,14 +14,14 @@ export async function validateCompanyStockUse(db, filter, producer, session) {
   const receipt = producer.companyReceipt, opening = producer.companyUnits, options = { session }, match = { ...filter, companyReceiptId: receipt._id };
   const head = await db.collection('companyStockUseHeads').findOne({ ...filter, _id: receipt._id }, options);
   const load = (name, limit) => db.collection(name).find(match, options).limit(limit).toArray();
-  const reservations = await load('companyMaterialReservations', 101), events = await load('companyStockUseEvents', 502), histories = await load('companyMaterialReservationRevisions', 302), issues = await load('companyMaterialIssues', 101), consumptions = await load('companyMaterialConsumptions', 101), storedUnits = await load('companyStockUseUnits', 101);
+  const reservations = await load('companyMaterialReservations', companyStockLimits.reservations + 1), events = await load('companyStockUseEvents', companyStockLimits.events + 2), histories = await load('companyMaterialReservationRevisions', companyStockLimits.reservations * 3 + 2), issues = await load('companyMaterialIssues', companyStockLimits.reservations + 1), consumptions = await load('companyMaterialConsumptions', companyStockLimits.reservations + 1), storedUnits = await load('companyStockUseUnits', 101);
   if (!head) {
     if (reservations.length || events.length || histories.length || issues.length || consumptions.length || storedUnits.length || await db.collection('companyStockUseHeads').findOne(match, options)) companyStockInvalid();
     for (const name of ['internalExecutions', 'internalExecutionEvents', 'internalExecutionKeys', 'internalExecutionAudit', 'internalExecutionOutbox', 'internalAttributionRevisions', 'internalOutputUnits', 'internalCompanyStockReceipts', 'internalCompanyStockUnits']) if (await db.collection(name).findOne({ ...filter, companySourceReceiptIds: receipt._id }, options)) companyStockInvalid();
     for (const name of ['companyStockKeys', 'companyStockAudit', 'companyStockOutbox']) if (await db.collection(name).findOne(match, options)) companyStockInvalid();
     return { head: null, version: 1, hold: null, reservations: [], onHandQuantity: receipt.quantity, reservedQuantity: '0', issuedQuantity: '0', consumedQuantity: '0', availableQuantity: receipt.quantity, units: opening.map(unit => ({ ...unit, version: 1, openingStatus: unit.status })) };
   }
-  if (head.companyReceiptId !== receipt._id || head.openingHash !== receipt.contentHash || !positive(head.version) || head.version < 2 || events.length !== head.version - 1 || events.length > 500 || reservations.length > 100 || histories.length > 300 || storedUnits.length !== opening.length || !Array.isArray(head.refs) || head.refs.length !== reservations.length || new Set(head.refs.map(ref => ref.reservationId)).size !== reservations.length || !Array.isArray(head.unitHashes) || head.unitHashes.length !== opening.length) companyStockInvalid();
+  if (head.companyReceiptId !== receipt._id || head.openingHash !== receipt.contentHash || !positive(head.version) || head.version < 2 || events.length !== head.version - 1 || events.length > companyStockLimits.events || reservations.length > companyStockLimits.reservations || histories.length > companyStockLimits.reservations * 3 || storedUnits.length !== opening.length || !Array.isArray(head.refs) || head.refs.length !== reservations.length || new Set(head.refs.map(ref => ref.reservationId)).size !== reservations.length || !Array.isArray(head.unitHashes) || head.unitHashes.length !== opening.length) companyStockInvalid();
   const current = events.find(event => event._id === head.eventId);
   if (!current || current.version !== head.version || current.contentHash !== head.authorityHash || !same(current.snapshot, semantic(head)) || hash(semantic(head)) !== head.authorityHash) companyStockInvalid();
   const versions = events.map(event => event.version).sort((a, b) => a - b);
