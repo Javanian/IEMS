@@ -122,6 +122,18 @@ jobs:
         run: node --test --test-concurrency=1 checkpoints/p2-f5a-dispatch-followup/qa/company-stock-readiness.test.mjs
         env:
           IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-company-readiness-evidence
+      - name: Test isolated F5-A authorization proof
+        run: node --test --test-concurrency=1 --test-reporter=tap checkpoints/p2-f5a-dispatch-followup/f5a/owner.test.mjs checkpoints/p2-f5a-dispatch-followup/qa/f5a-authorization.test.mjs
+        env:
+          IEMS_QA_EVIDENCE: ${{ runner.temp }}/iems-f5a-proof
+      - name: Retain isolated F5-A proof
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: f5a-authorization-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/iems-f5a-proof/*.json
+          if-no-files-found: warn
+          retention-days: 7
       - name: Test connected browser workflow
         run: npm --prefix apps/web run test:portfolio:browser
         env:

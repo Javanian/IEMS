@@ -19,7 +19,12 @@ The external evidence root is D:/Project AI/GITHUB/IEMS-evidence/p2-f5a-dispatch
 | Frontend final refinement |196/196,0 fail/skip/cancel;5.703s;315 web hashes unchanged |p2-frontend-lead2.* |
 | Build final refinement |PASS;22.234s command elapsed,194 PWA entries;315 web hashes unchanged, mongod* cleanup0 |p2-build2.* |
 | Native final refinement |PASS8,0 application exceptions/console errors;423.515s,796 unchanged source hashes, mongod* cleanup0; fullAcceptance=false |p2-native2.*; lead inspected all3 actual exhausted PNGs after the narrow warning correction. One nonfatal Mongo teardown ECONNRESET block remains raw |
-| F5-A deterministic runtime |Pending; external authoring/syntax only |Owner and independent sources not yet installed into a checkpoint |
+| F5-A six locked installs |6 PASS, locks unchanged, real node_modules/no reparse junctions |f5-install1-summary.json and six actual install logs/results |
+| F5-A owner |11/11,0fail/skip/cancel;8.500s;229 unchanged hashes, mongod* cleanup0 |f5-owner1.*; passing expected counterexample rejects candidate75a4 |
+| F5-A independent1 |FAILED30 entries:27pass/3fail including parent,0skip/cancel;56.656s;229 unchanged hashes, cleanup0 |f5-independent1.*; two HTTP fixture barriers never reached |
+| F5-A causal probe1 |Pre-Mongo launcher failure,0pass/2fail; no API response |f5-command-causal1.*; retained, not product acceptance |
+| F5-A causal probe2 |PASS1/1,4.938s; fresh lowercase400/all-doc rollback then same-key uppercase201/six fences/one item-key-outbox |f5-command-causal2.* and its sanitized causal-results.json |
+| F5-A final independent2 |30/30,0fail/skip/cancel;16.438s;229 unchanged hashes, cleanup0. JSON29casePASS, candidate REJECTED |f5-independent2.*; two QA-only changes,227 other files identical. One raw nonfatal Mongo reset retained |
 | Dispatch semantic correction |External RED and corrected2/2; original WIP/index unchanged |dispatch-selector-staging/; full native acceptance remains pending |
 | Dispatch final maintained/focused/normal22 and publication |Pending |Requires integrated source and separate final gates |
 
