@@ -24,6 +24,7 @@ External root: D:/Project AI/GITHUB/IEMS-evidence/p2-f5a-dispatch-followup-20261
 | F5 candidate decision | F5A-VERDICT.md maps current authority controls, counterexample, remaining writer gaps and next correctness experiment; this is not a performance optimization |
 | F5 source association | f5-source-association2.json confirms only two QA changes,227 other captured files identical, candidate75a4 unchanged and zero production prototype registrations |
 | Preservation inventory addition | preservation-diagnostic-f5-1.json shows an unrelated new iems-n8n-automation worktree, no changed original roots/source. The old whole-inventory equality check failed only on that addition. verify-original-preservation.py compares the same original18 and protected sources, reporting new unowned roots separately without modifying them |
+| F5 staged/publication | f5-precommit-source1.json binds18 reviewed changed paths and staged tree to420 hashes/700 import edges, actual independent2 and unchanged production. Feature6cf5d73 is published in draft PR18; its description links the final exact-head remote attestation |
 
 Historical baseline: PR12 f4cf6fd accepted F1–F4 including original E01; PR13 9ad677a company-use; PR14 23d2023 read-only trace; PR15 692463a quote/catalog entitlement. Read the final attestations under review-five-findings-20261025, company-stock-use-20261025, next-development-20261025 and quote-catalog-20261025 respectively. The sparse company-stock-trace evidence directory is not the complete PR14 record.
 

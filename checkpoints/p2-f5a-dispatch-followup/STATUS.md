@@ -1,6 +1,6 @@
 # Follow-up status
 
-Current follow-up: F5-A local proof is complete and the isolated candidate is [REJECTED](F5A-VERDICT.md). Owner11 and independent30 pass; production apps/packages remain identical to P2 head69ff7c7. F5 remains BLOCKED. F5 checkpoint publication and purchased-dispatch integration follow; older P2 source-freeze notes below remain historical.
+Current follow-up: F5-A local proof is complete and the isolated candidate is [REJECTED](F5A-VERDICT.md), published in [draft PR18](https://github.com/Javanian/IEMS/pull/18). Owner11 and independent30 pass; production apps/packages remain identical to P2 head69ff7c7. F5 remains BLOCKED. Exact-head remote checks and purchased-dispatch integration follow; older P2 source-freeze notes below remain historical.
 
 Current P2 remote status and immutable final-head acceptance are recorded in [draft PR17](https://github.com/Javanian/IEMS/pull/17). The local/source-freeze notes below precede completion of remote CI and remain historical.
 
