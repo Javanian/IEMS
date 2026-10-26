@@ -1,0 +1,8 @@
+id,master_mapping,status,deliverable
+PURCHASED-FULFILLMENT-01,P020|P031,IN_PROGRESS,Shared production and customer receipt stock authority with exact conservation
+PURCHASED-FULFILLMENT-02,P015|P031,IN_PROGRESS,Explicit purchased SO line reservation release and partial dispatch
+PURCHASED-FULFILLMENT-03,P031|P032|P033,IN_PROGRESS,Validated purchased shipment adapters for existing POD and billing
+PURCHASED-FULFILLMENT-04,P040|P042,IN_PROGRESS,Native operator recovery and independent authority acceptance
+PURCHASED-FULFILLMENT-LATER-05,P031,PLANNED,Manufactured customer dispatch requires genealogy prerequisites
+PURCHASED-FULFILLMENT-LATER-06,P015,PLANNED,General amendments schedules UOM conversion and cross-plant fulfillment
+PURCHASED-FULFILLMENT-F5,P042,BLOCKED,Revocation-preserving authorization contention optimization remains separate

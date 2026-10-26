@@ -1,3 +1,4 @@
+import { validatePurchasedDocumentSource } from './purchased-financial.mjs';
 import { validateCatalogQuote } from './quote-catalog.mjs';
 import { randomUUID } from 'node:crypto';
 import { fixtureVat } from './fixture-tax.mjs';
@@ -34,6 +35,7 @@ export function installDocuments(app, runtime, { fail, guard, id }) {
   const snapshot = async (req, scope, key, session) => {
     const row = await c(kinds[key.kind][0]).findOneAndUpdate({ ...req.filter, _id: key.sourceId }, { $inc: { documentFence: 1 } }, { session, returnDocument: 'after' });
     if (!row) fail(404, 'NOT_FOUND');
+    await validatePurchasedDocumentSource(runtime.db, req.filter, key.kind, row, session);
     let source;
     if (key.kind === 'quote') {
       await validateCatalogQuote(runtime.db, req.filter, row, session);

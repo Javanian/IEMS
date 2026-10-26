@@ -1,0 +1,39 @@
+import { randomUUID, createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
+export const command = extra => ({ expectedVersion: 1, reason: 'Owner synthetic purchased stock fulfillment evidence', idempotencyKey: randomUUID(), ...extra });
+export async function allSnapshot(h) { const result = {}; for (const { name } of await h.db.listCollections({}, { nameOnly: true }).toArray()) result[name] = await h.db.collection(name).find({}).sort({ _id: 1 }).toArray(); return result; }
+export async function denied(h, path, body, code, status = 409) { const before = await allSnapshot(h), result = await h.req(path, body, h.alpha); assert.equal(result.status, status, JSON.stringify(result)); assert.equal(result.error.code, code); assert.deepEqual(await allSnapshot(h), before, `${path} failure mutated durable state`); }
+export function withAuth(before, h, count) {
+  const expected = { ...before }, person = h.seeded[0], tokenHash = createHash('sha256').update(h.alpha.slice('portfolio_session='.length)).digest('hex'), plant = before.plants.find(row => row._id === person.plantId);
+  const ids = { sessions: before.sessions.find(row => row.tokenHash === tokenHash)._id, memberships: person.membershipId, users: person.userId, tenants: person.tenantId, plants: person.plantId, legalEntities: plant.legalEntityId };
+  for (const [name, id] of Object.entries(ids)) { assert.equal(before[name].filter(row => row._id === id).length, 1); expected[name] = before[name].map(row => row._id === id ? { ...row, crmFence: (row.crmFence || 0) + count } : row); }
+  return expected;
+}
+
+export async function ownerPurchasedFixture(h) {
+  async function item(policy, kind = 'PURCHASED') { const draft = await h.ok('/inventory-master/items', command({ code: `OWNER-${randomUUID().slice(0, 8).toUpperCase()}`, description: 'Owner actual catalog source', uom: policy === 'LOT' ? 'KG' : 'UN', kind, schema: 'INVENTORY_ITEM_V2', trackingPolicy: policy }), 201); return h.ok(`/inventory-master/items/${draft._id}/approve`, command({ expectedVersion: draft.version, revision: 1 })); }
+  const lot = await item('LOT'), serial = await item('SERIAL'), manufactured = await item('SERIAL', 'MANUFACTURED');
+  const bin = await h.ok('/warehouse/bins', { expectedVersion: 1, code: `OWNER-${randomUUID().slice(0, 6)}`, idempotencyKey: randomUUID() }, 201), draftLocation = await h.ok('/inventory-master/locations', command({ code: `OWNER-${randomUUID().slice(0, 6).toUpperCase()}`, binId: bin._id }), 201), location = await h.ok(`/inventory-master/locations/${draftLocation._id}/qualify`, command({ expectedVersion: draftLocation.version }));
+  const vendor = await h.ok('/procurement/vendors', { name: 'Owner actual synthetic catalog supplier' }, 201);
+  let request = await h.ok('/catalog-procurement/requests', command({ vendorId: vendor._id, taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP', lines: [[lot, '5.5'], [serial, '4']].map(([source, quantity]) => ({ itemId: source._id, itemVersion: source.version, itemRevision: source.currentRevision, quantity, unitPrice: '1.00', currency: 'USD' })) }), 201);
+  request = await h.ok(`/catalog-procurement/requests/${request._id}/approve`, command({ expectedVersion: request.version, revision: 1 }));
+  const po = await h.ok(`/catalog-procurement/requests/${request._id}/convert`, command({ expectedVersion: request.version })), issued = await h.ok(`/catalog-procurement/orders/${po._id}/issue`, command({ expectedVersion: po.version }));
+  const originalSerials = Array.from({ length: 4 }, (_, i) => `OWNER-PURCHASED-${randomUUID().slice(0, 7)}-${i}`), receipts = [];
+  for (const [index, source, quantity] of [[0, lot, '5.5'], [1, serial, '4']]) {
+    const receipt = await h.ok('/catalog-procurement/receipts', command({ expectedVersion: issued.version, purchaseOrderId: issued._id, vendorId: vendor._id, lineId: issued.content.lines.find(line => line.itemId === source._id).lineId, quantity, ...(index ? { serials: originalSerials } : { lotNumber: 'OWNER-REAL-LOT', heatNumber: 'OWNER-REAL-HEAT' }) }), 201);
+    let view = await h.ok(`/catalog-disposition/receipts/${receipt._id}`);
+    view = await h.ok(`/catalog-disposition/receipts/${receipt._id}/inspections`, command({ expectedVersion: view.version, expectedReceiptVersion: view.receiptVersion, acceptedQuantity: index ? '3' : '5.5', rejectedQuantity: index ? '1' : '0', evidence: 'Actual owner incoming inspection', ...(index ? { acceptedSerials: originalSerials.slice(0, 3), rejectedSerials: originalSerials.slice(3) } : {}) }));
+    view = await h.ok(`/catalog-disposition/receipts/${receipt._id}/approve`, command({ expectedVersion: view.version, expectedReceiptVersion: view.receiptVersion, revision: view.currentRevision }));
+    await h.ok(`/catalog-disposition/receipts/${receipt._id}/putaway`, command({ expectedVersion: view.version, expectedReceiptVersion: view.receiptVersion, locationId: location._id, expectedLocationVersion: location.version }));
+    receipts.push(receipt);
+  }
+  const account = await h.ok('/crm/accounts', { name: 'Owner actual purchased customer' }, 201);
+  let quote = await h.ok('/commercial/quotes', { schema: 'CATALOG_QUOTE_V1', accountId: account._id, expiresAt: '2027-01-01T00:00:00.000Z', taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP', lines: [[lot, '5.5'], [serial, '3'], [manufactured, '1']].map(([source, quantity]) => ({ description: 'Customer wording independent of catalog labels', quantity, uom: source.content.uom, unitPrice: '2.00', currency: 'USD', catalogItem: { itemId: source._id, itemVersion: source.version, itemRevision: source.currentRevision } })), idempotencyKey: randomUUID() }, 201);
+  for (const action of ['approve', 'accept']) quote = await h.ok(`/commercial/quotes/${quote._id}/${action}`, { expectedVersion: quote.version, revision: 1, idempotencyKey: randomUUID() });
+  const so = await h.ok(`/commercial/quotes/${quote._id}/convert`, { expectedVersion: quote.version, revision: 1, idempotencyKey: randomUUID() });
+  const path = `/purchased-fulfillment/orders/${so._id}`, read = () => h.ok(path), stock = receipt => h.ok(`/catalog-stock/receipts/${receipt._id}`);
+  async function reserve(lineIndex, receipt, quantity, unitIds = []) { const current = await read(), source = await stock(receipt), body = command({ expectedVersion: current.version, expectedSalesOrderVersion: so.version, lineIndex, receiptId: receipt._id, expectedReceiptVersion: source.receiptVersion, expectedStockVersion: source.version, quantity, unitIds }); return { body, view: await h.ok(`${path}/reservations`, body) }; }
+  async function ship(reservationId, quantity, unitIds = []) { const current = await read(), row = current.reservations.find(row => row._id === reservationId), source = await h.ok(`/catalog-stock/receipts/${row.receiptId}`), body = command({ expectedVersion: current.version, expectedSalesOrderVersion: so.version, lineIndex: row.lineIndex, reference: 'Owner actual synthetic dispatch', sources: [{ reservationId, expectedReservationVersion: row.version, expectedReceiptVersion: source.receiptVersion, expectedStockVersion: source.version, quantity, unitIds }] }); return { body, shipment: await h.ok(`${path}/shipments`, body, 201) }; }
+  async function release(reservationId) { const current = await read(), row = current.reservations.find(row => row._id === reservationId), source = await h.ok(`/catalog-stock/receipts/${row.receiptId}`), body = command({ expectedVersion: current.version, expectedReservationVersion: row.version, expectedReceiptVersion: source.receiptVersion, expectedStockVersion: source.version }); return { body, view: await h.ok(`${path}/reservations/${reservationId}/release`, body) }; }
+  return { lot, serial, manufactured, location, account, so, path, read, stock, reserve, ship, release, lotReceipt: receipts[0], serialReceipt: receipts[1], originalSerials };
+}

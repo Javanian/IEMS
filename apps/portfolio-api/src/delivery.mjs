@@ -1,3 +1,6 @@
+import { validatePurchasedShipment, hasPurchasedShipmentEvidence } from './purchased-financial.mjs';
+import { shipmentSemantic } from './purchased-stock-proof.mjs';
+import { requireUnboundSalesOrder } from './quote-catalog.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { businessNow } from './business-clock.mjs';
@@ -33,8 +36,11 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
   async function source(req, session) {
     const shipment = await c('fulfillmentShipments').findOne({ ...req.filter, _id: id(req.params.id) }, { session });
     if (!shipment) fail(404, 'NOT_FOUND');
+    const purchased = await validatePurchasedShipment(db, req.filter, shipment._id, session);
+    if (purchased) return { shipment, serials: purchased.serials, sourceHash: hash(shipmentSemantic(shipment)) };
     if (shipment.status !== 'SHIPPED' || !positive(shipment.version) || !Array.isArray(shipment.sources) || !shipment.sources.length || shipment.stockMovementCount !== shipment.sources.length || new Set(shipment.sources.map(row => row.sourceId)).size !== shipment.sources.length) invalid();
     const order = await c('salesOrders').findOne({ ...req.filter, _id: shipment.salesOrderId }, { session }), line = order?.snapshot?.lines?.[shipment.lineIndex];
+    if (order) await requireUnboundSalesOrder(db, req.filter, order, session);
     if (!line || order.accountId !== shipment.accountId || line.uom !== shipment.uom || storedUnits(shipment.quantity) <= 0n) invalid();
     const movements = await c('warehouseMovements').find({ ...req.filter, shipmentId: shipment._id, kind: 'SHIP' }, { session }).limit(101).toArray();
     if (movements.length !== shipment.sources.length) invalid();
@@ -103,7 +109,20 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
       try {
         data = await session.withTransaction(async () => {
           await guard(runtime, req, session, 'fulfillment.deliver');
-          const prior = await c('deliveryKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session }); if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+          const prior = await c('deliveryKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session });
+          if (prior) {
+            if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+            const actualShipment = await c('fulfillmentShipments').findOne({ ...req.filter, _id: req.params.id }, { session });
+            const typed = await hasPurchasedShipmentEvidence(db, req.filter, req.params.id, session) || actualShipment && await c('quoteCatalogOrders').findOne({ ...req.filter, orderId: actualShipment.salesOrderId }, { session });
+            if (typed) {
+              const original = await source(req, session), current = await state(req, original, session);
+              const event = await c('deliveryEvents').findOne({ ...req.filter, shipmentId: req.params.id, version: prior.result?.version }, { session });
+              if (!event) invalid();
+              const historical = { head: { ...event.snapshot, authorityHash: event.contentHash, eventId: event._id }, confirmations: current.confirmations.slice(0, event.version - 1) };
+              if (hash(prior.result) !== hash(view(original, historical))) invalid();
+            }
+            return prior.result;
+          }
           const original = await source(req, session), current = await state(req, original, session), before = view(original, current);
           if (before.version !== body.expectedVersion || original.shipment.version !== body.expectedShipmentVersion) fail(409, 'VERSION_CONFLICT');
           if (!before.canConfirm) fail(409, 'DELIVERY_STATE_CONFLICT');

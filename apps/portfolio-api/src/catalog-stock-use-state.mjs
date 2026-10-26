@@ -1,34 +1,41 @@
-import { createHash } from 'node:crypto';
+import { stockHash, stockHashless, stockSemantic, stockUnits, stockDecimal, stockInvalid } from './catalog-stock-values.mjs';
+export { stockHash, stockHashless, stockSemantic, stockUnits, stockDecimal, stockInvalid } from './catalog-stock-values.mjs';
+import { validateCustomerStockClaim } from './purchased-stock-proof.mjs';
 
-const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' && !(value instanceof Date) ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
-export const stockHash = value => createHash('sha256').update(JSON.stringify(canonical(value)) ?? 'undefined').digest('hex');
-export const stockHashless = row => Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'contentHash'));
-export const stockSemantic = row => Object.fromEntries(Object.entries(row).filter(([key]) => !['eventId', 'authorityHash', 'useFence'].includes(key)));
-export const stockUnits = value => { if (typeof value !== 'string' || !/^(0|[1-9][0-9]{0,17})(\.[0-9]{1,6})?$/.test(value)) stockInvalid(); return BigInt(value.split('.')[0]) * 1000000n + BigInt((value.split('.')[1] || '').padEnd(6, '0')); };
-export const stockDecimal = value => { const text = value.toString().padStart(7, '0'); return `${text.slice(0, -6)}.${text.slice(-6)}`.replace(/0+$/, '').replace(/\.$/, ''); };
-export const stockInvalid = () => { throw Object.assign(new Error('CATALOG_STOCK_SOURCE_INVALID'), { status: 409, code: 'CATALOG_STOCK_SOURCE_INVALID' }); };
 const positive = value => Number.isSafeInteger(value) && value > 0;
 const scope = row => ({ tenantId: row.tenantId, plantId: row.plantId });
 
 export async function validateCatalogStockUse(db, receipt, origin, opening, session) {
   const filter = { ...scope(receipt), receiptId: receipt._id }, options = { session }, hash = stockHash;
-  const head = await db.collection('catalogUseHeads').findOne({ ...scope(receipt), _id: receipt._id }, options), reservations = await db.collection('catalogMaterialReservations').find(filter, options).limit(101).toArray(), events = await db.collection('catalogUseEvents').find(filter, options).limit(402).toArray(), histories = await db.collection('catalogMaterialReservationRevisions').find(filter, options).limit(302).toArray(), issues = await db.collection('catalogMaterialIssues').find(filter, options).limit(101).toArray(), consumptions = await db.collection('catalogMaterialConsumptions').find(filter, options).limit(101).toArray();
+  const head = await db.collection('catalogUseHeads').findOne({ ...scope(receipt), _id: receipt._id }, options), reservations = await db.collection('catalogMaterialReservations').find(filter, options).limit(101).toArray(), events = await db.collection('catalogUseEvents').find(filter, options).limit(402).toArray(), histories = await db.collection('catalogMaterialReservationRevisions').find(filter, options).limit(402).toArray(), issues = await db.collection('catalogMaterialIssues').find(filter, options).limit(101).toArray(), consumptions = await db.collection('catalogMaterialConsumptions').find(filter, options).limit(101).toArray();
   const stored = opening.head?.status === 'STORED', initial = stored ? stockUnits(opening.balance.acceptedQuantity) : 0n;
   if (!head) {
-    if (reservations.length || events.length || histories.length || issues.length || consumptions.length || await db.collection('catalogUseHeads').findOne(filter, options) || await db.collection('internalExecutions').findOne({ ...scope(receipt), sourceReceiptIds: receipt._id }, options)) stockInvalid();
-    for (const name of ['internalExecutionEvents', 'internalExecutionKeys', 'internalExecutionAudit', 'internalExecutionOutbox', 'internalAttributionRevisions', 'internalOutputUnits', 'internalCompanyStockReceipts', 'internalCompanyStockUnits']) if (await db.collection(name).findOne({ ...scope(receipt), sourceReceiptIds: receipt._id }, options)) stockInvalid();
+    if (await db.collection('catalogCustomerShipments').findOne(filter, options) || reservations.length || events.length || histories.length || issues.length || consumptions.length || await db.collection('catalogUseHeads').findOne(filter, options) || await db.collection('internalExecutions').findOne({ ...scope(receipt), sourceReceiptIds: receipt._id }, options)) stockInvalid();
+    for (const name of ['internalExecutionEvents', 'internalExecutionKeys', 'internalExecutionAudit', 'internalExecutionOutbox', 'internalAttributionRevisions', 'internalOutputUnits', 'internalCompanyStockReceipts', 'internalCompanyStockUnits', 'purchasedFulfillmentHeads', 'purchasedFulfillmentEvents', 'purchasedFulfillmentKeys', 'purchasedFulfillmentAudit', 'purchasedFulfillmentOutbox', 'purchasedShipmentProofs', 'purchasedInvoiceProofs', 'purchasedPaymentProofs', 'fulfillmentShipments', 'fulfillmentInvoices', 'fulfillmentPayments', 'fulfillmentKeys']) if (await db.collection(name).findOne({ ...scope(receipt), sourceReceiptIds: receipt._id }, options)) stockInvalid();
     return { head: null, version: 1, reservations: [], onHandQuantity: stockDecimal(initial), reservedQuantity: '0', issuedQuantity: '0', consumedQuantity: '0', availableQuantity: stockDecimal(initial), units: opening.units.map(unit => ({ ...unit, openingStatus: unit.status, status: unit.status })) };
   }
-  if (!stored || head.receiptId !== receipt._id || head.originHash !== origin.contentHash || head.openingBalanceHash !== opening.balance.contentHash || !positive(head.version) || head.version < 2 || reservations.length > 100 || events.length > 400 || histories.length > 300 || events.length !== head.version - 1 || !Array.isArray(head.refs) || head.refs.length !== reservations.length) stockInvalid();
+  if (!stored || head.receiptId !== receipt._id || head.originHash !== origin.contentHash || head.openingBalanceHash !== opening.balance.contentHash || !positive(head.version) || head.version < 2 || reservations.length > 100 || events.length > 400 || histories.length > 400 || events.length !== head.version - 1 || !Array.isArray(head.refs) || head.refs.length !== reservations.length) stockInvalid();
   const currentEvent = events.find(event => event._id === head.eventId), versions = events.map(event => event.version).sort((a, b) => a - b);
   if (!currentEvent || currentEvent.contentHash !== head.authorityHash || hash(currentEvent.snapshot) !== head.authorityHash || hash(stockSemantic(head)) !== head.authorityHash || versions.some((version, index) => version !== index + 2)) stockInvalid();
   for (const event of events) if (hash(event.snapshot) !== event.contentHash || event.snapshot.receiptId !== receipt._id || event.snapshot.version !== event.version || event.snapshot.originHash !== origin.contentHash || event.snapshot.openingBalanceHash !== opening.balance.contentHash) stockInvalid();
-  let reserved = 0n, issued = 0n, consumed = 0n;
+  let reserved = 0n, issued = 0n, consumed = 0n, shipped = 0n;
+  const customerMovements = await db.collection('catalogCustomerShipments').find(filter, options).limit(402).toArray(), seenCustomerMovements = new Set();
+  let hasCustomer = false;
   const occupied = new Map(), seenIssues = new Set(), seenConsumptions = new Set();
   if (new Set(head.refs.map(row => row.reservationId)).size !== head.refs.length || histories.length !== reservations.reduce((count, row) => count + row.version, 0)) stockInvalid();
   for (const row of reservations) {
     const pointer = head.refs.find(ref => ref.reservationId === row._id), revisions = histories.filter(history => history.reservationId === row._id).sort((a, b) => a.version - b.version), amount = stockUnits(row.quantity);
-    if (!pointer || !positive(row.version) || row.version > 3 || pointer.version !== row.version || pointer.contentHash !== row.contentHash || hash(stockHashless(row)) !== row.contentHash || row.originHash !== origin.contentHash || row.openingBalanceHash !== opening.balance.contentHash || row.itemId !== origin.source.itemId || row.itemRevision !== origin.source.itemRevision || row.uom !== receipt.uom || row.ownerLegalEntityId !== origin.source.ownerLegalEntityId || amount <= 0n || !['RESERVED', 'ISSUED', 'CONSUMED', 'RELEASED'].includes(row.status) || !Array.isArray(row.serials) || revisions.length !== row.version) stockInvalid();
+    if (!pointer || !positive(row.version) || pointer.version !== row.version || pointer.contentHash !== row.contentHash || hash(stockHashless(row)) !== row.contentHash || row.originHash !== origin.contentHash || row.openingBalanceHash !== opening.balance.contentHash || row.itemId !== origin.source.itemId || row.itemRevision !== origin.source.itemRevision || row.uom !== receipt.uom || row.ownerLegalEntityId !== origin.source.ownerLegalEntityId || amount <= 0n || !Array.isArray(row.serials) || revisions.length !== row.version) stockInvalid();
+    const customer = Object.hasOwn(row, 'schema') || Object.hasOwn(row, 'demandKind') || revisions.some(history => history.snapshot?.schema === 'CATALOG_CUSTOMER_RESERVATION_V1');
+    if (customer) {
+      hasCustomer = true;
+      const claim = await validateCustomerStockClaim(db, receipt, origin, opening, row, revisions, session);
+      reserved += claim.reserved; shipped += claim.shipped;
+      for (const unit of claim.occupied) { if (occupied.has(unit.serial)) stockInvalid(); occupied.set(unit.serial, unit); }
+      for (const movementId of claim.movementIds) seenCustomerMovements.add(movementId);
+      continue;
+    }
+    if (row.version > 3 || !['RESERVED', 'ISSUED', 'CONSUMED', 'RELEASED'].includes(row.status)) stockInvalid();
     let previous = null;
     for (let index = 0; index < revisions.length; index++) {
       const history = revisions[index], snapshot = history.snapshot;
@@ -54,6 +61,6 @@ export async function validateCatalogStockUse(db, receipt, origin, opening, sess
       if (!consumption || seenConsumptions.has(consumption._id) || hash(stockHashless(consumption)) !== consumption.contentHash || consumption.contentHash !== row.consumptionHash || consumption.reservationId !== row._id || consumption.executionId !== row.executionId || consumption.quantity !== row.quantity || hash(consumption.serials) !== hash(row.serials) || consumption.issueId !== row.issueId || consumption.originHash !== origin.contentHash) stockInvalid(); seenConsumptions.add(consumption._id);
     } else if (row.consumptionId !== null || row.consumptionHash !== null) stockInvalid();
   }
-  if (issues.length !== seenIssues.size || consumptions.length !== seenConsumptions.size || reserved + issued + consumed > initial || head.reservedQuantity !== stockDecimal(reserved) || head.issuedQuantity !== stockDecimal(issued) || head.consumedQuantity !== stockDecimal(consumed)) stockInvalid();
-  return { head, version: head.version, reservations, onHandQuantity: stockDecimal(initial - consumed), reservedQuantity: stockDecimal(reserved), issuedQuantity: stockDecimal(issued), consumedQuantity: stockDecimal(consumed), availableQuantity: stockDecimal(initial - reserved - issued - consumed), units: opening.units.map(unit => { const claim = occupied.get(unit.serial); return { ...unit, openingStatus: unit.status, status: claim ? claim.status : unit.status, ...(claim ? { reservationId: claim._id, executionId: claim.executionId } : {}) }; }) };
+  if (customerMovements.length !== seenCustomerMovements.size || customerMovements.some(row => !seenCustomerMovements.has(row._id)) || issues.length !== seenIssues.size || consumptions.length !== seenConsumptions.size || reserved + issued + consumed + shipped > initial || (hasCustomer ? head.shippedQuantity !== stockDecimal(shipped) : Object.hasOwn(head, 'shippedQuantity')) || head.reservedQuantity !== stockDecimal(reserved) || head.issuedQuantity !== stockDecimal(issued) || head.consumedQuantity !== stockDecimal(consumed)) stockInvalid();
+  return { head, version: head.version, reservations, onHandQuantity: stockDecimal(initial - consumed - shipped), reservedQuantity: stockDecimal(reserved), issuedQuantity: stockDecimal(issued), consumedQuantity: stockDecimal(consumed), ...(hasCustomer ? { shippedQuantity: stockDecimal(shipped) } : {}), availableQuantity: stockDecimal(initial - reserved - issued - consumed - shipped), units: opening.units.map(unit => { const claim = occupied.get(unit.serial); return { ...unit, openingStatus: unit.status, status: claim ? claim.status : unit.status, ...(claim ? claim.demandKind ? { reservationId: claim.reservationId, salesOrderId: claim.salesOrderId, demandKind: claim.demandKind } : { reservationId: claim._id, executionId: claim.executionId } : {}) }; }) };
 }

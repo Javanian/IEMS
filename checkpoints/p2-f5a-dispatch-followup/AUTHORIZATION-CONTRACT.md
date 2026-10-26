@@ -1,0 +1,62 @@
+# F5-A isolated permit experiment: candidate contract
+
+Status: isolated candidate REJECTED; NOT ADOPTED. The lead-run owner gate passes11/11 and the final independent gate passes30/30, including the expected stale-authorization counterexample. The initial source inventory was23d2023; authorization source remains the same at P2 checkpoint69ff7c7. Both production fence protocols are unchanged. F5 overall remains BLOCKED. Test success here means the assertions and rejection classification were observed, not that the candidate is safe.
+
+## Reference contract
+
+The real foundation authorizeInTransaction checks live session, selected scope, requested scope and action inside the business transaction, then writes six actual authority rows: session, membership, user, tenant, requested plant and requested legal entity. The real portfolio guard writes its six selected-scope authority rows. Each existing action guard retains its current writes. Successful replay reauthorizes; rejected commands roll back business, key, audit and outbox effects. Direct owned database role/scope/active-state faults without membership-version increments remain part of the current test contract.
+
+Foundation verification reads the session-selected plant/entity before it checks the requested target, but its six writes cover the requested target pair. The same-plant control isolates the membership counterexample. The independent actual foundation cross-target case observes COMMITTED after selectedP1-only deactivation while requestedP2 remains the target of the six writes. This is a narrower existing baseline, not a portfolio HTTP bypass or an added dual-target guarantee. This candidate supports selected target only.
+
+Portfolio HTTP middleware authenticates before route entry. A missing/revoked/expired session, inactive membership/user/tenant/selected plant/entity, or removed membership plant/legal-entity scope can fail foundation.authenticate there and is mapped to 401. A role/action/grant-scope removal with still-valid authenticated scope returns 403. Withdrawal detected inside an already-authenticated transaction guard returns 403 for state/scope failures; an unavailable current session returns 401. Foundation ScopeDenied itself is 403. Tests must distinguish these phases rather than normalize every state withdrawal to one status. The candidate currently uses foundation-style 403 for these session failures. It is therefore NOT a compatible portfolio HTTP replacement. Reference 401 assertions must remain strict. This mismatch is an additional candidate rejection reason, not permission to weaken an oracle.
+
+## Candidate interface and isolation
+
+permit-prototype.mjs exports prototypeCollections, prototypeHash and createPermitPrototype({db, foundation, roleActions, now, maxPermitsPerTenant, hooks}). It imports only Node crypto. It has no application import, middleware installation or production registration.
+
+The caller owns a real Mongo transaction for issuePermit, renewPermit, authorizeInTransaction, command, withdrawMembership and inspectPermit. authenticate delegates to the real foundation and privately binds the actual session ID to the returned scope. No actor/session/tenant identity supplied in a command body can replace that binding.
+
+- issuePermit(scope,{plantId,actions,ttlMs,commandKey},{session}) checks real live sources, writes six actual f5aPermitRegistrationFence fields in the owned experiment database, enforces the tenant retained budget, and writes immutable origin, permit, event and issuance key.
+- renewPermit(scope,{permitId,ttlMs,commandKey},{session}) requires an active, unexpired permit and a strictly extended expiry bounded by the actual session expiry. Registration again writes the six authority sources. Expired or withdrawn authority cannot be renewed.
+- authorizeInTransaction(scope,{plantId,action},{session}) reads live real sources, validates immutable permit history and source/policy bindings, then writes only its permit and use event. This omission of the shared authority write is intentional experimental behavior to test, not a safe optimization claim.
+- command(scope,{plantId,action,commandKey,payload},{session}) authorizes before key replay and writes one isolated effect/key/audit/outbox atomically. Replay returns the same effect after another permit use event; it does not repeat the business effect.
+- withdrawMembership({tenantId,membershipId},{session}) is a trusted prototype-only control: it changes the actual membership and revokes its related permits atomically. It has no HTTP authorization contract. It is NOT adoption of the existing official membership/session writers and does not certify tenant, user, plant or legal-entity invalidators.
+- inspectPermit is a trusted test reader inside an owned transaction, not a user route.
+
+Collections are f5aPrototypePermits, f5aPrototypePermitOrigins, f5aPrototypePermitEvents, f5aPrototypeIssueKeys, f5aPrototypeEffects, f5aPrototypeCommandKeys, f5aPrototypeAudit and f5aPrototypeOutbox. Existing business collections are not used for candidate effects.
+
+## Budgets and ownership
+
+The budget is ALL retained permits for the ENTIRE TENANT, including inactive and expired rows: default 8, configurable integer 1 through 32. It is not a per-principal or active-only limit and has no garbage collection policy. Registration writes the tenant row to serialize admission. One retained permit is allowed per actual session and selected plant, and a revoked retained permit does not permit replacement issuance for that same pair.
+
+Each permit has at most 128 immutable events. Routine use/renewal stops before event 128, reserving the last event for the narrow atomic revocation control. There is no accepted production rotation, retention or recovery policy. An action list has 1 through 32 unique actions, a command key 8 through 100 ASCII identifier characters, payload at most 4096 UTF-8 bytes, and TTL 1 through 3600000 milliseconds bounded by session expiry. The constructor clock is an owned experimental seam; production session clocks are unchanged.
+
+Policy identity hashes a constructor snapshot of roleActions and rejects later supplied-map drift. It does not invent a persisted production policy version. The production foundation copies startup policy while portfolio guard reads its exported policy map; the writer inventory identifies this ownership difference explicitly.
+
+## Deterministic ordering and verdict
+
+The hooks afterAuthorityRead({phase,session}) and afterPermitWrite({phase,session}) are constructor-owned test barriers only. phase is issue, renew or authorize; the second hook runs for authorize. They are not HTTP fields or application hooks.
+
+The decisive counterexample was observed. T1 reads live same-plant authority and pauses after verification. T2 commits actual membership roles=[] without changing the membership version or permit. T1 resumes, changes its private permit and COMMITTED one isolated effect/key/audit/outbox. The following replay denies403, which does not erase that unauthorized ordering. The candidate is REJECTED.
+
+The matching actual foundation control observes membership write conflict112, callback attempts2 and final403 on fresh verification. The actual portfolio HTTP control first proves a valid201 command, then pauses the tested actor after its acknowledged session fence. Role withdrawal commits before the membership write; that write conflicts112, the callback acknowledges its session write twice across attempts and final403 leaves no forbidden business/key/outbox effect. Actual production mutation-first controls also establish actor commit before revoker commit, followed by denied use/replay. The owner additionally exposes the stale-snapshot foundation112 directly in a manual transaction; callback retries are not conflated with that manual result.
+
+Actual official session revoke, version invalidation, direct role/scope/active faults, narrow prototype revocation, fresh and acknowledged replay, policy drift, expiry, corruption, retries and outbox rollback are separate cases. Source writer coverage and the error-contract mismatch remain explicit even if the narrow atomic membership control succeeds.
+
+Append first inserts or CAS-replaces the real permit head, then inserts its unique versioned event inside the SAME caller-owned transaction. Failure of either write rolls back both. This ordering makes same-head mutation/revocation contenders meet the real permit CAS before the unique event key; it avoids relying on duplicate-key errors as an authorization retry protocol. The earlier event-first external precursor is retained and excluded from transfer. The head-first ordering was exercised by the final runtime gates. The independent mutation-first barrier observes the real revoker permit replacement command (active=false), releases the actor, and still requires successful withdrawal after the actor commit. Waiting for event insertion would target the wrong, later contention point. The correction does not change the direct-role stale-authorization counterexample.
+
+Runtime verdict: REJECTED. Owner11/11 and independent30/30 exit0; the final independent JSON contains29 PASS child cases, verdict REJECTED and portfolioSessionErrorMismatch=true. Both gates preserve229 monitored runtime-source hashes and clean up to zero owned mongod processes. The first independent attempt is retained with27 pass/3 fail including the parent: its generated lowercase master code failed validation before the guards. The corrected QA-only fixture produces the final result without altering production/candidate source. One nonfatal teardown ECONNRESET remains in the successful raw independent log.
+
+Evidence names are f5-owner1.log/json/summary.json, f5-independent2.log/json/summary.json and f5-independent2-fixtures/independent-f5a-results.json under the lead evidence root, associated through EVIDENCE-INDEX.md. Candidate SHA256 is75a42712d2d385c9d7c046fabb217528500b21214c0fa84ba18e81afb3106553; owner SHA256 is5caab8ae091e7d0bcc6fd5170017cccd4853aac5c1af6b7a6dcdb0670b3452f9. The lead ran owner11 and C ran independent30; this backend lane reviewed their evidence and started no runtime.
+
+A successful trusted prototype withdrawal control covers ONLY that control. It does not rewire official session/membership invalidators or the direct-state writer contract. The runtime401 versus candidate403 mismatch is an additional observed incompatibility. No benchmark, throughput, latency, scalability, production safety, cross-target strengthening or adoption claim follows from these tests.
+
+## Isolated layout and test invocation
+
+The reviewed candidate resides in the dedicated checkpoint as f5a/permit-prototype.mjs and f5a/owner.test.mjs; this contract, AUTHORITY-WRITER-MATRIX.md and ADR-0001-PERMIT-EXPERIMENT.md sit at the checkpoint root. The owner test resolves the actual project root using new URL('../../../', import.meta.url) in this layout. External staging may set IEMS_F5_SOURCE_ROOT explicitly. No absolute local checkout path belongs in the committed test. The independent test uses qa/f5a-authorization.test.mjs and imports ../f5a/permit-prototype.mjs; its external override is independent.
+
+The executed owner test has ten children plus the parent: actual six-source issuance versus private routine writes; stale role-withdrawal counterexample; actual foundation stale-snapshot conflict; official session-revoke/error-contract difference; narrow atomic-withdrawal real conflict and callback retry; real outbox validation rollback and clean retry; permit/policy corruption; actual renewal and owned-clock expiry; retained inactive tenant budget; private scope and foreign-target denial. These do not constitute a complete production writer matrix or adoption proof. The older external permit-prototype.test.mjs is an authoring precursor and is not a transfer target.
+
+## Successor boundary
+
+Preserve the six actual authority writes. A next investigation may test shortening their critical section by prevalidating expensive immutable evidence, then rebinding and checking exact source versions/hashes with final in-transaction CAS. It must prove TOCTOU rejection/revalidation, current action and replay authorization, source withdrawal, full rollback and separate domain overlap before matched current-parent measurements. This is not an accepted optimization or an invented safe permit protocol. F5 remains BLOCKED until separately accepted adoption and performance evidence.
