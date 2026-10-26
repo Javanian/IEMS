@@ -10,8 +10,9 @@ import { installFulfillment, initializeFulfillment, fulfillmentRoles, fulfillmen
 import { installCustomerService, initializeCustomerService, customerServiceRoles, customerServiceOwnerActions } from './customer-service.mjs';
 import { installRepair, initializeRepair, repairRoles, repairActions } from './repair.mjs';
 import { installDocuments, initializeDocuments, documentRoles, documentActions } from './documents.mjs';
-Object.assign(roleActions, documentRoles, repairRoles, procurementRoles, warehouseRoles, manufacturingRoles, fulfillmentRoles, customerServiceRoles);
-roleActions.owner.push(...documentActions, ...repairActions, ...procurementActions, ...warehouseActions, ...manufacturingActions, ...fulfillmentActions, ...customerServiceOwnerActions);
+import { installAutomation, initializeAutomation, automationRoles, automationActions } from './automation.mjs';
+Object.assign(roleActions, documentRoles, repairRoles, procurementRoles, warehouseRoles, manufacturingRoles, fulfillmentRoles, customerServiceRoles, automationRoles);
+roleActions.owner.push(...documentActions, ...repairActions, ...procurementActions, ...warehouseActions, ...manufacturingActions, ...fulfillmentActions, ...customerServiceOwnerActions, ...automationActions);
 const scrypt = promisify(scryptCallback);
 const actions = ['crm.read', 'crm.write'];
 export const fail = (status, code, message = code) => { throw Object.assign(new Error(message), { status, code }); };
@@ -26,6 +27,7 @@ export async function initialize({ client, db, customerService = {} }) {
   await initializeManufacturing(db);
   await initializeRepair(db);
   await initializeFulfillment(db);
+  await initializeAutomation(db);
   await db.collection('credentials').createIndex({ username: 1 }, { unique: true });
   const runtime = { client, db, foundation };
   runtime.documents = await initializeDocuments(runtime);
@@ -117,6 +119,7 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   installRepair(app, runtime, { fail, guard, id, fields });
   installFulfillment(app, runtime, { fail, guard, id, fields });
   installCustomerService(app, runtime, { fail, id, fields });
+  installAutomation(app, runtime, { fail, id, fields });
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } }));
   app.use((error, req, res, next) => {
     const status = error.status || (error.code === 'SCOPE_DENIED' ? 403 : 500);

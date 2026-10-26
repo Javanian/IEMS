@@ -1,0 +1,189 @@
+{
+  "name": "Ticket SLA Monitor & Re-check Escalation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "node-schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:4313/api/cs/automation/sla-breaches?thresholdMinutes=15",
+        "options": {}
+      },
+      "id": "node-fetch-breaches",
+      "name": "Fetch SLA Breaches",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data.items",
+        "options": {}
+      },
+      "id": "node-split-tickets",
+      "name": "Split Tickets",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:4313/api/cs/automation/recheck",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ticketId\": \"{{ $json.ticketId }}\",\n  \"expectedVersion\": {{ $json.expectedVersion }},\n  \"action\": \"ESCALATE\"\n}",
+        "options": {}
+      },
+      "id": "node-anti-stale-recheck",
+      "name": "Anti-Stale Re-check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.data.eligible }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-if-eligible",
+      "name": "Is Still Eligible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "sla-monitor@iems.local",
+        "toEmail": "cs-leads@iems.local",
+        "subject": "=[SLA Breached] Ticket #{{ $json.data.ticketId.slice(0, 8) }} Escalation Alert",
+        "text": "=Ticket {{ $json.data.ticketId }} has breached SLA target and will be escalated.",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "port": 1025
+        }
+      },
+      "id": "node-send-email-sink",
+      "name": "Notify Local SMTP Sink",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1220, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:4313/api/cs/automation/escalate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "=n8n-esc-{{ $json.data.ticketId }}-{{ $json.data.currentVersion }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ticketId\": \"{{ $json.data.ticketId }}\",\n  \"expectedVersion\": {{ $json.data.currentVersion }},\n  \"reason\": \"Automated SLA Breach Escalation via n8n\"\n}",
+        "options": {}
+      },
+      "id": "node-execute-escalate",
+      "name": "Execute Escalation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 200]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch SLA Breaches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch SLA Breaches": {
+      "main": [
+        [
+          {
+            "node": "Split Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Tickets": {
+      "main": [
+        [
+          {
+            "node": "Anti-Stale Re-check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anti-Stale Re-check": {
+      "main": [
+        [
+          {
+            "node": "Is Still Eligible?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Still Eligible?": {
+      "main": [
+        [
+          {
+            "node": "Notify Local SMTP Sink",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Notify Local SMTP Sink": {
+      "main": [
+        [
+          {
+            "node": "Execute Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

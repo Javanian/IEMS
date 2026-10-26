@@ -16,6 +16,7 @@ export function ServiceTabs({ current }) {
     <Link aria-current={current === 'tickets' ? 'page' : undefined} to="/portfolio/service/tickets">Tickets</Link>
     <Link aria-current={current === 'conversations' ? 'page' : undefined} to="/portfolio/service/conversations">Conversations</Link>
     <Link aria-current={current === 'bindings' ? 'page' : undefined} to="/portfolio/service/bindings">Bindings</Link>
+    <Link aria-current={current === 'automation' ? 'page' : undefined} to="/portfolio/service/automation">Automation Center</Link>
   </nav>;
 }
 

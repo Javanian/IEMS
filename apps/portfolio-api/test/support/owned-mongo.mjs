@@ -37,7 +37,7 @@ export async function startOwned(t, initOptions = {}) {
     const r = await fetch(`${base()}${path}`, { method: body === undefined ? 'GET' : 'POST', headers: { origin: ORIGIN, 'content-type': 'application/json', ...(cookie ? { cookie } : {}), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
     return { status: r.status, ...await r.json() };
   }
-  return { db, client, runtime, seeded, req, ok, alpha, beta, setRoles, scopeOf, login, send, raw: (path, cookie = alpha) => fetch(`${base()}${path}`, { headers: { origin: ORIGIN, cookie } }) };
+  return { db, client, runtime, seeded, req, ok, alpha, beta, setRoles, scopeOf, login, send, port: server.address().port, base: `http://127.0.0.1:${server.address().port}`, raw: (path, cookie = alpha) => fetch(`${base()}${path}`, { headers: { origin: ORIGIN, cookie } }) };
 }
 
 // Real CRM order -> stored PO receipt -> putaway -> reservation; manufacturing is left to the caller.
