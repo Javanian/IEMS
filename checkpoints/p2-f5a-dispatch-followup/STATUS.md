@@ -1,3 +1,9 @@
+# Published checkpoint and final review
+
+Feature db3ab8c76e273f9c6fd3d36f4fea40f871085436 is normally pushed in [draft PR20, with permanent final-head attestation](https://github.com/Javanian/IEMS/pull/20), stacked on PR15. Local acceptance below is complete. Exact-final-head remote checks remain pending at this documentation freeze; their immutable final result belongs at that PR link. Historical source-freeze pending notes are retained below. F5 remains BLOCKED and its isolated candidate REJECTED.
+
+## Local acceptance and earlier chronology
+
 ## Latest accepted local checkpoint, 26 October 2026
 
 Final local integration acceptance is complete. Lead executed maintained API313/313 (47 files, including owner43 and P2owner7), renderer18/18, frontend223/223, production build3, focused native4 (8 checks) and normal all22 attempt2 (167 checks). Normal2 uses all22 normal flags, all five diagnostic modes0 and explicit customer-service inclusion; it records zero application exceptions/console errors,823 unchanged runtime hashes and Mongo cleanup0. Independent purchased15 and isolated F5-A41 are associated with the same API source except unimported publication metadata.

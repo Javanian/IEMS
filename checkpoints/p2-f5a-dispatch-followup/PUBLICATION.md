@@ -1,3 +1,13 @@
+# Purchased dispatch publication and final attestation
+
+Published feature commit: db3ab8c76e273f9c6fd3d36f4fea40f871085436. The [draft PR20 and permanent final-head attestation](https://github.com/Javanian/IEMS/pull/20) targets PR15 (`feat/quote-catalog-entitlement`,692463a7c0f392717382099a02160511d71e60f0). Its normal local merge preserves PR15 first parent and accepted F5-A99c8c789/P2 ancestry as second parent. The staged tree740d40f9e3b12f1fd3ac2a349156c6f81aae3d1b exactly matches dispatch-feature-precommit-association3.json;87 reviewed paths,472 source hashes/784 relative imports, no audit errors. Feature commit is clean and normally pushed.
+
+Local acceptance is complete: actual API313, renderer18, frontend223, normal all22/167 and focused8; source-associated production build and separate module4. Independent strict normal ZIP and Default NetLog/runtime checks use the same actual digest/origin. All18 original checkouts/indexes and five protected sources remain unchanged; original purchased WIP is separate. Failed attempts and proof limits remain in TEST-RESULTS.md.
+
+At this source freeze, exact-final-head remote acceptance is PENDING. The permanent PR20 link above must pin the actual final published SHA, complete checks, both decoded Portfolio job logs and verified normal/F5 artifacts only after those gates finish. No parent result certifies this descendant. This documentation-link commit changes publication metadata only; runtime source remains bound to normal2. Historical pending notes below remain unchanged. No remote merge or deployment.
+
+## Earlier local/source-freeze records, retained
+
 # Current integration publication checkpoint
 
 Local final acceptance is complete: normal2 all22/167, API313, frontend223, renderer18 and source-associated build/focused/module proof. The local normal ZIP and runtime NetLog pass independent strict verification. The integration remains uncommitted at this documentation freeze pending final staged review. Commit, push, permanent draft-review link and exact-final-head remote CI are the remaining publication gates. Parent results are not descendant acceptance.
