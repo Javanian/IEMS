@@ -45,7 +45,7 @@ function RawSources({ sources }) {
 }
 function TraceEvidence({ data }) {
   return <div data-trace-unit-id={data.companyUnitId} data-trace-complete="true" data-trace-stock-version={data.current.stockVersion}>
-    <h3>Trace for serial {data.serial}</h3>
+    <h3 style={{ overflowWrap: 'anywhere' }}>Trace for serial {data.serial}</h3>
     <p>{data.itemSnapshot.code} · {data.itemSnapshot.content.description} · Location {data.locationSnapshot.code}</p>
     <p>Current unit state: {operatorStatus(data.current.status)} · {data.current.eligible ? 'Currently eligible for its permitted use' : 'Currently restricted or already committed'}</p>
     {data.current.blockers.map(code => <p key={code} role="status">{companyStockRestriction(code) || operatorBlocker(code)}</p>)}

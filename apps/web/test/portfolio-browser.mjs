@@ -11,6 +11,7 @@ import { connectOwned } from '../../portfolio-api/src/config.mjs';
 import { bindBusinessClock } from '../../portfolio-api/src/business-clock.mjs';
 import { runE01Flow } from '../../portfolio-api/test/support/review-e01-flow.mjs';
 import { navigationContextChanged,waitForTechnicalDetails,documentNavigationCall } from './browser-readiness.mjs';
+import { runTraceHeadingBrowserRegression } from './portfolio-company-trace-heading-browser.mjs';
 import { reviewRunPlan } from './portfolio-review-mode.mjs';
 import { reviewOperatorJourney } from './portfolio-review-operator-browser.mjs';
 import { reviewInternalExecutionJourney } from './portfolio-review-internal-execution-browser.mjs';
@@ -151,6 +152,7 @@ async function runTextProbe({db,headers}) {
   }finally{if(priorClock===undefined)delete runtime.businessClock;else runtime.businessClock=priorClock;if(priorMode===undefined)delete runtime.businessClockMode;else runtime.businessClockMode=priorMode;}
 }
 try {
+  await runTraceHeadingBrowserRegression({ evidenceDirectory: evidence, browserBinary: process.env.PORTFOLIO_CHROME_BINARY });
   mongo = await MongoMemoryReplSet.create({ binary: { version: '7.0.14', systemBinary: process.env.MONGOMS_SYSTEM_BINARY }, instanceOpts: [{ launchTimeout: 60000, args: ["--wiredTigerCacheSizeGB","0.25","--oplogSize","128"] }], replSet: { count: 1, storageEngine: 'wiredTiger' } });
   const env = { ...process.env, PORTFOLIO_MONGO_URI: mongo.getUri(), PORTFOLIO_DB: database, PORTFOLIO_SEED_PASSWORD: password };
   runtime = await connectOwned(env);
