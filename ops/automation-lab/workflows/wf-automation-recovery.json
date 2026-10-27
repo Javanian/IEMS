@@ -1,0 +1,148 @@
+{
+  "id": "wf-automation-recovery",
+  "name": "IEMS - Durable delivery reconciliation",
+  "active": false,
+  "nodes": [
+    {
+      "id": "operator-trigger",
+      "name": "Operator trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        160,
+        100
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "iems-automation-recovery",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "iems-automation-recovery",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-webhook-auth",
+          "name": "IEMS private webhook"
+        }
+      }
+    },
+    {
+      "id": "recovery-schedule",
+      "name": "Recovery schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        380
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "reconcile-durable-tasks",
+      "name": "Reconcile durable tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        240
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:4319/api/cs/automation/reconcile",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-IEMS-Execution-Id",
+              "value": "={{ $execution.id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-service-api",
+          "name": "IEMS scoped automation service"
+        }
+      }
+    },
+    {
+      "id": "execution-reference",
+      "name": "Execution reference",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        740,
+        240
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ { n8nExecutionId: $execution.id, result: $json.data || $json } }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Operator trigger": {
+      "main": [
+        [
+          {
+            "node": "Reconcile durable tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recovery schedule": {
+      "main": [
+        [
+          {
+            "node": "Reconcile durable tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconcile durable tasks": {
+      "main": [
+        [
+          {
+            "node": "Execution reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Bangkok",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "wf-automation-error"
+  },
+  "pinData": {},
+  "tags": [],
+  "versionId": "ef42c2cb-d9a2-4cd6-a488-24b986d0a5ff"
+}

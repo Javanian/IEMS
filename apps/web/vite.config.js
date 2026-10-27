@@ -2,6 +2,9 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
+import tailwindcss from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
+import tailwindConfig from './tailwind.config.js';
 
 export default defineConfig(({ mode }) => {
   const repoRoot = path.resolve(__dirname, '../..');
@@ -11,6 +14,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     envDir: repoRoot,
+    css: {
+      postcss: {
+        plugins: [tailwindcss({ ...tailwindConfig, content: tailwindConfig.content.map((source) => path.resolve(__dirname, source)) }), autoprefixer()],
+      },
+    },
     plugins: [
       react(),
       VitePWA({
@@ -75,7 +83,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/portfolio-api': {
-          target: 'http://127.0.0.1:4313',
+          target: env.VITE_PORTFOLIO_PROXY_TARGET || 'http://127.0.0.1:4313',
           changeOrigin: false,
           rewrite: (url) => url.replace(/^\/portfolio-api/, ''),
         },

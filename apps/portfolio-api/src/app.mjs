@@ -10,14 +10,15 @@ import { installFulfillment, initializeFulfillment, fulfillmentRoles, fulfillmen
 import { installCustomerService, initializeCustomerService, customerServiceRoles, customerServiceOwnerActions } from './customer-service.mjs';
 import { installRepair, initializeRepair, repairRoles, repairActions } from './repair.mjs';
 import { installDocuments, initializeDocuments, documentRoles, documentActions } from './documents.mjs';
-Object.assign(roleActions, documentRoles, repairRoles, procurementRoles, warehouseRoles, manufacturingRoles, fulfillmentRoles, customerServiceRoles);
-roleActions.owner.push(...documentActions, ...repairActions, ...procurementActions, ...warehouseActions, ...manufacturingActions, ...fulfillmentActions, ...customerServiceOwnerActions);
+import { installAutomation, initializeAutomation, automationRoles, automationActions } from './automation.mjs';
+Object.assign(roleActions, documentRoles, repairRoles, procurementRoles, warehouseRoles, manufacturingRoles, fulfillmentRoles, customerServiceRoles, automationRoles);
+roleActions.owner.push(...documentActions, ...repairActions, ...procurementActions, ...warehouseActions, ...manufacturingActions, ...fulfillmentActions, ...customerServiceOwnerActions, ...automationActions);
 const scrypt = promisify(scryptCallback);
 const actions = ['crm.read', 'crm.write'];
 export const fail = (status, code, message = code) => { throw Object.assign(new Error(message), { status, code }); };
 const hash = value => createHash('sha256').update(value).digest('hex');
 const c = (runtime, name) => runtime.db.collection(name);
-export async function initialize({ client, db, customerService = {} }) {
+export async function initialize({ client, db, customerService = {}, automation = {} }) {
   const foundation = createTenantFoundation({ client, db, roleActions });
   await foundation.initialize();
   await initializeCommercial(db);
@@ -26,8 +27,9 @@ export async function initialize({ client, db, customerService = {} }) {
   await initializeManufacturing(db);
   await initializeRepair(db);
   await initializeFulfillment(db);
+  await initializeAutomation(db);
   await db.collection('credentials').createIndex({ username: 1 }, { unique: true });
-  const runtime = { client, db, foundation };
+  const runtime = { client, db, foundation, automation };
   runtime.documents = await initializeDocuments(runtime);
   runtime.customerService = await initializeCustomerService(runtime, customerService);
   return runtime;
@@ -77,7 +79,8 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   app.use((req, res, next) => {
     if (req.headers.origin && !origins.includes(req.headers.origin)) return next(Object.assign(new Error('Origin denied'), { status: 403, code: 'ORIGIN_DENIED' }));
     if (req.headers.origin) { res.setHeader('Access-Control-Allow-Origin', req.headers.origin); res.setHeader('Access-Control-Allow-Credentials', 'true'); res.setHeader('Vary', 'Origin'); }
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && (!origins.includes(req.headers.origin) || req.headers['sec-fetch-site'] === 'cross-site' || !req.is('application/json'))) return next(Object.assign(new Error('Mutation requires trusted Origin and JSON'), { status: 403, code: 'MUTATION_DENIED' }));
+    const serviceRequest = /^Bearer [A-Za-z0-9_-]{43}$/.test(req.headers.authorization || '') && req.path.startsWith('/api/cs/automation/');
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && ((!serviceRequest && !origins.includes(req.headers.origin)) || req.headers['sec-fetch-site'] === 'cross-site' || !req.is('application/json'))) return next(Object.assign(new Error('Mutation requires trusted Origin and JSON'), { status: 403, code: 'MUTATION_DENIED' }));
     if (req.method === 'OPTIONS') { res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS'); res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Idempotency-Key'); return res.sendStatus(204); }
     next();
   });
@@ -94,7 +97,20 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
     res.cookie('portfolio_session', session.token, cookieOptions).json({ data: identity(scope, record.username) });
   });
   app.use('/api', async (req, res, next) => {
-    try { req.token = tokenFrom(req); req.scope = await runtime.foundation.authenticate(req.token); next(); }
+    try {
+      const bearer = req.headers.authorization;
+      if (bearer) {
+        if (!/^Bearer [A-Za-z0-9_-]{43}$/.test(bearer) || !req.originalUrl.split('?')[0].startsWith('/api/cs/automation/')) fail(401, 'UNAUTHENTICATED');
+        req.token = bearer.slice(7);
+        const service = await c(runtime, 'sessions').findOne({ tokenHash: hash(req.token), automationService: true });
+        if (!service) fail(401, 'UNAUTHENTICATED');
+        req.automationService = true;
+      } else {
+        req.token = tokenFrom(req);
+        if (await c(runtime, 'sessions').findOne({ tokenHash: hash(req.token), automationService: true })) fail(401, 'UNAUTHENTICATED');
+      }
+      req.scope = await runtime.foundation.authenticate(req.token); next();
+    }
     catch { fail(401, 'UNAUTHENTICATED'); }
   });
   app.get('/api/session/me', async (req, res) => {
@@ -117,6 +133,7 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   installRepair(app, runtime, { fail, guard, id, fields });
   installFulfillment(app, runtime, { fail, guard, id, fields });
   installCustomerService(app, runtime, { fail, id, fields });
+  installAutomation(app, runtime, { fail, id, fields });
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } }));
   app.use((error, req, res, next) => {
     const status = error.status || (error.code === 'SCOPE_DENIED' ? 403 : 500);
