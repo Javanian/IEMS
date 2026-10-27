@@ -205,7 +205,7 @@
   "apps/web/test/portfolio-company-stock-trace-browser.mjs": "8d6d8a617c93beff3cd626f2b13ab3680283fbb718226af6c141b9f8be768c7f",
   "apps/web/test/portfolio-company-stock-trace.test.mjs": "76babb77e943fd0de3f81a599b6ec7cf4c40bb9fed418f75ba52cee07834ad83",
   "apps/web/test/portfolio-company-stock.test.mjs": "ae96563d2e7c43e5f80d074f5cf0a98ba7b39f56aa6572b9b2ff7bd6edb488bc",
-  "apps/web/test/portfolio-company-trace-heading-browser.mjs": "abfdc12603f577fdad80db778c71fb70f91cb65e9538e2377340f39f0121517c",
+  "apps/web/test/portfolio-company-trace-heading-browser.mjs": "1b0790275ce03b502f825858463f6f304743781379f7b99e4be57310cea076f3",
   "apps/web/test/portfolio-company-trace-readiness.test.mjs": "b8b3207468f950b6123601e31acc22c2870685655b9033d03615188b8c751a01",
   "apps/web/test/portfolio-customer-service.test.mjs": "556ab8bca48ba979d662e9d0d0d7e6eaad409bb5d77d4fbc372f3836a50f8fe8",
   "apps/web/test/portfolio-fulfillment-browser.mjs": "3bb42e113180bd8f4722b0df0d653fa025bad47378aee34bdca65b3ce795b320",

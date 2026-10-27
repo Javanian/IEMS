@@ -170,7 +170,7 @@ export async function runTraceHeadingBrowserRegression({ evidenceDirectory, brow
     if (vite?.httpServer?.listening) cleanupFailure(Error('Owned heading frontend server did not close'));
     let profileRemoved = !profile;
     if (profile && browserClosed()) {
-      try { const owned = await realpath(profile); assert.ok(owned.startsWith(resolve(tmpdir()) + (process.platform === 'win32' ? '\\' : '/')) && owned.includes('iems-trace-heading-profile-')); await rm(owned, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); profileRemoved = true; }
+      try { const owned = await realpath(profile), tempRoot = await realpath(tmpdir()); assert.ok(owned.startsWith(tempRoot + (process.platform === 'win32' ? '\\' : '/')) && owned.includes('iems-trace-heading-profile-')); await rm(owned, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); profileRemoved = true; }
       catch (error) { cleanupFailure(error); }
     }
     for (const request of pending.values()) clearTimeout(request.timeout);
