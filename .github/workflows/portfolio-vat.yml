@@ -8,6 +8,8 @@ on:
       - 'apps/wa-demo-bridge/**'
       - 'packages/**'
       - 'checkpoints/wave4h/**'
+      - 'checkpoints/n8n-automation/**'
+      - 'ops/automation-lab/**'
       - '.github/workflows/portfolio-vat.yml'
   pull_request:
     paths:
@@ -16,6 +18,8 @@ on:
       - 'apps/wa-demo-bridge/**'
       - 'packages/**'
       - 'checkpoints/wave4h/**'
+      - 'checkpoints/n8n-automation/**'
+      - 'ops/automation-lab/**'
       - '.github/workflows/portfolio-vat.yml'
 
 permissions:
@@ -60,6 +64,8 @@ jobs:
         run: python checkpoints/wave4h/audit-publication.py
       - name: Validate API syntax
         run: npm --prefix apps/portfolio-api run check
+      - name: Test private local SMTP persistence
+        run: node --test ops/automation-lab/smtp-sink.test.mjs
       - name: Check renderer public types
         run: npm --prefix packages/document-rendering run check
       - name: Test historical and VAT rendering

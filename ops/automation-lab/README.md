@@ -1,83 +1,74 @@
-# IEMS Customer Service Automation Center via n8n
+# Local n8n Automation Center
 
-Dokumentasi implementasi, arsitektur, dan panduan pengoperasian automasi Customer Service IEMS menggunakan n8n, Scoped API `portfolio-api`, dan Local SMTP Sink.
+This lab runs the existing IEMS application API/UI, an owned Mongo replica, pinned n8n **1.121.3** with persistent SQLite metadata, and an SMTP capture sink. n8n orchestrates restricted IEMS commands. IEMS owns authorization, approval, occurrence keys, business history, durable delivery intent, lease and receipt verification. WhatsApp remains PREVIEWED. Local SMTP acceptance does not prove customer delivery.
 
----
+## Start, status and stop
 
-## 1. Arsitektur & Prinsip Keamanan
+Install existing application and cross-package dependencies first: `npm ci --prefix apps/portfolio-api`, `npm ci --prefix apps/web`, `npm ci --prefix packages/document-rendering`, `npm ci --prefix packages/tenant-foundation`, `npm ci --prefix packages/customer-service`, and `npm ci --prefix apps/wa-demo-bridge` if running bridge/browser acceptance. The API imports document-rendering/pdfkit; its package-local dependencies are required even for the automation route. Node 24.x is required by the IEMS tenant/customer-service packages; Node 24.19.0 was tested. The wider Node range declared by n8n itself (>=20.19 <=24.x) does not widen the IEMS requirement. Mongo7.0.14 is obtained by the existing mongodb-memory-server dependency, or set `MONGOMS_SYSTEM_BINARY` to an installed matching executable. Do not start Kafka, RabbitMQ, Redis or PostgreSQL for this slice.
 
-1. **Boundary & Source of Truth**:
-   - Database domain IEMS (MongoDB/PostgreSQL) **tidak pernah diakses langsung** oleh n8n.
-   - Semua interaksi n8n dilakukan melalui Scoped Authoritative API di `portfolio-api` (`/api/cs/automation/*`).
-   - Setiap mutasi wajib membawa header `Idempotency-Key` (8..100 karakter). Pemanggilan ulang dengan kunci yang sama mengembalikan hasil identik tanpa mutasi ganda (*no double-escalation*).
+From repository root in PowerShell:
 
-2. **Anti-Stale Re-check**:
-   - Sebelum melakukan eskalasi atau mutasi berdampak, workflow selalu memanggil `POST /api/cs/automation/recheck`.
-   - Jika tiket telah diselesaikan (`RESOLVED`/`CLOSED`) atau versinya berubah karena aksi operator concurrent, sistem secara elegan menolak eksekusi tanpa efek samping.
-
-3. **Zero-Internet Local SMTP Sink**:
-   - Menggunakan sink SMTP lokal RFC-5321 murni di port `1025` dan HTTP API port `1080` (`ops/automation-lab/smtp-sink.mjs`).
-   - Semua email menggunakan alamat sintetis/local test (`reports@iems.local`, `cs-leads@iems.local`).
-   - Status penerimaan dicatat sebagai `Accepted by local mail sink`.
-
-4. **WhatsApp Preview Guarantee**:
-   - Status delivery WhatsApp pada simulator channel dicatat secara eksplisit sebagai `PREVIEWED`, bukan fake `SENT`.
-
----
-
-## 2. Tiga Workflow n8n
-
-File definisi workflow tersedia di `ops/automation-lab/workflows/`:
-1. `wf-sla-escalation.json` (**Ticket SLA Monitor & Re-check Escalation**):
-   - Memicu pemindaian tiket breached (`/api/cs/automation/sla-breaches?thresholdMinutes=15`).
-   - Mengeksekusi anti-stale re-check (`/api/cs/automation/recheck`).
-   - Mengirim notifikasi email ke local SMTP sink (`127.0.0.1:1025`).
-   - Mengeskalasi stage tiket (`NEW -> TRIAGED -> ASSIGNED -> IN_PROGRESS`), mencatat `cs_internal_notes`, dan audit log.
-2. `wf-whatsapp-handoff.json` (**WhatsApp Approval & Hand-off Sync**):
-   - Menerima webhook event handoff.
-   - Mengalihkan mode percakapan ke `HUMAN_TAKEN_OVER` dan mencatat status `PREVIEWED`.
-3. `wf-cs-weekly-digest.json` (**Weekly CS Operations Digest**):
-   - Mengambil ringkasan operasional 7 hari terakhir (`/api/cs/automation/digest?days=7`).
-   - Mengirim email digest berformat Markdown & HTML ke sink lokal.
-   - Mencatat tanda terima digest di domain.
-
----
-
-## 3. Menjalankan Komponen
-
-### A. Local SMTP Sink
-```bash
-node ops/automation-lab/smtp-sink.mjs
-# Berjalan pada smtp://127.0.0.1:1025 dan http://127.0.0.1:1080
-```
-- Endpoint HTTP sink:
-  - `GET /health` -> Status sink & jumlah email tertangkap.
-  - `GET /api/emails` -> Daftar email tertangkap.
-  - `DELETE /api/emails` -> Membersihkan penampung email.
-
-### B. n8n Standalone (Loopback)
-```bash
-cd D:/IEMS-Automation-Lab
-set N8N_USER_FOLDER=D:/IEMS-Automation-Lab/n8n-data
-set N8N_PORT=5678
-set N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
-npx n8n start
-```
-Akses UI di: `http://127.0.0.1:5678` (Loopback only).
-
-### C. Menjalankan Pengujian API & E2E Workflows
-```bash
-# Unit test Scoped API Automation
-node --test apps/portfolio-api/test/automation.test.mjs
-
-# End-to-end integration test (Sink + Workflows + API + Anti-stale Guard)
-node --test apps/portfolio-api/test/automation-e2e.test.mjs
+```powershell
+powershell -ExecutionPolicy Bypass -File ops/automation-lab/start.ps1
+powershell -ExecutionPolicy Bypass -File ops/automation-lab/control.ps1 -Action status
+powershell -ExecutionPolicy Bypass -File ops/automation-lab/control.ps1 -Action stop-n8n
+powershell -ExecutionPolicy Bypass -File ops/automation-lab/control.ps1 -Action start-n8n
+powershell -ExecutionPolicy Bypass -File ops/automation-lab/stop.ps1
 ```
 
----
+The first start installs the pinned runtime using `runtime-package.json`/`runtime-package-lock.json` into `D:/IEMS-Automation-Lab/n8n-corrective-acceptance-20261027/runtime`. It needs network access for package installation; subsequent normal starts reuse the installation. The 3584 MiB available-RAM guard rejects startup without stopping any user service. Startup is idempotent and refuses a second live owned supervisor. Failure logs/data are retained.
 
-## 4. Antarmuka Web (IEMS Web UI)
+The supervisor starts only resources it owns and writes its PID, process IDs and phase to `status.json`. Stop commands verify the supervisor's command line/marker, then ask it to stop its own children and owned Mongo instance; they never stop the user's PostgreSQL. Mongo data, n8n SQLite, encrypted credentials, generated config and sink receipts persist across normal restart. Existing root data is accepted only when its database owner marker matches.
 
-- Route: `/portfolio/service/automation` (tab baru "Automation Center" di modul Customer Service).
-- Komponen: `apps/web/src/features/portfolio/AutomationCenterWorkspace.jsx`.
-- Menyajikan status engine, monitor live SLA breaches, generator & viewer weekly digest, tabel pesan yang tertangkap di SMTP sink, serta audit trail rekonsiliasi.
+Default loopback URLs:
+
+| Component | Address |
+| --- | --- |
+| IEMS UI | http://127.0.0.1:5187/portfolio/service/automation |
+| IEMS API | http://127.0.0.1:4319 |
+| n8n editor | http://127.0.0.1:5687 |
+| SMTP capture | 127.0.0.1:2527 |
+| Private sink inspector | http://127.0.0.1:8027 |
+| Owned Mongo | 127.0.0.1:27197 |
+
+Credentials are generated in **outside-Git** `config.json` under the lab root. Read `username`/`password` for IEMS and `n8nEmail`/`n8nPassword` for the local editor. Never paste its contents into reports, screenshots or commits. A human session provisions a limited automation credential through `POST /api/cs/automation/service-credentials`; no human cookie is exported to n8n. It expires after 24 h and can be revoked through the scoped API. Restart provisions/binds the local service credential again.
+
+The launcher claims ready only after the application API, SMTP health, n8n health, authenticated registered workflow paths and UI respond. Webhook registration is checked with an absent credential and must return403 rather than404; it creates no business effect.
+
+## Workflow exports and credentials
+
+The five current exports are generated by `node ops/automation-lab/generate-workflows.mjs`:
+
+1. `wf-sla-escalation.json`: every minute or private operator webhook; reads authoritative due tasks, splits records and submits escalation with the API occurrence key. It never assigns an operator or claims work began.
+2. `wf-cs-weekly-digest.json`: Monday 08:00 Asia/Bangkok, or manual DEMO occurrence; IEMS computes full scoped counts and sends synthetic email from a durable intent. Weekly period identity uses canonical UTC week start; trigger timezone is explicit and separate.
+3. `wf-approved-resolution.json`: accepts an approved draft ID and dispatches its immutable server content. No workflow approval and no arbitrary recipient/content override.
+4. `wf-automation-recovery.json`: every minute or private operator webhook; reconciles accepted evidence/expired leases and processes known unsent pending work through IEMS. UNKNOWN is never blindly resent.
+5. `wf-automation-error.json`: records a sanitized engine execution/workflow reference through IEMS, with no notification loop.
+
+The obsolete WhatsApp handoff export was removed: its legacy automation route now rejects unsupported handoff mutation. Operators use the authoritative existing conversation takeover flow. WhatsApp preview is supplementary and does not replace approved resolution acceptance.
+
+Import happens into the owned SQLite instance only. The launcher imports encrypted local credential values from an outside-Git private file, then sanitized exports and activates only the four trigger workflows using the **1.x** `update:workflow --id=... --active=true` command before server startup. Stable credential references in exports are `iems-service-api` (Authorization header) and `iems-webhook-auth` (x-iems-webhook-token). Credential values never appear in exports. Copy exports into a different clean owned instance with its own credential values for independent import verification.
+
+Pin schema evidence: official [1.121.3 Webhook source](https://github.com/n8n-io/n8n/blob/n8n%401.121.3/packages/nodes-base/nodes/Webhook/Webhook.node.ts), [SplitOut source](https://github.com/n8n-io/n8n/blob/n8n%401.121.3/packages/nodes-base/nodes/Transform/SplitOut/SplitOut.node.ts), [Set source](https://github.com/n8n-io/n8n/blob/n8n%401.121.3/packages/nodes-base/nodes/Set/v2/SetV2.node.ts). Current [server CLI documentation](https://docs.n8n.io/hosting/cli-commands/) includes2.x publish changes; this lab uses the installed1.121.3 CLI, rather than assuming current2.x commands apply. [Environment options](https://docs.n8n.io/hosting/configuration/environment-variables/deployment/) document loopback and diagnostic settings.
+
+## Runtime network inventory
+
+All application listeners bind127.0.0.1. No tunnel or router rule is created. n8n diagnostics, version notifications, templates, personalization, hiring banner, community package installation and license auto-renew are disabled where supported by1.121.3 configuration. Environment access from workflow nodes is blocked; private credentials bind through n8n's credential store. Production workflow concurrency is limited to1 for this demo. This is an inventory of explicit settings, **not a zero-internet claim**. Dependency installation, existing browser extensions or OS traffic are outside that claim. This pin is a local acceptance runtime, not a production security attestation.
+
+## Five-to-eight-minute walkthrough
+
+1. Sign in to IEMS and open Automation Center. Show observed runtime state and Demo SLA **5 seconds**, then the local n8n editor execution list.
+2. In Demo, choose **Create synthetic complaint**. It creates a synthetic CRM account/contact/binding and five supported simulator messages, ending in a persisted complaint confirmation. Open its source ticket. No timestamp is backdated.
+3. After the due time, choose **Run SLA scan in n8n**. Observe n8n execution and the domain history. The record stays unassigned; escalation is not assignment or work commencement.
+4. Use the normal source-ticket controls to triage, assign, work and resolve. In Approvals, select that resolved ticket, review synthetic recipient/message and create a draft.
+5. Review the stored source/approval version and immutable content, then **Approve draft**. Approval authorizes dispatch on the next recovery cycle. **Dispatch approved update in n8n** accelerates the cycle. Inspect the scoped local mail receipt under Runs and recovery. Sending does not resolve the ticket.
+6. Run a manual demo digest. Counts are independent of the20record preview. Local acceptance and workflow acknowledgment are displayed separately.
+7. Use `control.ps1 -Action stop-n8n`, create/handle another complaint while engine is down, then `start-n8n`. Due scans and recovery process pending work. Inspect UNKNOWN rather than blindly retrying any ambiguous submission.
+
+## Scoped demo reset
+
+**Revoke demo contact** revokes only the synthetic binding created in that browser's recorded demo occurrence through the supported IEMS API. It preserves tickets, approvals and audit evidence. Create another demo for a fresh occurrence. There is deliberately no broad database delete/reset in the operator flow. For a separate clean dataset, use a new explicitly named lab root and free ports/config, retaining the old root as evidence; do not erase someone else's lab or global database.
+
+## Verification boundaries
+
+`run-workflow.mjs` contains **development API helpers**. `automation-e2e.test.mjs` is development-helper HTTP/domain integration, not actual n8n execution. Actual engine evidence must record runtime version, sanitized export SHA256, execution IDs and resulting scoped API/sink state. Browser acceptance separately exercises real UI/API/n8n at 360/768/1440. See the dated corrective acceptance reports; no old aggregate result or PR20/F5 count is reused.

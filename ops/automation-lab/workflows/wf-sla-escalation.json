@@ -1,181 +1,259 @@
 {
-  "name": "Ticket SLA Monitor & Re-check Escalation",
+  "id": "wf-sla-escalation",
+  "name": "IEMS - Unassigned ticket SLA escalation",
+  "active": false,
   "nodes": [
     {
+      "id": "operator-trigger",
+      "name": "Operator trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        160,
+        100
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "iems-sla-escalation",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "iems-sla-escalation",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-webhook-auth",
+          "name": "IEMS private webhook"
+        }
+      }
+    },
+    {
+      "id": "sla-schedule",
+      "name": "SLA schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        380
+      ],
       "parameters": {
         "rule": {
           "interval": [
             {
               "field": "minutes",
-              "minutesInterval": 15
+              "minutesInterval": 1
             }
           ]
         }
-      },
-      "id": "node-schedule-trigger",
-      "name": "Schedule Trigger",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [200, 300]
+      }
     },
     {
-      "parameters": {
-        "url": "http://127.0.0.1:4313/api/cs/automation/sla-breaches?thresholdMinutes=15",
-        "options": {}
-      },
-      "id": "node-fetch-breaches",
-      "name": "Fetch SLA Breaches",
+      "id": "read-due-tickets",
+      "name": "Read due tickets",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [400, 300]
-    },
-    {
+      "position": [
+        420,
+        240
+      ],
       "parameters": {
-        "fieldToSplitOut": "data.items",
-        "options": {}
-      },
-      "id": "node-split-tickets",
-      "name": "Split Tickets",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
-      "position": [600, 300]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://127.0.0.1:4313/api/cs/automation/recheck",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"ticketId\": \"{{ $json.ticketId }}\",\n  \"expectedVersion\": {{ $json.expectedVersion }},\n  \"action\": \"ESCALATE\"\n}",
-        "options": {}
-      },
-      "id": "node-anti-stale-recheck",
-      "name": "Anti-Stale Re-check",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [800, 300]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.data.eligible }}",
-              "value2": true
-            }
-          ]
-        }
-      },
-      "id": "node-if-eligible",
-      "name": "Is Still Eligible?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [1000, 300]
-    },
-    {
-      "parameters": {
-        "fromEmail": "sla-monitor@iems.local",
-        "toEmail": "cs-leads@iems.local",
-        "subject": "=[SLA Breached] Ticket #{{ $json.data.ticketId.slice(0, 8) }} Escalation Alert",
-        "text": "=Ticket {{ $json.data.ticketId }} has breached SLA target and will be escalated.",
-        "options": {
-          "allowUnauthorizedCerts": true,
-          "port": 1025
-        }
-      },
-      "id": "node-send-email-sink",
-      "name": "Notify Local SMTP Sink",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [1220, 200]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://127.0.0.1:4313/api/cs/automation/escalate",
+        "method": "GET",
+        "url": "http://127.0.0.1:4319/api/cs/automation/sla-breaches?limit=100",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
+              "name": "X-IEMS-Execution-Id",
+              "value": "={{ $execution.id }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-service-api",
+          "name": "IEMS scoped automation service"
+        }
+      }
+    },
+    {
+      "id": "due-tickets-exist",
+      "name": "Due tickets exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        240
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-due-tickets",
+              "leftValue": "={{ $json.data.items.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "one-item-per-record",
+      "name": "One item per record",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        720,
+        240
+      ],
+      "parameters": {
+        "fieldToSplitOut": "data.items",
+        "options": {}
+      }
+    },
+    {
+      "id": "escalate-eligible-ticket",
+      "name": "Escalate eligible ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        240
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:4319/api/cs/automation/escalate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-IEMS-Execution-Id",
+              "value": "={{ $execution.id }}"
+            },
+            {
               "name": "Idempotency-Key",
-              "value": "=n8n-esc-{{ $json.data.ticketId }}-{{ $json.data.currentVersion }}"
+              "value": "={{ $json.occurrenceKey }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"ticketId\": \"{{ $json.data.ticketId }}\",\n  \"expectedVersion\": {{ $json.data.currentVersion }},\n  \"reason\": \"Automated SLA Breach Escalation via n8n\"\n}",
-        "options": {}
+        "jsonBody": "={{ { ticketId: $json.ticketId, expectedVersion: $json.expectedVersion, reason: \"Unassigned ticket exceeded its configured SLA\" } }}",
+        "options": {
+          "timeout": 15000
+        }
       },
-      "id": "node-execute-escalate",
-      "name": "Execute Escalation",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1440, 200]
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-service-api",
+          "name": "IEMS scoped automation service"
+        }
+      }
+    },
+    {
+      "id": "execution-reference",
+      "name": "Execution reference",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1140,
+        240
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ { n8nExecutionId: $execution.id, result: $json.data || $json } }}",
+        "options": {}
+      }
     }
   ],
   "connections": {
-    "Schedule Trigger": {
+    "Operator trigger": {
       "main": [
         [
           {
-            "node": "Fetch SLA Breaches",
+            "node": "Read due tickets",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch SLA Breaches": {
+    "SLA schedule": {
       "main": [
         [
           {
-            "node": "Split Tickets",
+            "node": "Read due tickets",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Split Tickets": {
+    "Read due tickets": {
       "main": [
         [
           {
-            "node": "Anti-Stale Re-check",
+            "node": "Due tickets exist",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Anti-Stale Re-check": {
+    "One item per record": {
       "main": [
         [
           {
-            "node": "Is Still Eligible?",
+            "node": "Escalate eligible ticket",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Still Eligible?": {
+    "Escalate eligible ticket": {
       "main": [
         [
           {
-            "node": "Notify Local SMTP Sink",
+            "node": "Execution reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Due tickets exist": {
+      "main": [
+        [
+          {
+            "node": "One item per record",
             "type": "main",
             "index": 0
           }
         ],
-        []
-      ]
-    },
-    "Notify Local SMTP Sink": {
-      "main": [
         [
           {
-            "node": "Execute Escalation",
+            "node": "Execution reference",
             "type": "main",
             "index": 0
           }
@@ -184,6 +262,13 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "timezone": "Asia/Bangkok",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "wf-automation-error"
+  },
+  "pinData": {},
+  "tags": [],
+  "versionId": "e65d652d-0484-4f2d-a134-6b13bc9bb029"
 }

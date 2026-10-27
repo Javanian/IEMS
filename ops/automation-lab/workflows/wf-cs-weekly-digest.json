@@ -1,106 +1,141 @@
 {
-  "name": "Weekly CS Operations Digest",
+  "id": "wf-cs-weekly-digest",
+  "name": "IEMS - Weekly customer service digest",
+  "active": false,
   "nodes": [
     {
+      "id": "operator-trigger",
+      "name": "Operator trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        160,
+        100
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "iems-cs-weekly-digest",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "iems-cs-weekly-digest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-webhook-auth",
+          "name": "IEMS private webhook"
+        }
+      }
+    },
+    {
+      "id": "weekly-monday-08-00-bangkok",
+      "name": "Weekly Monday 08:00 Bangkok",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        380
+      ],
       "parameters": {
         "rule": {
           "interval": [
             {
               "field": "weeks",
-              "triggerAtDay": [1],
+              "triggerAtDay": [
+                1
+              ],
               "triggerAtHour": 8,
               "triggerAtMinute": 0
             }
           ]
         }
-      },
-      "id": "node-weekly-cron",
-      "name": "Weekly Cron Trigger",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [200, 300]
+      }
     },
     {
-      "parameters": {
-        "url": "http://127.0.0.1:4313/api/cs/automation/digest?days=7",
-        "options": {}
-      },
-      "id": "node-fetch-digest",
-      "name": "Fetch Operations Digest",
+      "id": "create-and-dispatch-authoritative-digest",
+      "name": "Create and dispatch authoritative digest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [420, 300]
-    },
-    {
-      "parameters": {
-        "fromEmail": "automation-reports@iems.local",
-        "toEmail": "reports@iems.local",
-        "subject": "=Weekly CS Operations Digest - {{ $now.toFormat('yyyy-MM-dd') }}",
-        "html": "={{ $json.data.html }}",
-        "options": {
-          "allowUnauthorizedCerts": true,
-          "port": 1025
-        }
-      },
-      "id": "node-send-digest-email",
-      "name": "Send Email via Local SMTP Sink",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [640, 300]
-    },
-    {
+      "position": [
+        460,
+        240
+      ],
       "parameters": {
         "method": "POST",
-        "url": "http://127.0.0.1:4313/api/cs/automation/digest/record",
+        "url": "http://127.0.0.1:4319/api/cs/automation/digest/dispatch",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
+              "name": "X-IEMS-Execution-Id",
+              "value": "={{ $execution.id }}"
+            },
+            {
               "name": "Idempotency-Key",
-              "value": "=digest-rec-{{ $now.toFormat('yyyy-MM-dd') }}-{{ $json.data.summary.periodDays }}"
+              "value": "={{ \"digest:\" + ($json.body ? \"DEMO:\" + ($json.body.periodKey || \"missing-period-key\") : \"WEEKLY:\" + $now.toUTC().startOf(\"week\").toFormat(\"yyyy-MM-dd\")) }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"summary\": {{ JSON.stringify($json.data.summary) }},\n  \"recipientEmail\": \"reports@iems.local\",\n  \"subject\": \"Weekly CS Operations Digest\"\n}",
-        "options": {}
+        "jsonBody": "={{ { mode: $json.body ? \"DEMO\" : \"WEEKLY\", ...($json.body?.periodKey ? { periodKey: $json.body.periodKey } : {}) } }}",
+        "options": {
+          "timeout": 15000
+        }
       },
-      "id": "node-record-digest-receipt",
-      "name": "Record Digest Receipt",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [860, 300]
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-service-api",
+          "name": "IEMS scoped automation service"
+        }
+      }
+    },
+    {
+      "id": "execution-reference",
+      "name": "Execution reference",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        740,
+        240
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ { n8nExecutionId: $execution.id, result: $json.data || $json } }}",
+        "options": {}
+      }
     }
   ],
   "connections": {
-    "Weekly Cron Trigger": {
+    "Operator trigger": {
       "main": [
         [
           {
-            "node": "Fetch Operations Digest",
+            "node": "Create and dispatch authoritative digest",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch Operations Digest": {
+    "Weekly Monday 08:00 Bangkok": {
       "main": [
         [
           {
-            "node": "Send Email via Local SMTP Sink",
+            "node": "Create and dispatch authoritative digest",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Email via Local SMTP Sink": {
+    "Create and dispatch authoritative digest": {
       "main": [
         [
           {
-            "node": "Record Digest Receipt",
+            "node": "Execution reference",
             "type": "main",
             "index": 0
           }
@@ -109,6 +144,13 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "timezone": "Asia/Bangkok",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "wf-automation-error"
+  },
+  "pinData": {},
+  "tags": [],
+  "versionId": "2a7911f2-f945-43de-a611-5814da6684c5"
 }
