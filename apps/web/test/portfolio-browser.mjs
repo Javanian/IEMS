@@ -12,6 +12,7 @@ import { bindBusinessClock } from '../../portfolio-api/src/business-clock.mjs';
 import { runE01Flow } from '../../portfolio-api/test/support/review-e01-flow.mjs';
 import { navigationContextChanged,waitForTechnicalDetails,documentNavigationCall } from './browser-readiness.mjs';
 import { runTraceHeadingBrowserRegression } from './portfolio-company-trace-heading-browser.mjs';
+import { transportExperiment, transportResourceTelemetry } from './transport-resource-telemetry.mjs';
 import { reviewRunPlan } from './portfolio-review-mode.mjs';
 import { reviewOperatorJourney } from './portfolio-review-operator-browser.mjs';
 import { reviewInternalExecutionJourney } from './portfolio-review-internal-execution-browser.mjs';
@@ -56,6 +57,7 @@ import { textEnlargementJourney } from './wave4f-text-browser.mjs';
 const freeOn = (host, port) => new Promise(r => { const s = createNetServer(); s.once('error', () => r(false)); s.listen(port, host, () => s.close(() => r(true))); });
 async function pickWebPort() { for (let p = 4173; p < 4273; p++) if (await freeOn('127.0.0.1', p)) return p; throw Error('No IPv4 loopback port in 4173..4272 is free'); }
 const reviewMode=reviewRunPlan(process.env);
+const transportExperimentPlan=transportExperiment(process.env,reviewMode);
 const webPort = await pickWebPort(), web = `http://127.0.0.1:${webPort}`;
 const transportTelemetry=webTransportTelemetry(web);
 process.env.PORTFOLIO_WEB_ORIGIN = web;
@@ -65,6 +67,7 @@ const root = resolve(import.meta.dirname, '..'),uiRoot=process.env.PORTFOLIO_UI_
 let seedIdentities=[];
 const evidence = process.env.PORTFOLIO_EVIDENCE_DIR ? resolve(process.env.PORTFOLIO_EVIDENCE_DIR) : resolve(process.env.TMPDIR || tmpdir(), `portfolio-evidence-${randomUUID()}`);
 await mkdir(evidence, { recursive: true });
+const resourceTelemetry=transportResourceTelemetry(evidence,{experiment:transportExperimentPlan});
 const profile = await mkdtemp(join(process.env.TMPDIR || tmpdir(), 'portfolio-chrome-'));
 const marker = randomUUID(), database = `portfolio_owned_browser_${marker.replaceAll('-', '')}`;
 const password = randomUUID() + randomUUID();
@@ -107,7 +110,7 @@ async function fill(name, value) {
 async function screenshot(name) { await call('Page.bringToFront'); await delay(150); const shot = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); await writeFile(join(evidence, name + '.png'), Buffer.from(shot.data, 'base64')); }
 function check(name) { checks.push(name); console.log('PASS', name); }
 async function runReviewJourneys({db,headers}) {
-  const reviewKit={db,call,wait,click,fill,evaluate,screenshot,check,headers,loseResponse,password,web,seedIdentities,subscribe:listener=>{listeners.add(listener);return()=>listeners.delete(listener);},writeEvidence:(name,value)=>writeFile(join(evidence,name),JSON.stringify(value,null,2))};
+  const reviewKit={db,call,wait,click,fill,evaluate,screenshot,check,headers,loseResponse,password,web,seedIdentities,transportDiagnostic:async(kind,detail)=>{resourceTelemetry.event(kind,detail);await resourceTelemetry.flush();},subscribe:listener=>{listeners.add(listener);return()=>listeners.delete(listener);},writeEvidence:(name,value)=>writeFile(join(evidence,name),JSON.stringify(value,null,2))};
   if(reviewMode.e01){
     const priorClock=runtime.businessClock,priorMode=runtime.businessClockMode;let instant=new Date('2026-03-10T08:15:00.000Z');
     await bindBusinessClock(runtime,()=>new Date(instant),marker);
@@ -116,7 +119,7 @@ async function runReviewJourneys({db,headers}) {
   }
   if(reviewMode.internalExecution){const internal=await reviewInternalExecutionJourney(reviewKit);reviewKit.internalPlanId=internal.planId;}
   if(reviewMode.companyStock)await companyStockJourney(reviewKit);
-  if(reviewMode.companyTrace)await companyStockTraceJourney(reviewKit);
+  if(reviewMode.companyTrace){await resourceTelemetry.sample('before-company-trace');await companyStockTraceJourney(reviewKit);}
   if(reviewMode.quoteCatalog)await quoteCatalogJourney(reviewKit);
   if(reviewMode.purchasedFulfillment)await purchasedFulfillmentJourney(reviewKit);
   if(reviewMode.operator)await reviewOperatorJourney(reviewKit);
@@ -152,7 +155,10 @@ async function runTextProbe({db,headers}) {
   }finally{if(priorClock===undefined)delete runtime.businessClock;else runtime.businessClock=priorClock;if(priorMode===undefined)delete runtime.businessClockMode;else runtime.businessClockMode=priorMode;}
 }
 try {
-  await runTraceHeadingBrowserRegression({ evidenceDirectory: evidence, browserBinary: process.env.PORTFOLIO_CHROME_BINARY });
+  await resourceTelemetry.sample('before-preflight');
+  if(!transportExperimentPlan.withoutPreflight)await runTraceHeadingBrowserRegression({ evidenceDirectory: evidence, browserBinary: process.env.PORTFOLIO_CHROME_BINARY, diagnostic:async(phase,detail)=>{if(detail?.browserPid)resourceTelemetry.root('heading-browser',detail.browserPid);resourceTelemetry.event(phase,detail);await resourceTelemetry.sample(phase);} });
+  else resourceTelemetry.event('preflight-omitted-diagnostic-only');
+  await resourceTelemetry.sample('after-preflight');
   mongo = await MongoMemoryReplSet.create({ binary: { version: '7.0.14', systemBinary: process.env.MONGOMS_SYSTEM_BINARY }, instanceOpts: [{ launchTimeout: 60000, args: ["--wiredTigerCacheSizeGB","0.25","--oplogSize","128"] }], replSet: { count: 1, storageEngine: 'wiredTiger' } });
   const env = { ...process.env, PORTFOLIO_MONGO_URI: mongo.getUri(), PORTFOLIO_DB: database, PORTFOLIO_SEED_PASSWORD: password };
   runtime = await connectOwned(env);
@@ -176,6 +182,7 @@ try {
   await writeFile(chromeRuntimePath,JSON.stringify(browserRuntime,null,2)+'\n',{flag:'wx'});
   await writeFile(chromeNetLogPath,'',{flag:'wx'});
   chrome = spawn(chromeBinary,chromeArgs,{ stdio: ['ignore', 'ignore', 'pipe'] });
+  resourceTelemetry.root('main-browser',chrome.pid);
   let stderr = '', launchError, endpoint;
   chrome.stderr.on('data', d => stderr += d);
   chrome.once('error', error => { launchError = error; });
@@ -195,8 +202,10 @@ try {
   }
   assert.ok(endpoint, `owned Chrome endpoint not ready within 60s: ${stderr.slice(-4000)}`);
   ws = new WebSocket(endpoint); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
+  ws.addEventListener('close',()=>resourceTelemetry.event('main-browser-disconnected'));
   ws.onmessage = e => { const m = JSON.parse(e.data); const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(m.error) : p.resolve(m.result); }
     transportTelemetry.event(m);
+    resourceTelemetry.cdp(m);
     for (const listener of listeners) listener(m);
     if (m.method === 'Runtime.exceptionThrown') exceptions.push(m.params.exceptionDetails);
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') consoleErrors.push(m.params.args.map(a => a.value || a.description).join(' ') + ' after ' + (network.at(-1)?.url.replace(/^.*\/api\//, '') || 'start'));
@@ -205,12 +214,16 @@ try {
     if (m.method === 'Network.loadingFailed') { networkFailures.push({ ...requests.get(m.params.requestId), errorText:m.params.errorText, canceled:m.params.canceled || false }); requests.delete(m.params.requestId); }
     if (m.method === 'Network.loadingFinished') requests.delete(m.params.requestId);
   };
+  await call('Target.setDiscoverTargets',{discover:true},null);
   const { targetId } = await call('Target.createTarget', { url: 'about:blank' }, null);
   session = (await call('Target.attachToTarget', { targetId, flatten: true }, null)).sessionId;
+  resourceTelemetry.event('main-target-attached',{targetId,sessionId:session});
   await call('Runtime.enable'); await call('Page.enable'); await call('Network.enable');await call('Log.enable');
+  await call('Inspector.enable');
   browserRuntime.browserVersion=await call('Browser.getVersion',{},null);
   browserRuntime.platform.browser=await evaluate('navigator.platform');
   await writeFile(chromeRuntimePath,JSON.stringify(browserRuntime,null,2)+'\n');
+  await resourceTelemetry.sample('main-browser-ready');
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   await call('Page.navigate', { url: `${web}/portfolio/accounts` });
   await wait(`document.querySelector('[name=username]')`);
@@ -422,6 +435,7 @@ try {
   console.log(JSON.stringify({ passed: checks.length, exceptions: exceptions.length, consoleErrors: consoleErrors.length, evidence }));
   }
 } catch (error) {
+  resourceTelemetry.event('journey-failed',{errorName:error.name});await resourceTelemetry.sample('failure');
   try {
   const transportFailure=await transportTelemetry.failure(vite?.httpServer);
   try{if(ws?.readyState===1&&session){const page=await sendCdp('Runtime.evaluate',{expression:'({href:location.href,readyState:document.readyState,online:navigator.onLine,timeOrigin:performance.timeOrigin,title:document.title,text:document.body?.innerText.slice(0,4000)})',returnByValue:true},session,1500);transportFailure.page=page.exceptionDetails?{error:page.exceptionDetails}:page.result?.value;}else transportFailure.page={unavailable:'Browser session not attached'};}catch(diagnosticError){transportFailure.page={error:String(diagnosticError)};}
@@ -432,7 +446,8 @@ try {
   console.log(JSON.stringify({ exceptions, consoleErrors, network, networkFailures }));
   throw error;
 } finally {
-  if (ws?.readyState === 1) { try { await call('Browser.close', {}, null); } catch {} ws.close(); }
+  await resourceTelemetry.sample('before-main-cleanup');
+  if (ws?.readyState === 1) { resourceTelemetry.event('main-browser-close-requested');try { await call('Browser.close', {}, null);resourceTelemetry.event('main-browser-close-acknowledged'); } catch {resourceTelemetry.event('main-browser-close-unacknowledged');} ws.close(); }
   if (chrome?.exitCode === null) await new Promise(resolve => {
     const ownedChrome=chrome;
     let timer;
@@ -449,4 +464,6 @@ try {
   if (runtime) { assert.ok(await runtime.db.collection('ownedRun').findOne({ _id: marker })); await runtime.db.dropDatabase(); await runtime.client.close(); }
   if (mongo) await mongo.stop();
   await delay(500); await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
+  resourceTelemetry.event('main-cleanup-finished',{browserExitCode:chrome?.exitCode,browserSignalCode:chrome?.signalCode,viteClosed:!vite?.httpServer?.listening,apiClosed:!api?.listening,profileRemoved:true});
+  await resourceTelemetry.sample('after-main-cleanup');
 }

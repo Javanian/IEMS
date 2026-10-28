@@ -8,6 +8,7 @@ import { once } from 'node:events';
 import { createServer as createNetServer } from 'node:net';
 import { createServer } from 'vite';
 import { navigationContextChanged } from './browser-readiness.mjs';
+import { observeTransport } from './transport-resource-telemetry.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -54,7 +55,7 @@ const geometryExpression = `(()=>{
     controls:[...document.querySelectorAll('#company-unit-trace button,#company-unit-trace select')].filter(e=>e.getClientRects().length).map(e=>({tag:e.tagName,height:e.getBoundingClientRect().height}))};
 })()`;
 
-export async function runTraceHeadingBrowserRegression({ evidenceDirectory, browserBinary, baselineRef = null } = {}) {
+export async function runTraceHeadingBrowserRegression({ evidenceDirectory, browserBinary, baselineRef = null, diagnostic } = {}) {
   const evidence = evidenceDirectory ? resolve(evidenceDirectory) : await mkdtemp(join(tmpdir(), 'iems-trace-heading-evidence-'));
   await mkdir(evidence, { recursive: true });
   let baselineSource;
@@ -128,6 +129,7 @@ export async function runTraceHeadingBrowserRegression({ evidenceDirectory, brow
     targetId = (await cdp('Target.createTarget', { url: 'about:blank' }, null)).targetId;
     sessionId = (await cdp('Target.attachToTarget', { targetId, flatten: true }, null)).sessionId;
     await cdp('Runtime.enable'); await cdp('Page.enable'); version = await cdp('Browser.getVersion', {}, null);
+    await observeTransport(diagnostic,'heading-browser-ready',{browserPid:browser.pid,targetId,sessionId,origin});
     for (active of cases) {
       resourceGuard(true); const record = { ...active, startedAt: new Date().toISOString(), targetId, sessionId }; records.push(record);
       try {
@@ -160,6 +162,7 @@ export async function runTraceHeadingBrowserRegression({ evidenceDirectory, brow
     assert.deepEqual(exceptions, [], 'No unexpected production-component exception');
   } catch (error) { failure = error; }
   finally {
+    await observeTransport(diagnostic,'heading-before-close',{targetId,sessionId,origin});
     const cleanupErrors = [];
     const cleanupFailure = error => { cleanupErrors.push(String(error)); failure ||= error; };
     if (ws?.readyState === 1) { try { await cdp('Browser.close', {}, null); } catch (error) { cleanupFailure(error); } ws.close(); }
@@ -174,6 +177,7 @@ export async function runTraceHeadingBrowserRegression({ evidenceDirectory, brow
       catch (error) { cleanupFailure(error); }
     }
     for (const request of pending.values()) clearTimeout(request.timeout);
+    await observeTransport(diagnostic,'heading-after-close',{browserExitCode:browser?.exitCode,browserSignalCode:browser?.signalCode,origin,serverClosed:!vite?.httpServer?.listening,profileRemoved});
     const summary = { mockedHttpApi: true, productionComponent: 'CompanyStockTrace', baselineRef, planned: cases.length, passed: records.filter(record => record.state === 'PASS').length, failed: records.filter(record => record.state === 'FAIL').length, notRun: cases.length - records.length, version, initialGuard, records, exceptions, error: failure ? String(failure) : null, cleanupErrors, resources: { browserPid: browser?.pid, browserExitCode: browser?.exitCode, browserSignalCode: browser?.signalCode, browserClosed: browserClosed(), origin, serverClosed: !vite?.httpServer?.listening, profileRemoved, applicationApiOrDatabaseStarted: false } };
     await writeFile(join(evidence, 'trace-heading-regression.json'), JSON.stringify(summary, null, 2) + '\n');
     console.log('TRACE_HEADING_REGRESSION ' + JSON.stringify({ passed: summary.passed, failed: summary.failed, notRun: summary.notRun, mockedHttpApi: true, baselineRef, evidence, resources: summary.resources }));
