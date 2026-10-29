@@ -13,6 +13,7 @@ scopes = (
     'apps/wa-demo-bridge/', 'packages/tenant-foundation/', 'packages/customer-service/',
     'packages/document-rendering/', 'packages/domain-test-fixtures/',
     'checkpoints/review-five-findings/',
+    'checkpoints/order-planning-collector/',
     'checkpoints/company-stock-use/',
     'checkpoints/company-stock-trace/',
     'checkpoints/quote-catalog-entitlement/',
@@ -22,7 +23,7 @@ scopes = (
     'checkpoints/wave4k2b1/qa/', 'checkpoints/wave4k2b2a/qa/',
     'checkpoints/wave4map/qa/', 'checkpoints/wave4qc/qa/',
 )
-specific = {'.gitignore', '.github/workflows/portfolio-vat.yml', 'apps/web/package.json',
+specific = {'.github/workflows/order-planning-collector-qualification.yml', '.gitignore', '.github/workflows/portfolio-vat.yml', 'apps/web/package.json',
             'apps/web/package-lock.json', 'apps/web/vite.config.js', 'apps/web/src/index.css',
             'apps/web/src/router/index.jsx',
             'checkpoints/review-five-findings/audit-publication.py'}
