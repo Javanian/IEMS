@@ -44,8 +44,8 @@ export function WorkOrderList() {
   return <><h1>Manufacturing work orders</h1><Navigation /><Boundary /><section className="pf-panel"><Resource resource={resource}>{({ data, page }) => <>{!data.length ? <p>No work orders in this plant yet. Plan work orders from an open sales order line to begin.</p> : <ul className="pf-list">{data.map(wo => <li key={wo._id}><Link to={`${base}/work-orders/${wo._id}`}>{displayReference("workOrders",wo)}</Link><span>{operatorStatus(wo.status)} · {wo.quantity} {wo.uom} · SO line {wo.lineIndex + 1}</span></li>)}</ul>}<Pager cursor={cursor} page={page} first={`${base}/work-orders`} /></>}</Resource></section></>;
 }
 function PlannedForOrder({ orderId }) {
-  const resource = useResource('/api/manufacturing/work-orders?limit=100');
-  return <section className="pf-panel"><h2>Work orders for this sales order</h2><p>Shows matches on the first plant page of 100 work orders. The server enforces the line limit across all pages.</p><Resource resource={resource}>{({ data }) => { const rows = data.filter(w => w.salesOrderId === orderId); return !rows.length ? <p>None planned on this page yet.</p> : <ul className="pf-list">{rows.map(w => <li key={w._id}><Link to={`${base}/work-orders/${w._id}`}>{displayReference("workOrders",w)}</Link><span>{w.status} · Line {w.lineIndex + 1} · {w.quantity} {w.uom}</span></li>)}</ul>; }}</Resource></section>;
+  const resource = useResource('/api/manufacturing/work-orders?limit=100', true);
+  return <section className="pf-panel"><h2>Work orders for this sales order</h2><p>The server enforces the line limit across all pages.</p><Resource resource={resource}>{({ data }) => { const rows = data.filter(w => w.salesOrderId === orderId); return !rows.length ? <p>None planned yet.</p> : <ul className="pf-list">{rows.map(w => <li key={w._id}><Link to={`${base}/work-orders/${w._id}`}>{displayReference("workOrders",w)}</Link><span>{w.status} · Line {w.lineIndex + 1} · {w.quantity} {w.uom}</span></li>)}</ul>; }}</Resource></section>;
 }
 export function PlanWorkOrders() {
   const { id } = useParams(), location = useLocation(), cursor = new URLSearchParams(location.search).get('cursor');

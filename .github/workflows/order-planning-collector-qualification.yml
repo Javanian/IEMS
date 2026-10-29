@@ -1,0 +1,49 @@
+name: Order planning collector qualification
+on:
+  push:
+    branches: [feat/hermes-order-planning-completeness]
+    paths:
+      - 'checkpoints/order-planning-collector/**'
+      - '.github/workflows/order-planning-collector-qualification.yml'
+permissions:
+  contents: read
+jobs:
+  qualify:
+    name: Bounded Windows resource collector qualification
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Record actual hosted environment and source
+        shell: pwsh
+        run: |
+          $evidence = Join-Path $env:RUNNER_TEMP 'iems-collector-qualification'
+          New-Item -ItemType Directory -Path $evidence | Out-Null
+          $os = Get-CimInstance Win32_OperatingSystem
+          $chrome = Get-Item 'C:/Program Files/Google/Chrome/Application/chrome.exe' -ErrorAction SilentlyContinue
+          @{ utc=[DateTime]::UtcNow.ToString('o'); os=$os.Caption; version=$os.Version; image=$env:ImageOS; imageVersion=$env:ImageVersion; runnerVersion=$env:ACTIONS_RUNNER_VERSION; sha=(git rev-parse HEAD); run=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT; event=$env:GITHUB_EVENT_NAME; chrome=if ($chrome) { $chrome.VersionInfo.ProductVersion } else { 'UNAVAILABLE' }; node=(node --version); python=(python --version) } | ConvertTo-Json | Set-Content (Join-Path $evidence 'host.json')
+          git status --porcelain=v1 | Set-Content (Join-Path $evidence 'git-status.txt')
+          Get-FileHash checkpoints/order-planning-collector/*.py | ConvertTo-Json | Set-Content (Join-Path $evidence 'source-hashes.json')
+      - name: Validate parser and ownership controls
+        run: python -m unittest discover -s checkpoints/order-planning-collector -p test_collector.py -v
+      - name: Qualify bounded collector on synthetic loopback workload
+        shell: pwsh
+        run: |
+          python checkpoints/order-planning-collector/qualify.py --directory (Join-Path $env:RUNNER_TEMP 'iems-collector-qualification/trial1')
+          exit $LASTEXITCODE
+      - name: Retain qualification evidence including failures
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: collector-qualification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/iems-collector-qualification/**
+          if-no-files-found: error
+          retention-days: 7

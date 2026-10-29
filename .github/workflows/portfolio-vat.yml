@@ -96,6 +96,26 @@ jobs:
         run: npm --prefix apps/web run test:portfolio
       - name: Build web application
         run: npm --prefix apps/web run build
+      - name: Test order planning production component with mocked HTTP
+        run: node apps/web/test/portfolio-order-planning-browser.mjs
+        env:
+          PLANNING_EVIDENCE_DIR: ${{ runner.temp }}/iems-planning-mocked
+      - name: Test order planning actual app API and disposable database
+        run: node apps/web/test/portfolio-order-planning-e2e.mjs
+        env:
+          PLANNING_E2E_EVIDENCE_DIR: ${{ runner.temp }}/iems-planning-e2e
+      - name: Retain order planning acceptance evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: order-planning-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/iems-planning-mocked/*.json
+            ${{ runner.temp }}/iems-planning-mocked/*.png
+            ${{ runner.temp }}/iems-planning-e2e/*.json
+            ${{ runner.temp }}/iems-planning-e2e/*.png
+          if-no-files-found: error
+          retention-days: 7
       - name: Test independent genealogy ordering and holds
         run: node --test --test-concurrency=1 checkpoints/wave4k/qa/hold-shipment-fence.test.mjs
       - name: Test independent received custody ordering

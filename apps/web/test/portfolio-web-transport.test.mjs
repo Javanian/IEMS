@@ -64,8 +64,10 @@ async function actualChromeLauncher() {
   const update=main.findIndex(node=>node.type==='ExpressionStatement'&&node.expression.type==='AssignmentExpression'&&node.expression.left.object?.name==='browserRuntime'&&node.expression.left.property?.name==='browserVersion');
   assert.ok(update>spawn);
   const cleanup=ast.program.body.find(node=>node.type==='TryStatement'&&node.finalizer)?.finalizer.body;
-  assert.ok(cleanup?.[2]?.test?.left?.object?.name==='chrome');
-  return {launch:source.slice(main[start].start,main[spawn].end),update:source.slice(main[update].start,main[update+2].end),cleanup:source.slice(cleanup[0].start,cleanup[2].end)};
+  const close=cleanup?.findIndex(node=>node.type==='IfStatement'&&node.test?.left?.object?.name==='ws');
+  const kill=cleanup?.findIndex(node=>node.type==='IfStatement'&&node.consequent?.expression?.callee?.object?.name==='chrome'&&node.consequent.expression.callee.property?.name==='kill');
+  assert.ok(close>=0&&kill>close,'Inspect actual Browser.close through fallback kill independent of preceding diagnostics');
+  return {launch:source.slice(main[start].start,main[spawn].end),update:source.slice(main[update].start,main[update+2].end),cleanup:source.slice(cleanup[close].start,cleanup[kill].end)};
 }
 function executeLaunch(source,{evidence,profile,platform,joinPath=join,write=async()=>{},spawn=()=>({}),binary,web='http://127.0.0.1:4173'}={}) {
   return runInNewContext(`(async()=>{${source}})()`,{evidence,profile,web,join:joinPath,process:{platform,arch:'test-architecture',env:{PORTFOLIO_CHROME_BINARY:binary,PRIVATE_PASSWORD:'not-to-be-recorded'}},writeFile:write,spawn,chrome:null},{timeout:1000});
@@ -114,16 +116,17 @@ test('actual runtime metadata records the CDP version and browser platform witho
 test('actual Chrome cleanup requests browser exit before bounded owned-child grace and preserves fallback kill',async()=>{
   const actual=await actualChromeLauncher();
   for(const outcome of ['graceful','timeout','already-exited']){
-    const events=[],listeners=new Map(),timers=new Set();let pending,reached;
+    const events=[],telemetry=[],listeners=new Map(),timers=new Set();let pending,reached;
     const boundary=new Promise(resolve=>{reached=resolve;});
     const chrome={exitCode:outcome==='already-exited'?0:null,signalCode:null,once(name,callback){events.push(`listen:${name}`);listeners.set(name,callback);},removeListener(name,callback){if(listeners.get(name)===callback)listeners.delete(name);},kill(){events.push('owned-kill');}};
     const ws={readyState:1,close(){events.push('socket-close');if(outcome==='already-exited')reached();}};
-    const completion=runInNewContext(`(async()=>{${actual.cleanup}})()`,{chrome,ws,call:async(method,params,session)=>{assert.equal(method,'Browser.close');assert.deepEqual(JSON.parse(JSON.stringify(params)),{});assert.equal(session,null);events.push('browser-close');},setTimeout(callback,ms){assert.equal(ms,5000);events.push('exit-grace');pending=callback;timers.add(1);reached();return 1;},clearTimeout(id){timers.delete(id);}},{timeout:1000});
+    const completion=runInNewContext(`(async()=>{${actual.cleanup}})()`,{chrome,ws,resourceTelemetry:{event:kind=>telemetry.push(kind)},call:async(method,params,session)=>{assert.equal(method,'Browser.close');assert.deepEqual(JSON.parse(JSON.stringify(params)),{});assert.equal(session,null);events.push('browser-close');},setTimeout(callback,ms){assert.equal(ms,5000);events.push('exit-grace');pending=callback;timers.add(1);reached();return 1;},clearTimeout(id){timers.delete(id);}},{timeout:1000});
     await boundary;
     assert.deepEqual(events.slice(0,2),['browser-close','socket-close']);
     if(outcome==='graceful'){assert.equal(events.includes('owned-kill'),false);chrome.exitCode=0;listeners.get('exit')();}
     else if(outcome==='timeout'){assert.equal(events.includes('owned-kill'),false);pending();}
     await completion;
+    assert.deepEqual(telemetry,['main-browser-close-requested','main-browser-close-acknowledged']);
     assert.equal(events.includes('owned-kill'),outcome==='timeout');
     assert.equal(events.includes('exit-grace'),outcome!=='already-exited');
     if(outcome==='timeout')assert.ok(events.indexOf('exit-grace')<events.indexOf('owned-kill'));

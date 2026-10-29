@@ -3,6 +3,7 @@ import { parseExpression } from '@babel/parser';
 import { scoped } from './wave4f-browser-kit.mjs';
 import { allSnapshot, traceFixture, tracePath } from '../../../checkpoints/company-stock-trace/qa/support.mjs';
 import { observeTraceRead } from './company-trace-readiness.mjs';
+import { observeTransport } from './transport-resource-telemetry.mjs';
 
 const js=JSON.stringify,root='#company-unit-trace',formSelector='form[aria-label="Trace an actual manufactured unit"]';
 const auditScript=`(()=>{const x=document.querySelector('${root} [data-company-unit-trace]');return x?JSON.parse(x.textContent):null})()`;
@@ -24,7 +25,7 @@ function measureTrace() {
   return {width:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth,contrastSamples:count,contrastFailures:failures,controls:[...panel.querySelectorAll('button,a,select,summary')].filter(visible).map(element=>({tag:element.tagName,text:element.textContent.trim().slice(0,80),height:element.getBoundingClientRect().height}))};
 }
 
-export async function companyStockTraceJourney({db,call,wait,evaluate,screenshot,check,headers,subscribe,writeEvidence}) {
+export async function companyStockTraceJourney({db,call,wait,evaluate,screenshot,check,headers,subscribe,writeEvidence,transportDiagnostic}) {
   const checked=expression=>{parseExpression(expression);return evaluate(expression);},ready=expression=>{parseExpression(expression);return wait(expression);},form=scoped({evaluate:checked,wait:ready});
   const request=async(path,body)=>{const response=await fetch(`http://127.0.0.1:4313/api${path}`,{method:body===undefined?'GET':'POST',headers,...(body===undefined?{}:{body:JSON.stringify(body)})});return {status:response.status,...await response.json()};};
   const ok=async(path,body,status=200)=>{const response=await request(path,body);assert.equal(response.status,status,`${path}: ${JSON.stringify(response)}`);return response.data;};
@@ -37,23 +38,28 @@ export async function companyStockTraceJourney({db,call,wait,evaluate,screenshot
   const navigate=async(receiptId)=>{await call('Page.navigate',{url:`${process.env.PORTFOLIO_WEB_ORIGIN}/portfolio/company-stock/receipts/${receiptId}`});await ready(`document.querySelector('#internal-company-stock')?.dataset.companyReceiptId===${js(receiptId)}&&document.querySelector('${formSelector}')`);};
   const traceReady=async(unitId,job)=>ready(`(()=>{const d=${auditScript};return d?.companyUnitId===${js(unitId)}${job?`&&Object.values(d.uses).flat().some(x=>x.consumer.executionId===${js(job._id)}&&x.consumer.version===${job.version})`:''}})()`);
   const reads=[];
-  const freshRead=async(unitId,action,{job,stockVersion}={})=>{
+  let diagnosticPhase='fixture-setup',readSequence=0;
+  const freshRead=async(unitId,action,{job,stockVersion,actionLabel='select-unit'}={})=>{
     const receiptId=await checked(`document.querySelector('#internal-company-stock').dataset.companyReceiptId`),url=`${process.env.PORTFOLIO_WEB_ORIGIN}/portfolio-api/api${tracePath(receiptId,unitId)}`;
+    const readIdentity={sequence:++readSequence,phase:diagnosticPhase,action:actionLabel,receiptId,unitId,url};
+    await observeTransport(transportDiagnostic,'fresh-read-before-action',readIdentity);
     const observed=observeTraceRead({subscribe,call,url});
     try {
       await action();const response=await observed.response;assert.equal(response.data.companyReceiptId,receiptId);assert.equal(response.data.companyUnitId,unitId);if(stockVersion!==undefined)assert.equal(response.data.current.stockVersion,stockVersion);
       await checked('(async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})()');
       await ready(`(()=>{const panel=document.querySelector('${root}'),data=${auditScript};return !!panel?.querySelector('[data-trace-complete="true"]')&&!panel.querySelector('[role="alert"]')&&![...panel.querySelectorAll('[role="status"]')].some(x=>x.textContent.includes('Loading manufactured unit trace'))&&JSON.stringify(data)===${js(JSON.stringify(response.data))}})()`);
       await traceReady(unitId,job);assert.deepEqual(await checked(auditScript),response.data);assert.equal(await checked(`document.querySelector('${formSelector} [name=traceUnitId]').selectedOptions[0].textContent`),response.data.serial);reads.push({requestId:response.requestId,status:response.status,attempts:response.attempts,companyUnitId:unitId,stockVersion:response.data.current.stockVersion,unitVersion:response.data.current.unitVersion,exactResponseMatch:true});
+      await observeTransport(transportDiagnostic,'fresh-read-completed',{...readIdentity,requestId:response.requestId,status:response.status});
       return response.data;
-    } finally {observed.close();}
+    } catch(error){await observeTransport(transportDiagnostic,'fresh-read-failed',{...readIdentity,errorName:error.name});throw error;}
+    finally {observed.close();}
   };
   const choose=async(unitId,{keyboard=false}={})=>freshRead(unitId,async()=>{
     await form.fillIn(formSelector,'traceUnitId',unitId);assert.equal(await checked(`!!document.querySelector('${root} [data-trace-complete]')`),false,'Changing selected unit must remove previous evidence');
     if(keyboard){await checked(`document.querySelector('${formSelector} [name=traceUnitId]').focus()`);await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});assert.equal(await checked('document.activeElement.textContent.trim()'),'Load manufactured unit trace');assert.equal(await checked('getComputedStyle(document.activeElement).outlineStyle'),'solid');await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});await call('Input.dispatchKeyEvent',{type:'char',text:'\r',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});}
     else await button(formSelector,'Load manufactured unit trace');
   });
-  const refresh=async(unitId,job,stockVersion)=>freshRead(unitId,()=>button(root,'Refresh manufactured unit trace'),{job,stockVersion});
+  const refresh=async(unitId,job,stockVersion)=>freshRead(unitId,()=>button(root,'Refresh manufactured unit trace'),{job,stockVersion,actionLabel:'refresh-unit'});
   const snapshot=()=>allSnapshot({db}),noWriteRead=async(action)=>{const before=await snapshot();await action();assert.deepEqual(await snapshot(),before,'Native trace GET changed durable data');};
   const layouts=[];
   const layout=async(name,kiosk=false,scrollSelector=root,widths=[360,768,1440])=>{
@@ -66,6 +72,7 @@ export async function companyStockTraceJourney({db,call,wait,evaluate,screenshot
   };
   const phases=[];let selectedId;
   const fixture=await traceFixture({db,ok},{onPhase:async state=>{
+    diagnosticPhase=state.phase;
     const unit=state.rootUnits[0];selectedId=unit._id;
     if(state.phase==='AVAILABLE') {
       await navigate(state.sourceId);await noWriteRead(()=>choose(unit._id,{keyboard:true}));
@@ -85,6 +92,7 @@ export async function companyStockTraceJourney({db,call,wait,evaluate,screenshot
     }
     phases.push({phase:state.phase,trace:await checked(auditScript)});
   }});
+  diagnosticPhase='post-fixture';
   check('Company trace prerequisite mutations are actual HTTP setup; native unit selection and refresh show each real reserved, abandoned, issued, consumed-unattributed, output/QC/storage phase with byte-equal all-collection read snapshots');
   await noWriteRead(()=>choose(fixture.rootUnits[1]._id));let trace=await checked(auditScript);assert.equal(trace.uses.losses.length,1);assert.equal(trace.uses.outputs.length,0);assert.equal(trace.uses.abandoned.length,1);await layout('process-loss',false,'[data-trace-use-group="losses"]',[360,1440]);
   await noWriteRead(()=>choose(selectedId));await layout('upstream');await layout('downstream',false,'#company-trace-downstream');await layout('affected-output',false,'[data-trace-use-group="outputs"]',[360,1440]);
@@ -99,7 +107,7 @@ export async function companyStockTraceJourney({db,call,wait,evaluate,screenshot
     await call('Fetch.enable',{patterns:[{urlPattern:`*${tracePath(fixture.sourceId,selectedId)}`,requestStage:'Response'}]});
     await button(root,'Refresh manufactured unit trace');const response=await Promise.race([paused,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Actual trace response was not intercepted')),30000);})]);
     assert.equal(response.responseStatusCode,200);await ready(`document.querySelector('${root}').innerText.includes('Loading manufactured unit trace')`);assert.equal(await checked(`!!document.querySelector('${root} [data-trace-complete]')`),false);await call('Fetch.continueRequest',{requestId:response.requestId});
-  } finally {clearTimeout(timer);unsubscribe();await call('Fetch.disable');}},{job:fixture.job});
+  } finally {clearTimeout(timer);unsubscribe();await call('Fetch.disable');}},{job:fixture.job,actionLabel:'intercept-response'});
   await call('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:-1,uploadThroughput:-1});
   try {await button(root,'Refresh manufactured unit trace');await ready(`document.querySelector('${root}').innerText.includes('records could not be loaded')`);assert.equal(await checked(`!!document.querySelector('${root} [data-trace-complete]')`),false);}finally{await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});}
   await noWriteRead(()=>refresh(selectedId,fixture.job));
