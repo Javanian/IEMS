@@ -178,6 +178,26 @@ jobs:
           PORTFOLIO_PURCHASED_FULFILLMENT_DIAGNOSTIC_ONLY: '0'
           PORTFOLIO_SKIP_CS: '0'
           PORTFOLIO_EVIDENCE_DIR: ${{ runner.temp }}/iems-native-browser
+      - name: Test order planning production component with mocked HTTP
+        run: node apps/web/test/portfolio-order-planning-browser.mjs
+        env:
+          PLANNING_EVIDENCE_DIR: ${{ runner.temp }}/iems-planning-mocked
+      - name: Test order planning actual app API and disposable database
+        run: node apps/web/test/portfolio-order-planning-e2e.mjs
+        env:
+          PLANNING_E2E_EVIDENCE_DIR: ${{ runner.temp }}/iems-planning-e2e
+      - name: Retain order planning acceptance evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: order-planning-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/iems-planning-mocked/*.json
+            ${{ runner.temp }}/iems-planning-mocked/*.png
+            ${{ runner.temp }}/iems-planning-e2e/*.json
+            ${{ runner.temp }}/iems-planning-e2e/*.png
+          if-no-files-found: error
+          retention-days: 7
       - name: Test intentional module failure and native reload recovery
         run: node checkpoints/review-five-findings/qa/module-fetch-recovery-browser.mjs
         env:

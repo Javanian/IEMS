@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile, rm, realpath } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { once } from 'node:events';
 import { createServer as createNetServer } from 'node:net';
 import { createServer } from 'vite';
@@ -9,18 +10,20 @@ import { createServer } from 'vite';
 const root = resolve(import.meta.dirname, '..');
 process.chdir(root);
 const evidence = resolve(process.env.PLANNING_EVIDENCE_DIR || join(root, 'test-results/order-planning'));
-const binary = process.env.PLANNING_BROWSER_BINARY || 'C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe';
+const binary = process.env.PLANNING_BROWSER_BINARY || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'google-chrome');
 const baselineControl = process.env.PLANNING_BASELINE_CONTROL === '1';
 let baselineSource;
 if (baselineControl) {
   const original = spawnSync('git', ['show', 'HEAD:apps/web/src/features/portfolio/ManufacturingWorkspace.jsx'], { cwd: root, encoding: 'utf8' });
   assert.equal(original.status, 0, original.stderr);
-  baselineSource = original.stdout;
+  const needle = "useResource('/api/manufacturing/work-orders?limit=100', true)";
+  assert.equal(original.stdout.split(needle).length, 2, 'Baseline control must remove exactly the complete-page read');
+  baselineSource = original.stdout.replace(needle, "useResource('/api/manufacturing/work-orders?limit=100')");
 }
 await mkdir(evidence, { recursive: true });
-const profile = join(evidence, 'browser-profile');
+const profile = await mkdtemp(join(tmpdir(), 'iems-planning-mock-profile-'));
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const checks = [], requests = [], exceptions = [], captures = [], pendingCdp = new Map();
+const checks = [], requests = [], exceptions = [], captures = [], pendingCdp = new Map(), network = [];
 let vite, browser, ws, session, sequence = 0, active, failure, origin;
 const fixtureOrder = id => ({ _id: id, status: 'OPEN', version: 3, quoteRevision: 1, snapshot: { lines: [{ description: `Synthetic ${id}`, quantity: '500.000', uom: 'EA' }] } });
 const wo = (id, salesOrderId = 'order-a', quantity = '7.125', lineIndex = 0) => ({ _id: id, salesOrderId, quantity, lineIndex, uom: 'EA', status: 'PLANNED' });
@@ -94,7 +97,8 @@ async function shot(name) {
 }
 async function startCase(name, handler, query = '') {
   active = { name, handler, held: null, closed: false, requests: [] };
-  await cdp('Page.navigate', { url: `${origin}/portfolio/manufacturing/plan/order-a${query}` });
+  const navigation = await cdp('Page.navigate', { url: `${origin}/portfolio/manufacturing/plan/order-a${query}` });
+  assert.ok(!navigation.errorText, JSON.stringify(navigation));
   await waitFor(async () => (await dom()).route?.endsWith('/order-a'), `${name} component mounted`);
 }
 async function readyRows(ids) {
@@ -152,10 +156,11 @@ try {
     const message = JSON.parse(event.data);
     if (message.id) { const p = pendingCdp.get(message.id); if (!p) return; pendingCdp.delete(message.id); message.error ? p.reject(Error(message.error.message)) : p.resolve(message.result); }
     if (message.method === 'Runtime.exceptionThrown') exceptions.push(message.params);
+    if (['Network.requestWillBeSent', 'Network.loadingFailed', 'Network.responseReceived'].includes(message.method)) network.push({ method: message.method, params: message.params });
   });
   const target = await cdp('Target.createTarget', { url: 'about:blank' }, null);
   session = (await cdp('Target.attachToTarget', { targetId: target.targetId, flatten: true }, null)).sessionId;
-  await cdp('Runtime.enable'); await cdp('Page.enable');
+  await cdp('Runtime.enable'); await cdp('Page.enable'); await cdp('Network.enable');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1280, height: 1000, deviceScaleFactor: 1, mobile: false });
   await writeFile(join(evidence, 'resources-start.json'), JSON.stringify({ at: new Date().toISOString(), origin, leadPid: process.pid, browserPid: browser.pid, binary, profile, version: await cdp('Browser.getVersion', {}, null), mockedApi: true }, null, 2));
 
@@ -227,6 +232,7 @@ try {
   assert.deepEqual(exceptions, []);
 } catch (error) {
   failure = { message: error.message, stack: error.stack };
+  try { await writeFile(join(evidence, 'failure-diagnostics.json'), JSON.stringify({ state: await evaluate('({url:location.href,readyState:document.readyState,html:document.documentElement.outerHTML})'), network }, null, 2)); } catch {}
   try { await shot('failure'); } catch {}
   console.error(error.stack);
   process.exitCode = 1;
@@ -237,5 +243,10 @@ try {
     if (browser.exitCode === null) { browser.kill(); await Promise.race([once(browser, 'exit'), delay(5000)]); }
   }
   if (vite) await vite.close();
-  await writeFile(join(evidence, 'results.json'), JSON.stringify({ at: new Date().toISOString(), source: 'Actual production PlanWorkOrders, PlannedForOrder, useResource, Resource, portfolioRequest, collectPages; harness router/identity only', baselineControl, mockedApi: true, realBackend: false, origin, checks, requests, captures, exceptions, failure: failure || null, cleanup: { browserExited: !browser || browser.exitCode !== null, serverClosed: !vite || !vite.httpServer?.listening } }, null, 2));
+  const browserExited = !browser || browser.exitCode !== null || browser.signalCode !== null;
+  assert.ok(browserExited, 'Owned mock browser must exit before next runtime');
+  const ownedProfile = await realpath(profile), tempRoot = await realpath(tmpdir());
+  assert.ok(ownedProfile.startsWith(tempRoot) && ownedProfile.includes('iems-planning-mock-profile-'));
+  await rm(ownedProfile, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
+  await writeFile(join(evidence, 'results.json'), JSON.stringify({ at: new Date().toISOString(), source: 'Actual production PlanWorkOrders, PlannedForOrder, useResource, Resource, portfolioRequest, collectPages; harness router/identity only', baselineControl, mockedApi: true, realBackend: false, origin, checks, requests, captures, exceptions, failure: failure || null, cleanup: { browserExited, serverClosed: !vite || !vite.httpServer?.listening, profileRemoved: true } }, null, 2));
 }
