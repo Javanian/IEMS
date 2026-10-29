@@ -51,7 +51,7 @@ const panelExpression = `([...document.querySelectorAll('section')].find(s=>s.qu
 async function state() { return evaluate(`(()=>{const p=${panelExpression};return {route:location.pathname,kiosk:document.querySelector('.portfolio-root')?.dataset.kiosk,panel:p?.innerText,loading:!!p?.querySelector('[role=status]'),error:p?.querySelector('[role=alert]')?.innerText,rows:[...(p?.querySelectorAll('li')||[])].map(x=>({id:x.querySelector('a')?.getAttribute('href').split('/').at(-1),text:x.innerText})),notice:[...document.querySelectorAll('section[role=status]')].map(s=>s.innerText),body:document.body.innerText}})()`); }
 async function waitPanel() { await until(async () => { const s = await state(); return s.panel && !s.loading && !s.error; }, 'settled actual planning panel'); return state(); }
 async function completedTraversal(records) {
-  const reads = await evaluate("window.__planningEvidence.fetches.filter(x=>x.path.startsWith('/portfolio-api/api/manufacturing/work-orders?')&&x.parsed&&!x.abortSignaled)");
+  const reads = await evaluate("window.__planningEvidence.fetches.filter(x=>x.path.startsWith('/portfolio-api/api/manufacturing/work-orders?')&&x.status===200&&x.parsed&&!x.abortSignaled)");
   return reads.map(read => {
     const actual = records.find(x => x.proxyId === read.proxyId && x.clientId === read.clientId && x.deliveredStatus === 200);
     assert.ok(actual, 'Every consumed page must match its unique real API response');
@@ -248,12 +248,15 @@ try {
   assert.ok((await state()).panel.includes('None planned yet.')); await shot('04-empty-complete-desktop');
   injection = null; pass('OP-04', { finalPageHeldLoading: pendingEmpty, emptyOnlyAfterTraversal: true });
 
-  active = 'OP-05'; injection = { kind: 'error' };
+  active = 'OP-05'; const failureStart = proxyRecords.length; injection = { kind: 'error', cursor: 'last' };
   await navigate(fixture.orders.spread); await until(async () => !!(await state()).error, 'injected real later-page503 visible');
+  const beforeFailedPage = await completedTraversal(proxyRecords.slice(failureStart).filter(x => x.ids));
+  assert.ok(beforeFailedPage.some(x => x.ids.includes(spread[0]._id)), 'A matching target must already have been received before the final-page failure');
+  assert.equal(injection.record.cursor, pages[1].nextCursor);
   const errored = await state(); assert.equal(errored.rows.length, 0); assert.ok(!errored.panel.includes('None planned yet.')); assert.ok(errored.error.includes('Refresh and retry'));
-  await shot('05-later-page-error-desktop'); injection = null;
+  await shot('05-later-page-error-desktop'); const failedCursor = injection.record.cursor; injection = null;
   await click('section .pf-error button'); await assertRows(fixture.orders.spread);
-  pass('OP-05', { injectedResponseBoundary: true, upstreamStatus: 200, deliveredStatus: 503, error: errored.error, freshRetryComplete: true });
+  pass('OP-05', { injectedResponseBoundary: true, upstreamStatus: 200, deliveredStatus: 503, previouslyReceivedTarget: spread[0]._id, consumedPagesBeforeFailure: beforeFailedPage, failedCursor, partialTargetRowsHidden: true, error: errored.error, freshRetryComplete: true });
 
   for (const mode of ['cancellation', 'stale-response', 'stale-error']) {
     const ignoreAbort = mode !== 'cancellation';
@@ -342,6 +345,7 @@ try {
   const unexpected = networkFailures.filter(x => !x.canceled && !['net::ERR_ABORTED'].includes(x.errorText));
   assert.deepEqual(unexpected, []);
   const failedProxy = proxyRecords.filter(x => x.error); assert.deepEqual(failedProxy, []);
+  assert.deepEqual(proxyRecords.filter(x => x.apiStatus >= 500), [], 'Unexpected actual backend failures must fail acceptance; injected statuses are recorded separately');
   const finalDb = await oracle(fixture.orders.operator); assert.deepEqual(finalDb, created);
   await report('database-oracle-final.json', { operator: finalDb, allWoCount: await db.collection('manufacturingWorkOrders').countDocuments({}), allocated: await db.collection('manufacturingAllocated').find({}).toArray(), unchangedOperatorAfterDeniedAndOtherJourneys: true });
 } catch (error) {
