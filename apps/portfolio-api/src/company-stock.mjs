@@ -58,6 +58,12 @@ export function companyStockView(context) {
 }
 async function saveUse(db, filter, context, actor, reason, kind, session, hold = context.use.hold) {
   if (!session?.inTransaction()) throw new Error('company write requires transaction');
+  // With no use head yet, source readers and the first hold must still contend on one existing authority row.
+  if (!context.use.head) {
+    const producer = context.producer.head;
+    const fenced = await db.collection('internalExecutions').updateOne({ ...filter, _id: producer._id, version: producer.version, authorityHash: producer.authorityHash }, { $inc: { useFence: 1 } }, { session });
+    if (fenced.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+  }
   const receiptId = context.receipt._id, reservations = await db.collection('companyMaterialReservations').find({ ...filter, companyReceiptId: receiptId }, { session }).limit(companyStockLimits.reservations + 1).toArray();
   const capacity = companyStockCapacity(context.use.version, reservations.length);
   if (reservations.length > capacity.reservationLimit || capacity.remainingEvents < 1) fail(409, 'STOCK_HISTORY_LIMIT');
