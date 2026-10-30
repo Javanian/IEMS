@@ -18,6 +18,8 @@ import { requireQualityGates } from './quality.mjs';
 import { stockHash } from './catalog-stock-values.mjs';
 import { appendReportingSnapshot, initializeReportingSnapshots } from '../../../packages/domain-events/snapshot-source.mjs';
 import { sourceHash, addDecimals } from '../../../packages/domain-events/source-bindings.mjs';
+import { readDeliveryState, deliverySourceHash } from './delivery.mjs';
+import { shipmentSemantic } from './purchased-stock-proof.mjs';
 
 const verbs = ['read', 'ship', 'invoice', 'pay'];
 export const fulfillmentActions = verbs.map(v => `fulfillment.${v}`);
@@ -243,6 +245,42 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
     return { salesOrderId: so._id, currency: so.snapshot.currency, lines: so.snapshot.lines.map((line, lineIndex) => ({ lineIndex, uom: line.uom, orderedQuantity: line.quantity, shippedQuantity: of('SO_LINE_SHIPPED', lineIndex), invoicedQuantity: of('SO_LINE_INVOICED', lineIndex) })) };
     }) });
   });
+
+  app.get('/api/fulfillment/orders/:id/closure', async (req, res) => res.json({ data: await read(async session => {
+    const order = await find('salesOrders', req, req.params.id, session);
+    await purchasedReadContext(runtime.db, req.filter, order, session);
+    const shipments = await c('fulfillmentShipments').find({ ...req.filter, salesOrderId: order._id }, { session }).limit(101).toArray();
+    const invoices = await c('fulfillmentInvoices').find({ ...req.filter, salesOrderId: order._id }, { session }).limit(101).toArray();
+    if (shipments.length > 100 || invoices.length > 100) return { salesOrderId: order._id, complete: false, status: 'INCOMPLETE', reasons: ['HISTORY_LIMIT'], asOf: businessNow(runtime) };
+    const reasons = new Set(), deliveries = [];
+    for (const shipment of shipments) {
+      const typed = await validatePurchasedShipment(runtime.db, req.filter, shipment._id, session);
+      if (!typed) {
+        const key = await c('fulfillmentKeys').findOne({ ...req.filter, 'result._id': shipment._id }, { session });
+        if (!key || stockHash(shipmentSemantic(key.result)) !== stockHash(shipmentSemantic(shipment))) fail(409, 'DELIVERY_SOURCE_INVALID');
+      }
+      const original = { shipment, serials: typed?.serials || shipment.sources.flatMap(source => source.serials || []).sort(), sourceHash: await deliverySourceHash(runtime.db, req.filter, shipment, session) };
+      const delivered = await readDeliveryState(runtime.db, req.filter, original, session);
+      deliveries.push({ shipmentId: shipment._id, status: delivered.head?.status || 'NOT_DELIVERED', deliveredQuantity: delivered.head?.deliveredQuantity || '0', uom: shipment.uom });
+      if (delivered.head?.status !== 'DELIVERED') reasons.add('DELIVERY_NOT_CONFIRMED');
+      if (await c('fulfillmentReturns').findOne({ ...req.filter, shipmentId: shipment._id }, { session })) reasons.add('QUARANTINED_RETURNS');
+    }
+    for (const invoice of invoices) {
+      await verifyRead('fulfillmentInvoices', req, invoice, session);
+      if (minor(invoice.outstandingAmount) !== 0n) reasons.add('OPEN_RECEIVABLE');
+      if (invoice.settlementPolicy !== 'IMMUTABLE_POSTING_V1') reasons.add('LEGACY_POSTING_REVIEW');
+    }
+    const lines = order.snapshot.lines.map((line, lineIndex) => {
+      const shipped = shipments.filter(row => row.lineIndex === lineIndex).reduce((sum, row) => sum + units(row.quantity), 0n);
+      const invoiced = invoices.flatMap(row => row.lines).filter(row => row.lineIndex === lineIndex).reduce((sum, row) => sum + units(row.quantity), 0n);
+      if (shipped > units(line.quantity) || invoiced > units(line.quantity)) fail(409, 'FULFILLMENT_QUANTITY_INVALID');
+      if (shipped !== units(line.quantity)) reasons.add('UNSHIPPED_QUANTITY');
+      if (invoiced !== units(line.quantity)) reasons.add('UNINVOICED_QUANTITY');
+      return { lineIndex, orderedQuantity: line.quantity, shippedQuantity: decimal(shipped), invoicedQuantity: decimal(invoiced), uom: line.uom };
+    });
+    if (!lines.length) reasons.add('ORDER_LINE_EVIDENCE_REQUIRED');
+    return { salesOrderId: order._id, complete: true, status: reasons.size ? 'OPEN_OBLIGATIONS' : 'FULFILLED_EVIDENCED', reasons: [...reasons], lines, deliveries, invoiceCount: invoices.length, asOf: businessNow(runtime), basis: 'SHIPMENT_POD_INVOICE_SETTLEMENT_RETURN_EVIDENCE' };
+  }) }));
 
   app.get('/api/fulfillment/orders/:id/entitlement', async (req, res) => {
     const session = runtime.client.startSession();

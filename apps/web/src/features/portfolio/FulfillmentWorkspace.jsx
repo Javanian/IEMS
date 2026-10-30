@@ -98,6 +98,7 @@ function LegacyFulfillmentOrder() {
     <div className="pf-summary"><span className="pf-status">{order.status}</span><span>{order.snapshot.currency}</span><AuditDetails action="fulfillment.read"><p>Version: {order.version}</p></AuditDetails></div>
     <div className="pf-actions"><Link to={`/portfolio/accounts/${order.accountId}`}>Open account</Link><Link to="/portfolio/fulfillment/invoices">Open invoices</Link><button type="button" disabled={!!commandLocked} onClick={refresh}>Refresh fulfillment</button></div>
     <Balances order={order} resource={balances} />
+    <OrderCompletion key={`closure-${order._id}`} orderId={order._id} locked={commandLocked} />
     <AccountSettlement key={`account-${order.accountId}`} accountId={order.accountId} currency={order.snapshot.currency} locked={commandLocked} onLockChange={setLocked} onSaved={refresh} />
     <section className="pf-panel"><h2>Prepare dispatch</h2><label className="pf-field">Dispatch step<select value={dispatchStep} disabled={!!commandLocked} onChange={event => setDispatchStep(event.target.value)}><option value="pick">Record a pick for packing</option><option value="ship">Record direct dispatch</option></select></label><p>A pick records the selected goods. Packing records their package reference. Stock availability is checked again when goods are dispatched.</p></section>
     <div className="pf-columns">
@@ -179,6 +180,12 @@ export function AccountSettlement({ accountId, currency, invoice, locked, onLock
     </div>}
     <button type="button" disabled={!!locked} onClick={ledger.reload}>Refresh account ledger</button>
   </>}</Resource></section>;
+}
+
+export function OrderCompletion({ orderId, locked }) {
+  const resource = useResource(`/api/fulfillment/orders/${orderId}/closure`);
+  const labels = { HISTORY_LIMIT: 'The history exceeds this bounded view; completion is unknown.', DELIVERY_NOT_CONFIRMED: 'Confirm actual customer delivery for every shipment.', QUARANTINED_RETURNS: 'Returned customer goods remain in quarantine and require disposition review.', OPEN_RECEIVABLE: 'Settle the remaining invoice balances.', LEGACY_POSTING_REVIEW: 'An authorized reviewer must verify legacy invoice posting evidence.', UNSHIPPED_QUANTITY: 'Dispatch the remaining order quantity.', UNINVOICED_QUANTITY: 'Invoice the remaining order quantity.', ORDER_LINE_EVIDENCE_REQUIRED: 'Review the missing order line evidence.' };
+  return <section className="pf-panel"><h2>Fulfillment completion</h2><Resource resource={resource}>{({ data: view }) => <><p className="pf-status">{view.status === 'FULFILLED_EVIDENCED' ? 'Fulfilled with delivery and settlement evidence' : view.complete ? 'Open obligations' : 'Completion unknown'}</p>{view.reasons.length > 0 ? <ul>{view.reasons.map(reason => <li key={reason}>{labels[reason] || reason}</li>)}</ul> : <p>Every ordered quantity is dispatched and invoiced, all delivery evidence is confirmed, invoice balances are settled, and no customer return is awaiting disposition.</p>}<p>As of {new Date(view.asOf).toLocaleString('en-US')}. This view checks recorded obligations; shipment dispatch alone does not establish completion.</p></>}</Resource><button type="button" disabled={!!locked} onClick={resource.reload}>Refresh completion evidence</button></section>;
 }
 
 export function ManufacturedDispatch({ orderId, locked, onLockChange, onSaved }) {

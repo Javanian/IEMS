@@ -144,3 +144,17 @@ source event IDs reference real persisted audit/authority records. Live emitter 
 complete for these dispatch commands and explicitly allocated settlements. Data-owner historical
 bootstrap still requires its typed-shipment and settlement-metadata cohort extension at integration;
 do not claim whole-history/source coverage from this emitter handoff.
+
+## Truthful completion
+
+`GET /api/fulfillment/orders/:id/closure` derives OPEN_OBLIGATIONS, FULFILLED_EVIDENCED or
+INCOMPLETE from exact shipped/invoiced quantities, the existing validated POD chain, immutable
+invoice settlement and quarantined returns. No close flag or order status is fabricated. A
+settled invoice alone does not close an unshipped order; a later return makes current completion
+open again. Missing legacy posting proof requires review. Bounded incomplete histories never
+show a complete balance. Both order fulfillment screens expose the reasons and current basis.
+
+The shared delivery-state reader is extracted without changing its chain checks. Historical
+generic POD hashes that included documentFence are recognized against bounded actual document
+counters, while new PODs exclude mutable document/return fences. Full source contents still have
+to match; a stored head hash is never trusted as a substitute for source evidence.
