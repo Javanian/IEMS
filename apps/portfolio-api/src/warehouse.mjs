@@ -3,7 +3,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { initializeStockHolds, installStockHolds, requireEligibleReceipt, holdActions, holdRoles } from './stock-holds.mjs';
 import { initializeSerialCustody, installWarehouseSerialCustody, requireQuantityOnlyReceipt, requireCustodyTransfer } from './serial-custody.mjs';
-import { classifyReceiptOrigin, requireLegacyReceipt } from './receipt-origin.mjs';
+import { classifyReceiptOrigin, requireLegacyReceipt, legacyReceiptPurchaseSource } from './receipt-origin.mjs';
 import { validateCatalogReceiptOrigin } from './catalog-procurement.mjs';
 
 export const warehouseActions = [...['read', 'receive', 'release', 'putaway', 'reserve', 'bin', 'transfer', 'count'].map(a => `warehouse.${a}`), ...holdActions];
@@ -146,18 +146,20 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
       const order = await find('purchaseOrders', req, purchaseOrderId, session);
       await find('vendors', req, vendorId, session);
       if (order.vendorId !== vendorId) fail(409, 'VENDOR_CONFLICT');
-      const source = line(order, lineIndex);
+      const { line: source, purchaseSource } = await legacyReceiptPurchaseSource(runtime.db, order, lineIndex, order.documentRevision || 1, session);
       if (source.uom !== uom) fail(409, 'UOM_CONFLICT');
       if (order.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (!['ISSUED', 'CONFIRMED'].includes(order.status)) fail(409, 'STATE_CONFLICT');
+      const fenced = await c('purchaseOrders').updateOne({ ...req.filter, _id: order._id, version: expectedVersion }, { $inc: { receiptFence: 1 } }, { session });
+      if (fenced.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
       await tally('warehouseReceived', { ...req.filter, purchaseOrderId, lineIndex }, amount, units(source.quantity), session);
-      const row = { ...base(req), purchaseOrderId, vendorId, lineIndex, quantity: qty, uom, serials, ...trace, status: 'QUARANTINED', availableQuantity: '0', reservedQuantity: '0' };
+      const row = { ...base(req), purchaseOrderId, purchaseSource, vendorId, lineIndex, quantity: qty, uom, serials, ...trace, status: 'QUARANTINED', availableQuantity: '0', reservedQuantity: '0' };
       for (const serial of serials) {
         if (await c('warehouseSerials').findOne({ ...req.filter, serial }, { session })) fail(409, 'SERIAL_CONFLICT');
         await c('warehouseSerials').insertOne({ _id: randomUUID(), ...req.filter, serial, receiptId: row._id }, { session });
       }
       await c('warehouseReceipts').insertOne(row, { session });
-      await movement(req, row, 'RECEIVE', qty, null, 'QUARANTINE', session); return row;
+      await movement(req, row, 'RECEIVE', qty, null, 'QUARANTINE', session, { purchaseSource }); return row;
     }); res.status(201).json({ data });
   });
   const traceOf = row => row.lotNumber !== undefined ? { materialTrace: { receiptId: row._id, lotNumber: row.lotNumber, heatNumber: row.heatNumber } } : {};
