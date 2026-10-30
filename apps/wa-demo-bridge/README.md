@@ -93,3 +93,11 @@ This is a standalone preview slice, not full WA acceptance, a live order integra
 ## Prompt body privacy (PLAT-051)
 
 Known-prompt answers now persist only a scoped receipt with prompt/session/binding versions and bodyRetained:false. No raw answer, body hash or derived answer is retained or sent to customer-service. Prompt consumption and the metadata receipt remain atomic. Explicit prefixed commands retain the existing scoped CS command contract. Historical preview rows are unchanged; this change does not erase existing data. The synthetic HTTP envelope still parses a bounded body in memory. Live browser/provider support remains unimplemented and disabled.
+
+## Provider callback envelope contract (PLAT-047/051)
+
+`src/provider-callback.mjs` exports `createProviderCallbackVerifier`. Trusted configuration supplies tenant UUID, account ID, a separate callback key as a Buffer of at least 32 bytes, and a clock. The adapter must bound raw request bytes before buffering; verifier accepts at most 4096 bytes. HMAC SHA256 covers `timestamp + "." + rawBody` (UTF-8 timestamp, exact request bytes), encoded as 64 lowercase hex characters. Timestamp is epoch milliseconds, within five minutes of server time. Never use service/approval keys as callback keys.
+
+Authenticated JSON must contain exactly version (1), tenantId, accountId, eventId, deliveryId (UUID), providerMessageId and status (ACCEPTED/DELIVERED/FAILED). Unknown fields, including bodies/notes, are rejected. The returned frozen object is metadata only. Authentication is not event consumption: the eventual handler must transactionally deduplicate eventId, bind deliveryId/providerMessageId to the configured account and session generation, enforce monotonic terminal states and preserve UNKNOWN until evidence reconciles it. A fresh signature must never authorize resending an ambiguous delivery.
+
+This module is unmounted and makes no provider calls. HTTP wiring, durable callback processing, single browser ownership and provider integration remain incomplete. Live send remains disabled. The pure contract checks use synthetic envelopes and do not establish provider or Mongo acceptance.
