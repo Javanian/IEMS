@@ -10,6 +10,8 @@ def canonical(value):
     def check(v):
         if isinstance(v, float):
             raise ValueError('Floating point payloads are forbidden')
+        if type(v) is int and abs(v) > 9007199254740991:
+            raise ValueError('Unsafe integer; encode exact values as strings')
         if isinstance(v, dict):
             for item in v.values():
                 check(item)
@@ -37,7 +39,7 @@ def now():
 def validate(e):
     for key in ('eventId', 'tenantId', 'plantId', 'aggregateId'):
         UUID(e[key])
-    if e['schemaVersion'] != 1 or type(e['aggregateVersion']) is not int or e['aggregateVersion'] < 1:
+    if type(e['schemaVersion']) is not int or e['schemaVersion'] != 1 or type(e['aggregateVersion']) is not int or not 1 <= e['aggregateVersion'] <= 9007199254740991:
         raise ValueError('Unsupported event version')
     if not re.fullmatch(r'[A-Za-z][\w.-]{0,127}', e['type']) or not isinstance(e['payload'], dict):
         raise ValueError('Invalid event')

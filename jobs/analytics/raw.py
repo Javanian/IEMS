@@ -18,14 +18,17 @@ def ingest(records, root, stream, start, end, previous=None):
         verify(previous)
         if previous['stream'] != stream or previous['end'] != start:
             raise ValueError('Cursor discontinuity')
-    rows, rejected, seen = [], [], {}
+    rows, rejected, seen, size = [], [], {}, 0
     for index, record in enumerate(records):
         if index >= 10000:
             raise ValueError('Batch exceeds 10000 records')
+        size += len(canonical(record).encode())
+        if size > 32 * 1024 * 1024:
+            raise ValueError('Batch exceeds 32 MiB; split input, cursor unchanged')
         try:
             e = validate(record['event'])
             receipt, available = record['receivedAt'], record['availableAt']
-            if not utc(e['occurredAt']) <= utc(receipt) <= utc(available):
+            if not utc(e['occurredAt']) <= utc(receipt) <= utc(available) <= utc(now()):
                 raise ValueError('Unavailable provenance')
             key, checksum = e['eventId'], digest(e)
             if key in seen:
@@ -84,7 +87,7 @@ def read_batch(path):
     seen = []
     for envelope, checksum, receipt, available in rows:
         event = validate(json.loads(envelope))
-        if digest(event) != checksum or not utc(event['occurredAt']) <= utc(receipt) <= utc(available):
+        if digest(event) != checksum or not utc(event['occurredAt']) <= utc(receipt) <= utc(available) <= utc(now()):
             raise ValueError('Corrupt provenance')
         seen.append((event['eventId'], checksum))
     if len(rows) != manifest['count'] or digest(sorted(seen)) != manifest['eventsHash']:
