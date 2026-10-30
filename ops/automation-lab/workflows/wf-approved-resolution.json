@@ -1,0 +1,166 @@
+{
+  "id": "wf-approved-resolution",
+  "name": "IEMS - Approved resolution notification",
+  "active": false,
+  "nodes": [
+    {
+      "id": "operator-trigger",
+      "name": "Operator trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        160,
+        100
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "iems-approved-resolution",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "webhookId": "iems-approved-resolution",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-webhook-auth",
+          "name": "IEMS private webhook"
+        }
+      }
+    },
+    {
+      "id": "read-approved-draft",
+      "name": "Read approved draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        240
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ \"http://127.0.0.1:4319/api/cs/automation/resolution-drafts/\" + $json.body.draftId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-IEMS-Execution-Id",
+              "value": "={{ $execution.id }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-service-api",
+          "name": "IEMS scoped automation service"
+        }
+      }
+    },
+    {
+      "id": "dispatch-approved-immutable-content",
+      "name": "Dispatch approved immutable content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        240
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"http://127.0.0.1:4319/api/cs/automation/resolution-drafts/\" + $json.data._id + \"/dispatch\" }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-IEMS-Execution-Id",
+              "value": "={{ $execution.id }}"
+            },
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ \"resolution:\" + $json.data._id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-service-api",
+          "name": "IEMS scoped automation service"
+        }
+      }
+    },
+    {
+      "id": "execution-reference",
+      "name": "Execution reference",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        980,
+        240
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ { n8nExecutionId: $execution.id, result: $json.data || $json } }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Operator trigger": {
+      "main": [
+        [
+          {
+            "node": "Read approved draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read approved draft": {
+      "main": [
+        [
+          {
+            "node": "Dispatch approved immutable content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch approved immutable content": {
+      "main": [
+        [
+          {
+            "node": "Execution reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Bangkok",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "wf-automation-error"
+  },
+  "pinData": {},
+  "tags": [],
+  "versionId": "92fb48a4-949d-4a7f-a2a5-15f1d4eeb599"
+}

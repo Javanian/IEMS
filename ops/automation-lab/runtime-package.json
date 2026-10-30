@@ -1,0 +1,6 @@
+{
+  "name": "iems-n8n-corrective-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": { "n8n": "1.121.3" }
+}
