@@ -7,6 +7,7 @@ export const procurementActions = ['read', 'write', 'approve', 'convert', 'issue
 export async function initializeProcurement(db) {
   await db.collection('purchaseOrders').createIndex({ tenantId: 1, plantId: 1, requestId: 1 }, { unique: true });
   await db.collection('procurementConversions').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
+  await db.collection('procurementPromiseKeys').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
 }
 export function installProcurement(app, runtime, { fail, guard, id, fields }) {
   const c = name => runtime.db.collection(name);
@@ -34,8 +35,8 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
     if (scope.plantId !== req.scope.selectedPlantId) fail(403, 'SCOPE_DENIED');
     req.filter = scope;
     const requestCommand = /^\/requests\/[^/]+\/(approve|convert)$/.exec(req.path)?.[1];
-    const orderCommand = /^\/orders\/[^/]+\/(issue|vendor-confirmation)$/.exec(req.path)?.[1];
-    const command = ['/vendors', '/requests'].includes(req.path) ? 'write' : requestCommand || (orderCommand === 'vendor-confirmation' ? 'confirm' : orderCommand);
+    const orderCommand = /^\/orders\/[^/]+\/(issue|vendor-confirmation|vendor-promise)$/.exec(req.path)?.[1];
+    const command = ['/vendors', '/requests'].includes(req.path) ? 'write' : requestCommand || (['vendor-confirmation', 'vendor-promise'].includes(orderCommand) ? 'confirm' : orderCommand);
     req.procurementAction = req.method === 'GET' ? 'procurement.read' : req.method === 'POST' && command ? `procurement.${command}` : null;
     if (!req.procurementAction) fail(404, 'NOT_FOUND');
     await runtime.foundation.authorize(req.scope, { ...scope, action: req.procurementAction }); next();
@@ -83,6 +84,37 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
       const row = { ...base(req), vendorId, snapshot: content, status: 'DRAFT' };
       await c('purchaseRequests').insertOne(row, { session }); return row;
     }); res.status(201).json({ data });
+  });
+  app.post('/api/procurement/orders/:id/vendor-promise', async (req, res) => {
+    fields(req.body, ['expectedVersion', 'vendorId', 'promisedAt', 'reference', 'reason', 'idempotencyKey']);
+    const { expectedVersion, promisedAt, reference, reason, idempotencyKey: key } = req.body;
+    const vendorId = id(req.body.vendorId);
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) fail(400, 'INVALID_VERSION');
+    if (typeof key !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(key)) fail(400, 'INVALID_IDEMPOTENCY_KEY');
+    if (typeof promisedAt !== 'string' || !Number.isFinite(Date.parse(promisedAt)) || new Date(promisedAt).toISOString() !== promisedAt) fail(400, 'INVALID_PROMISED_DATE');
+    for (const value of [reference, reason]) if (typeof value !== 'string' || !value.trim() || value.length > 500) fail(400, 'INVALID_PROMISE_REASON');
+    const payloadHash = createHash('sha256').update(JSON.stringify([req.params.id, expectedVersion, vendorId, promisedAt, reference, reason])).digest('hex');
+    const data = await tx(req, 'purchaseOrder.vendor-promise', async session => {
+      const row = await find('purchaseOrders', req, req.params.id, session);
+      await find('vendors', req, row.vendorId, session);
+      if (row.vendorId !== vendorId) fail(409, 'VENDOR_CONFLICT');
+      const prior = await c('procurementPromiseKeys').findOne({ ...req.filter, key }, { session });
+      if (prior) {
+        if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+        return { ...prior.data, replay: true };
+      }
+      if (row.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
+      if (!['ISSUED', 'CONFIRMED'].includes(row.status)) fail(409, 'STATE_CONFLICT');
+      const promise = { _id: randomUUID(), vendorId, promisedAt: new Date(promisedAt), reference: reference.trim(), reason: reason.trim(), recordedAt: new Date(), recordedBy: req.scope.userId, source: 'OPERATOR_RECORDED', previousPromiseId: row.promiseHistory?.at(-1)?._id || null };
+      row.promiseHistory = [...(row.promiseHistory || []), promise];
+      row.promisedAt = promise.promisedAt;
+      row.version++; row.updatedAt = promise.recordedAt;
+      const changed = await c('purchaseOrders').replaceOne({ ...req.filter, _id: row._id, version: expectedVersion }, row, { session });
+      if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+      await c('procurementPromiseKeys').insertOne({ _id: randomUUID(), ...req.filter, key, payloadHash, data: row }, { session });
+      return row;
+    });
+    const { replay, ...record } = data; res.json({ data: record });
   });
   for (const operation of ['approve', 'convert', 'issue', 'vendor-confirmation']) {
     const requestOperation = ['approve', 'convert'].includes(operation), collection = requestOperation ? 'purchaseRequests' : 'purchaseOrders';
