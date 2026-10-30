@@ -71,7 +71,8 @@ allocations by invoice.salesOrderId using persisted reportingPaymentIdentities U
 the source adapter. Amounts are exact grouped allocations and have no invented line allocation.
 Payment source metadata distinguishes CASH/DEPOSIT/CREDIT and cashEffect; the payment dataset
 represents receivable settlements, not an undifferentiated cash-receipt report. Invoice issuance
-is immutable reference evidence only in the frozen v2 data contract (no invoice dataset).
+appends its source against the complete unchanged approved order snapshot. The helper coalesces
+identical payloads without duplicating amounts or sequence; there is no invented invoice dataset.
 Unallocated deposits, returns and packaging have no order snapshot mapping. They remain in
 their authoritative datasets. No financial correction/delete endpoint is added; no tombstone
 is fabricated for immutable posted evidence.

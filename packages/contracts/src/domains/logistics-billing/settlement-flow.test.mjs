@@ -32,6 +32,8 @@ test('deposit, credit and partial cash settlement keep posted invoice and cash f
   const shipment = await h.ok('/fulfillment/shipments', { salesOrderId: so._id, expectedVersion: so.version, lineIndex: 0, uom: 'KG', sources: [{ sourceType: 'RESERVATION', sourceId: reservation._id, quantity: '0.7' }], reference: 'SETTLEMENT-SHIP', idempotencyKey: randomUUID() }, 201);
   let invoice = await h.ok('/fulfillment/invoices', { salesOrderId: so._id, expectedVersion: so.version, lines: [{ shipmentId: shipment._id, quantity: '0.7' }], dueAt: '2020-01-01T00:00:00.000Z', idempotencyKey: randomUUID() }, 201);
   assert.equal(invoice.total, '0.04');
+  assert.equal(await h.db.collection('reportingSnapshotSources').countDocuments({ 'source.id': invoice._id }), 1);
+  assert.equal(await h.db.collection('reportingSnapshotOutbox').countDocuments({ 'envelope.payload.resourceType': 'order', aggregateId: so._id }), 1);
   const original = await h.db.collection('fulfillmentInvoicePostings').findOne({ invoiceId: invoice._id });
   const receipt = { accountId: account._id, currency: 'USD', amount: '0.02', reference: 'Deposit receipt', idempotencyKey: randomUUID() };
   const deposit = await h.ok('/fulfillment/deposits', receipt, 201);

@@ -43,13 +43,20 @@ const extend = (quantity, unitPrice) => (quantity * minor(unitPrice) * 2n + 1000
 const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(k => [k, canonical(value[k])])) : value;
 
 export async function appendFulfillmentReporting(runtime, req, kind, row, session, eventId, action = req.fulfillmentAction) {
-  // Invoice issuance is reference evidence in the v2 contract; it has no invoice dataset.
-  if (!['shipment.recorded', 'payment.recorded'].includes(kind)) return;
+  if (!['shipment.recorded', 'payment.recorded', 'invoice.issued'].includes(kind)) return;
   const grant = await runtime.foundation.authorizeInTransaction(req.scope, { ...req.filter, action }, { session });
   const occurredAt = new Date(row.shippedAt || row.createdAt).toISOString();
   const source = { collection: row.schema === 'PURCHASED_SHIPMENT_V1' ? 'fulfillmentShipments' : 'fulfillmentKeys', id: row._id, version: row.version, hash: sourceHash(JSON.parse(JSON.stringify(row))), eventIds: [eventId], sourceOccurredAt: occurredAt, ...(kind === 'payment.recorded' ? { settlementKind: row.settlementKind || 'CASH', cashEffect: row.settlementKind === 'CREDIT' || row.settlementKind === 'DEPOSIT' ? 'NONE' : 'RECEIPT', balanceEffect: 'RECEIVABLE_REDUCTION' } : {}) };
   const targets = [];
-  if (kind === 'shipment.recorded') {
+  if (kind === 'invoice.issued') {
+    const order = await runtime.db.collection('salesOrders').findOne({ ...req.filter, _id: row.salesOrderId }, { session });
+    if (!order || order.accountId !== row.accountId || order.snapshot.currency !== row.currency) throw new Error('INVOICE_REPORTING_SOURCE_CONFLICT');
+    const groups = new Map();
+    order.snapshot.lines.forEach((line, index) => { const group = groups.get(line.uom) || { uom: line.uom, values: [], sourceLineIndexes: [] }; group.values.push(line.quantity); group.sourceLineIndexes.push(index); groups.set(line.uom, group); });
+    // The v2 contract has no invoice dataset. Record its source against the complete approved order;
+    // an unchanged payload coalesces without another order amount or reporting sequence.
+    targets.push({ resourceType: 'order', resourceId: order._id, eventKey: order._id, fullSnapshot: { amount: order.snapshot.total, currency: order.snapshot.currency, quantities: [...groups.values()].sort((a, b) => a.uom.localeCompare(b.uom)).map(group => ({ uom: group.uom, quantity: addDecimals(group.values), sourceLineIndexes: group.sourceLineIndexes })) } });
+  } else if (kind === 'shipment.recorded') {
     const order = await runtime.db.collection('salesOrders').findOne({ ...req.filter, _id: row.salesOrderId }, { session });
     if (!order || order.accountId !== row.accountId || order.snapshot.lines[row.lineIndex]?.uom !== row.uom) throw new Error('SHIPMENT_REPORTING_SOURCE_CONFLICT');
     targets.push({ resourceType: 'fulfillment', resourceId: row._id, eventKey: row._id, fullSnapshot: { orderId: row.salesOrderId, quantity: row.quantity, uom: row.uom, sourceLineIndex: row.lineIndex } });
