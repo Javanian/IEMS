@@ -174,3 +174,19 @@ The explicit unique-index initializer is not executed automatically. Provisionin
 revocation endpoints and mounting remain incomplete. This adapter does not grant
 live authority or enable external sending. Real Mongo conflict/rollback behavior
 remains for final independent QA; current checks use synthetic storage doubles.
+# Durable authority revocation commands (PLAT-051)
+
+`createProviderRevocationCommands` is an injected command boundary. The trusted
+composition root supplies account-scoped operator authorization that write-fences
+current membership/account authority in the supplied effect session, and an atomic
+transaction runner. Authorization runs before command replay. The same command ID
+and actor recover a committed result; conflicting payloads or actors are rejected.
+Authority CAS, metadata audit, reconciliation outbox and command result commit
+together. Unknown storage outcomes propagate without automatic retries; recover
+using the original command ID after storage reconciliation. Outbox events are
+metadata for reconciliation, never send requests. No message body is accepted.
+
+Call `initializeProviderCommands` explicitly before mounting commands; it only
+declares the unique command index and has not been executed here. No HTTP mount,
+concrete operator authorization, authority provisioning or live-send permission is
+provided by this module. External sends remain disabled.
