@@ -38,15 +38,16 @@ function ShortageSource({ sourceId }) {
   </section>}</Resource>;
 }
 function ShortageProcurement() {
-  const [sources, setSources] = useState([]), [sourceId, setSourceId] = useState('');
+  const [sources, setSources] = useState([]), [sourceId, setSourceId] = useState(''), [refreshed, setRefreshed] = useState(false);
   return <section className="pf-panel"><h2>Approved demand shortages</h2><p>Refresh evidence from approved internal production demand. Purchased material claims create catalog PRs. This evidence does not reserve stock. Requires manufacturing and catalog stock access.</p>
-    <InquiryCommand title="Refresh shortage evidence" permission="procurement.write" action="/api/procurement/material-shortages/refresh" build={(values, key) => ({ demandId: values.demandId, expectedDemandVersion: Number(values.expectedDemandVersion), engineeringRevision: Number(values.engineeringRevision), expectedShortageRevision: Number(values.expectedShortageRevision), reason: values.reason, idempotencyKey: key })} onSaved={result => setSources(result.snapshots.map(source => source.sourceId))}>
+    <InquiryCommand title="Refresh shortage evidence" permission="procurement.write" action="/api/procurement/material-shortages/refresh" build={(values, key) => ({ demandId: values.demandId, expectedDemandVersion: Number(values.expectedDemandVersion), engineeringRevision: Number(values.engineeringRevision), expectedShortageRevision: Number(values.expectedShortageRevision), reason: values.reason, idempotencyKey: key })} onSaved={result => { setSources(result.snapshots.map(source => source.sourceId)); setRefreshed(true); }}>
       <WorkspaceField label="Internal production demand ID" name="demandId" required />
       <WorkspaceField label="Demand version" name="expectedDemandVersion" type="number" min="1" step="1" required />
       <WorkspaceField label="Approved engineering revision" name="engineeringRevision" type="number" min="1" step="1" required />
       <WorkspaceField label="Previous shortage revision (0 for first refresh)" name="expectedShortageRevision" type="number" min="0" step="1" defaultValue="0" required />
       <WorkspaceField label="Refresh reason" name="reason" minLength={3} maxLength={500} required />
     </InquiryCommand>
+    {refreshed && !sources.length && <p role="status">No purchased material shortages were produced for this approved demand. Company output materials use manufacturing supply planning.</p>}
     <form className="pf-form" onSubmit={event => { event.preventDefault(); setSourceId(new FormData(event.currentTarget).get('sourceId')); }}><WorkspaceField label="Existing shortage source ID" name="sourceId" required /><button>Open shortage</button></form>
     {[...new Set([...sources, ...(sourceId ? [sourceId] : [])])].map(id => <ShortageSource key={id} sourceId={id} />)}
   </section>;
