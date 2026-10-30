@@ -20,3 +20,15 @@ test('approved purchase request content produces distinct immutable deterministi
   } finally { await pdf.destroy(); }
   await assert.rejects(renderPdf({ ...request, total: '9.00' }), /SNAPSHOT_INTEGRITY/);
 });
+test('catalog and legacy documents keep separate identity while PO revisions retain prior PDF bytes', async () => {
+  const scope = { tenantId: 'tenant-a', legalEntityId: 'entity-a', plantId: 'plant-a' };
+  const source = { _id: 'same-id', ...scope, version: 1, snapshot: { currency: 'USD', total: '1.00', taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP', lines: [{ description: 'Seal', quantity: '1', uom: 'EA', unitPrice: '1.00', currency: 'USD' }] } };
+  const legacy = createSnapshot('purchaseOrder', scope, source), initial = createSnapshot('catalogPurchaseOrder', scope, source);
+  assert.notEqual(legacy.contentHash, initial.contentHash);
+  const before = await renderPdf(initial);
+  const later = createSnapshot('catalogPurchaseOrder', scope, { ...source, version: 2, snapshot: { ...source.snapshot, total: '2.00', lines: [{ ...source.snapshot.lines[0], quantity: '2' }] } });
+  assert.notEqual(later.contentHash, initial.contentHash);
+  assert.notDeepEqual(await renderPdf(later), before);
+  assert.deepEqual(await renderPdf(initial), before);
+  assert.equal(createSnapshot('catalogPurchaseRequest', scope, source).kind, 'catalogPurchaseRequest');
+});
