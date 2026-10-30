@@ -1,17 +1,8 @@
-from decimal import Decimal, InvalidOperation
 import re
 from uuid import UUID
 from events import digest, validate, utc, now
 from catalog import scope
-
-
-def exact(value):
-    if not isinstance(value,str) or not re.fullmatch(r'(0|[1-9]\d*)(\.\d{1,12})?',value):
-        raise ValueError('Nonnegative decimal string required')
-    result=Decimal(value)
-    if result>=Decimal('1e26'):
-        raise ValueError('Decimal exceeds numeric(38,12)')
-    return result
+from snapshots import exact
 
 
 def context(cursor,grant):
@@ -30,14 +21,15 @@ BALANCES='''SELECT o.id::text AS order_id,o.currency,o.uom,o.amount::text AS ord
 
 
 class Projection:
-    def __init__(self,connect,authorize_source):
+    def __init__(self,connect,authorize_source,max_age_seconds=86400):
         if not callable(connect) or not callable(authorize_source):
             raise ValueError('Explicit reporting connection and source authority required')
         self.connect,self.authorize_source=connect,authorize_source
+        self.max_age_seconds=max_age_seconds
 
     def apply(self,record):
         e=validate(record['event']); receipt=record['receivedAt']; available=record['availableAt']
-        if not utc(e['occurredAt'])<=utc(receipt)<=utc(available):
+        if not utc(e['occurredAt'])<=utc(receipt)<=utc(available)<=utc(now()):
             raise ValueError('Invalid provenance')
         p=e['payload']; kind=p.get('resourceType')
         if kind not in ('order','payment','fulfillment'):
@@ -65,6 +57,7 @@ class Projection:
                     grant=self.authorize_source(e,cur)
                     if grant['tenantId']!=e['tenantId'] or grant['plantId']!=e['plantId']:
                         raise PermissionError('Source scope denied')
+                    UUID(grant['tenantId']); UUID(grant['plantId'])
                     context(cur,grant)
                     cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",[':'.join(key)])
                     cur.execute('SELECT checksum FROM reporting.receipts WHERE tenant_id=%s AND plant_id=%s AND event_id=%s',[*key[:2],e['eventId']])
@@ -77,6 +70,16 @@ class Projection:
                     head=cur.fetchone()
                     if e['aggregateVersion']!=(head[0] if head else 0)+1 or (head and head[1]!=kind):
                         raise ValueError('Projection version gap or kind change')
+                    if head:
+                        cur.execute('SELECT available_at FROM reporting.receipts WHERE tenant_id=%s AND plant_id=%s AND aggregate_id=%s AND aggregate_version=%s',[*key,head[0]])
+                        previous_time=cur.fetchone()
+                        if not previous_time or utc(available)<previous_time[0]:
+                            raise ValueError('Availability revision regressed')
+                    if kind=='order':
+                        cur.execute('SELECT id FROM reporting.orders WHERE tenant_id=%s AND plant_id=%s AND id=%s FOR UPDATE',key)
+                        cur.execute('SELECT EXISTS(SELECT 1 FROM reporting.payments WHERE tenant_id=%s AND plant_id=%s AND order_id=%s AND NOT deleted AND (currency<>%s OR %s)) OR EXISTS(SELECT 1 FROM reporting.fulfillments WHERE tenant_id=%s AND plant_id=%s AND order_id=%s AND NOT deleted AND (uom<>%s OR %s))',[*key,p['currency'],p.get('deleted',False),*key,p['uom'],p.get('deleted',False)])
+                        if cur.fetchone()[0]:
+                            raise ValueError('Active children conflict with order correction; replay children first')
                     if kind!='order':
                         cur.execute('SELECT currency,uom FROM reporting.orders WHERE tenant_id=%s AND plant_id=%s AND id=%s AND NOT deleted FOR SHARE',[*key[:2],p['orderId']])
                         parent=cur.fetchone()
@@ -100,6 +103,7 @@ class Projection:
         with self.connect() as conn:
             with conn.transaction():
                 with conn.cursor() as cur:
+                    cur.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
                     context(cur,grant)
                     cur.execute(('EXPLAIN (FORMAT JSON) ' if explain else '')+BALANCES,[grant['tenantId'],grant['plantId'],after,limit+1])
                     if explain:
@@ -108,4 +112,6 @@ class Projection:
                     data=[dict(zip(columns,row)) for row in rows[:limit]]
                     cur.execute('SELECT max(available_at) FROM reporting.receipts WHERE tenant_id=%s AND plant_id=%s',[grant['tenantId'],grant['plantId']])
                     latest=cur.fetchone()[0]
+                    if latest and not 0<=(utc(now())-latest).total_seconds()<=self.max_age_seconds:
+                        raise ValueError('Reporting projection stale')
                     return {'data':data,'nextCursor':data[-1]['order_id'] if len(rows)>limit else None,'sourceAvailableAt':latest.isoformat() if latest else None,'observedAt':now(),'authority':'projection'}

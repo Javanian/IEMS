@@ -18,8 +18,7 @@ export default function AnalyticsWorkspace() {
   const scopeKey = `${identity?.scope?.tenantId}:${identity?.scope?.plantId}:${identity?.user?.id}`;
   const [catalog, setCatalog] = useState({}), [dataset, setDataset] = useState('order-balances');
   const [cursor, setCursor] = useState(null), [attempt, setAttempt] = useState(0), [result, setResult] = useState({});
-  const [download, setDownload] = useState({});
-  useEffect(() => { setCursor(null); setDataset('order-balances'); setDownload({}); }, [scopeKey]);
+  useEffect(() => { setCursor(null); setDataset('order-balances'); }, [scopeKey]);
   useEffect(() => {
     if (!canRead) return undefined;
     const controller = new AbortController(); setCatalog({ loading: true, scopeKey });
@@ -45,7 +44,7 @@ export default function AnalyticsWorkspace() {
     <h1 id="analytics-title">Analytics and reporting</h1>
     <p>Read reconciled order balances and governed history for your current plant. Amounts and quantities retain their source precision and units.</p>
     <p>These reports are projections. Use the operational workspace for business changes.</p>
-    <WorkspaceField as="select" label="Dataset" name="analytics-dataset" value={dataset} onChange={event => { setDataset(event.target.value); setCursor(null); setDownload({}); }}>
+    <WorkspaceField as="select" label="Dataset" name="analytics-dataset" value={dataset} onChange={event => { setDataset(event.target.value); setCursor(null); }}>
       <option value="order-balances">Order balances · governed snapshot</option>
       <option value="relational-orders">Order balances · relational projection</option>
       {(visibleCatalog.data || []).filter(row => row.id !== 'order-balances').map(row => <option key={row.id} value={row.id}>{row.id}</option>)}
