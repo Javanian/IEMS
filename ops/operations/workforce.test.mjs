@@ -36,7 +36,11 @@ test('owned Mongo: consent, fallback, challenge replay/error, private results an
   const errorResult=await send('/verify',cmd(1,{challengeId:face.challengeId,deviceId:'owned-kiosk',proof:'assertion-reference'}));assert.equal(errorResult.reason,'VERIFIER_ERROR_USE_FALLBACK');
   await send('/consent',cmd(2,{active:false,purpose:'ATTENDANCE_VERIFICATION'}));
   await send('/verify',cmd(1,{challengeId:face.challengeId,deviceId:'owned-kiosk',proof:'assertion-reference'}),409);
+  const nfcToken='synthetic-nfc-opaque-token';await send('/configure',cmd(3,{nfcToken}));
+  const nfc=await send('/challenge',cmd(4,{method:'NFC',deviceId:'owned-kiosk'})),nfcCommand=cmd(1,{challengeId:nfc.challengeId,deviceId:'owned-kiosk',proof:nfcToken});assert.equal((await send('/verify',nfcCommand)).status,'VERIFIED');
+  await send('/configure',cmd(4,{pin:null,nfcToken:null}));await send('/verify',nfcCommand,409);
   const serialized=JSON.stringify(await db.collection('workforceResults').find().toArray());assert(!serialized.includes(pin));assert(!serialized.includes('assertion-reference'));assert(!serialized.includes('private provider detail'));
+  assert(!serialized.includes(nfcToken));
   assert(!JSON.stringify(await db.collection('workforceProfiles').find().toArray()).includes('pinHash'));
   await foundation.revokeSession({tenantId:ids.tenant,sessionId:issued.sessionId});await send('/verify',good,403);
 });

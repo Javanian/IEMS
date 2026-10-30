@@ -12,12 +12,15 @@ const publicProfile = p => ({ resourceId: p.resourceId, version: p.version, cons
 const empty = (filter, resourceId) => ({ _id: randomUUID(), ...filter, resourceId, version: 0, consent: { active: false, purpose }, pinConfigured: false, nfcConfigured: false });
 async function subject(runtime, filter, operatorId, session) {
   const user = await runtime.db.collection('users').findOneAndUpdate({ _id: operatorId, active: true }, { $inc: { workforceFence: 1 } }, { session, returnDocument: 'after' });
-  const member = await runtime.db.collection('memberships').findOneAndUpdate({ tenantId: filter.tenantId, userId: operatorId, active: true, $or: [{ tenantWide: true }, { plantIds: filter.plantId }] }, { $inc: { workforceFence: 1 } }, { session, returnDocument: 'after' });
+  const plant = await runtime.db.collection('plants').findOne({ tenantId:filter.tenantId,_id:filter.plantId,active:true },{session});
+  if(!plant)reject(403,'SCOPE_DENIED');
+  const member = await runtime.db.collection('memberships').findOneAndUpdate({ tenantId: filter.tenantId, userId: operatorId, active: true, $or: [{ tenantWide: true }, { plantIds: filter.plantId,legalEntityIds:plant.legalEntityId }] }, { $inc: { workforceFence: 1 } }, { session, returnDocument: 'after' });
   if (!user || !member) reject(404, 'ACTIVE_OPERATOR_NOT_FOUND');
 }
 export async function initializeWorkforce(db) {
   for (const [name, keys] of [['workforceProfiles', { tenantId: 1, plantId: 1, resourceId: 1 }], ['workforceSecrets', { tenantId: 1, plantId: 1, resourceId: 1 }], ['workforceResults', { tenantId: 1, plantId: 1, actorId: 1, key: 1 }], ['workforceThrottle', { tenantId: 1, plantId: 1, resourceId: 1 }], ['workforceDevices', { tenantId: 1, plantId: 1, deviceId: 1 }]]) await db.collection(name).createIndex(keys, { unique: true });
   await db.collection('workforceChallenges').createIndex({ expiresAt: 1 });
+  await db.collection('workforceSecrets').createIndex({tenantId:1,plantId:1,nfcHash:1},{unique:true,partialFilterExpression:{nfcHash:{$type:'string'}}});
 }
 export function installWorkforce(app, runtime, helpers, { pepper, devices = {}, assertionVerifier } = {}) {
   const root = '/api/workforce', { id, fields } = helpers, db = runtime.db;
@@ -94,7 +97,8 @@ export function installWorkforce(app, runtime, helpers, { pepper, devices = {}, 
           secret.pinHash = b.pin ? (await scrypt(digest(b.pin), secret.pinSalt, 64)).toString('hex') : null; p.pinConfigured = Boolean(b.pin);
         }
         if (Object.hasOwn(b, 'nfcToken')) { secret.nfcHash = b.nfcToken ? digest(b.nfcToken) : null; p.nfcConfigured = Boolean(b.nfcToken); }
-        await db.collection('workforceSecrets').replaceOne(key, secret, { session, upsert: true });
+        try {await db.collection('workforceSecrets').replaceOne(key, secret, { session, upsert: true });}
+        catch(error){if(error.code===11000)reject(409,'NFC_CREDENTIAL_ALREADY_REGISTERED');throw error;}
       }
       return save(req, p, session);
     }); res.json({ data });
