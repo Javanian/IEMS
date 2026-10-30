@@ -22,7 +22,8 @@ def ingest(records, root, stream, start, end, previous=None):
     for index, record in enumerate(records):
         if index >= 10000:
             raise ValueError('Batch exceeds 10000 records')
-        size += len(canonical(record).encode())
+        evidence = json.dumps(record, ensure_ascii=False, default=repr)
+        size += len(evidence.encode())
         if size > 32 * 1024 * 1024:
             raise ValueError('Batch exceeds 32 MiB; split input, cursor unchanged')
         try:
@@ -38,7 +39,7 @@ def ingest(records, root, stream, start, end, previous=None):
             seen[key] = checksum
             rows.append((key, e['tenantId'], e['plantId'], e['aggregateId'], e['aggregateVersion'], e['occurredAt'], receipt, available, checksum, canonical(e)))
         except (KeyError, TypeError, ValueError) as error:
-            rejected.append({'index': index, 'reason': str(error), 'record': record})
+            rejected.append({'index': index, 'reason': str(error), 'recordJson': evidence})
     batch = str(uuid4())
     quarantine = root / f'{batch}.quarantine.json'
     if rejected:
