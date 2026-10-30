@@ -151,3 +151,18 @@ command parser; it is not proof that arbitrary text has that prefix.
 The evaluator is not mounted: the durable live authority provisioning/read-and-
 fence adapter and browser driver remain incomplete. No live mode is enabled.
 Synthetic contract checks: `node --test apps/wa-demo-bridge/test/provider-policy.test.mjs`.
+# Durable registration authority
+
+`createDurableProviderPolicy` reads metadata from `provider_authority` and writes
+a revision fence on each policy, identity, binding, reply and approval row in the
+registration effect transaction. Keys are tenant/account/kind/resourceId; policy
+uses resourceId `account`, identity/binding use recipient, reply/approval use
+replyId. Every row requires a positive `authorityRevision`. Authority writers
+must update the same row and advance that revision; revocation must retain the
+row rather than create a parallel authority. Private bodies are excluded from
+projections and returned snapshots. Transaction abort must roll back fences.
+
+The explicit unique-index initializer is not executed automatically. Provisioning,
+revocation endpoints and mounting remain incomplete. This adapter does not grant
+live authority or enable external sending. Real Mongo conflict/rollback behavior
+remains for final independent QA; current checks use synthetic storage doubles.
