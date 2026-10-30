@@ -60,6 +60,7 @@ async function demandFor(db, filter, input, session) {
   return requireApprovedInternalDemand(db, filter, input.demandId, input.expectedDemandVersion, input.engineeringRevision, await owner(db, filter, session), session, true);
 }
 export async function refreshShortage(db, filter, input, actor, session) {
+  if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
   if (!positive(input.expectedDemandVersion) || !positive(input.engineeringRevision) || !Number.isSafeInteger(input.expectedShortageRevision) || input.expectedShortageRevision < 0) fail(400, 'INVALID_VERSION');
   const demand = await demandFor(db, filter, input, session), snapshots = [];
   for (const line of demand.engineering.content.materials) {
@@ -78,6 +79,7 @@ export async function refreshShortage(db, filter, input, actor, session) {
   return { snapshots, blockers: snapshots.length ? [] : ['NO_PURCHASED_MATERIALS'] };
 }
 export async function claimShortage(db, filter, input, actor, session) {
+  if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
   const head = await db.collection('materialShortageHeads').findOne({ ...filter, _id: input.sourceId }, { session });
   if (!head) fail(404, 'NOT_FOUND');
   const source = verify(head.snapshot), amount = checked(input.quantity);
@@ -142,6 +144,7 @@ export function installMaterialShortages(app, runtime, { guard, fields, id }) {
     res.json({ data: await command(req, 'released', async (session, input) => {
       const claim = await db.collection('materialShortageClaims').findOne({ ...req.filter, _id: id(input.claimId), sourceId: id(req.params.sourceId) }, { session });
       if (!claim) fail(404, 'NOT_FOUND');
+      if (claim.contentHash !== hash(claim.snapshot) || claim.snapshot.requestId !== claim.requestId || claim.snapshot.quantity !== claim.quantity) fail(409, 'SHORTAGE_SOURCE_INVALID');
       if (claim.status !== 'ACTIVE' || claim.version !== input.expectedClaimVersion) fail(409, 'VERSION_CONFLICT');
       const request = await cancelCatalogShortageRequest(db, req.filter, claim.requestId, input.expectedRequestVersion, claim.claimId, req.scope.userId, input.reason, session);
       const changed = await db.collection('materialShortageClaims').updateOne({ ...req.filter, _id: claim._id, version: claim.version }, { $set: { status: 'RELEASED', release: { reason: input.reason, recordedBy: req.scope.userId, recordedAt: new Date() } }, $inc: { version: 1 } }, { session });
