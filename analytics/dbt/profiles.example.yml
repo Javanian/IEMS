@@ -1,0 +1,9 @@
+iems_reporting:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('IEMS_ANALYTICS_DB') }}"
+      threads: 2
+      settings:
+        memory_limit: 256MB
