@@ -1,4 +1,5 @@
 import { createProviderRevocationCommands } from './provider-commands.mjs';
+import { createProviderProvisioningCommands } from './provider-provisioning.mjs';
 
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const identifier = value => typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(value);
@@ -11,6 +12,11 @@ export const providerOperatorRoles = Object.freeze({
 export function createScopedProviderRevocationCommands({ db, transaction, foundation, tenantId, plantId, accountId, now }) {
   const authorize = createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId });
   return createProviderRevocationCommands({ db, transaction, authorize, tenantId, accountId, now });
+}
+
+export function createScopedProviderProvisioningCommands({ db, transaction, foundation, tenantId, plantId, accountId, now }) {
+  const authorize = createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId });
+  return createProviderProvisioningCommands({ db, transaction, authorize, tenantId, accountId, now });
 }
 
 // The composition root owns this immutable account-to-plant mapping; never derive it from a request.

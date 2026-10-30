@@ -209,7 +209,26 @@ Wrong tenant/account/action, inactive transactions and mismatched foundation
 grants reject. Account mapping changes require composition restart and the same
 review as the original mapping. No mutable account directory is introduced.
 
-The composition is not mounted. Provisioning, browser driver and final integration
+The composition is not mounted. Browser driver and final integration
 remain incomplete. No credentials, roles or live authorities were provisioned.
 External send remains disabled. Synthetic checks do not prove Mongo isolation or
 real authenticated HTTP behavior; those remain for final independent QA.
+
+# Initial inactive authority metadata (PLAT-051)
+
+`createScopedProviderProvisioningCommands` accepts `{commandId, kind, resourceId,
+metadata}` using the same trusted tenant/plant/account composition. Supported
+kinds are policy (`account`, metadata expiresAt/allowlist/prefix), identity
+(recipient ID, expiresAt), and binding (recipient ID, expiresAt/customerId).
+Expiry is an integer UTC epoch millisecond, future and at most 30 days away.
+Policy starts disabled and paused; identity and binding start inactive. Binding
+metadata is an unverified candidate and cannot authorize customer access.
+No reply, approval, message body, credential or activation fields are accepted.
+
+Provisioning reauthorizes before receipt lookup. Initial authority revision is 1;
+existing rows, including revoked rows, cannot be overwritten. Atomic authority,
+receipt, metadata audit and outbox use the caller transaction. Unknown outcomes
+require original-key reconciliation, without automatic retry. Initialize both
+authority and command unique indexes explicitly before mounting (not executed
+here). Activation/update commands, source-verified binding, reply/approval
+provisioning, HTTP mount and browser driver remain incomplete. No send occurs.
