@@ -1,5 +1,5 @@
-import { useContext, useRef, useState } from 'react';
-import { ShipmentDelivery } from './DeliveryWorkspace.jsx';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { ShipmentDelivery, ShipmentReturns } from './DeliveryWorkspace.jsx';
 import { AuditDetails } from './OperatorUi.jsx';
 import { displayReference, operatorStatus } from './operator.mjs';
 import { DocumentIssue } from './DocumentIssue.jsx';
@@ -22,6 +22,9 @@ const TITLES = { shipments: 'Shipments', invoices: 'Invoices', payments: 'Paymen
 export function CommandForm({ title, action, build, children, onSaved, permission, locked = '', onLockChange }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState(null), [saved, setSaved] = useState(false);
   const attempt = useRef(null), lock = useRef(false);
+  const mounted = useRef(false), errorSummary = useRef(null);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => { if (error) errorSummary.current?.focus(); }, [error]);
   const identity = useContext(IdentityContext);
   const allowed = permission ? capabilityState(permission, identity?.permissions) : { enabled: true };
   const deniedReason = permission && (error?.status === 403 ? permissionReason(permission) : !allowed.enabled ? allowed.reason : '');
@@ -29,8 +32,8 @@ export function CommandForm({ title, action, build, children, onSaved, permissio
   const reasonId = deniedReason ? `denied-${action.replace(/[^a-z0-9]/gi, '-')}` : undefined;
   async function send(body) {
     if (lock.current || deniedReason || siblingLocked) return; lock.current = true; setBusy(true); setError(null);
-    try { const result = await request(action, { body }); attempt.current = null; onLockChange?.(''); setSaved(true); onSaved?.(result.data); }
-    catch (e) { setError(e); } finally { lock.current = false; setBusy(false); }
+    try { const result = await request(action, { body }); if (!mounted.current) return; attempt.current = null; onLockChange?.(''); setSaved(true); onSaved?.(result.data); }
+    catch (e) { if (mounted.current) setError(e); } finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
   function submit(event) {
     event.preventDefault(); setSaved(false);
@@ -40,7 +43,7 @@ export function CommandForm({ title, action, build, children, onSaved, permissio
   }
   const retryable = error && attempt.current && (!error.status || error.status >= 500);
   return <form className="pf-panel pf-form" aria-label={title} onSubmit={submit}><h2>{title}</h2><fieldset className="pf-form" disabled={busy || !!attempt.current || !!deniedReason || siblingLocked}>{children}</fieldset>
-    {error && (error.status === undefined ? <div className="pf-error" role="alert"><p>{error.message}</p></div> : <Failure error={error} mutation />)}
+    {error && <div ref={errorSummary} tabIndex={-1}>{error.status === undefined ? <div className="pf-error" role="alert"><p>{error.message}</p></div> : <Failure error={error} mutation />}</div>}
     {purchasedHint(error)&&<p role="alert">{purchasedHint(error)}</p>}
     <div className="pf-actions"><button className="pf-primary" disabled={busy || !!attempt.current || Boolean(deniedReason) || siblingLocked} aria-describedby={reasonId}>{busy ? 'Saving...' : title}</button>{retryable && <button type="button" disabled={busy} onClick={() => send(attempt.current)}>Retry same request</button>}{attempt.current && error && <button type="button" disabled={busy} onClick={() => { attempt.current = null; onLockChange?.(''); setError(null); onSaved?.(); }}>Discard command and refresh</button>}{deniedReason && <div id={reasonId}><p className="pf-disabled-reason">You do not have permission to perform this action.</p><details><summary>Technical details</summary><p>{deniedReason}</p></details></div>}</div>
     {siblingLocked && <p className="pf-disabled-reason">Another fulfillment command is retained. Resolve it before starting this action.</p>}
@@ -84,27 +87,32 @@ function LegacyFulfillmentOrder() {
   const setLocked=value=>{commandLock.current=value;setCommandLock(value);};
   const sources = useResource(sourceType === 'WORK_ORDER' ? '/api/manufacturing/work-orders?limit=100' : '/api/warehouse/reservations?limit=100', true);
   const shipments = useResource('/api/fulfillment/shipments?limit=100', true);
-  const refresh = () => { if(commandLock.current)return; r.reload(); balances.reload(); sources.reload(); shipments.reload(); };
+  const packing = useResource(`/api/fulfillment/packing?limit=100&salesOrderId=${id}`, true);
+  const [dispatchStep, setDispatchStep] = useState('pick');
+  useEffect(() => { setLocked(''); setSourceId(''); setLineIndex(0); }, [id]);
+  const refresh = () => { if(commandLock.current)return; r.reload(); balances.reload(); sources.reload(); shipments.reload(); packing.reload(); };
   const eligible = s => s.salesOrderId === id && s.lineIndex === lineIndex && (sourceType === 'WORK_ORDER' ? s.status === 'QC_COMPLETED' : ['RESERVED', 'PARTIALLY_SHIPPED'].includes(s.status));
   return <><Link to={`/portfolio/orders/${id}`}>Back to sales order</Link><Resource resource={r}>{({ data: order }) => <>
     <h1>Order fulfillment {order.orderNumber || order._id.slice(0, 8)}</h1><Boundary />
     <div className="pf-summary"><span className="pf-status">{order.status}</span><span>{order.snapshot.currency}</span><AuditDetails action="fulfillment.read"><p>Version: {order.version}</p></AuditDetails></div>
     <div className="pf-actions"><Link to={`/portfolio/accounts/${order.accountId}`}>Open account</Link><Link to="/portfolio/fulfillment/invoices">Open invoices</Link><button type="button" disabled={!!commandLocked} onClick={refresh}>Refresh fulfillment</button></div>
     <Balances order={order} resource={balances} />
+    <section className="pf-panel"><h2>Prepare dispatch</h2><label className="pf-field">Dispatch step<select value={dispatchStep} disabled={!!commandLocked} onChange={event => setDispatchStep(event.target.value)}><option value="pick">Record a pick for packing</option><option value="ship">Record direct dispatch</option></select></label><p>A pick records the selected goods. Packing records their package reference. Stock availability is checked again when goods are dispatched.</p></section>
     <div className="pf-columns">
-      <CommandForm title="Record shipment" permission="fulfillment.ship" action="/api/fulfillment/shipments" locked={commandLocked} onLockChange={setLocked} build={(v, k) => { if (!v.sourceId) throw Error('Select a source.'); if (!validQuantity(v.quantity)) throw Error('Enter a positive quantity with up to 6 decimals.'); if (sourceType === 'WORK_ORDER' && sources.data?.find(source => source._id === v.sourceId)?.serialized && !v.serials?.length) throw Error('Select accepted output serials for this shipment.'); return shipmentCommand(order, v, k); }} onSaved={refresh}>
+      <CommandForm key={`${id}-${dispatchStep}`} title={dispatchStep === 'pick' ? 'Record pick' : 'Record shipment'} permission="fulfillment.ship" action={dispatchStep === 'pick' ? '/api/fulfillment/packing' : '/api/fulfillment/shipments'} locked={commandLocked} onLockChange={setLocked} build={(v, k) => { if (!v.sourceId) throw Error('Select a source.'); if (!validQuantity(v.quantity)) throw Error('Enter a positive quantity with up to 6 decimals.'); if (sourceType === 'WORK_ORDER' && sources.data?.find(source => source._id === v.sourceId)?.serialized && !v.serials?.length) throw Error('Select accepted output serials for this shipment.'); return shipmentCommand(order, v, k); }} onSaved={refresh}>
         <label className="pf-field">Order line<select name="lineIndex" value={lineIndex} onChange={e => { setLineIndex(Number(e.target.value)); setSourceId(''); }}>{order.snapshot.lines.map((l, i) => <option key={i} value={i}>{i + 1}. {l.description} ({l.quantity} {l.uom})</option>)}</select></label>
         <label className="pf-field">Source type<select name="sourceType" value={sourceType} onChange={e => { setSourceType(e.target.value); setSourceId(''); }}><option value="WORK_ORDER">QC-completed work order</option><option value="RESERVATION">Warehouse reservation</option></select></label>
         <Resource resource={sources}>{({ data }) => { const rows = data.filter(eligible), selected = rows.find(s => s._id === sourceId); return rows.length ? <><label className="pf-field">Source<select name="sourceId" required value={sourceId} onChange={e => setSourceId(e.target.value)}><option value="">Select source</option>{rows.map(s => <option key={s._id} value={s._id}>{sourceType === 'WORK_ORDER' ? `Work order ${s._id.slice(0, 8)} · accepted ${s.qc?.acceptedQuantity} ${s.uom}` : `Reservation ${s._id.slice(0, 8)} · ${s.remainingQuantity ?? s.quantity} ${s.uom}`}</option>)}</select></label>{sourceType === 'WORK_ORDER' && selected?.serialized && <ShipmentSerials key={`${selected._id}-${order.version}`} workOrderId={selected._id} />}</> : <p>No eligible {sourceType === 'WORK_ORDER' ? 'QC-completed work orders' : 'reservations'} for this line.</p>; }}</Resource>
         <Input label={`Quantity (${order.snapshot.lines[lineIndex]?.uom})`} name="quantity" inputMode="decimal" autoComplete="off" />
         <Input label="Dispatch reference" name="reference" maxLength={200} autoComplete="off" />
       </CommandForm>
-      <CommandForm title="Issue invoice" permission="fulfillment.invoice" action="/api/fulfillment/invoices" locked={commandLocked} onLockChange={setLocked} build={(v, k) => { if (!v.shipmentId) throw Error('Select a shipment.'); if (!validQuantity(v.invoiceQuantity)) throw Error('Enter a positive quantity with up to 6 decimals.'); return invoiceCommand(order, { shipmentId: v.shipmentId, quantity: v.invoiceQuantity }, k); }} onSaved={refresh}>
+      <CommandForm key={`${id}-invoice`} title="Issue invoice" permission="fulfillment.invoice" action="/api/fulfillment/invoices" locked={commandLocked} onLockChange={setLocked} build={(v, k) => { if (!v.shipmentId) throw Error('Select a shipment.'); if (!validQuantity(v.invoiceQuantity)) throw Error('Enter a positive quantity with up to 6 decimals.'); return invoiceCommand(order, { shipmentId: v.shipmentId, quantity: v.invoiceQuantity }, k); }} onSaved={refresh}>
         <Resource resource={shipments}>{({ data }) => { const rows = data.filter(s => s.salesOrderId === id); return rows.length ? <label className="pf-field">Shipment<select name="shipmentId" required defaultValue=""><option value="">Select shipment</option>{rows.map(s => <option key={s._id} value={s._id}>{s.reference} · {s.quantity} {s.uom}</option>)}</select></label> : <p>No shipments yet. Record a shipment first.</p>; }}</Resource>
         <Input label="Quantity to invoice" name="invoiceQuantity" inputMode="decimal" autoComplete="off" />
         <p className="pf-muted">Billed from shipped quantity at the order price in {order.snapshot.currency}.</p>
       </CommandForm>
     </div>
+    <Resource resource={packing}>{({ data }) => <section><h2>Pick and pack records</h2>{!data.length && <p>No picks recorded for this order.</p>}<div className="pf-columns">{data.filter(row => row.salesOrderId === id).map(row => <section key={row._id} className="pf-panel"><h3>{row.reference}</h3><p>{row.quantity} {row.uom} · {row.status}</p>{row.sources.map(part => <p key={part.sourceId}>{part.sourceType} · {part.quantity} {row.uom}{part.serials?.length ? ` · ${part.serials.join(', ')}` : ''}</p>)}{row.status === 'PICKED' && <CommandForm title={`Pack ${row.reference}`} permission="fulfillment.ship" action={`/api/fulfillment/packing/${row._id}/pack`} locked={commandLocked} onLockChange={setLocked} build={(values, key) => ({ expectedVersion: row.version, packageReference: values.packageReference, idempotencyKey: key })} onSaved={refresh}><Input name="packageReference" label="Package reference" maxLength={200} /></CommandForm>}{row.status === 'PACKED' && <CommandForm title={`Dispatch ${row.reference}`} permission="fulfillment.ship" action="/api/fulfillment/shipments" locked={commandLocked} onLockChange={setLocked} build={(values, key) => ({ salesOrderId: order._id, expectedVersion: order.version, lineIndex: row.lineIndex, uom: row.uom, sources: row.sources, packingId: row._id, expectedPackingVersion: row.version, reference: values.reference, idempotencyKey: key })} onSaved={refresh}><p>Package {row.packageReference}. Dispatch the exact packed quantities and serials.</p><Input name="reference" label="Dispatch reference" maxLength={200} /></CommandForm>}{row.shipmentId && <Link to={`/portfolio/fulfillment/shipments/${row.shipmentId}`}>Open dispatched shipment</Link>}</section>)}</div></section>}</Resource>
   </>}</Resource></>;
 }
 
@@ -120,7 +128,7 @@ export function FulfillmentDetail({ kind }) {
     <h1>{name} {row.reference || row._id.slice(0, 8)}</h1><Boundary />
     <div className="pf-summary"><span className="pf-status">{operatorStatus(row.status)}</span>{kind === 'shipments' && <strong>{row.quantity} {row.uom}</strong>}{kind === 'payments' && <strong>{money(row.currency, row.amount)}</strong>}{kind === 'invoices' && <span>Quote revision {row.quoteRevision || 'not recorded'}</span>}</div>
     <div className="pf-actions">{row.salesOrderId && <Link to={`/portfolio/fulfillment/orders/${row.salesOrderId}${['PURCHASED_SHIPMENT_V1','PURCHASED_INVOICE_V1','PURCHASED_PAYMENT_V1'].includes(row.schema)?'?catalog=1':''}`}>Open order fulfillment</Link>}{identity?.permissions?.includes('crm.read') && <Link to={`/portfolio/accounts/${row.accountId}`}>Open account</Link>}<button type="button" disabled={!!commandLocked} onClick={refresh}>Refresh record</button></div>
-    {kind === 'shipments' && <><SourceLineage line={row} /><ShipmentDelivery key={row._id} shipment={row} onLockChange={onDeliveryLock} /></>}
+    {kind === 'shipments' && <><SourceLineage line={row} /><ShipmentDelivery key={row._id} shipment={row} onLockChange={onDeliveryLock} disabled={!!commandLocked && commandLocked !== 'Confirm delivery'} /><ShipmentReturns key={`returns-${row._id}`} shipment={row} locked={commandLocked} onLockChange={setLocked} /></>}
     <fieldset disabled={!!commandLocked} data-fulfillment-documents>{kind === 'invoices' && <DocumentIssue key={row._id} kind="invoice" sourceId={row._id} {...(row.schema==='PURCHASED_INVOICE_V1'?documentAccess:{})} />}
     {kind === 'shipments' && row.status === 'SHIPPED' && <DocumentIssue key={row._id} kind="shipment" sourceId={row._id} {...(row.schema==='PURCHASED_SHIPMENT_V1'?documentAccess:{})} />}</fieldset>
     <div className="pf-columns">

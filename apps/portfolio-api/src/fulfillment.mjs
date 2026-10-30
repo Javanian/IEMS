@@ -10,6 +10,7 @@ import { freezeShipmentInstallation } from './component-installation.mjs';
 import { requireQuantityOnlyReceipt } from './serial-custody.mjs';
 import { requireLegacyReceipt } from './receipt-origin.mjs';
 import { businessNow } from './business-clock.mjs';
+import { requireQualityGates } from './quality.mjs';
 
 const verbs = ['read', 'ship', 'invoice', 'pay'];
 export const fulfillmentActions = verbs.map(v => `fulfillment.${v}`);
@@ -17,6 +18,7 @@ export const fulfillmentRoles = Object.fromEntries(verbs.map(v => [`fulfillment$
 export async function initializeFulfillment(db) {
   await db.collection('fulfillmentKeys').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
   await db.collection('fulfillmentTallies').createIndex({ tenantId: 1, plantId: 1, kind: 1, subjectId: 1, lineIndex: 1 }, { unique: true });
+  await db.collection('fulfillmentPacking').createIndex({ tenantId: 1, plantId: 1, salesOrderId: 1, _id: 1 });
 }
 const scales = { USD: 2, EUR: 2, GBP: 2, IDR: 2, JPY: 0, KWD: 3 };
 const units = s => BigInt(s.split('.')[0]) * 1000000n + BigInt((s.split('.')[1] || '').padEnd(6, '0'));
@@ -52,7 +54,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
   app.use('/api/fulfillment', async (req, res, next) => {
     req.filter = resolveScopeAliases({ body: { tenantId: req.scope.tenantId, plantId: req.scope.selectedPlantId, ...req.body }, query: req.query, headers: req.headers });
     if (req.filter.plantId !== req.scope.selectedPlantId) fail(403, 'SCOPE_DENIED');
-    const command = { '/shipments': 'ship', '/invoices': 'invoice', '/payments': 'pay' }[req.path];
+    const command = { '/shipments': 'ship', '/invoices': 'invoice', '/payments': 'pay', '/packing': 'ship' }[req.path] || (/^\/packing\/[^/]+\/pack$/.test(req.path) ? 'ship' : null);
     req.fulfillmentAction = req.method === 'GET' ? 'fulfillment.read' : req.method === 'POST' && command ? `fulfillment.${command}` : null;
     if (!req.fulfillmentAction) fail(404, 'NOT_FOUND');
     await runtime.foundation.authorize(req.scope, { ...req.filter, action: req.fulfillmentAction }); next();
@@ -91,16 +93,18 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
   };
   const read = async effect => { const session = runtime.client.startSession(); try { return await session.withTransaction(() => effect(session), { readConcern: { level: 'snapshot' }, readPreference: 'primary' }); } finally { await session.endSession(); } };
   const verifyRead = async (name, req, row, session) => {
+    if (name === 'fulfillmentPacking') return row;
     if (name === 'fulfillmentShipments') await validatePurchasedShipment(runtime.db, req.filter, row._id, session);
     else if (name === 'fulfillmentInvoices') await validatePurchasedInvoice(runtime.db, req.filter, row._id, session);
     else await validatePurchasedPayment(runtime.db, req.filter, row._id, session);
     return row;
   };
-  for (const [path, name] of [['shipments', 'fulfillmentShipments'], ['invoices', 'fulfillmentInvoices'], ['payments', 'fulfillmentPayments']]) {
+  for (const [path, name] of [['shipments', 'fulfillmentShipments'], ['invoices', 'fulfillmentInvoices'], ['payments', 'fulfillmentPayments'], ['packing', 'fulfillmentPacking']]) {
     app.get(`/api/fulfillment/${path}`, async (req, res) => {
       const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
       if (!Number.isInteger(limit) || limit < 1 || limit > 100 || (req.query.limit !== undefined && !/^[0-9]+$/.test(req.query.limit))) fail(400, 'INVALID_PAGINATION');
       const filter = { ...req.filter }; if (req.query.cursor !== undefined) filter._id = { $gt: id(req.query.cursor) };
+      if (req.query.salesOrderId !== undefined) filter.salesOrderId = id(req.query.salesOrderId);
       res.json(await read(async session => {
         const rows = await c(name).find(filter, { session }).sort({ _id: 1 }).limit(limit + 1).toArray(), data = [];
         for (const row of rows.slice(0, limit)) data.push(await verifyRead(name, req, row, session));
@@ -109,6 +113,50 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
     });
     app.get(`/api/fulfillment/${path}/:id`, async (req, res) => res.json({ data: await read(async session => verifyRead(name, req, await find(name, req, req.params.id, session), session)) }));
   }
+  const packingSources = sources => sources.map(source => ({ sourceType: source.sourceType, sourceId: source.sourceId, quantity: decimal(units(source.quantity)), ...(source.serials ? { serials: [...source.serials].sort() } : {}) })).sort((a, b) => a.sourceId.localeCompare(b.sourceId));
+  app.post('/api/fulfillment/packing', async (req, res) => {
+    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'uom', 'sources', 'reference', 'idempotencyKey']);
+    const b = req.body; id(b.salesOrderId); version(b.expectedVersion); text(b.reference);
+    if (!Number.isSafeInteger(b.lineIndex) || b.lineIndex < 0) fail(400, 'INVALID_LINE');
+    const selected = list(b.sources, 100).map(source => {
+      fields(source, ['sourceType', 'sourceId', 'quantity', 'serials']); id(source.sourceId); qty(source.quantity);
+      if (!['WORK_ORDER', 'RESERVATION'].includes(source.sourceType)) fail(400, 'INVALID_SOURCE');
+      if (source.serials !== undefined && (!Array.isArray(source.serials) || source.serials.length > 1000 || new Set(source.serials).size !== source.serials.length || source.serials.some(serial => typeof serial !== 'string'))) fail(400, 'INVALID_SERIALS');
+      return source;
+    });
+    if (new Set(selected.map(source => source.sourceId)).size !== selected.length) fail(400, 'DUPLICATE_SOURCE');
+    const data = await tx(req, 'packing.picked', async session => {
+      const order = await find('salesOrders', req, b.salesOrderId, session), line = order.snapshot.lines[b.lineIndex];
+      if (order.version !== b.expectedVersion) fail(409, 'VERSION_CONFLICT');
+      if (order.status !== 'OPEN' || !line || line.uom !== b.uom) fail(409, 'SOURCE_CONFLICT');
+      const total = selected.reduce((sum, source) => sum + units(source.quantity), 0n);
+      const tally = await c('fulfillmentTallies').findOne({ ...req.filter, kind: 'SO_LINE_SHIPPED', subjectId: order._id, lineIndex: b.lineIndex }, { session });
+      if (total + units(tally?.quantity || '0') > units(line.quantity)) fail(409, 'QUANTITY_EXCEEDED');
+      for (const part of selected) {
+        const source = await find(part.sourceType === 'WORK_ORDER' ? 'manufacturingWorkOrders' : 'warehouseReservations', req, part.sourceId, session);
+        if (source.salesOrderId !== order._id || source.lineIndex !== b.lineIndex || source.uom !== b.uom || source.accountId !== order.accountId) fail(409, 'SOURCE_CONFLICT');
+        if (part.sourceType === 'WORK_ORDER') {
+          if (source.status !== 'QC_COMPLETED' || units(part.quantity) > units(source.qc.acceptedQuantity)) fail(409, 'STATE_CONFLICT');
+          if (source.serialized && (!part.serials || BigInt(part.serials.length) * 1000000n !== units(part.quantity) || part.serials.some(serial => !source.qc.acceptedSerials.includes(serial)))) fail(409, 'SERIAL_SOURCE_CONFLICT');
+          if (!source.serialized && part.serials !== undefined) fail(400, 'INVALID_SERIALS');
+          await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'WORK_ORDER', resourceId: source._id }], session);
+        } else if (!['RESERVED', 'PARTIALLY_SHIPPED'].includes(source.status) || units(part.quantity) > units(source.remainingQuantity ?? source.quantity) || part.serials !== undefined) fail(409, 'STATE_CONFLICT');
+      }
+      const row = { ...base(req), salesOrderId: order._id, accountId: order.accountId, lineIndex: b.lineIndex, uom: b.uom, quantity: decimal(total), sources: packingSources(selected), reference: b.reference.trim(), status: 'PICKED', stockEffect: 'NONE', pickedBy: req.scope.userId, pickedAt: businessNow(runtime) };
+      await c('fulfillmentPacking').insertOne(row, { session }); return row;
+    }); res.status(201).json({ data });
+  });
+  app.post('/api/fulfillment/packing/:id/pack', async (req, res) => {
+    fields(req.body, ['expectedVersion', 'packageReference', 'idempotencyKey']); version(req.body.expectedVersion); const packageReference = text(req.body.packageReference);
+    const data = await tx(req, 'packing.packed', async session => {
+      const row = await find('fulfillmentPacking', req, req.params.id, session);
+      const order = await find('salesOrders', req, row.salesOrderId, session); await requireUnboundSalesOrder(runtime.db, req.filter, order, session);
+      if (row.version !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT');
+      if (row.status !== 'PICKED' || order.status !== 'OPEN') fail(409, 'STATE_CONFLICT');
+      const after = await c('fulfillmentPacking').findOneAndUpdate({ ...req.filter, _id: row._id, version: row.version }, { $set: { status: 'PACKED', packageReference, packedBy: req.scope.userId, packedAt: businessNow(runtime) }, $inc: { version: 1 } }, { session, returnDocument: 'after' });
+      if (!after) fail(409, 'VERSION_CONFLICT'); return after;
+    }); res.json({ data });
+  });
   app.get('/api/fulfillment/orders/:id/balances', async (req, res) => {
     res.json({ data: await read(async session => {
     const so = await find('salesOrders', req, req.params.id, session);
@@ -172,7 +220,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
   });
 
   app.post('/api/fulfillment/shipments', async (req, res) => {
-    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'uom', 'sources', 'reference', 'idempotencyKey']);
+    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'uom', 'sources', 'reference', 'packingId', 'expectedPackingVersion', 'idempotencyKey']);
     const { salesOrderId, expectedVersion, lineIndex, uom } = req.body;
     id(salesOrderId); version(expectedVersion); const reference = text(req.body.reference);
     if (!Number.isSafeInteger(lineIndex) || lineIndex < 0) fail(400, 'INVALID_LINE');
@@ -189,6 +237,12 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       if (so.status !== 'OPEN') fail(409, 'STATE_CONFLICT');
       const line = so.snapshot.lines[lineIndex]; if (!line) fail(400, 'INVALID_LINE');
       if (line.uom !== uom) fail(409, 'UOM_CONFLICT');
+      let packing;
+      if (req.body.packingId !== undefined) {
+        packing = await find('fulfillmentPacking', req, req.body.packingId, session);
+        if (packing.version !== version(req.body.expectedPackingVersion)) fail(409, 'VERSION_CONFLICT');
+        if (packing.status !== 'PACKED' || packing.salesOrderId !== so._id || packing.lineIndex !== lineIndex || packing.uom !== uom || JSON.stringify(packing.sources) !== JSON.stringify(packingSources(sources))) fail(409, 'PACKING_SOURCE_CONFLICT');
+      } else if (req.body.expectedPackingVersion !== undefined) fail(400, 'INVALID_PACKING');
       const shipmentId = randomUUID();
       for (const s of sources) {
         let receipt;
@@ -199,6 +253,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
           await find('accounts', req, so.accountId, session);
           if (wo.status !== 'QC_COMPLETED') fail(409, 'STATE_CONFLICT');
           if (wo.uom !== uom) fail(409, 'UOM_CONFLICT');
+          await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'WORK_ORDER', resourceId: wo._id }], session);
           if (wo.serialized) {
             if (!Array.isArray(s.serials)) fail(400, 'INVALID_SERIALS');
             if (BigInt(s.serials.length) * 1000000n !== s.amount) fail(409, 'SERIAL_QUANTITY_CONFLICT');
@@ -222,6 +277,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
           const consumed = await tally(req, 'SOURCE_SHIPPED', reservation._id, 0, s.amount, units(reservation.quantity), session);
           await c('warehouseReservations').updateOne({ ...req.filter, _id: reservation._id }, { $set: { shippedQuantity: decimal(consumed.after), remainingQuantity: decimal(units(reservation.quantity) - consumed.after), status: consumed.after === units(reservation.quantity) ? 'CONSUMED' : 'PARTIALLY_SHIPPED', updatedAt: new Date() }, $inc: { version: 1 } }, { session });
           receipt = await find('warehouseReceipts', req, reservation.receiptId, session);
+          await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'RECEIPT', resourceId: receipt._id }], session);
           await requireLegacyReceipt(runtime.db, receipt, session);
           requireQuantityOnlyReceipt(receipt);
           if (receipt.lotNumber !== undefined) s.materialTrace = { receiptId: receipt._id, lotNumber: receipt.lotNumber, heatNumber: receipt.heatNumber };
@@ -236,6 +292,11 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       const total = sources.reduce((a, s) => a + s.amount, 0n);
       await tally(req, 'SO_LINE_SHIPPED', so._id, lineIndex, total, units(line.quantity), session);
       const row = { ...base(req), ...(line.provenance ? { provenance: structuredClone(line.provenance) } : {}), _id: shipmentId, salesOrderId: so._id, accountId: so.accountId, lineIndex, uom, quantity: decimal(total), stockMovementCount: sources.length, sources: sources.map(({ amount: _, ...s }) => s), reference, status: 'SHIPPED', dispatchMode: 'OPERATOR_RECORDED', shippedBy: req.scope.userId, shippedAt: businessNow(runtime), ...(runtime.businessClock ? { recordedAt: new Date(), businessClockMode: runtime.businessClockMode } : {}) };
+      if (packing) {
+        row.packing = { packingId: packing._id, packageReference: packing.packageReference, packedBy: packing.packedBy, packedAt: packing.packedAt };
+        const changed = await c('fulfillmentPacking').updateOne({ ...req.filter, _id: packing._id, version: packing.version, status: 'PACKED' }, { $set: { status: 'DISPATCHED', shipmentId }, $inc: { version: 1 } }, { session });
+        if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+      }
       await c('fulfillmentShipments').insertOne(row, { session });
       return row;
     }); res.status(201).json({ data });

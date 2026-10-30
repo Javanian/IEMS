@@ -6,7 +6,7 @@ export const customerClaimSchema = 'CATALOG_CUSTOMER_RESERVATION_V1';
 export const purchasedInvalid = () => { throw Object.assign(new Error('PURCHASED_FULFILLMENT_SOURCE_INVALID'), { status: 409, code: 'PURCHASED_FULFILLMENT_SOURCE_INVALID' }); };
 const positive = value => Number.isSafeInteger(value) && value > 0;
 const scope = value => ({ tenantId: value.tenantId, plantId: value.plantId });
-export const shipmentSemantic = value => Object.fromEntries(Object.entries(value).filter(([key]) => !['documentFence', 'deliveryUseFence'].includes(key)));
+export const shipmentSemantic = value => Object.fromEntries(Object.entries(value).filter(([key]) => !['documentFence', 'deliveryUseFence', 'returnUseFence'].includes(key)));
 export const invoiceSemantic = value => Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'documentFence'));
 const idsEqual = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && new Set(a).size === a.length && hash([...a].sort()) === hash([...b].sort());
 
