@@ -1,5 +1,6 @@
 import { readApprovedOrderRevision } from '../../../packages/contracts/src/domains/commercial/purchase-orders.mjs';
 import { readCatalogOrderRevision } from './catalog-procurement.mjs';
+import { createCommandExecutor } from '../../../packages/tenant-foundation/index.mjs';
 
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const positive = value => Number.isSafeInteger(value) && value > 0;
@@ -12,6 +13,33 @@ export const portalRoles = {
   customerPortalReader: ['portal.customer.read'],
   portalAccessAdmin: ['portal.access.manage'],
 };
+
+export function createPortalAccessService(runtime) {
+  const commands = createCommandExecutor(runtime);
+  return Object.freeze({
+    initialize: () => commands.initialize(),
+    async revoke(scope, input) {
+      if (!input || Object.getPrototypeOf(input) !== Object.prototype) fail(400, 'INVALID_PORTAL_REVOCATION');
+      const { plantId, grantId, expectedRevision, commandKey } = input;
+      if (![plantId, grantId].every(uuid) || !positive(expectedRevision) || expectedRevision >= Number.MAX_SAFE_INTEGER ||
+          Object.keys(input).some(key => !['plantId', 'grantId', 'expectedRevision', 'commandKey'].includes(key))) fail(400, 'INVALID_PORTAL_REVOCATION');
+      return commands.execute(scope, {
+        plantId, action: 'portal.access.manage', key: commandKey,
+        aggregateId: grantId, expectedRevision, input: { operation: 'REVOKE' },
+      }, async ({ session, grant }) => {
+        const revision = expectedRevision + 1;
+        const row = await runtime.db.collection('portal_party_grants').findOneAndUpdate({
+          _id: grantId, tenantId: grant.tenantId, plantId: grant.plantId,
+          revision: expectedRevision, active: true,
+        }, { $set: { active: false, revision, revokedAt: new Date(), revokedBy: grant.userId },
+          $inc: { authorizationFence: 1 } }, { session, returnDocument: 'after' });
+        if (!row) fail(409, 'PORTAL_GRANT_REVISION_CONFLICT');
+        return { revision, data: { schema: 'PORTAL_GRANT_V1', grantId, active: false, revision },
+          events: [{ type: 'portal.grant.revoked', version: 1, data: { grantId, revision } }] };
+      });
+    },
+  });
+}
 
 // Foundation verifies the opaque authenticated scope; request user/party IDs never
 // substitute for it. The write conflicts with concurrent grant revocation.

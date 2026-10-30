@@ -43,12 +43,25 @@ identity with the foundation identity. It performs no source lookup after denied
 authorization. `portalRoles` exports scoped permission definitions for integration;
 no owner-wide party grant is implied by an operator/admin role.
 
+`createPortalAccessService(runtime)` exposes `initialize()` and
+`revoke(opaqueScope, { plantId, grantId, expectedRevision, commandKey })`.
+Initialization uses the foundation command-result/outbox indexes; integration
+must call it before accepting mutations. No initialization is executed on import.
+Revoke requires `portal.access.manage` in the foundation transaction on every
+attempt, including replay. It matches the authenticated tenant/plant, active grant
+and exact positive `revision`, disables the same document used by the reader fence,
+and records revoked actor/time. A conflict yields `409 PORTAL_GRANT_REVISION_CONFLICT`.
+Provisioned grants must start at revision 1. No legacy revision is guessed.
+Foundation atomically saves the result, audit and ID-only `portal.grant.revoked`
+event. Command-key reuse with different input conflicts. Unknown commit outcomes
+must reconcile using the same key; no new command should be sent blindly.
+
 This is not a grant provisioning API. Trusted provisioning, expiry policy,
-revocation handlers, unique grant indexes and HTTP integration remain unfinished.
+unique grant indexes and HTTP integration remain unfinished.
 No collection initialization or data migration has been executed. Callers must
 not insert grants from untrusted request fields or expose the low-level adapter.
 
-Authenticated party ACL provisioning/revocation, portal endpoints, customer order
+Authenticated party ACL provisioning, portal endpoints, customer order
 views, durable vendor response/promise history, replay reauthorization and screens
 remain required. Shared mount and navigation belong to the integration owner.
 This adapter is a usable source contract, not an implemented portal or independent
@@ -67,3 +80,8 @@ opaque authentication propagation, exact grant predicates, permission escalation
 missing source parties, denied-access short circuiting and request identity
 replacement. It inspects the Mongo filter and write fence using a DB double;
 it does not prove server-side expiry matching or concurrent revocation isolation.
+
+`node --test packages/customer-service/portal-revocation.test.mjs` uses the real
+foundation command executor with a transactional DB double to check atomic failure,
+replay reauthorization, scope/revision denial and idempotency conflicts. Mongo
+write-conflict behavior, durable restart recovery and HTTP mounting remain NOT_RUN.
