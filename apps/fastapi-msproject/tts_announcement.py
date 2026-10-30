@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+import wave
 from datetime import datetime
 from pathlib import Path
 
@@ -100,7 +101,7 @@ def ensure_piper_model_available() -> None:
         )
 
 
-def generate_body_audio_with_piper(text: str, output_path: str | Path) -> dict:
+def _run_piper(text: str, output_path: str | Path) -> dict:
     piper_bin = ensure_piper_available()
     ensure_piper_model_available()
 
@@ -121,6 +122,8 @@ def generate_body_audio_with_piper(text: str, output_path: str | Path) -> dict:
             cmd,
             input=text,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             capture_output=True,
             timeout=PIPER_TIMEOUT_SECONDS,
             check=False,
@@ -184,7 +187,44 @@ def generate_body_audio_with_piper(text: str, output_path: str | Path) -> dict:
     }
 
 
-def merge_announcement_audio(
+def _validate_body_wav(path: Path) -> None:
+    try:
+        with wave.open(str(path), "rb") as audio:
+            if audio.getnframes() <= 0 or audio.getframerate() <= 0:
+                raise ValueError("WAV tidak memiliki frame audio")
+            expected = audio.getnframes() * audio.getnchannels() * audio.getsampwidth()
+            received = 0
+            while received < expected:
+                frames = audio.readframes(4096)
+                if not frames:
+                    raise ValueError("Data frame WAV terpotong")
+                received += len(frames)
+    except (OSError, EOFError, ValueError, wave.Error) as exc:
+        raise TtsGenerationError(
+            "Gagal generate audio dengan Piper. Cek log server.",
+            f"Piper menghasilkan WAV tidak valid: {exc}",
+        ) from exc
+
+
+def generate_body_audio_with_piper(text: str, output_path: str | Path) -> dict:
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        # A fresh sibling path prevents an old file from satisfying this attempt.
+        with tempfile.TemporaryDirectory(prefix=".announcement_piper_", dir=output.parent) as attempt:
+            staged = Path(attempt) / "body.wav"
+            result = _run_piper(text, staged)
+            _validate_body_wav(staged)
+            staged.replace(output)
+        return result
+    except OSError as exc:
+        raise TtsGenerationError(
+            "Gagal generate audio dengan Piper. Cek log server.",
+            f"Gagal menjalankan atau menyimpan output Piper: {exc}",
+        ) from exc
+
+
+def _merge_announcement_audio(
     body_path: str | Path,
     output_path: str | Path,
     header_path: str | Path = DEFAULT_HEADER_FILE,
@@ -241,7 +281,8 @@ def merge_announcement_audio(
         + footer_audio
     )
     try:
-        final_audio.export(output, format="mp3")
+        with final_audio.export(output, format="mp3"):
+            pass
     except Exception as exc:
         raise TtsGenerationError(
             "Gagal export audio final. Cek log server.",
@@ -257,6 +298,38 @@ def merge_announcement_audio(
         "duration_ms": len(final_audio),
         "merged": True,
     }
+
+
+def merge_announcement_audio(
+    body_path: str | Path,
+    output_path: str | Path,
+    header_path: str | Path = DEFAULT_HEADER_FILE,
+    footer_path: str | Path = DEFAULT_FOOTER_FILE,
+    gap_after_header_ms: int = GAP_AFTER_HEADER_MS,
+    gap_before_footer_ms: int = GAP_BEFORE_FOOTER_MS,
+) -> dict:
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        # Replace only a complete export; failed attempts never truncate published audio.
+        with tempfile.TemporaryDirectory(prefix=".announcement_merge_", dir=output.parent) as attempt:
+            staged = Path(attempt) / "announcement.mp3"
+            result = _merge_announcement_audio(
+                body_path, staged, header_path, footer_path,
+                gap_after_header_ms, gap_before_footer_ms,
+            )
+            if not staged.is_file() or staged.stat().st_size <= 0 or result["duration_ms"] <= 0:
+                raise TtsGenerationError(
+                    "Gagal export audio final. Cek log server.",
+                    "Export MP3 tidak menghasilkan audio",
+                )
+            staged.replace(output)
+        return result
+    except OSError as exc:
+        raise TtsGenerationError(
+            "Gagal export audio final. Cek log server.",
+            f"Gagal menyimpan final MP3: {exc}",
+        ) from exc
 
 
 def generate_announcement_mp3(
