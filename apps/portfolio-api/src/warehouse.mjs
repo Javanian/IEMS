@@ -107,7 +107,7 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
         if (origin.cohort === 'CATALOG') {
           const source = await c('warehouseReceiptOrigins').findOne({ ...req.filter, receiptId: receipt._id }, { session });
           await validateCatalogReceiptOrigin(runtime.db, receipt, source, session);
-        }
+        } else await requireLegacyReceipt(runtime.db, receipt, session);
         const movements = await c('warehouseMovements').find({ ...req.filter, receiptId: receipt._id }, { session }).toArray();
         const materials = await c('manufacturingMovements').find({ ...req.filter, receiptId: receipt._id, kind: { $in: ['MATERIAL_RESERVED', 'MATERIAL_CONSUMED'] } }, { session }).toArray();
         const values = { availableQuantity: 0n, reservedQuantity: 0n, shippedQuantity: 0n, manufacturingReservedQuantity: 0n, manufacturingConsumedQuantity: 0n };

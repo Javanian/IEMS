@@ -16,6 +16,11 @@ test('demand kind rejects unknown authority and adapter requires a caller transa
 
 test('approved WO-scaled demand refreshes and claims once, with current source fences and revocation', async t => {
   const h = await startOwned(t), f = await orderWithStock(h, { reserve: null });
+  assert.equal((await h.ok(`/warehouse/receipts/${f.receipt._id}/reconciliation`)).matches, true);
+  const original = await h.db.collection('warehouseReceipts').findOne({ _id: f.receipt._id });
+  await h.db.collection('warehouseReceipts').updateOne({ _id: original._id }, { $set: { 'purchaseSource.contentHash': 'synthetic-corruption' } });
+  try { assert.equal((await h.req(`/warehouse/receipts/${original._id}/reconciliation`, undefined, h.alpha)).status, 409); }
+  finally { await h.db.collection('warehouseReceipts').updateOne({ _id: original._id }, { $set: { purchaseSource: original.purchaseSource } }); }
   const draftItem = await h.ok('/inventory-master/items', command({ code: 'CUSTOMER_SEAL', description: 'Synthetic purchased seal', kind: 'PURCHASED', uom: 'KG', schema: 'INVENTORY_ITEM_V2', trackingPolicy: 'LOT' }), 201);
   const item = await h.ok(`/inventory-master/items/${draftItem._id}/approve`, command({ expectedVersion: draftItem.version, revision: 1 }));
   const planned = await h.ok('/manufacturing/work-orders', { salesOrderId: f.so._id, expectedVersion: f.so.version, lineIndex: 0, quantities: ['1.5'], uom: 'KG', idempotencyKey: randomUUID() }, 201);
