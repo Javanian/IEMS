@@ -137,3 +137,17 @@ reconcile registered deliveries while paused; they never authorize dispatch.
 This does not enable live mode, register deliveries, or open a browser. Policy and
 browser integration remain incomplete. HTTP contract checks use in-memory streams;
 real HTTP/Mongo/provider and independent QA remain NOT_RUN.
+
+`src/provider-policy.mjs` supplies the registration evaluator for
+`authorizeRegistration`. Its `readAndFence(request, session)` dependency must
+load current scoped policy, identity, binding, approval and reply metadata and
+write-fence their revocation authorities in that same registration transaction.
+Never pass caller snapshots or preview collections as live authority. The
+evaluator checks explicit approval, customer/recipient binding, identity/binding
+versions, content hash, configured command prefix, allowlist, pause and expiry
+on every call, including receipt replay. It accepts metadata only and does not
+read or persist message text. `commandPrefix` must be attested by the trusted
+command parser; it is not proof that arbitrary text has that prefix.
+The evaluator is not mounted: the durable live authority provisioning/read-and-
+fence adapter and browser driver remain incomplete. No live mode is enabled.
+Synthetic contract checks: `node --test apps/wa-demo-bridge/test/provider-policy.test.mjs`.
