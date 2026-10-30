@@ -76,7 +76,7 @@ export interface ClaimedDelivery { deliveryId: UUID; fence: number; attempt: num
 type Op<T> = T & { plantId: UUID };
 
 export interface OrderSnapshot { orderNumber: string; publicStage: OrderPublicStage; progress: {released: number; total: number} | null; source: 'PORTFOLIO_API_OWNED'; sourceId: string; sourceVersion: number; asOf: Date; kind?: OrderKind; milestones?: OrderMilestone[]; confirmedDates?: ConfirmedDates }
-export interface OrderReader { readCustomerOrder(input: {tenantId: UUID; plantId: UUID; customerId: UUID; orderNumber: string}): Promise<OrderSnapshot | null> }
+export interface OrderReader { readCustomerOrder(input: {tenantId: UUID; plantId: UUID; customerId: UUID; orderNumber: string}, options?: { session?: unknown }): Promise<OrderSnapshot | null> }
 export interface Page<T> { items: T[]; nextCursor: string | null }
 export interface ConversationSummary { conversationId: UUID; mode: ConversationMode; version: number; assigneeId: UUID | null; activeTicketId: UUID | null; customerLabel: string; lastActivityAt: Date; hasUnknownDelivery: boolean }
 export interface ThreadMessage { messageId: UUID; direction: 'INBOUND' | 'OUTBOUND'; origin: 'CUSTOMER' | 'BOT' | 'SYSTEM' | 'OPERATOR'; kind: string; text: string; state: string; at: Date;
@@ -103,7 +103,7 @@ export interface CustomerService {
   provisionFixtureCustomer(scope: VerifiedScope, input: Op<{ customerId: UUID; label: string }>): Promise<UUID>;
   bindContact(scope: VerifiedScope, input: Op<{ bindingId: UUID; customerId: UUID; channelAccountId: string; providerContactId: string }>): Promise<UUID>;
   revokeBinding(scope: VerifiedScope, input: Op<{ bindingId: UUID; expectedVersion: number }>): Promise<{ bindingId: UUID; version: number; cancelledDeliveries: number }>;
-  registerSyntheticOrderSnapshot(scope: VerifiedScope, input: Op<{ customerId: UUID; orderNumber: string; publicStage: OrderPublicStage; progress?: { released: number; total: number } | null }>): Promise<{ orderNumber: string; source: typeof SYNTHETIC_ORDER_SOURCE }>;
+  registerSyntheticOrderSnapshot(scope: VerifiedScope, input: Op<{ customerId: UUID; orderNumber: string; publicStage: OrderPublicStage; progress?: { released: number; total: number } | null; kind?: OrderKind; milestones?: OrderMilestone[]; confirmedDates?: ConfirmedDates }>): Promise<{ orderNumber: string; source: typeof SYNTHETIC_ORDER_SOURCE }>;
   // Trusted bridge port: tenantId comes from configured channel account, never message content.
   resolveCustomerPrincipal(input: { tenantId: UUID; channelAccountId: string; providerContactId: string }): Promise<CustomerPrincipal>;
   getOrderStatusForCustomer(principal: CustomerPrincipal, input: { orderNumber: string }): Promise<OrderStatusView>;

@@ -60,3 +60,9 @@ Live customer order connectivity, main application HTTP routes, provider send/re
 ## Operator bindings and metrics
 
 `createBinding` verifies the customer/contact through an injected `partyDirectory`. This version accepts the `SIMULATED` channel and reserved synthetic addresses only. Binding creation, expiry and revocation have permission, version and idempotency checks. `simulateInbound` requires `cs.simulator.use`; the preview dispatcher records `PREVIEWED` without a provider receipt. Scoped metrics report ticket counts and observed response timing from persisted events.
+
+## PLAT-052 source and synthetic detail contract
+
+`order-source.mjs` provides `createServiceOrderReader`. The CS host passes the current transaction session so actor/binding fences and account, order, work-order and shipment reads share one snapshot. This is a public projection, never a second domain ledger. SourceVersion is the owning order/case revision, not a sum of unrelated revisions or reporting sequence. Related source reads are capped at 500; incomplete or malformed coverage produces STATUS_UNAVAILABLE, with no synthetic fallback. Shipment completeness compares decimal strings per line and UOM. Work-order progress counts work orders, not physical units. Repair diagnostics, notes, financial data and unconfirmed dates are excluded.
+
+`serviceOrderFixtures` in `order-fixtures.mjs` returns explicit MANUFACTURE and REPAIR inputs for `registerSyntheticOrderSnapshot`; callers must opt into synthetic reads and possess fixture authority. It performs no seeding on import. Both records carry SYNTHETIC_FIXTURE_SNAPSHOT/liveLookup false and no invented promised date. Existing minimal fixture callers remain compatible. Detailed milestone fields are validated and projected explicitly. Actual Mongo transaction/concurrency and end-to-end source behavior remain for final QA.

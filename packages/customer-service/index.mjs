@@ -236,6 +236,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
     const date = v => v === null || (v instanceof Date && Number.isFinite(v.getTime()));
     return ORDER_KINDS.includes(s.kind) && Array.isArray(s.milestones) && s.milestones.length <= 20
       && s.milestones.every(m => m && typeof m.code === 'string' && /^[A-Z_]{1,40}$/.test(m.code) && typeof m.label === 'string' && m.label.length <= 80 && date(m.at) && MILESTONE_STATES.includes(m.state))
+      && new Set(s.milestones.map(m => m.code)).size === s.milestones.length
       && !!s.confirmedDates && typeof s.confirmedDates === 'object' && Object.entries(s.confirmedDates).every(([k, v]) => ['promisedShipDate', 'estimatedReturnDate'].includes(k) && v instanceof Date && Number.isFinite(v.getTime()));
   }
   async function loadOwnDraft(session, binding, draftId) {
@@ -246,7 +247,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
     if (orderReader) {
       let timer, snapshot;
       try {
-        snapshot = await Promise.race([orderReader.readCustomerOrder({tenantId: binding.tenantId, plantId: binding.plantId, customerId: binding.customerId, orderNumber}), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), orderReaderTimeoutMs); })]);
+        snapshot = await Promise.race([orderReader.readCustomerOrder({tenantId: binding.tenantId, plantId: binding.plantId, customerId: binding.customerId, orderNumber}, { session }), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), orderReaderTimeoutMs); })]);
         if (snapshot !== null && (snapshot.source !== 'PORTFOLIO_API_OWNED' || snapshot.orderNumber !== orderNumber || !ORDER_PUBLIC_STAGES.includes(snapshot.publicStage) || !Number.isSafeInteger(snapshot.sourceVersion) || snapshot.sourceVersion < 1 || typeof snapshot.sourceId !== 'string' || !(snapshot.asOf instanceof Date) || !Number.isFinite(snapshot.asOf.getTime()) || now() - snapshot.asOf > orderMaxStaleMs || snapshot.asOf > now() || !validOrderDetail(snapshot))) fail('STATUS_UNAVAILABLE');
       } catch { fail('STATUS_UNAVAILABLE'); } finally { clearTimeout(timer); }
       if (!snapshot) fail('NOT_FOUND');
@@ -254,7 +255,11 @@ export function createCustomerService({ client, db, foundation, now = () => new 
     }
     if (!allowSyntheticOrders) fail('STATUS_UNAVAILABLE');
     const s = await c('cs_order_snapshots').findOne({ tenantId: binding.tenantId, plantId: binding.plantId, customerId: binding.customerId, orderNumber }, { session });
-    return s ?? fail('NOT_FOUND');
+    if (!s) fail('NOT_FOUND');
+    if (s.source !== SYNTHETIC_ORDER_SOURCE || !validOrderDetail(s)) fail('STATUS_UNAVAILABLE');
+    return { orderNumber: s.orderNumber, publicStage: s.publicStage, progress: s.progress,
+      source: SYNTHETIC_ORDER_SOURCE, liveLookup: false, asOf: s.asOf,
+      ...(s.kind === undefined ? {} : { kind: s.kind, milestones: s.milestones.map(({ code, label, at, state }) => ({ code, label, at, state })), confirmedDates: structuredClone(s.confirmedDates) }) };
   }
 
   const api = {
@@ -368,14 +373,17 @@ export function createCustomerService({ client, db, foundation, now = () => new 
       });
     },
 
-    async registerSyntheticOrderSnapshot(scope, { plantId, customerId, orderNumber, publicStage, progress = null }) {
+    async registerSyntheticOrderSnapshot(scope, { plantId, customerId, orderNumber, publicStage, progress = null, kind, milestones, confirmedDates }) {
       const g = await operator(scope, plantId, 'cs.fixture.admin');
       uuid(customerId); orderNo(orderNumber); oneOf(publicStage, ORDER_PUBLIC_STAGES);
       if (progress !== null && !(Number.isSafeInteger(progress?.released) && Number.isSafeInteger(progress?.total) && progress.released >= 0 && progress.total > 0 && progress.released <= progress.total)) fail('INVALID_INPUT');
+      if (!validOrderDetail({ kind, milestones, confirmedDates })) fail('INVALID_INPUT');
+      const detail = kind === undefined ? {} : { kind, milestones: structuredClone(milestones.map(({ code, label, at, state }) => ({ code, label, at, state }))), confirmedDates: structuredClone(confirmedDates) };
+      const progressCopy = progress === null ? null : { released: progress.released, total: progress.total };
       return operatorTx(scope, plantId, 'cs.fixture.admin', async (session, g) => {
         if (!(await c('cs_customers').findOne({ _id: customerId, tenantId: g.tenantId, plantId: g.plantId }, { session }))) fail('NOT_FOUND');
         const at = now();
-        await c('cs_order_snapshots').insertOne({ _id: randomUUID(), tenantId: g.tenantId, plantId: g.plantId, customerId, orderNumber, publicStage, progress, source: SYNTHETIC_ORDER_SOURCE, liveLookup: false, asOf: at }, { session });
+        await c('cs_order_snapshots').insertOne({ _id: randomUUID(), tenantId: g.tenantId, plantId: g.plantId, customerId, orderNumber, publicStage, progress: progressCopy, ...detail, source: SYNTHETIC_ORDER_SOURCE, liveLookup: false, asOf: at }, { session });
         await audit(session, g.tenantId, 'fixture.order_snapshot.created', customerId, { type: 'OPERATOR', userId: g.userId });
         return { orderNumber, source: SYNTHETIC_ORDER_SOURCE };
       });
