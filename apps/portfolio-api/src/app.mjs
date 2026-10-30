@@ -2,6 +2,7 @@ import express from 'express';
 import { randomUUID, randomBytes, scrypt as scryptCallback, timingSafeEqual, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { createTenantFoundation, resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
+import { initializeFoundationRuntime } from './foundation-runtime.mjs';
 import { installCommercial, initializeCommercial, roleActions } from './commercial.mjs';
 import { installProcurement, initializeProcurement, procurementRoles, procurementActions } from './procurement.mjs';
 import { installWarehouse, initializeWarehouse, warehouseRoles, warehouseActions } from './warehouse.mjs';
@@ -63,6 +64,7 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await initializePurchasedFulfillment(db);
   await db.collection('credentials').createIndex({ username: 1 }, { unique: true });
   runtime.foundation = foundation;
+  runtime.commands = await initializeFoundationRuntime(runtime);
   runtime.documents = await initializeDocuments(runtime);
   runtime.customerService = await initializeCustomerService(runtime, customerService);
   return runtime;

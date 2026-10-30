@@ -1,4 +1,20 @@
 export type UUID = string;
+export interface FoundationCommand {
+  tenantId: UUID; plantId: UUID; action: string; key: string; aggregateId: UUID;
+  expectedRevision: number; input: unknown;
+}
+export interface CommandOutput {
+  data: unknown; revision: number; events: Array<{ type: string; version: number; data: unknown }>;
+}
+export class CommandError extends Error { code: string; status: number; constructor(code: string, status: number, message?: string); }
+export function canonicalJson(value: unknown): string;
+export function contentHash(value: unknown): string;
+export function boundedTransaction<T>(client: { startSession: (...args: any[]) => any }, effect: (session: { inTransaction(): boolean; [key: string]: any }) => Promise<T>, options?: { attempts?: number; commitAttempts?: number }): Promise<T>;
+export function createCommandExecutor(options: { client: { startSession: (...args: any[]) => any }; db: { collection: (...args: any[]) => any }; foundation: TenantFoundation }): {
+  initialize(): Promise<void>;
+  execute(scope: VerifiedScope, command: FoundationCommand, effect: (context: { session: { inTransaction(): boolean; [key: string]: any }; grant: Grant; aggregateId: UUID; expectedRevision: number; input: unknown }) => Promise<CommandOutput>): Promise<{ data: unknown; revision: number; commandId: UUID; replayed: boolean }>;
+  readResource(scope: VerifiedScope, target: Target & { collection: 'files' | 'jobs' | 'exports' | 'readModels'; resourceId: string }): Promise<Record<string, unknown>>;
+};
 declare const verified: unique symbol;
 export interface VerifiedScope {
   readonly [verified]: true;

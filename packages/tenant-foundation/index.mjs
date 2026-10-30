@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+export { createCommandExecutor, boundedTransaction, canonicalJson, contentHash, CommandError } from './commands.mjs';
 
 export class ScopeDenied extends Error {
   constructor() { super('Scope denied'); this.name = 'ScopeDenied'; this.code = 'SCOPE_DENIED'; this.status = 403; }
