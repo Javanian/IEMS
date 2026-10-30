@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import { createTenantFoundation, resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { initializeFoundationRuntime } from './foundation-runtime.mjs';
 import { installCommercial, initializeCommercial, roleActions } from './commercial.mjs';
+import { opportunityView } from './crm.mjs';
 import { installProcurement, initializeProcurement, procurementRoles, procurementActions } from './procurement.mjs';
 import { installWarehouse, initializeWarehouse, warehouseRoles, warehouseActions } from './warehouse.mjs';
 import { installManufacturing, initializeManufacturing, manufacturingRoles, manufacturingActions } from './manufacturing.mjs';
@@ -219,7 +220,9 @@ function installCrm(app, runtime) {
       return await session.withTransaction(async () => {
         await guard(runtime, req, session);
         const result = await effect(session);
-        await c(runtime, 'crmAudit').insertOne({ _id: randomUUID(), ...req.filter, userId: req.scope.userId, kind, subjectId: result._id, version: result.version, occurredAt: new Date() }, { session });
+        const event = { ...req.filter, userId: req.scope.userId, kind, subjectId: result._id, version: result.version, occurredAt: businessNow(runtime) };
+        await c(runtime, 'crmAudit').insertOne({ _id: randomUUID(), ...event }, { session });
+        await c(runtime, 'crmOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
         return result;
       }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
     } finally { await session.endSession(); }
@@ -231,7 +234,7 @@ function installCrm(app, runtime) {
     if (req.query.cursor !== undefined) predicate._id = { $gt: id(req.query.cursor) };
     const rows = await c(runtime, name).find(predicate).sort({ _id: 1 }).limit(limit + 1).toArray();
     const more = rows.length > limit; const data = rows.slice(0, limit);
-    res.json({ data, page: { limit, nextCursor: more ? data.at(-1)._id : null } });
+    res.json({ data: name === 'opportunities' ? data.map(row => opportunityView(row, businessNow(runtime))) : data, page: { limit, nextCursor: more ? data.at(-1)._id : null } });
   };
   const base = req => ({ _id: randomUUID(), ...req.filter, ownerId: req.scope.userId, version: 1, createdAt: new Date(), updatedAt: new Date() });
   app.get('/api/crm/accounts', (req, res) => list('accounts', req, res));
@@ -255,14 +258,15 @@ function installCrm(app, runtime) {
     }); res.status(201).json({ data });
   });
   app.get('/api/crm/opportunities', (req, res) => list('opportunities', req, res));
-  app.get('/api/crm/opportunities/:id', async (req, res) => res.json({ data: await find('opportunities', req, req.params.id) }));
+  app.get('/api/crm/opportunities/:id', async (req, res) => res.json({ data: opportunityView(await find('opportunities', req, req.params.id), businessNow(runtime)) }));
   app.post('/api/crm/opportunities', async (req, res) => {
     fields(req.body, ['accountId', 'ownerId', 'amount', 'currency', 'name']);
     const accountId = id(req.body.accountId), amount = money(req.body.amount, req.body.currency);
     if (req.body.ownerId !== undefined && req.body.ownerId !== req.scope.userId) fail(403, 'OWNER_DENIED');
     const data = await transaction(req, 'opportunity.created', async session => {
       await find('accounts', req, accountId, session);
-      const row = { ...base(req), accountId, amount, currency: req.body.currency, stage: 'NEW', history: [{ stage: 'NEW', version: 1, reason: 'Created', userId: req.scope.userId, at: new Date() }] };
+      const now = businessNow(runtime);
+      const row = { ...base(req), createdAt: now, updatedAt: now, accountId, amount, currency: req.body.currency, stage: 'NEW', history: [{ stage: 'NEW', version: 1, reason: 'Created', userId: req.scope.userId, at: now }] };
       if (req.body.name !== undefined) row.name = text(req.body.name);
       await c(runtime, 'opportunities').insertOne(row, { session }); return row;
     }); res.status(201).json({ data });
@@ -276,7 +280,7 @@ function installCrm(app, runtime) {
       await find('accounts', req, current.accountId, session);
       if (current.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (current.stage === stage || ['WON', 'LOST'].includes(current.stage)) fail(409, 'STAGE_CONFLICT');
-      const updatedAt = new Date();
+      const updatedAt = businessNow(runtime);
       const row = await c(runtime, 'opportunities').findOneAndUpdate({ ...req.filter, _id: current._id, version: expectedVersion }, { $set: { stage, updatedAt }, $inc: { version: 1 }, $push: { history: { stage, version: expectedVersion + 1, reason, at: updatedAt, userId: req.scope.userId } } }, { session, returnDocument: 'after' });
       if (!row) fail(409, 'VERSION_CONFLICT'); return row;
     }); res.json({ data });

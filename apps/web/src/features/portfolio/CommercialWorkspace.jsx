@@ -1,6 +1,6 @@
 import { AuditDetails,CustomerName } from './OperatorUi.jsx';
 import { displayReference,operatorStatus,quantitySummary } from './operator.mjs';
-import { useContext, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { OrderStockExceptions } from './HoldsWorkspace.jsx';
 import { DocumentIssue } from './DocumentIssue.jsx';
 import { MonetarySummary } from './MonetarySummary.jsx';
@@ -27,23 +27,26 @@ function Input({ label, ...props }) { return <label className="pf-field">{label}
 export function Lines({ snapshot }) {
   return <><ol className="pf-list">{snapshot.lines.map((line, i) => <li key={i}><strong>{line.description}</strong><span>Quantity: {line.quantity} {line.uom}</span><span>Unit price: {line.currency} {line.unitPrice}</span><SourceLineage line={line} /><CatalogBinding line={line} /></li>)}</ol><AuditDetails action="quote.read"><p>Rounding: {snapshot.roundingPolicy}</p></AuditDetails><MonetarySummary record={{...snapshot, currency: snapshot.currency || snapshot.lines[0]?.currency}} /></>;
 }
-function ContentForm({ quote, onSaved }) {
-  const [count, setCount] = useState(1), [error, setError] = useState(null), [busy, setBusy] = useState(false);
-  const lock = useRef(false);
+function ContentForm({ quote, opportunity, onSaved }) {
   const latest = quote?.revisions.at(-1);
+  const [count, setCount] = useState(latest?.lines.length || 1), [error, setError] = useState(null), [busy, setBusy] = useState(false);
+  const lock = useRef(false), pending = useRef(null);
+  useEffect(() => () => pending.current?.abort(), []);
   return <form className="pf-panel pf-form" onSubmit={async event => {
     event.preventDefault(); if (lock.current) return;
     const values = Object.fromEntries(new FormData(event.currentTarget)); lock.current = true; setBusy(true); setError(null);
+    const controller = new AbortController(); pending.current = controller;
     try {
       const body = quoteContent(values, count);
-      const result = await request(quote ? `/api/commercial/quotes/${quote._id}/revisions` : '/api/commercial/quotes', { body: quote ? { ...body, expectedVersion: quote.version } : { ...body, accountId: values.accountId } });
-      onSaved(result.data);
-    } catch (err) { setError(err); } finally { lock.current = false; setBusy(false); }
-  }}><h2>{quote ? 'New revision' : 'Quote content'}</h2>{!quote && <Input label="Account ID" name="accountId" required />}
+      const result = await request(quote ? `/api/commercial/quotes/${quote._id}/revisions` : '/api/commercial/quotes', { body: quote ? { ...body, expectedVersion: quote.version } : { ...body, accountId: opportunity?.accountId || values.accountId, ...(opportunity ? { opportunityId: opportunity._id, expectedOpportunityVersion: opportunity.version } : {}) }, signal: controller.signal });
+      if (!controller.signal.aborted) onSaved(result.data);
+    } catch (err) { if (!controller.signal.aborted) setError(err); } finally { if (!controller.signal.aborted) { lock.current = false; pending.current = null; setBusy(false); } }
+  }}><h2>{quote ? 'New revision' : 'Quote content'}</h2>{!quote && <Input label="Account ID" name="accountId" required readOnly={Boolean(opportunity)} defaultValue={opportunity?.accountId} />}
+    {opportunity && <p>Source opportunity: {opportunity.name || opportunity._id}, version {opportunity.version}. Refresh this page after an uncertain result to review the opportunity's linked quotes before submitting again.</p>}
     <Input label="Expires at (UTC ISO)" name="expiresAt" required defaultValue={latest?.expiresAt} placeholder="YYYY-MM-DDTHH:mm:ss.sssZ" />
     <label className="pf-field">Tax policy<select name="taxPolicy" defaultValue={latest?.taxPolicy || 'NO_TAX'} disabled={busy}><option value="NO_TAX">No tax</option><option value="FIXTURE_VAT_11_V1">Fixture VAT 11% (scenario only)</option></select></label>
     <p>Original decimal strings are retained. All lines must share one currency. LINE_HALF_UP and the selected policy are applied by the server. Fixture VAT is not a statutory rate or tax advice. No FX is implied.</p>
-    {Array.from({ length: count }, (_, i) => <fieldset key={i}><legend>Line {i + 1}</legend><div className="pf-fields"><Input label="Description" name={`description${i}`} required maxLength={200} /><Input label="Quantity (exact decimal)" name={`quantity${i}`} inputMode="decimal" required /><Input label="UOM" name={`uom${i}`} pattern="[A-Z][A-Z0-9_]{0,15}" required /><Input label="Unit price (fixed scale)" name={`unitPrice${i}`} inputMode="decimal" required /><label className="pf-field">Currency<select name={`currency${i}`}>{['USD','EUR','GBP','IDR','JPY','KWD'].map(c => <option key={c}>{c}</option>)}</select></label></div></fieldset>)}
+    {Array.from({ length: count }, (_, i) => <fieldset key={i}><legend>Line {i + 1}</legend><div className="pf-fields"><Input label="Description" name={`description${i}`} defaultValue={latest?.lines[i]?.description} required maxLength={200} /><Input label="Quantity (exact decimal)" name={`quantity${i}`} defaultValue={latest?.lines[i]?.quantity} inputMode="decimal" required /><Input label="UOM" name={`uom${i}`} defaultValue={latest?.lines[i]?.uom} pattern="[A-Z][A-Z0-9_]{0,15}" required /><Input label="Unit price (fixed scale)" name={`unitPrice${i}`} defaultValue={latest?.lines[i]?.unitPrice} inputMode="decimal" required /><label className="pf-field">Currency<select name={`currency${i}`} defaultValue={latest?.lines[i]?.currency || 'USD'}>{['USD','EUR','GBP','IDR','JPY','KWD'].map(c => <option key={c}>{c}</option>)}</select></label></div></fieldset>)}
     <div className="pf-actions"><button type="button" disabled={count >= 100 || busy} onClick={() => setCount(n => n + 1)}>Add line</button>{count > 1 && <button type="button" disabled={busy} onClick={() => setCount(n => n - 1)}>Remove last line</button>}</div>
     <Failure error={error} mutation retry={quote ? onSaved : undefined} /><button className="pf-primary" disabled={busy || error?.status === 409}>{busy ? 'Saving...' : quote ? 'Save revision' : 'Save quote'}</button>
   </form>;
@@ -53,28 +56,44 @@ export function Quotes() {
   const resource = useResource(`/api/commercial/quotes${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`);
   return <><h1>Quotes</h1><div className="pf-actions"><Link to="/portfolio/quotes/new">Create quote</Link><Link to="/portfolio/quotes/new?catalog=1">Create catalog quote</Link></div><section className="pf-panel"><Resource resource={resource}>{({ data, page }) => <>{!data.length ? <p>No quotes in this plant. Create a quote for an existing account.</p> : <ul className="pf-list">{data.map(q => <li key={q._id}><Link to={`/portfolio/quotes/${q._id}`}>{displayReference("quotes",q)}</Link><span>{operatorStatus(q.status)} · Revision {q.revisions.at(-1).number}</span><span>{quantitySummary(q.revisions.at(-1))}</span><MonetarySummary record={q.revisions.at(-1)} /></li>)}</ul>}<div className="pf-actions">{cursor && <Link to="/portfolio/quotes">First page</Link>}{page.nextCursor && <Link to={`?cursor=${page.nextCursor}`}>Next page</Link>}</div></>}</Resource></section></>;
 }
+function NewOpportunityQuote({ opportunityId }) {
+  const navigate = useNavigate(), opportunity = useResource(`/api/crm/opportunities/${opportunityId}`);
+  return <><h1>Create opportunity quote</h1><Link to={`/portfolio/opportunities/${opportunityId}`}>Back to opportunity</Link><Resource resource={opportunity}>{({ data }) => ['QUALIFIED', 'QUOTING'].includes(data.stage) ? <ContentForm key={data.version} opportunity={data} onSaved={q => navigate(`/portfolio/quotes/${q._id}`)} /> : <p>Qualify this opportunity before creating a quote. Closed opportunities cannot create quotes.</p>}</Resource></>;
+}
 export function NewQuote() {
   const navigate = useNavigate(),location=useLocation();
+  const opportunityId = new URLSearchParams(location.search).get('opportunityId');
+  if (opportunityId) return <NewOpportunityQuote key={opportunityId} opportunityId={opportunityId} />;
   if(new URLSearchParams(location.search).get('catalog')==='1')return <NewCatalogQuote />;
   return <><h1>Create quote</h1><Link to="/portfolio/accounts">Find account ID</Link><ContentForm onSaved={q => navigate(`/portfolio/quotes/${q._id}`)} /></>;
+}
+export function OpportunityCommercialPanel({ opportunity }) {
+  return <section className="pf-panel"><h2>Stage aging and quotes</h2>
+    {opportunity.aging ? <><p>Observed at {new Date(opportunity.aging.observedAt).toLocaleString('en-US')}. Durations use recorded stage transitions and the server business clock; a closed stage stops aging.</p><ul className="pf-list">{opportunity.aging.intervals.map((interval, index) => <li key={`${interval.enteredAt}:${index}`}><strong>{interval.stage}</strong><span>Entered {new Date(interval.enteredAt).toLocaleString('en-US')}</span><span>{interval.durationMs === null ? 'Duration unavailable: invalid transition timestamp.' : `${Math.floor(interval.durationMs / 60000)} elapsed minutes`}</span></li>)}</ul></> : <p>Stage aging has not been supplied by the server.</p>}
+    {!opportunity.quoteIds?.length ? <p>No quotes linked to this opportunity.</p> : <ul>{opportunity.quoteIds.map(quoteId => <li key={quoteId}><Link to={`/portfolio/quotes/${quoteId}`}>Open linked quote {quoteId}</Link></li>)}</ul>}
+    {['QUALIFIED', 'QUOTING'].includes(opportunity.stage) && <Link to={`/portfolio/quotes/new?opportunityId=${opportunity._id}`}>Create quote for this opportunity</Link>}
+  </section>;
 }
 export function Quote() {
   const { id } = useParams(), resource = useResource(`/api/commercial/quotes/${id}`);
   const [error, setError] = useState(null), [busy, setBusy] = useState(false), [order, setOrder] = useState(null);
-  const attempt = useRef(null), lock = useRef(false);
+  const attempt = useRef(null), lock = useRef(false), pending = useRef(null);
+  useEffect(() => () => pending.current?.abort(), []);
   const refresh = () => { setError(null); attempt.current = null; resource.reload(); };
   async function transition(action, quote) {
     if (lock.current) return; lock.current = true; setBusy(true); setError(null);
+    const controller = new AbortController(); pending.current = controller;
     try {
       if (action === 'convert' && !attempt.current) attempt.current = conversionAttempt(quote, crypto.randomUUID());
       const body = action === 'convert' ? attempt.current : { expectedVersion: quote.version, revision: quote.revisions.at(-1).number };
-      const result = await request(`/api/commercial/quotes/${id}/${action}`, { body });
+      const result = await request(`/api/commercial/quotes/${id}/${action}`, { body, signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (action === 'convert') setOrder(result.data);
       resource.reload();
-    } catch (err) { setError(err); } finally { lock.current = false; setBusy(false); }
+    } catch (err) { if (!controller.signal.aborted) setError(err); } finally { if (!controller.signal.aborted) { lock.current = false; pending.current = null; setBusy(false); } }
   }
   if(!resource.loading&&!resource.error&&resource.data?.schema==='CATALOG_QUOTE_V1')return <><Link to="/portfolio/quotes">Back to quotes</Link><CatalogQuoteDetail quote={resource.data} refresh={resource.reload} Lines={Lines} /></>;
-  return <><Link to="/portfolio/quotes">Back to quotes</Link><Resource resource={resource}>{({ data:q }) => <><h1>Quote</h1><p className="pf-reference">{displayReference("quotes",q)}</p><AuditDetails action="quote.read"><p className="pf-id">Quote ID: {q._id} · Version {q.version}</p></AuditDetails><section className="pf-panel"><p>Status: {operatorStatus(q.status)}</p><p className="pf-next-action">Next: {({DRAFT:"Review and approve this quotation revision.",APPROVED:"Record the customer acceptance decision.",ACCEPTED:"Convert the accepted quotation to a sales order.",CONVERTED:"Open the sales order to plan production."})[q.status] || "Review quotation history."}</p><div>Customer: <CustomerName id={q.accountId} /></div><p>Revision: {q.revisions.at(-1).number}</p><Link to={`/portfolio/accounts/${q.accountId}`}>Open related account</Link><button type="button" onClick={refresh}>Refresh record</button><Failure error={error} mutation retry={refresh} /><div className="pf-actions">{[['DRAFT','approve','Approve revision'],['APPROVED','accept','Record acceptance'],['ACCEPTED','convert','Convert to sales order']].filter(([state]) => q.status === state).map(([, action, label]) => <button key={action} className="pf-primary" disabled={busy || error?.status === 409} onClick={() => transition(action,q)}>{busy ? 'Saving...' : label}</button>)}{attempt.current && error && error.status !== 409 && <button disabled={busy} onClick={() => transition('convert',q)}>Retry same conversion</button>}</div><p>Acceptance records the authenticated internal decision, not an external signature.</p></section>
+  return <><Link to="/portfolio/quotes">Back to quotes</Link><Resource resource={resource}>{({ data:q }) => <><h1>Quote</h1><p className="pf-reference">{displayReference("quotes",q)}</p><AuditDetails action="quote.read"><p className="pf-id">Quote ID: {q._id} · Version {q.version}</p></AuditDetails><section className="pf-panel"><p>Status: {operatorStatus(q.status)}</p><p className="pf-next-action">Next: {({DRAFT:"Review and approve this quotation revision.",APPROVED:"Record the customer acceptance decision.",ACCEPTED:"Convert the accepted quotation to a sales order.",CONVERTED:"Open the sales order to plan production."})[q.status] || "Review quotation history."}</p><div>Customer: <CustomerName id={q.accountId} /></div><p>Revision: {q.revisions.at(-1).number}</p><Link to={`/portfolio/accounts/${q.accountId}`}>Open related account</Link>{q.opportunityId && <Link to={`/portfolio/opportunities/${q.opportunityId}`}>Open source opportunity</Link>}<button type="button" onClick={refresh}>Refresh record</button><Failure error={error} mutation retry={refresh} /><div className="pf-actions">{[['DRAFT','approve','Approve revision'],['APPROVED','accept','Record acceptance'],['ACCEPTED','convert','Convert to sales order']].filter(([state]) => q.status === state).map(([, action, label]) => <button key={action} className="pf-primary" disabled={busy || error?.status === 409} onClick={() => transition(action,q)}>{busy ? 'Saving...' : label}</button>)}{attempt.current && error && error.status !== 409 && <button disabled={busy} onClick={() => transition('convert',q)}>Retry same conversion</button>}</div><p>Acceptance records the authenticated internal decision, not an external signature.</p></section>
     <div className="pf-columns"><section className="pf-panel"><h2>Revision history</h2>{q.revisions.map(rev => <section key={rev.number}><h3>Revision {rev.number}</h3><p>Expires: {rev.expiresAt}</p><Lines snapshot={rev} /></section>)}</section><section className="pf-panel"><h2>Approval history</h2>{!q.approvals?.length ? <p>No revisions approved yet.</p> : q.approvals.map((a,i) => <div key={i}><p>Revision {a.revision} approved at {new Date(a.approvedAt).toLocaleString("en-US")}</p><AuditDetails action="quote.read"><p className="pf-id">Approved by {a.approvedBy}</p></AuditDetails></div>)}{q.acceptedRevision && <p>Accepted revision: {q.acceptedRevision}</p>}</section></div>
     {q.approvals?.map(a => <DocumentIssue key={`${q._id}:${a.revision}`} kind="quote" sourceId={q._id} sourceVersion={a.revision} />)}
     {q.status !== 'CONVERTED' && (q.revisions.at(-1).lines.some(line => line.provenance?.inquiryId) ? <SourcedContentForm key={q.version} quote={q} onSaved={refresh} /> : <ContentForm key={q.version} quote={q} onSaved={refresh} />)}
@@ -92,4 +111,4 @@ export function Order() {
   const resource = useResource(`/api/commercial/orders/${id}`);
   return <><h1>Sales order</h1><Link to="/portfolio/orders">Back to sales orders</Link><Resource resource={resource}>{({data}) => <>{data.schema!=='CATALOG_SALES_ORDER_V1'&&<OrderStockExceptions orderId={data._id} />}<OrderContent order={data} /></>}</Resource></>;
 }
-function OrderContent({order}) { const typed=order.schema==='CATALOG_SALES_ORDER_V1',identity=useContext(IdentityContext),purchased=typed&&order.snapshot.lines.some(line=>line.catalogBinding.itemSnapshot.content.kind==='PURCHASED'),canReadPurchased=['fulfillment.read','catalog.stock.read'].every(action=>identity?.permissions?.includes(action));return <section className="pf-panel" {...(typed?{id:'catalog-sales-order','data-order-id':order._id}:{})}><h2>{displayReference("orders",order)}</h2><p>Status: {operatorStatus(order.status)}</p><div>Customer: <CustomerName id={order.accountId} /></div><p className="pf-next-action">Next: {typed?'Catalog identities are captured. Purchased lines can use purchased stock fulfillment; manufactured lines require the later catalog fulfillment workflow.':'Plan or review production, then dispatch accepted output and issue invoices against shipped quantities.'}</p><AuditDetails action="quote.read"><p className="pf-id">Order ID: {order._id} · Version {order.version}</p></AuditDetails><p>Quote revision: {order.quoteRevision}</p>{!typed&&<Link to={`/portfolio/fulfillment/orders/${order._id}`}>Manage fulfillment</Link>}{purchased&&canReadPurchased&&<Link to={`/portfolio/fulfillment/orders/${order._id}?catalog=1`}>Manage purchased fulfillment</Link>}<CatalogEntitlement record={order} /><Lines snapshot={order.snapshot} /><div className="pf-actions"><Link to={`/portfolio/quotes/${order.quoteId}`}>Open source quote</Link><Link to={`/portfolio/accounts/${order.accountId}`}>Open related account</Link></div></section>; }
+function OrderContent({order}) { const typed=order.schema==='CATALOG_SALES_ORDER_V1',identity=useContext(IdentityContext),purchased=typed&&order.snapshot.lines.some(line=>line.catalogBinding.itemSnapshot.content.kind==='PURCHASED'),canReadPurchased=['fulfillment.read','catalog.stock.read'].every(action=>identity?.permissions?.includes(action));return <section className="pf-panel" {...(typed?{id:'catalog-sales-order','data-order-id':order._id}:{})}><h2>{displayReference("orders",order)}</h2><p>Status: {operatorStatus(order.status)}</p><div>Customer: <CustomerName id={order.accountId} /></div><p className="pf-next-action">Next: {typed?'Catalog identities are captured. Purchased lines can use purchased stock fulfillment; manufactured lines require the later catalog fulfillment workflow.':'Plan or review production, then dispatch accepted output and issue invoices against shipped quantities.'}</p><AuditDetails action="quote.read"><p className="pf-id">Order ID: {order._id} · Version {order.version}</p></AuditDetails><p>Quote revision: {order.quoteRevision}</p>{!typed&&<Link to={`/portfolio/fulfillment/orders/${order._id}`}>Manage fulfillment</Link>}{purchased&&canReadPurchased&&<Link to={`/portfolio/fulfillment/orders/${order._id}?catalog=1`}>Manage purchased fulfillment</Link>}<CatalogEntitlement record={order} /><Lines snapshot={order.snapshot} /><div className="pf-actions">{order.opportunityId && <Link to={`/portfolio/opportunities/${order.opportunityId}`}>Open source opportunity</Link>}<Link to={`/portfolio/quotes/${order.quoteId}`}>Open source quote</Link><Link to={`/portfolio/accounts/${order.accountId}`}>Open related account</Link></div></section>; }

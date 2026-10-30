@@ -1,6 +1,6 @@
 import { AuditDetails,CustomerName } from './OperatorUi.jsx';
 import { displayReference,operatorStatus,quantitySummary } from './operator.mjs';
-import { useContext, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { portfolioRequest as request } from './client.mjs';
 import { Failure, IdentityContext, Resource, useResource } from './PortfolioWorkspace.jsx';
@@ -13,16 +13,18 @@ const Input = ({ label, ...props }) => <label className="pf-field">{label}<input
 
 export function InquiryCommand({ title, permission, action, build, onSaved, children }) {
   const identity = useContext(IdentityContext), allowed = capabilityState(inquiryPermission(permission), identity?.permissions);
-  const lock = useRef(false), attempt = useRef(null);
+  const lock = useRef(false), attempt = useRef(null), pending = useRef(null);
+  useEffect(() => () => pending.current?.abort(), []);
   const [busy, setBusy] = useState(false), [error, setError] = useState(null);
   const uncertain = error && (!error.status || error.status >= 500) && attempt.current;
   const denied = !allowed.enabled || error?.status === 403;
   async function send(body) {
     if (lock.current || denied) return;
     lock.current = true; setBusy(true); setError(null);
-    try { const result = await request(action, { body }); attempt.current = null; onSaved?.(result.data); }
-    catch (e) { setError(e); }
-    finally { lock.current = false; setBusy(false); }
+    const controller = new AbortController(); pending.current = controller;
+    try { const result = await request(action, { body, signal: controller.signal }); if (!controller.signal.aborted) { attempt.current = null; onSaved?.(result.data); } }
+    catch (e) { if (!controller.signal.aborted) setError(e); }
+    finally { if (!controller.signal.aborted) { lock.current = false; pending.current = null; setBusy(false); } }
   }
   return <form className="pf-panel pf-form" aria-label={title} onSubmit={event => {
     event.preventDefault(); if (busy || uncertain || denied) return;
