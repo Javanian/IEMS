@@ -6,8 +6,13 @@ import WorkspaceState from '../../components/ui/WorkspaceState.jsx';
 import WorkspaceField from '../../components/forms/WorkspaceField.jsx';
 
 const balanceColumns = [
-  { key: 'order_id', label: 'Order' }, { key: 'currency', label: 'Currency' }, { key: 'uom', label: 'Unit' },
-  ...[['ordered_amount', 'Order amount'], ['deposited_amount', 'Deposits'], ['unpaid_amount', 'Unpaid amount'], ['ordered_quantity', 'Ordered quantity'], ['fulfilled_quantity', 'Fulfilled quantity'], ['remaining_quantity', 'Remaining quantity']].map(([key, label]) => ({ key, label, numeric: true })),
+  { key: 'order_id', label: 'Order' }, { key: 'currency', label: 'Currency' },
+  ...[['ordered_amount', 'Order amount'], ['deposited_amount', 'Deposits'], ['unpaid_amount', 'Unpaid amount']].map(([key, label]) => ({ key, label, numeric: true, render: row => row[key] ?? 'Incomplete source coverage' })),
+  { key: 'quantities', label: 'Quantities by unit', render: row => {
+    const quantities = typeof row.quantities === 'string' ? JSON.parse(row.quantities) : row.quantities;
+    return quantities?.map(q => <div key={q.uom}>{q.uom}: {q.ordered_quantity} ordered; {q.fulfilled_quantity ?? 'unknown'} fulfilled; {q.remaining_quantity ?? 'unknown'} remaining</div>) || 'No quantity evidence';
+  } },
+  { key: 'coverage_status', label: 'Source coverage' },
 ];
 const historyColumns = [['event_id', 'Event'], ['aggregate_id', 'Resource'], ['aggregate_version', 'Version'], ['resource_type', 'Type'], ['occurred_at', 'Occurred (UTC)'], ['available_at', 'Available (UTC)'], ['valid_to', 'Valid until (UTC)'], ['deleted', 'Deleted']].map(([key, label]) => ({ key, label, render: row => typeof row[key] === 'boolean' ? String(row[key]) : row[key] ?? 'Open' }));
 const failure = error => error.code === 'DATASET_NOT_TRUSTED' ? 'The dataset is stale, corrupt, or failed a quality gate. Ask the data operator to refresh or reconcile it.' : error.code === 'REPORTING_UNAVAILABLE' ? 'Reporting is unavailable. Retry after the data operator restores the service.' : errorMessage(error);
@@ -56,7 +61,7 @@ export default function AnalyticsWorkspace() {
       {exportHref && !current.error && !current.loading && <a href={exportHref}>Export this snapshot as CSV</a>}
     </div>
     {current.runId && <p>Snapshot: {current.runId}. Published (UTC): <time dateTime={current.publishedAt}>{current.publishedAt}</time>. Lineage: <code>{current.lineageHash}</code>.</p>}
-    {dataset === 'relational-orders' && !current.loading && !current.error && <p>Latest source availability (UTC): {current.sourceAvailableAt || 'No events projected yet'}. Projection freshness must be checked before operational decisions.</p>}
+    {dataset === 'relational-orders' && !current.loading && !current.error && <p>Source coverage: {current.coverageStatus || 'NO_DATA'}. Reconciled through (UTC): {current.sourceCoverageAt || 'Unavailable'}. Latest source availability (UTC): {current.sourceAvailableAt || 'No events projected yet'}.</p>}
     {current.observedAt && <p>Read at (UTC): <time dateTime={current.observedAt}>{current.observedAt}</time>.</p>}
     <WorkspaceTable caption={dataset === 'resource-history' ? 'Governed resource history' : 'Order balances'} columns={dataset === 'resource-history' ? historyColumns : balanceColumns} rows={current.data || []} rowKey={row => row.event_id || row.order_id} loading={current.loading} error={current.error && failure(current.error)} retry={() => setAttempt(n => n + 1)} empty="No reporting records are available for your selected plant." />
     {exportHref && <p>CSV exports require current permission, retain lineage, and are limited to 10,000 rows. The server reports unavailable or denied exports directly.</p>}

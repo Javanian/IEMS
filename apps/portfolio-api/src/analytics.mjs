@@ -22,7 +22,7 @@ export function installAnalytics(app, runtime, { reportingBaseUrl, fetchImpl = f
       catch (e) { if (e.code !== 'SCOPE_DENIED') throw e; }
     }
     if (actions.includes('analytics.history.read')) datasets.push('resource-history');
-    res.set('Cache-Control', 'no-store').json({ data: { tenantId: grant.tenantId, plantId: grant.plantId, userId: grant.userId, actions, datasets } });
+    res.set('Cache-Control', 'no-store').json({ data: { tenantId: grant.tenantId, plantId: grant.plantId, legalEntityId: grant.legalEntityId, userId: grant.userId, actions, datasets } });
   });
   const proxy = (pathFor, action = 'analytics.read') => async (req, res) => {
     await authorize(req, action);

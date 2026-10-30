@@ -4,6 +4,7 @@ CREATE SCHEMA IF NOT EXISTS reporting;
 CREATE TABLE reporting.heads (
  tenant_id uuid NOT NULL, plant_id uuid NOT NULL, aggregate_id uuid NOT NULL,
  version bigint NOT NULL CHECK(version>0), resource_type text NOT NULL,
+ legal_entity_id uuid NOT NULL,
  PRIMARY KEY(tenant_id,plant_id,aggregate_id)
 );
 CREATE TABLE reporting.receipts (
@@ -11,6 +12,7 @@ CREATE TABLE reporting.receipts (
  aggregate_id uuid NOT NULL, aggregate_version bigint NOT NULL,
  checksum text NOT NULL CHECK(length(checksum)=64),
  occurred_at timestamptz NOT NULL, received_at timestamptz NOT NULL, available_at timestamptz NOT NULL,
+ envelope jsonb NOT NULL,
  CHECK(occurred_at<=received_at AND received_at<=available_at),
  PRIMARY KEY(tenant_id,plant_id,event_id),
  UNIQUE(tenant_id,plant_id,aggregate_id,aggregate_version),
@@ -19,11 +21,29 @@ CREATE TABLE reporting.receipts (
 CREATE TABLE reporting.orders (
  tenant_id uuid NOT NULL, plant_id uuid NOT NULL, id uuid NOT NULL,
  amount numeric(38,12) NOT NULL CHECK(amount>=0), currency text NOT NULL CHECK(currency~'^[A-Z]{3}$'),
- quantity numeric(38,12) NOT NULL CHECK(quantity>=0), uom text NOT NULL CHECK(length(uom) BETWEEN 1 AND 32),
  deleted boolean NOT NULL DEFAULT false,
  PRIMARY KEY(tenant_id,plant_id,id),
  FOREIGN KEY(tenant_id,plant_id,id) REFERENCES reporting.heads(tenant_id,plant_id,aggregate_id)
 );
+CREATE TABLE reporting.order_quantities (
+ tenant_id uuid NOT NULL, plant_id uuid NOT NULL, order_id uuid NOT NULL,
+ uom text NOT NULL CHECK(uom~'^[A-Z][A-Z0-9_]{0,31}$'),
+ quantity numeric(38,12) NOT NULL CHECK(quantity>=0),
+ PRIMARY KEY(tenant_id,plant_id,order_id,uom),
+ FOREIGN KEY(tenant_id,plant_id,order_id) REFERENCES reporting.orders(tenant_id,plant_id,id)
+);
+CREATE TABLE reporting.source_coverage (
+ tenant_id uuid NOT NULL, plant_id uuid NOT NULL, run_id uuid NOT NULL,
+ observed_at timestamptz NOT NULL, manifest jsonb NOT NULL, checksum text NOT NULL,
+ PRIMARY KEY(tenant_id,plant_id,run_id)
+);
+CREATE INDEX reporting_coverage_latest ON reporting.source_coverage(tenant_id,plant_id,observed_at DESC);
+ALTER TABLE reporting.order_quantities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reporting.order_quantities FORCE ROW LEVEL SECURITY;
+ALTER TABLE reporting.source_coverage ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reporting.source_coverage FORCE ROW LEVEL SECURITY;
+CREATE POLICY scoped ON reporting.order_quantities USING(tenant_id=current_setting('iems.tenant_id',true)::uuid AND plant_id=current_setting('iems.plant_id',true)::uuid) WITH CHECK(tenant_id=current_setting('iems.tenant_id',true)::uuid AND plant_id=current_setting('iems.plant_id',true)::uuid);
+CREATE POLICY scoped ON reporting.source_coverage USING(tenant_id=current_setting('iems.tenant_id',true)::uuid AND plant_id=current_setting('iems.plant_id',true)::uuid) WITH CHECK(tenant_id=current_setting('iems.tenant_id',true)::uuid AND plant_id=current_setting('iems.plant_id',true)::uuid);
 CREATE TABLE reporting.payments (
  tenant_id uuid NOT NULL, plant_id uuid NOT NULL, id uuid NOT NULL, order_id uuid NOT NULL,
  amount numeric(38,12) NOT NULL CHECK(amount>=0), currency text NOT NULL CHECK(currency~'^[A-Z]{3}$'),
