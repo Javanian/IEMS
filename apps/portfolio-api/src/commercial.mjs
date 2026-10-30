@@ -105,7 +105,8 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
   app.get('/api/commercial/quotes/:id', async (req, res) => res.json({ data: await read(async session => catalogQuoteView(runtime.db, req.filter, await find(req, req.params.id, session), session)) }));
   app.post('/api/commercial/quotes', async (req, res) => {
     const typed = Object.hasOwn(req.body, 'schema');
-    fields(req.body, ['accountId', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy', ...(typed ? ['schema', 'idempotencyKey'] : [])]);
+    fields(req.body, ['accountId', 'opportunityId', 'expectedOpportunityVersion', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy', ...(typed ? ['schema', 'idempotencyKey'] : [])]);
+    if ((req.body.opportunityId === undefined) !== (req.body.expectedOpportunityVersion === undefined) || req.body.opportunityId !== undefined && (!Number.isSafeInteger(req.body.expectedOpportunityVersion) || req.body.expectedOpportunityVersion < 1)) fail(400, 'INVALID_OPPORTUNITY_VERSION');
     if (Array.isArray(req.body.lines) && req.body.lines.some(line => line?.provenance !== undefined)) fail(422, 'SOURCE_TAMPER');
     const accountId = id(req.body.accountId), input = typed ? typedQuoteInput(req.body) : null;
     const key = typed ? quoteCatalogKey(req.body.idempotencyKey) : null;
@@ -120,6 +121,22 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
       let revision = validate(typed ? { ...req.body, lines: input.map(line => line.financial) } : req.body);
       if (typed) revision = await bindQuoteRevision(runtime.db, req.filter, revision, input.map(line => line.selector), session);
       const row = { _id: randomUUID(), ...req.filter, accountId, version: 1, status: 'DRAFT', revisions: [{ ...revision, number: 1 }], createdAt: new Date(), updatedAt: new Date(), ...(typed ? { schema: catalogQuoteSchema, ownerLegalEntityId: revision.lines[0].catalogBinding.ownerLegalEntityId } : {}) };
+      if (req.body.opportunityId !== undefined) {
+        await guard(runtime, req, session, 'crm.write');
+        const opportunity = await c('opportunities').findOne({ ...req.filter, _id: id(req.body.opportunityId) }, { session });
+        if (!opportunity) fail(404, 'NOT_FOUND');
+        if (opportunity.accountId !== accountId) fail(409, 'ACCOUNT_CONFLICT');
+        if (opportunity.version !== req.body.expectedOpportunityVersion) fail(409, 'VERSION_CONFLICT');
+        if (!['QUALIFIED', 'QUOTING'].includes(opportunity.stage)) fail(409, 'STAGE_CONFLICT');
+        const now = businessNow(runtime), version = opportunity.version + 1;
+        const update = { $set: { stage: 'QUOTING', updatedAt: now }, $inc: { version: 1 }, $push: { quoteIds: row._id, ...(opportunity.stage !== 'QUOTING' ? { history: { stage: 'QUOTING', version, reason: 'Quote created', userId: req.scope.userId, at: now } } : {}) } };
+        const changed = await c('opportunities').updateOne({ ...req.filter, _id: opportunity._id, version: opportunity.version }, update, { session });
+        if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+        row.opportunityId = opportunity._id; row.opportunityVersion = version;
+        const event = { ...req.filter, subjectId: opportunity._id, version, quoteId: row._id, kind: 'opportunity.quoted', userId: req.scope.userId, occurredAt: now };
+        await c('crmAudit').insertOne({ _id: randomUUID(), ...event }, { session });
+        await c('crmOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
+      }
       if (typed) await saveCatalogQuote(runtime.db, req.filter, row, session, { key, kind: 'create', payloadHash });
       await c('quotes').insertOne(row, { session });
       return typed ? catalogQuoteView(runtime.db, req.filter, row, session) : row;
@@ -182,6 +199,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
           if (row.status !== 'ACCEPTED' || row.acceptedRevision !== revision) fail(409, 'NOT_ACCEPTED');
           const orderId = randomUUID();
           const order = { _id: orderId, ...req.filter, orderNumber: orderNumberFor(req.filter, orderId), quoteId: row._id, quoteRevision: revision, accountId: row.accountId, version: 1, status: 'OPEN', snapshot: structuredClone(row.approvals.find(approval => approval.revision === revision).snapshot), createdAt: new Date(), createdBy: req.scope.userId, ...(typed ? { schema: 'CATALOG_SALES_ORDER_V1', ownerLegalEntityId: row.ownerLegalEntityId } : {}) };
+          if (row.opportunityId) { order.opportunityId = row.opportunityId; order.opportunityVersion = row.opportunityVersion; }
           await c('salesOrders').insertOne(order, { session });
           await c('quoteConversions').insertOne({ _id: randomUUID(), ...req.filter, key: idempotencyKey, payloadHash, quoteId: row._id, orderId: order._id }, { session });
           await c('commercialOutbox').insertOne({ _id: randomUUID(), ...req.filter, kind: 'salesOrder.created', subjectId: order._id, quoteId: row._id, occurredAt: new Date(), state: 'PENDING' }, { session });

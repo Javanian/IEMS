@@ -27,7 +27,7 @@ function Input({ label, ...props }) { return <label className="pf-field">{label}
 export function Lines({ snapshot }) {
   return <><ol className="pf-list">{snapshot.lines.map((line, i) => <li key={i}><strong>{line.description}</strong><span>Quantity: {line.quantity} {line.uom}</span><span>Unit price: {line.currency} {line.unitPrice}</span><SourceLineage line={line} /><CatalogBinding line={line} /></li>)}</ol><AuditDetails action="quote.read"><p>Rounding: {snapshot.roundingPolicy}</p></AuditDetails><MonetarySummary record={{...snapshot, currency: snapshot.currency || snapshot.lines[0]?.currency}} /></>;
 }
-function ContentForm({ quote, onSaved }) {
+function ContentForm({ quote, opportunity, onSaved }) {
   const latest = quote?.revisions.at(-1);
   const [count, setCount] = useState(latest?.lines.length || 1), [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const lock = useRef(false), pending = useRef(null);
@@ -38,10 +38,11 @@ function ContentForm({ quote, onSaved }) {
     const controller = new AbortController(); pending.current = controller;
     try {
       const body = quoteContent(values, count);
-      const result = await request(quote ? `/api/commercial/quotes/${quote._id}/revisions` : '/api/commercial/quotes', { body: quote ? { ...body, expectedVersion: quote.version } : { ...body, accountId: values.accountId }, signal: controller.signal });
+      const result = await request(quote ? `/api/commercial/quotes/${quote._id}/revisions` : '/api/commercial/quotes', { body: quote ? { ...body, expectedVersion: quote.version } : { ...body, accountId: opportunity?.accountId || values.accountId, ...(opportunity ? { opportunityId: opportunity._id, expectedOpportunityVersion: opportunity.version } : {}) }, signal: controller.signal });
       if (!controller.signal.aborted) onSaved(result.data);
     } catch (err) { if (!controller.signal.aborted) setError(err); } finally { if (!controller.signal.aborted) { lock.current = false; pending.current = null; setBusy(false); } }
-  }}><h2>{quote ? 'New revision' : 'Quote content'}</h2>{!quote && <Input label="Account ID" name="accountId" required />}
+  }}><h2>{quote ? 'New revision' : 'Quote content'}</h2>{!quote && <Input label="Account ID" name="accountId" required readOnly={Boolean(opportunity)} defaultValue={opportunity?.accountId} />}
+    {opportunity && <p>Source opportunity: {opportunity.name || opportunity._id}, version {opportunity.version}. Refresh this page after an uncertain result to review the opportunity's linked quotes before submitting again.</p>}
     <Input label="Expires at (UTC ISO)" name="expiresAt" required defaultValue={latest?.expiresAt} placeholder="YYYY-MM-DDTHH:mm:ss.sssZ" />
     <label className="pf-field">Tax policy<select name="taxPolicy" defaultValue={latest?.taxPolicy || 'NO_TAX'} disabled={busy}><option value="NO_TAX">No tax</option><option value="FIXTURE_VAT_11_V1">Fixture VAT 11% (scenario only)</option></select></label>
     <p>Original decimal strings are retained. All lines must share one currency. LINE_HALF_UP and the selected policy are applied by the server. Fixture VAT is not a statutory rate or tax advice. No FX is implied.</p>
@@ -57,8 +58,18 @@ export function Quotes() {
 }
 export function NewQuote() {
   const navigate = useNavigate(),location=useLocation();
+  const opportunityId = new URLSearchParams(location.search).get('opportunityId');
+  const opportunity = useResource(`/api/crm/opportunities/${opportunityId}`, Boolean(opportunityId));
+  if (opportunityId) return <><h1>Create opportunity quote</h1><Link to={`/portfolio/opportunities/${opportunityId}`}>Back to opportunity</Link><Resource resource={opportunity}>{({ data }) => ['QUALIFIED', 'QUOTING'].includes(data.stage) ? <ContentForm key={data.version} opportunity={data} onSaved={q => navigate(`/portfolio/quotes/${q._id}`)} /> : <p>Qualify this opportunity before creating a quote. Closed opportunities cannot create quotes.</p>}</Resource></>;
   if(new URLSearchParams(location.search).get('catalog')==='1')return <NewCatalogQuote />;
   return <><h1>Create quote</h1><Link to="/portfolio/accounts">Find account ID</Link><ContentForm onSaved={q => navigate(`/portfolio/quotes/${q._id}`)} /></>;
+}
+export function OpportunityCommercialPanel({ opportunity }) {
+  return <section className="pf-panel"><h2>Stage aging and quotes</h2>
+    {opportunity.aging ? <><p>Observed at {new Date(opportunity.aging.observedAt).toLocaleString('en-US')}. Durations use recorded stage transitions and the server business clock; a closed stage stops aging.</p><ul className="pf-list">{opportunity.aging.intervals.map((interval, index) => <li key={`${interval.enteredAt}:${index}`}><strong>{interval.stage}</strong><span>Entered {new Date(interval.enteredAt).toLocaleString('en-US')}</span><span>{interval.durationMs === null ? 'Duration unavailable: invalid transition timestamp.' : `${Math.floor(interval.durationMs / 60000)} elapsed minutes`}</span></li>)}</ul></> : <p>Stage aging has not been supplied by the server.</p>}
+    {!opportunity.quoteIds?.length ? <p>No quotes linked to this opportunity.</p> : <ul>{opportunity.quoteIds.map(quoteId => <li key={quoteId}><Link to={`/portfolio/quotes/${quoteId}`}>Open linked quote {quoteId}</Link></li>)}</ul>}
+    {['QUALIFIED', 'QUOTING'].includes(opportunity.stage) && <Link to={`/portfolio/quotes/new?opportunityId=${opportunity._id}`}>Create quote for this opportunity</Link>}
+  </section>;
 }
 export function Quote() {
   const { id } = useParams(), resource = useResource(`/api/commercial/quotes/${id}`);
