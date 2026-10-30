@@ -32,16 +32,21 @@ export async function readDispatchManufacturedGraph(db, filter, receiptId, unitI
 export async function freezeDispatchDescendants(db, filter, receiptId, selected, shipmentId, actor, session) {
   if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
   const { freezeManufacturedGraph } = await import('./genealogy.mjs');
+  const { companyTraceLimits } = await import('./company-stock-trace.mjs');
   const graph = await readDispatchManufacturedGraph(db, filter, receiptId, selected.companyUnitId, session, { fence: true });
   if (graph.unit?.status !== 'AVAILABLE' || graph.unit.version !== selected.expectedUnitVersion || graph.blockers.length) fail('STOCK_ENCUMBERED');
-  const closure = [], seen = new Set(), active = new Set();
+  const closure = [], seen = new Set(), executions = new Set(), active = new Set();
+  let evidenceBytes = 0;
   async function visit(snapshot, contentHash, depth) {
     const key = `${snapshot.companyReceiptId}:${snapshot.companyUnitId}`;
     if (active.has(key)) fail('MANUFACTURED_GRAPH_CYCLE');
     if (seen.has(key)) fail('MANUFACTURED_UNIQUE_PARENT_REQUIRED');
-    if (depth >= manufacturedGraphLimits.depth || seen.size >= manufacturedGraphLimits.executions) fail('MANUFACTURED_GRAPH_LIMIT');
+    executions.add(snapshot.producer.executionId);
+    if (depth >= manufacturedGraphLimits.depth || executions.size > manufacturedGraphLimits.executions || seen.size >= companyTraceLimits.outputUnits) fail('MANUFACTURED_GRAPH_LIMIT');
     if (hash(snapshot) !== contentHash || snapshot.ownerLegalEntityId !== graph.snapshot.ownerLegalEntityId || snapshot.tenantId !== filter.tenantId || snapshot.plantId !== filter.plantId) fail('GENEALOGY_SOURCE_INVALID');
     seen.add(key); active.add(key);
+    evidenceBytes += Buffer.byteLength(JSON.stringify(snapshot));
+    if (evidenceBytes > companyTraceLimits.responseBytes) fail('TRACE_LIMIT_EXCEEDED');
     await requireQualityGates(db, filter, [{ resourceType: 'COMPANY_UNIT', resourceId: snapshot.companyUnitId }], session);
     await requireQualityGates(db, filter, snapshot.ancestry.purchasedSources.map(source => ({ resourceType: 'RECEIPT', resourceId: source.receiptId })), session);
     closure.push({ companyReceiptId: snapshot.companyReceiptId, companyUnitId: snapshot.companyUnitId, snapshot, contentHash });
@@ -62,9 +67,10 @@ export async function freezeDispatchDescendants(db, filter, receiptId, selected,
 }
 
 export async function validateDispatchFreeze(db, filter, pointer, shipmentId, session) {
+  const { companyTraceLimits } = await import('./company-stock-trace.mjs');
   const graph = await db.collection('manufacturedGenealogySnapshots').findOne({ ...filter, _id: pointer.snapshotId, referenceType: 'SHIPMENT', referenceId: shipmentId }, { session });
   const row = await db.collection('shipmentDescendantFreezes').findOne({ ...filter, _id: pointer.descendantFreezeId, shipmentId }, { session });
-  if (!graph || !row || graph.companyReceiptId !== pointer.companyReceiptId || graph.companyUnitId !== pointer.companyUnitId || graph.contentHash !== pointer.contentHash || hash(graph.snapshot) !== pointer.contentHash || row.contentHash !== pointer.descendantFreezeHash || hash(Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'contentHash'))) !== row.contentHash || row.graphHash !== graph.contentHash || row.companyReceiptId !== graph.companyReceiptId || row.companyUnitId !== graph.companyUnitId || !Array.isArray(row.closure) || !row.closure.length || row.closure.length > manufacturedGraphLimits.executions) fail('GENEALOGY_SOURCE_INVALID');
+  if (!graph || !row || graph.companyReceiptId !== pointer.companyReceiptId || graph.companyUnitId !== pointer.companyUnitId || graph.contentHash !== pointer.contentHash || hash(graph.snapshot) !== pointer.contentHash || row.contentHash !== pointer.descendantFreezeHash || hash(Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'contentHash'))) !== row.contentHash || row.graphHash !== graph.contentHash || row.companyReceiptId !== graph.companyReceiptId || row.companyUnitId !== graph.companyUnitId || !Array.isArray(row.closure) || !row.closure.length || row.closure.length > companyTraceLimits.outputUnits) fail('GENEALOGY_SOURCE_INVALID');
   for (const entry of row.closure) if (hash(entry.snapshot) !== entry.contentHash) fail('GENEALOGY_SOURCE_INVALID');
   return graph;
 }

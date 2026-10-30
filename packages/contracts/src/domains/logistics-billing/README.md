@@ -110,7 +110,7 @@ Actual reachable ancestor graph/quality/source authority is validated and fenced
 transaction. shipmentDescendantFreezes retains root and ancestor evidence hashes as a closure
 for the shipped descendant. Ancestors already consumed into that output remain unavailable
 for another shipment; no inventory is recreated. Stored producer/QC/attribution history stays
-immutable. Closure traversals fail closed on cycle/unique-parent/32-node bounds. Historical
+immutable. Closure traversals fail closed on cycle/unique-parent and existing 32-execution/depth, 2000-output-unit and 512-KiB evidence bounds. Historical
 snapshots remain valid after later holds; current holds block new stock effects.
 
 Only the v4 allocated hunks change company-stock/state/trace and genealogy: shipment binding,
