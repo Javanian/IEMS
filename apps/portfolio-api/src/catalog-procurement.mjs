@@ -15,7 +15,7 @@ const fail = (status, code) => { throw Object.assign(new Error(code), { status, 
 const invalid = () => fail(409, 'CATALOG_SOURCE_INVALID');
 const positive = value => Number.isSafeInteger(value) && value > 0;
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-const semantic = row => Object.fromEntries(Object.entries(row).filter(([key]) => !['useFence', 'eventId', 'authorityHash'].includes(key)));
+const semantic = row => Object.fromEntries(Object.entries(row).filter(([key]) => !['useFence', 'documentFence', 'eventId', 'authorityHash'].includes(key)));
 const revisionContent = row => Object.fromEntries(['_id', 'tenantId', 'plantId', 'ownerLegalEntityId', 'subjectId', 'revision', 'content', 'reason', 'recordedBy', 'recordedAt'].map(key => [key, row[key]]));
 const quantityPattern = /^(0|[1-9][0-9]{0,17})(\.[0-9]{1,6})?$/;
 const units = value => { if (typeof value !== 'string' || !quantityPattern.test(value)) invalid(); return BigInt(value.split('.')[0]) * 1000000n + BigInt((value.split('.')[1] || '').padEnd(6, '0')); };
