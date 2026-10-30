@@ -12,6 +12,45 @@ import { InquiryCommand } from './InquiryWorkspace.jsx';
 
 const base = '/portfolio/procurement';
 function Input({ label, ...props }) { return <label className="pf-field">{label}<input {...props} /></label>; }
+function ShortageSource({ sourceId }) {
+  const resource = useResource(`/api/procurement/material-shortages/${sourceId}`);
+  const [created, setCreated] = useState(null);
+  return <Resource resource={resource}>{({ data: { snapshot: source, claims } }) => <section className="pf-panel">
+    <h3>Material shortage: {source.materialLineId}</h3>
+    <p>Evidence revision {source.revision}, observed {new Date(source.observedAt).toLocaleString('en-US')}. Required {source.requiredQuantity} {source.uom}; eligible stock {source.eligibleQuantity}; active claims at observation {source.activeClaimQuantity}; uncovered {source.shortageQuantity}. Claiming revalidates current demand and stock.</p>
+    <AuditDetails action="procurement.read"><p>Source {source.sourceId}; hash {source.authorityHash}</p></AuditDetails>
+    <InquiryCommand title="Create catalog PR from shortage" permission="procurement.write" action="/api/procurement/requests/from-shortage" build={(values, key) => ({ sourceId: source.sourceId, sourceRevision: source.revision, sourceHash: source.authorityHash, materialLineId: source.materialLineId, quantity: values.quantity, vendorId: values.vendorId, pricing: { unitPrice: values.unitPrice, currency: values.currency, taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP' }, reason: values.reason, idempotencyKey: key })} onSaved={result => { setCreated(result); resource.reload(); }}>
+      <WorkspaceField label="Vendor ID" name="vendorId" required />
+      <WorkspaceField label={`Quantity (${source.uom})`} name="quantity" inputMode="decimal" required />
+      <WorkspaceField label="Unit price" name="unitPrice" inputMode="decimal" required />
+      <WorkspaceField as="select" label="Currency" name="currency">{['USD','EUR','GBP','IDR','JPY','KWD'].map(currency => <option key={currency}>{currency}</option>)}</WorkspaceField>
+      <WorkspaceField label="Procurement reason" name="reason" minLength={3} maxLength={500} required />
+    </InquiryCommand>
+    {created && <p role="status"><Link to={`/portfolio/catalog-procurement/requests/${created.requestId}`}>Open created catalog purchase request</Link></p>}
+    <h4>Claims</h4>{!claims.length ? <p>No procurement claims.</p> : claims.map(claim => <section key={`${claim.claimId}:${claim.version}`}><p>{claim.status}: {claim.quantity} {source.uom}. <Link to={`/portfolio/catalog-procurement/requests/${claim.requestId}`}>Open catalog PR</Link></p>
+      {claim.status === 'ACTIVE' && <InquiryCommand title="Release unconverted claim" permission="procurement.write" action={`/api/procurement/material-shortages/${sourceId}/release`} build={(values, key) => ({ claimId: claim.claimId, expectedClaimVersion: claim.version, expectedRequestVersion: Number(values.expectedRequestVersion), reason: values.reason, idempotencyKey: key })} onSaved={resource.reload}>
+        <p>Only a wholly unconverted PR can be cancelled. Read its current version before releasing. Converted commitments require an approved amendment.</p>
+        <WorkspaceField label="Current PR version" name="expectedRequestVersion" type="number" min="1" step="1" required />
+        <WorkspaceField label="Cancellation reason" name="reason" minLength={3} maxLength={500} required />
+      </InquiryCommand>}
+    </section>)}
+    <button type="button" onClick={resource.reload}>Refresh shortage and claims</button>
+  </section>}</Resource>;
+}
+function ShortageProcurement() {
+  const [sources, setSources] = useState([]), [sourceId, setSourceId] = useState('');
+  return <section className="pf-panel"><h2>Approved demand shortages</h2><p>Refresh evidence from approved internal production demand. Purchased material claims create catalog PRs. This evidence does not reserve stock. Requires manufacturing and catalog stock access.</p>
+    <InquiryCommand title="Refresh shortage evidence" permission="procurement.write" action="/api/procurement/material-shortages/refresh" build={(values, key) => ({ demandId: values.demandId, expectedDemandVersion: Number(values.expectedDemandVersion), engineeringRevision: Number(values.engineeringRevision), expectedShortageRevision: Number(values.expectedShortageRevision), reason: values.reason, idempotencyKey: key })} onSaved={result => setSources(result.snapshots.map(source => source.sourceId))}>
+      <WorkspaceField label="Internal production demand ID" name="demandId" required />
+      <WorkspaceField label="Demand version" name="expectedDemandVersion" type="number" min="1" step="1" required />
+      <WorkspaceField label="Approved engineering revision" name="engineeringRevision" type="number" min="1" step="1" required />
+      <WorkspaceField label="Previous shortage revision (0 for first refresh)" name="expectedShortageRevision" type="number" min="0" step="1" defaultValue="0" required />
+      <WorkspaceField label="Refresh reason" name="reason" minLength={3} maxLength={500} required />
+    </InquiryCommand>
+    <form className="pf-form" onSubmit={event => { event.preventDefault(); setSourceId(new FormData(event.currentTarget).get('sourceId')); }}><WorkspaceField label="Existing shortage source ID" name="sourceId" required /><button>Open shortage</button></form>
+    {[...new Set([...sources, ...(sourceId ? [sourceId] : [])])].map(id => <ShortageSource key={id} sourceId={id} />)}
+  </section>;
+}
 export function ProcurementList({ kind }) {
   const location = useLocation(), navigate = useNavigate();
   const cursor = new URLSearchParams(location.search).get('cursor');
@@ -19,7 +58,7 @@ export function ProcurementList({ kind }) {
   const [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const title = { vendors: 'Vendors', requests: 'Purchase requests', orders: 'Purchase orders' }[kind];
-  return <><h1>{title}</h1><nav className="pf-actions" aria-label="Procurement"><Link to={`${base}/vendors`}>Vendors</Link><Link to={`${base}/requests`}>Purchase requests</Link><Link to={`${base}/orders`}>Purchase orders</Link></nav><p>Owned procurement documents. Issue is local only; no purchasing dispatch, stock receipt or payment occurs here.</p>{kind === 'requests' && <Link to={`${base}/requests/new`}>Create purchase request</Link>}<section className="pf-panel"><Resource resource={resource}>{({ data, page }) => <>{!data.length ? <p>No {title.toLowerCase()} in this plant yet. {kind === 'vendors' ? 'Create a vendor below.' : kind === 'requests' ? 'Create a request for an existing vendor.' : 'Approve and convert a purchase request first.'}</p> : <ul className="pf-list">{data.map(row => <li key={row._id}><Link to={`${base}/${kind}/${row._id}`}>{row.name || displayReference(kind === "orders" ? "purchaseOrder" : "request",row)}</Link>{row.status && <span>{operatorStatus(row.status)}</span>}</li>)}</ul>}<div className="pf-actions">{cursor && <Link to={`${base}/${kind}`}>First page</Link>}{page.nextCursor && <Link to={`?cursor=${page.nextCursor}`}>Next page</Link>}</div></>}</Resource></section>{kind === 'vendors' && <form className="pf-panel pf-form" onSubmit={async e => {
+  return <><h1>{title}</h1>{kind === 'requests' && <ShortageProcurement />}<nav className="pf-actions" aria-label="Procurement"><Link to={`${base}/vendors`}>Vendors</Link><Link to={`${base}/requests`}>Purchase requests</Link><Link to={`${base}/orders`}>Purchase orders</Link></nav><p>Owned procurement documents. Issue is local only; no purchasing dispatch, stock receipt or payment occurs here.</p>{kind === 'requests' && <Link to={`${base}/requests/new`}>Create purchase request</Link>}<section className="pf-panel"><Resource resource={resource}>{({ data, page }) => <>{!data.length ? <p>No {title.toLowerCase()} in this plant yet. {kind === 'vendors' ? 'Create a vendor below.' : kind === 'requests' ? 'Create a request for an existing vendor.' : 'Approve and convert a purchase request first.'}</p> : <ul className="pf-list">{data.map(row => <li key={row._id}><Link to={`${base}/${kind}/${row._id}`}>{row.name || displayReference(kind === "orders" ? "purchaseOrder" : "request",row)}</Link>{row.status && <span>{operatorStatus(row.status)}</span>}</li>)}</ul>}<div className="pf-actions">{cursor && <Link to={`${base}/${kind}`}>First page</Link>}{page.nextCursor && <Link to={`?cursor=${page.nextCursor}`}>Next page</Link>}</div></>}</Resource></section>{kind === 'vendors' && <form className="pf-panel pf-form" onSubmit={async e => {
     e.preventDefault(); if (lock.current) return; lock.current = true; setBusy(true); setError(null);
     const body = Object.fromEntries(new FormData(e.currentTarget));
     try { const { data } = await request('/api/procurement/vendors', { body }); navigate(`${base}/vendors/${data._id}`); }

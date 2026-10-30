@@ -93,6 +93,46 @@ export async function initializeCatalogProcurement(db) {
   await db.collection('catalogEvents').createIndex({ tenantId: 1, plantId: 1, subjectType: 1, subjectId: 1, _id: 1 });
 }
 
+export async function createCatalogRequestFromShortage(db, filter, input, actor, session) {
+  const { requestId, lineId, vendorId, ownerLegalEntityId, pricing, quantity, shortageSource } = input;
+  const item = await requireCatalogInventoryItem(db, filter, input.itemId, input.itemVersion, input.itemRevision, session, true);
+  if (item.ownerLegalEntityId !== ownerLegalEntityId || item.contentHash !== input.itemContentHash || item.content.uom !== input.uom) invalid();
+  const vendor = await db.collection('vendors').findOne({ ...filter, _id: vendorId }, { session });
+  if (!vendor || vendor.active === false) fail(409, 'VENDOR_INACTIVE');
+  const changed = await db.collection('vendors').updateOne({ ...filter, _id: vendorId, version: vendor.version }, { $inc: { catalogUseFence: 1 } }, { session });
+  if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+  const amount = qty(quantity), scale = scales[pricing?.currency];
+  if (pricing?.taxPolicy !== 'NO_TAX' || pricing?.roundingPolicy !== 'LINE_HALF_UP' || scale === undefined) fail(400, 'INVALID_POLICY');
+  if (typeof pricing.unitPrice !== 'string' || !new RegExp(`^(0|[1-9][0-9]{0,27})${scale ? `\\.[0-9]{${scale}}` : ''}$`).test(pricing.unitPrice)) fail(400, 'INVALID_PRICE');
+  if (item.content.trackingPolicy === 'SERIAL' && (amount % 1000000n !== 0n || amount > 100000000n)) fail(400, 'INVALID_QUANTITY');
+  const denominator = 10n ** BigInt(quantity.split('.')[1]?.length || 0);
+  const total = money((BigInt(quantity.replace('.', '')) * BigInt(pricing.unitPrice.replace('.', '')) * 2n + denominator) / (2n * denominator), scale);
+  const line = { lineId, itemId: item._id, itemVersion: item.version, itemRevision: item.currentRevision, itemContentHash: item.contentHash, itemCode: item.code, description: item.content.description, uom: item.content.uom, kind: item.content.kind, itemSchema: item.content.schema, trackingPolicy: item.content.trackingPolicy, ownerLegalEntityId, quantity, unitPrice: pricing.unitPrice, currency: pricing.currency, lineTotal: total };
+  const row = { _id: requestId, ...filter, ownerLegalEntityId, schema: 'CATALOG_PURCHASE_V1', version: 1, currentRevision: 1, content: { vendorId, lines: [line], currency: pricing.currency, total, taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP' }, status: 'DRAFT', approval: null, orderId: null, shortageSource };
+  await db.collection('catalogRequestLineIds').insertOne({ _id: randomUUID(), ...filter, requestId, itemId: item._id, lineId }, { session });
+  const revision = { _id: randomUUID(), ...filter, ownerLegalEntityId, subjectId: requestId, revision: 1, content: row.content, reason: input.reason, recordedBy: actor, recordedAt: new Date() };
+  revision.contentHash = hash(revisionContent(revision)); row.contentHash = revision.contentHash;
+  await db.collection(REVS.REQUEST).insertOne(revision, { session });
+  await persistShortageRequest(db, filter, row, null, actor, input.reason, session);
+  return { sourceCohort: 'CATALOG', requestId, requestRevision: 1, lineId };
+}
+async function persistShortageRequest(db, filter, row, previousVersion, actor, reason, session) {
+  const snapshot = semantic(row), eventId = randomUUID(), contentHash = hash(snapshot);
+  await db.collection('catalogEvents').insertOne({ _id: eventId, ...filter, subjectType: 'REQUEST', subjectId: row._id, version: row.version, status: row.status, kind: previousVersion ? 'SHORTAGE_CANCELLED' : 'SHORTAGE_CREATED', reason, recordedBy: actor, recordedAt: new Date(), snapshot, contentHash }, { session });
+  row.eventId = eventId; row.authorityHash = contentHash;
+  if (previousVersion) {
+    const changed = await db.collection(HEADS.REQUEST).replaceOne({ ...filter, _id: row._id, version: previousVersion }, row, { session });
+    if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+  } else await db.collection(HEADS.REQUEST).insertOne(row, { session });
+}
+export async function cancelCatalogShortageRequest(db, filter, requestId, expectedVersion, claimId, actor, reason, session) {
+  const row = await load(db, filter, 'REQUEST', requestId, session);
+  if (row.version !== expectedVersion || row.shortageSource?.claimId !== claimId) fail(409, 'VERSION_CONFLICT');
+  if (!['DRAFT', 'APPROVED'].includes(row.status) || row.orderId || row.shortageCancellation) fail(409, 'COMMITTED_REQUEST');
+  row.status = 'DRAFT'; row.approval = null; row.shortageCancellation = { reason, recordedBy: actor, recordedAt: new Date() }; row.version++;
+  await persistShortageRequest(db, filter, row, expectedVersion, actor, reason, session);
+  return row;
+}
 export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
   const db = runtime.db, c = name => db.collection(name), root = '/api/catalog-procurement';
   const owner = async (req, session) => { const plant = await c('plants').findOne({ _id: req.filter.plantId, tenantId: req.filter.tenantId, active: true }, { session }); if (!plant || !await c('legalEntities').findOne({ _id: plant.legalEntityId, tenantId: req.filter.tenantId, active: true }, { session })) fail(403, 'SCOPE_DENIED'); return plant.legalEntityId; };
@@ -138,6 +178,7 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
   }
   async function dependencies(req, row, session, fence = false) {
     const blockers = [], legalEntityId = await owner(req, session);
+    if (row.shortageCancellation) blockers.push('SHORTAGE_CANCELLED');
     if (row.ownerLegalEntityId !== legalEntityId) invalid();
     if (fence) await requireFreshVendor(req, row.content.vendorId, session);
     else {
@@ -228,6 +269,7 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
       let row, previous = null;
       if (revise) { row = await load(db, req.filter, 'REQUEST', id(req.params.id), session); if (row.version !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT'); if (row.status === 'CONVERTED') fail(409, 'STATE_CONFLICT'); if (row.currentRevision >= 100) fail(409, 'REVISION_CONFLICT'); if (row.ownerLegalEntityId !== legalEntityId) invalid(); previous = row.version; row.version++; row.currentRevision++; }
       else { if (req.body.expectedVersion !== 1) fail(409, 'VERSION_CONFLICT'); row = { _id: randomUUID(), ...req.filter, ownerLegalEntityId: legalEntityId, schema: 'CATALOG_PURCHASE_V1', version: 1, currentRevision: 1 }; }
+      if (row.shortageSource) fail(409, 'SHORTAGE_REQUEST_FROZEN');
       row.content = await content(req, row._id, session, legalEntityId); row.status = 'DRAFT'; row.approval = null; row.orderId = null;
       await addRevision('REQUEST', req, row, reason, session); return save('REQUEST', req, row, previous, revise ? 'REVISED' : 'CREATED', reason, session);
     }); res.status(revise ? 200 : 201).json({ data });
@@ -236,6 +278,7 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
     fields(req.body, [...common, ...(operation === 'approve' ? ['revision'] : [])]); if (operation === 'approve' && !positive(req.body.revision)) fail(400, 'INVALID_REVISION');
     const data = await mutation(req, `catalog.${operation}`, async (session, reason) => {
       const type = operation === 'issue' ? 'ORDER' : 'REQUEST', row = await load(db, req.filter, type, id(req.params.id), session), previous = row.version;
+      if (row.shortageCancellation) fail(409, 'SHORTAGE_CANCELLED');
       if (previous !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (row.status !== ({ approve: 'DRAFT', convert: 'APPROVED', issue: 'DRAFT' }[operation])) fail(409, 'STATE_CONFLICT');
       await dependencies(req, row, session, true);
@@ -243,6 +286,7 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
       if (operation === 'issue') { row.status = 'ISSUED'; row.issuedAt = new Date(); row.issuedBy = req.scope.userId; }
       if (operation === 'convert') {
         const order = { _id: randomUUID(), ...req.filter, ownerLegalEntityId: row.ownerLegalEntityId, schema: row.schema, version: 1, currentRevision: 1, status: 'DRAFT', requestId: row._id, requestRevision: row.currentRevision, requestContentHash: row.contentHash, content: structuredClone(row.content) };
+        if (row.shortageSource) order.shortageSource = structuredClone(row.shortageSource);
         await addRevision('ORDER', req, order, reason, session); row.status = 'CONVERTED'; row.orderId = order._id; row.version++;
         await save('REQUEST', req, row, previous, 'CONVERTED', reason, session); return save('ORDER', req, order, null, 'CREATED', reason, session);
       }

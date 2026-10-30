@@ -1,10 +1,12 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { saveCatalogOptionProjection } from './catalog-option-index.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
+import { initializeMaterialShortages, installMaterialShortages } from './material-shortages.mjs';
 
 export const procurementRoles = Object.fromEntries(['read', 'write', 'approve', 'convert', 'issue', 'confirm'].map(action => [`procurement${action[0].toUpperCase()}${action.slice(1)}`, [...new Set(['procurement.read', `procurement.${action}`])]]));
 export const procurementActions = ['read', 'write', 'approve', 'convert', 'issue', 'confirm'].map(a => `procurement.${a}`);
 export async function initializeProcurement(db) {
+  await initializeMaterialShortages(db);
   await db.collection('purchaseOrders').createIndex({ tenantId: 1, plantId: 1, requestId: 1 }, { unique: true });
   await db.collection('procurementConversions').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
   await db.collection('procurementPromiseKeys').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
@@ -37,11 +39,12 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
     req.filter = scope;
     const requestCommand = /^\/requests\/[^/]+\/(approve|convert|rfq|rfq-response)$/.exec(req.path)?.[1];
     const orderCommand = /^\/orders\/[^/]+\/(issue|vendor-confirmation|vendor-promise)$/.exec(req.path)?.[1];
-    const command = ['/vendors', '/requests'].includes(req.path) || ['rfq', 'rfq-response'].includes(requestCommand) ? 'write' : requestCommand || (['vendor-confirmation', 'vendor-promise'].includes(orderCommand) ? 'confirm' : orderCommand);
+    const command = ['/vendors', '/requests', '/requests/from-shortage'].includes(req.path) || req.path.startsWith('/material-shortages/') || ['rfq', 'rfq-response'].includes(requestCommand) ? 'write' : requestCommand || (['vendor-confirmation', 'vendor-promise'].includes(orderCommand) ? 'confirm' : orderCommand);
     req.procurementAction = req.method === 'GET' ? 'procurement.read' : req.method === 'POST' && command ? `procurement.${command}` : null;
     if (!req.procurementAction) fail(404, 'NOT_FOUND');
     await runtime.foundation.authorize(req.scope, { ...scope, action: req.procurementAction }); next();
   });
+  installMaterialShortages(app, runtime, { guard, fields, id });
   const find = async (collection, req, key, session) => {
     const row = await c(collection).findOne({ ...req.filter, _id: id(key) }, { session });
     if (!row) fail(404, 'NOT_FOUND'); return row;
