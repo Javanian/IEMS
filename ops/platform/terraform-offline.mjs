@@ -20,11 +20,11 @@ env.TF_WORKSPACE = 'default';
 mkdirSync(target, { recursive: true });
 cpSync(join(root, 'infra/terraform/aws'), target, { recursive: true });
 const mirror = process.env.PLATFORM_TF_PROVIDER_MIRROR;
+writeFileSync(config, `provider_installation {\n filesystem_mirror {\n path = ${JSON.stringify(resolve(mirror || target).replaceAll('\\', '/'))}\n include = ["registry.terraform.io/hashicorp/aws"]\n }\n}\ndisable_checkpoint = true\n`);
 const cli = spawnSync('terraform', ['version', '-json'], { encoding: 'utf8', timeout: 10000, windowsHide: true, env });
 if (cli.error?.code === 'ENOENT') result.reason = 'Terraform executable unavailable';
 else if (cli.status !== 0 || cli.error) { result.status = 'FAIL'; result.reason = 'Terraform version check failed'; }
 else {
-  writeFileSync(config, `provider_installation {\n filesystem_mirror {\n path = ${JSON.stringify(resolve(mirror || target).replaceAll('\\', '/'))}\n include = ["registry.terraform.io/hashicorp/aws"]\n }\n}\ndisable_checkpoint = true\n`);
   if (!run(['fmt', '-check', '-recursive'])) result.status = 'FAIL';
   else if (!mirror || !existsSync(mirror)) result.reason = 'Installed offline AWS provider mirror unavailable; fmt passed, validate/test NOT_RUN';
   else result.status = run(['init', '-backend=false', '-input=false']) && run(['validate', '-no-color']) && run(['test', '-no-color']) ? 'PASS' : 'FAIL';
