@@ -291,3 +291,12 @@ reconciliation. See [browser integration and recovery](BROWSER-INTEGRATION.md) f
 the exact local obligations, external access boundary and manual evidence procedure.
 
 `createProviderBrowserLifecycle` composes the durable session registry with an injected `driver.launch(metadata)` implementation. Launch receives only tenant/account/owner/generation and `externalSendEnabled: false`; no ready hook, message body or dispatch capability is supplied. The driver returns a handle whose explicit `close()` must confirm `{ closed: true }`. Launch/close deadlines retain UNKNOWN ownership, including late completion; operators must reconcile the actual process before release. No retry, timeout takeover or automatic cleanup is performed. The host must supply a trusted browser implementation that honors the disabled-send contract; this module alone cannot sandbox an arbitrary driver. No concrete browser package, credential session or live provider was installed or run. Concrete driver and host mounting remain incomplete.
+
+### PLAT-047 concrete local browser
+
+`src/local-browser-driver.mjs` implements a real isolated Chromium blank-browser
+lifecycle with a fixed trusted registry and explicit installed executable/scratch
+configuration. It has no navigation or messaging port. See BROWSER-INTEGRATION.md
+for composition, smoke command and UNKNOWN ownership procedure. Provider credentials,
+actual account authentication/inbound collection and live acceptance remain external;
+external send is disabled. Root manifests and shared host mounts belong to integration.
