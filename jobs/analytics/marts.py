@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from raw import read_batch
 from events import canonical, digest, utc, now
+from snapshots import snapshot
 
 
 def load(manifests, database, max_age_seconds=86400):
@@ -25,7 +26,7 @@ def load(manifests, database, max_age_seconds=86400):
                 raise ValueError('Incomplete manifest chain')
             chains[m['stream']] = m
             for row in rows:
-                e = row['event']; checksum = digest(e)
+                e = snapshot(row['event']); checksum = digest(e)
                 previous = con.execute('SELECT checksum FROM raw_events WHERE event_id=?', [e['eventId']]).fetchone()
                 if previous and previous[0] != checksum:
                     raise ValueError('Replay corruption')
@@ -50,9 +51,11 @@ def parity(incremental, rebuild):
     import duckdb
     a, b = duckdb.connect(str(incremental), read_only=True), duckdb.connect(str(rebuild), read_only=True)
     try:
+        def normalize(row):
+            return canonical([v.isoformat() if hasattr(v,'isoformat') else str(v) if v is not None and not isinstance(v,(bool,int,str)) else v for v in row])
         for table in ('event_versions','resource_history','current_resources','order_balances'):
-            left = sorted(canonical(list(row)) for row in a.execute(f'SELECT * FROM {table}').fetchall())
-            right = sorted(canonical(list(row)) for row in b.execute(f'SELECT * FROM {table}').fetchall())
+            left = sorted(normalize(row) for row in a.execute(f'SELECT * FROM {table}').fetchall())
+            right = sorted(normalize(row) for row in b.execute(f'SELECT * FROM {table}').fetchall())
             if left != right:
                 raise ValueError(f'Incremental/rebuild mismatch: {table}')
     finally:
