@@ -16,6 +16,7 @@ export async function appendReportingSnapshot({ db, session, grant, source, even
   validateSource(source);
   if (typeof occurredAt !== 'string' || !occurredAt.endsWith('Z') || !Number.isFinite(Date.parse(occurredAt))) throw new Error('INVALID_OBSERVATION_TIME');
   const payload = validateSnapshot({ ...fullSnapshot, resourceType, resourceId, legalEntityId: grant.legalEntityId });
+  if (payload.deleted && (typeof source.deleteReason !== 'string' || !source.deleteReason.trim() || source.deleteReason.length > 512)) throw new Error('EXPLICIT_SOURCE_TOMBSTONE_REASON_REQUIRED');
   if (typeof payload.baseline !== 'boolean' || (fullSnapshot.legalEntityId && fullSnapshot.legalEntityId !== grant.legalEntityId)) throw new Error('SNAPSHOT_SCOPE_OR_BASELINE_REQUIRED');
   const scope = { tenantId: grant.tenantId, plantId: grant.plantId };
   const sourceKey = contentHash({ collection: source.collection, id: source.id, version: source.version, target: eventKey, resourceType, mappingVersion });
@@ -32,14 +33,24 @@ export async function appendReportingSnapshot({ db, session, grant, source, even
   const key = { ...scope, resourceId };
   const head = await heads.findOne(key, { session });
   if (head && (head.resourceType !== resourceType || head.legalEntityId !== grant.legalEntityId || head.mappingVersion !== mappingVersion)) throw new Error('RESOURCE_IDENTITY_OR_EPOCH_CONFLICT');
+  if (head?.source?.collection === source.collection && head.source.id === source.id && typeof head.source.version === 'number' && typeof source.version === 'number' && source.version < head.source.version) throw new Error('SOURCE_VERSION_REGRESSION_QUARANTINE');
+  const payloadHash = contentHash(semantic);
+  if (head?.payloadHash === payloadHash) {
+    const original = await outbox.findOne({ _id: head.eventId, ...scope }, { session });
+    if (!original) throw new Error('IMMUTABLE_REPORTING_EVIDENCE_MISSING');
+    const fenced = await heads.updateOne({ ...key, version: head.version, 'source.hash': head.source.hash, 'source.version': head.source.version }, { $set: { source } }, { session });
+    if (fenced.matchedCount !== 1) throw new Error('REPORTING_SOURCE_CONTENTION');
+    await receipts.insertOne({ _id: randomUUID(), ...scope, sourceKey, hash, eventId: head.eventId, source, mappingVersion }, { session });
+    return original.envelope;
+  }
   const version = (head?.version ?? 0) + 1;
   if (!Number.isSafeInteger(version)) throw new Error('SEQUENCE_EXHAUSTED');
   const envelope = { eventId: randomUUID(), schemaVersion: 2, ...scope, aggregateId: resourceId, aggregateVersion: version, type: SNAPSHOT_TYPE, occurredAt, payload: { ...payload, source: { ...source, mappingVersion } } };
   if (Buffer.byteLength(canonicalJson(envelope)) > 1024 * 1024) throw new Error('SNAPSHOT_TOO_LARGE');
   if (head) {
-    const result = await heads.updateOne({ ...key, version: head.version }, { $set: { version } }, { session });
+    const result = await heads.updateOne({ ...key, version: head.version }, { $set: { version, payloadHash, eventId: envelope.eventId, source } }, { session });
     if (result.modifiedCount !== 1) throw new Error('REPORTING_SEQUENCE_CONTENTION');
-  } else await heads.insertOne({ ...key, resourceType, legalEntityId: grant.legalEntityId, mappingVersion, version }, { session });
+  } else await heads.insertOne({ ...key, resourceType, legalEntityId: grant.legalEntityId, mappingVersion, version, payloadHash, eventId: envelope.eventId, source }, { session });
   await outbox.insertOne({ _id: envelope.eventId, ...scope, aggregateId: resourceId, aggregateVersion: version, envelope, reportingKafkaPublishedAt: null }, { session });
   await receipts.insertOne({ _id: randomUUID(), ...scope, sourceKey, hash, eventId: envelope.eventId, source, mappingVersion }, { session });
   return envelope;

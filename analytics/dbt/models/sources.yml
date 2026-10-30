@@ -1,0 +1,14 @@
+version: 2
+sources:
+  - name: raw
+    schema: main
+    tables:
+      - name: source_coverage
+      - name: raw_events
+        columns:
+          - name: event_id
+            tests: [not_null, unique]
+          - name: tenant_id
+            tests: [not_null]
+          - name: available_at
+            tests: [not_null]

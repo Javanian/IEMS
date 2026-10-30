@@ -1,0 +1,9 @@
+name: iems_reporting
+version: '1.0.0'
+config-version: 2
+profile: iems_reporting
+model-paths: [models]
+test-paths: [tests]
+models:
+  iems_reporting:
+    +materialized: table
