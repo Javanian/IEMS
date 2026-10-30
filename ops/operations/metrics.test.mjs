@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { freshness, quantityBuckets, legacySnapshot } from '../../apps/portfolio-api/src/operations.mjs';
+import { freshness, quantityBuckets, legacySnapshot, invoiceBalance } from '../../apps/portfolio-api/src/operations.mjs';
 
 test('quantity buckets retain exact decimals and units; missing fields remain incomplete', () => {
   const result = quantityBuckets([{ quantity: '9007199254740993.1', uom: 'EA' }, { quantity: '0.9', uom: 'EA' }, { quantity: '2.25', uom: 'KG' }, { uom: 'KG' }], r => [r]);
@@ -13,6 +13,15 @@ test('freshness never reports absent or future timestamps as current', () => {
   assert.equal(freshness(null, now).status, 'NO_DATA');
   assert.equal(freshness('2026-10-31T00:01:00.000Z', now).status, 'INCOMPLETE');
   assert.equal(freshness('2026-10-30T23:00:00.000Z', now).status, 'STALE');
+});
+test('order financial balance is separate, exact and never invented from absent invoice rows', () => {
+  const order = { id:'order',currency:'USD',orderAmount:'9007199254740994.20' };
+  assert.equal(invoiceBalance(order,[]).paidAmount,null);
+  const invoice = { currency:'USD',proofMode:'IMMUTABLE_POSTING_V1',total:'9007199254740993.10',paidAmount:'0.10',creditedAmount:'0.00',outstandingAmount:'9007199254740993.00' };
+  const result = invoiceBalance(order,[invoice,{...invoice,total:'1.10',outstandingAmount:'1.00'}]);
+  assert.equal(result.orderAmount,order.orderAmount);assert.equal(result.invoicedAmount,'9007199254740994.20');assert.equal(result.outstandingAmount,'9007199254740994.00');
+  assert.equal(invoiceBalance(order,[{...invoice,creditedAmount:undefined}]).creditedAmount,null);
+  assert.equal(invoiceBalance(order,[{...invoice,currency:'IDR'}]).outstandingAmount,null);
 });
 test('legacy adapters require scoped authorization and strip private fields', async () => {
   const sample = { resourceId: '11111111-1111-4111-8111-111111111111', sourceRevision: '3', value: '2', uom: 'MIN', sampleAt: '2026-10-30T23:00:00.000Z', windowFrom: '2026-10-30T22:00:00.000Z', windowUntil: '2026-10-30T23:00:00.000Z', biometricTemplate: 'must-not-leak' };

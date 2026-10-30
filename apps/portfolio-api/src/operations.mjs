@@ -4,6 +4,8 @@ import { scopedModule } from './quality.mjs';
 import { maintenanceCapacity } from './maintenance.mjs';
 import { boundedTransaction } from '../../../packages/tenant-foundation/commands.mjs';
 import { addDecimals, decimal, uuid } from '../../../packages/domain-events/source-bindings.mjs';
+import { minorUnits, formatMinor } from '../../../packages/contracts/src/domains/logistics-billing/values.mjs';
+import { validateInvoicePosting } from './purchased-billing-state.mjs';
 
 export const operationsActions = ['operations.read', 'operations.sample'];
 export const operationsRoles = { operationsRead: ['operations.read'], operationsTelemetry: operationsActions };
@@ -38,7 +40,7 @@ export function quantityBuckets(rows, select) {
   return { status: missing ? 'INCOMPLETE' : rows.length ? 'AVAILABLE' : 'NO_DATA', missing, buckets: [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([uom, values]) => ({ uom, quantity: addDecimals(values) })) };
 }
 function summary(row, kind, now) {
-  const at = row.updatedAt || row.createdAt;
+  const candidate = row.updatedAt || row.createdAt, at = candidate && Number.isFinite(new Date(candidate).getTime()) ? candidate : null;
   const age = at && Number.isFinite(new Date(at).getTime()) && new Date(at) <= now ? Math.floor((now - new Date(at)) / 86400000) : null;
   const stageAt = kind === 'production' ? ({ PLANNED: row.createdAt, RELEASED: row.routing?.releasedAt, IN_PROGRESS: row.records?.[0]?.recordedAt, QUARANTINED: row.records?.at(-1)?.recordedAt, QC_COMPLETED: row.qc?.recordedAt })[row.status] : null;
   const stageAgeDays = stageAt && Number.isFinite(new Date(stageAt).getTime()) && new Date(stageAt) <= now ? Math.floor((now - new Date(stageAt)) / 86400000) : null;
@@ -50,6 +52,13 @@ function summary(row, kind, now) {
 }
 async function grant(runtime, req, action, session) {
   return runtime.foundation.authorizeInTransaction(req.scope, { ...req.filter, action }, { session });
+}
+export function invoiceBalance(order, invoices, complete = true) {
+  const base = { orderId: order.id, currency: order.currency, orderAmount: order.orderAmount, invoiceCount: invoices.length, basis: 'ISSUED_INVOICES_ONLY_EXCLUDES_UNALLOCATED_DEPOSITS' };
+  if (!invoices.length || !complete) return { ...base, status: invoices.length ? 'INCOMPLETE' : 'NO_DATA', invoicedAmount: null, paidAmount: null, creditedAmount: null, outstandingAmount: null };
+  const sum = field => { try { if (invoices.some(i=>i.currency!==order.currency || i.proofMode!=='IMMUTABLE_POSTING_V1')) return null; return formatMinor(invoices.reduce((n,i)=>n+minorUnits(i[field],order.currency,{zero:true}),0n),order.currency); } catch { return null; } };
+  const values = { invoicedAmount: sum('total'), paidAmount: sum('paidAmount'), creditedAmount: sum('creditedAmount'), outstandingAmount: sum('outstandingAmount') };
+  return { ...base, ...values, status: Object.values(values).some(v=>v===null) ? 'INCOMPLETE' : 'AVAILABLE' };
 }
 async function readSource(runtime, req, kind, session, now, after) {
   const spec = sources[kind];
@@ -74,12 +83,13 @@ async function readSource(runtime, req, kind, session, now, after) {
 }
 export async function initializeOperations(db) {
   for (const [name, keys] of [['operationsSamples', { tenantId: 1, plantId: 1, resourceId: 1 }], ['operationsSampleRevisions', { tenantId: 1, plantId: 1, resourceId: 1, version: 1 }], ['operationsKeys', { tenantId: 1, plantId: 1, key: 1 }]]) await db.collection(name).createIndex(keys, { unique: true });
+  await db.collection('operationsTelemetryOutbox').createIndex({ publishedAt: 1, tenantId: 1, plantId: 1, resourceId: 1, businessRevision: 1 });
 }
 // Each adapter is a private, registered read contract. Raw legacy rows never cross this boundary.
-export async function legacySnapshot(adapter, { filter, now, session }) {
+export async function legacySnapshot(adapter, { filter, now, session, scope }) {
   if (!adapter || typeof adapter.read !== 'function' || typeof adapter.authorize !== 'function' || !legacyKinds.includes(adapter.kind)) return { status: 'NO_DATA', reason: 'ADAPTER_NOT_CONFIGURED', samples: [] };
-  await adapter.authorize({ ...filter, session });
-  const result = await adapter.read({ ...filter, session, limit: 100 });
+  await adapter.authorize({ ...filter, scope, session });
+  const result = await adapter.read({ ...filter, scope, session, limit: 100 });
   if (!result || !Array.isArray(result.samples) || result.samples.length > 100 || !['COMPLETE', 'INCOMPLETE'].includes(result.completeness)) reject(502, 'LEGACY_CONTRACT_INVALID');
   exactUtc(result.observedAt);
   const samples = result.samples.map(s => {
@@ -95,8 +105,10 @@ export function installOperations(app, runtime, helpers, { legacyAdapters = [], 
     await helpers.guard(rt, req, session, action);
     if (action === 'operations.sample') {
       const mapping = telemetryMappings[req.body.mapping];
-      if (!mapping || typeof mapping.authorize !== 'function') reject(400, 'UNREGISTERED_TELEMETRY_MAPPING');
+      if (!mapping || typeof mapping.authorize !== 'function' || typeof mapping.readSample !== 'function') reject(400, 'UNREGISTERED_TELEMETRY_MAPPING');
       await mapping.authorize({ scope: req.scope, filter: req.filter, resourceId: req.params.id, session });
+      const sample = await mapping.readSample({ scope: req.scope, filter: req.filter, resourceId: req.params.id, sourceRevision: req.body.sourceRevision, session });
+      if (!sample || ['value','uom','sampleAt','windowFrom','windowUntil','sourceRevision'].some(k=>sample[k]!==req.body[k])) reject(409, 'TELEMETRY_SOURCE_MISMATCH');
     }
   } });
   app.get(`${root}/dashboard`, async (req, res) => {
@@ -105,9 +117,20 @@ export function installOperations(app, runtime, helpers, { legacyAdapters = [], 
       const now = businessNow(runtime), metrics = {};
       for (const kind of Object.keys(sources)) metrics[kind] = await readSource(runtime, req, kind, session, now);
       const legacy = {};
-      for (const kind of legacyKinds) legacy[kind] = await legacySnapshot(legacyAdapters.find(a => a.kind === kind), { filter: req.filter, now, session });
+      for (const kind of legacyKinds) {
+        try { legacy[kind] = await legacySnapshot(legacyAdapters.find(a => a.kind === kind), { filter: req.filter, scope: req.scope, now, session }); }
+        catch (e) { if (![403,502].includes(e.status)) throw e; legacy[kind] = { status: e.status === 403 ? 'ACCESS_DENIED' : 'ERROR', reason: e.status === 403 ? 'SOURCE_ACCESS_DENIED' : 'ADAPTER_CONTRACT_INVALID', samples: [] }; }
+      }
+      const samples = await runtime.db.collection('operationsSamples').find(req.filter, { session }).sort({ sampleAt: -1, resourceId: 1 }).limit(100).toArray();
       const coverage = await runtime.db.collection('reportingSourceCoverage').findOne({ ...req.filter, coverage: 'COMPLETE', fence: 'single-snapshot-transaction' }, { session, sort: { observedAt: -1 } });
-      return { schema: 'OPERATIONS_DASHBOARD_V1', observedAt: now.toISOString(), metrics, legacy,
+      let balances = { status: 'ACCESS_DENIED', rows: [] };
+      if (metrics.orders.records.length && metrics.invoices.status !== 'ACCESS_DENIED') {
+        await grant(runtime, req, 'fulfillment.read', session);
+        const invoices = await runtime.db.collection('fulfillmentInvoices').find({ ...req.filter, salesOrderId: { $in: metrics.orders.records.map(o=>o.id) } }, { session }).limit(101).toArray(), verified = [];
+        for (const i of invoices.slice(0,100)) { try { const proof = await validateInvoicePosting(runtime.db,req.filter,i,session); verified.push({ ...i, proofMode: proof.proofMode }); } catch(e) { if(e.status!==409)throw e; verified.push({ ...i,proofMode:'INCOMPLETE' }); } }
+        balances = { status: 'AVAILABLE', completeness: invoices.length>100?'INCOMPLETE':'COMPLETE_OBSERVED_INVOICE_SET', rows: metrics.orders.records.map(o=>invoiceBalance(o,verified.filter(i=>i.salesOrderId===o.id),invoices.length<=100)) };
+      } else if (!metrics.orders.records.length && metrics.orders.status!=='ACCESS_DENIED') balances={status:'NO_DATA',rows:[]};
+      return { schema: 'OPERATIONS_DASHBOARD_V1', observedAt: now.toISOString(), metrics, legacy, balances, telemetry: { status: samples.length ? 'AVAILABLE' : 'NO_DATA', completeness: 'BOUNDED_LATEST_100', samples: samples.map(s=>({ resourceId:s.resourceId,version:s.version,mapping:s.mapping,value:s.value,uom:s.uom,sampleAt:s.sampleAt,windowFrom:s.windowFrom,windowUntil:s.windowUntil,sourceRevision:s.sourceRevision,freshness:freshness(s.sampleAt,now) })) },
         reportingCoverage: coverage ? { status: 'AVAILABLE', observedAt: coverage.observedAt ?? null, manifestId: coverage._id, freshness: freshness(coverage.observedAt, now) } : { status: 'NO_DATA', reason: 'RECONCILED_MANIFEST_NOT_AVAILABLE' },
         warnings: Object.entries(metrics).flatMap(([source, m]) => m.stages?.filter(s => s.oldestDaysSinceUpdate >= 7 && !['COMPLETED', 'CANCELLED', 'CLOSED', 'SHIPPED', 'PAID'].includes(s.stage)).map(s => ({ id: `${source}:${s.stage}`, source, stage: s.stage, reason: 'NO_RECORDED_UPDATE_FOR_7_DAYS', days: s.oldestDaysSinceUpdate })) || []) };
     }); res.json({ data });
@@ -144,6 +167,7 @@ export function installOperations(app, runtime, helpers, { legacyAdapters = [], 
       const key = { ...req.filter, resourceId }, prior = await runtime.db.collection('operationsSamples').findOne(key, { session });
       if ((prior?.version ?? 0) !== b.expectedVersion) reject(409, 'VERSION_CONFLICT');
       if (prior && ['mapping', 'uom', 'sampleAt', 'windowFrom', 'windowUntil'].some(k => prior[k] !== b[k])) reject(409, 'IMMUTABLE_SAMPLE_IDENTITY');
+      if (prior && prior.sourceRevision === b.sourceRevision) reject(409, 'NEW_SOURCE_REVISION_REQUIRED');
       const row = { _id: prior?._id || randomUUID(), ...key, schema: 'OPERATIONS_SAMPLE_V1', version: b.expectedVersion + 1, mapping: b.mapping, value: b.value, uom: b.uom, sampleAt: b.sampleAt, windowFrom: b.windowFrom, windowUntil: b.windowUntil, sourceRevision: b.sourceRevision, updatedAt: businessNow(runtime).toISOString() };
       if (prior) { const r = await runtime.db.collection('operationsSamples').replaceOne({ ...key, version: b.expectedVersion }, row, { session }); if (r.matchedCount !== 1) reject(409, 'VERSION_CONFLICT'); }
       else await runtime.db.collection('operationsSamples').insertOne(row, { session });
@@ -153,4 +177,19 @@ export function installOperations(app, runtime, helpers, { legacyAdapters = [], 
       return row;
     }); res.json({ data });
   });
+}
+
+export async function relayOperationsTelemetry({ db, producer, authorize, limit = 100 }) {
+  if (typeof authorize !== 'function' || !Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('EXPLICIT_TELEMETRY_PUBLISHER_CONTRACT_REQUIRED');
+  const rows = await db.collection('operationsTelemetryOutbox').find({ publishedAt: null }).sort({ tenantId: 1, plantId: 1, resourceId: 1, businessRevision: 1 }).limit(limit).toArray();
+  for (const row of rows) {
+    await authorize({ tenantId: row.tenantId, plantId: row.plantId, resourceId: row.resourceId, mapping: row.snapshot.mapping });
+    if (row.type !== 'operations.sample.snapshot.v1' || row.snapshot.schema !== 'OPERATIONS_SAMPLE_V1') throw new Error('UNREGISTERED_TELEMETRY_EVENT');
+    const s = row.snapshot;
+    const envelope = { eventId: row._id, schemaVersion: 1, tenantId: row.tenantId, plantId: row.plantId, resourceId: row.resourceId, businessRevision: row.businessRevision, occurredAt: row.occurredAt, type: row.type,
+      snapshot: { mapping: s.mapping, value: decimal(s.value), uom: s.uom, sampleAt: exactUtc(s.sampleAt), windowFrom: exactUtc(s.windowFrom), windowUntil: exactUtc(s.windowUntil), sourceRevision: s.sourceRevision } };
+    await producer.send({ topic: 'iems.operations.samples.v1', acks: -1, messages: [{ key: `${row.tenantId}:${row.plantId}:${row.resourceId}`, value: JSON.stringify(envelope) }] });
+    await db.collection('operationsTelemetryOutbox').updateOne({ _id: row._id, publishedAt: null }, { $set: { publishedAt: new Date() } });
+  }
+  return rows.length;
 }

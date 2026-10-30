@@ -29,6 +29,7 @@ export function OperationsWorkspace() {
         ]}/><p>Quantity totals cover the displayed source page. Different units are kept separate. Financial amounts appear once per order or invoice in the drilldown.</p>
         <p>Reporting reconciliation: {data.reportingCoverage.status}. {data.reportingCoverage.manifestId ? `Manifest ${data.reportingCoverage.manifestId}` : 'A reconciled source manifest is not available.'}</p>
       </section>
+      <section className="pf-panel"><h2>Order invoice balances</h2><p>One financial row per order, separate from quantity buckets. Balances cover issued invoices only; unallocated deposits and unbilled order value remain outside this balance.</p><Table caption="Observed order invoice balances" rows={data.balances?.rows || []} rowKey={r=>r.orderId} empty="No verified order invoice balances are available." columns={[{key:'orderId',label:'Order'},{key:'status',label:'Completeness'},{key:'orderAmount',label:'Approved order amount',numeric:true,render:r=>showValue(r.orderAmount,r.currency)},{key:'invoicedAmount',label:'Invoiced',numeric:true,render:r=>showValue(r.invoicedAmount,r.currency)},{key:'paidAmount',label:'Paid',numeric:true,render:r=>showValue(r.paidAmount,r.currency)},{key:'creditedAmount',label:'Credited',numeric:true,render:r=>showValue(r.creditedAmount,r.currency)},{key:'outstandingAmount',label:'Invoice balance',numeric:true,render:r=>showValue(r.outstandingAmount,r.currency)}]}/></section>
       <section className="pf-panel"><h2>Early warnings</h2><Table caption="Records needing attention" rows={data.warnings} rowKey={r => r.id} empty="No aging warnings in the observed page. Source gaps remain visible above." columns={[
         { key: 'source', label: 'Source', render: r => names[r.source] }, { key: 'stage', label: 'Stage' }, { key: 'days', label: 'Oldest update (days)', numeric: true },
         { key: 'id', label: 'Action', render: r => <button onClick={() => setSource(r.source)}>Inspect records</button> },
@@ -36,10 +37,11 @@ export function OperationsWorkspace() {
       <Drilldown key={source} source={source}/>
       <section className="pf-panel"><h2>Legacy observations</h2><p>Read adapters share aggregate measurements only. Identity credentials and biometric data are excluded.</p>
         {Object.entries(data.legacy).map(([kind, feed]) => <details key={kind}><summary>{kind}: {feed.status} {feed.freshness?.status || ''}</summary>
-          {feed.reason && <p>No read adapter is configured for this source.</p>}
+          {feed.reason && <p>{feed.reason==='ADAPTER_NOT_CONFIGURED'?'No read adapter is configured for this source.':feed.reason==='SOURCE_ACCESS_DENIED'?'Access to this source is denied.':'The source adapter could not provide a valid observation. Contact the system owner.'}</p>}
           <Table caption={`${kind} observations`} rows={feed.samples} rowKey={r => `${r.resourceId}:${r.sampleAt}`} columns={[{key:'resourceId',label:'Resource'},{key:'value',label:'Value',render:r=>showValue(r.value,r.uom)},{key:'sampleAt',label:'Sample time',render:r=>showTime(r.sampleAt)},{key:'sourceRevision',label:'Source revision'}]}/>
         </details>)}
       </section>
+      <section className="pf-panel"><h2>Registered telemetry</h2><Table caption="Latest registered samples" rows={data.telemetry?.samples || []} rowKey={r=>r.resourceId} empty="No registered telemetry samples have been received." columns={[{key:'mapping',label:'Measurement'},{key:'resourceId',label:'Sample'},{key:'value',label:'Value',numeric:true,render:r=>showValue(r.value,r.uom)},{key:'sampleAt',label:'Sample time',render:r=>showTime(r.sampleAt)},{key:'freshness',label:'Freshness',render:r=>r.freshness.status},{key:'version',label:'Business revision',numeric:true}]}/></section>
     </>}</Resource><Capacity/></div>;
 }
 function Drilldown({ source }) {
