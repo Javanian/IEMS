@@ -1,3 +1,4 @@
+import { requireQualityGates } from './quality.mjs';
 import { validatePurchasedBillingAggregate } from './purchased-billing-state.mjs';
 import { randomUUID } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
@@ -167,7 +168,8 @@ export function installPurchasedFulfillment(app, runtime, { guard, fields, id })
       const result = await effect(current, session);
       const receipt = kind === 'SHIPMENT_POSTED' ? { kind, salesOrderId: orderId, version: current.version + 1, shipmentId: result._id, shipmentHash: hash(shipmentSemantic(result)) } : { kind, salesOrderId: orderId, version: current.version + 1, reservationId: result._id, reservationVersion: result.version, reservationHash: result.contentHash };
       await save(db, req.filter, current, req.scope.userId, kind, reason.trim(), body.idempotencyKey, payloadHash, receipt, session);
-      if (kind === 'SHIPMENT_POSTED') return result;
+      const savedHead = await db.collection('purchasedFulfillmentHeads').findOne({ ...req.filter, _id: orderId }, { session });
+      if (kind === 'SHIPMENT_POSTED') { const { appendFulfillmentReporting } = await import('./fulfillment.mjs'); await appendFulfillmentReporting(runtime, req, 'shipment.recorded', result, session, savedHead.eventId, 'fulfillment.ship'); return result; }
       return { ...await view(db, req.filter, await purchasedFulfillmentContext(db, req.filter, orderId, session), session), commandReceipt: receipt };
     }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' }); } catch (error) { if (error.code === 11000 && attempt < 4) continue; if (error.code === 11000) fail(409, 'VERSION_CONFLICT'); throw error; } finally { await session.endSession(); }
     }
@@ -209,6 +211,7 @@ export function installPurchasedFulfillment(app, runtime, { guard, fields, id })
         const row = current.reservations.find(row => row._id === part.reservationId); if (!row || row.lineIndex !== body.lineIndex) fail(409, 'SOURCE_CONFLICT');
         if (!fresh.has(row.receiptId)) fresh.set(row.receiptId, await catalogStockContext(db, req.filter, row.receiptId, session, { fresh: true, fence: true }));
         const source = fresh.get(row.receiptId), amount = quantity(part.quantity), unitIds = part.unitIds || [];
+        await requireQualityGates(db, req.filter, [{ resourceType: 'RECEIPT', resourceId: row.receiptId }], session);
         if (source.receipt.version !== part.expectedReceiptVersion || source.use.version !== part.expectedStockVersion || row.version !== part.expectedReservationVersion) fail(409, 'VERSION_CONFLICT');
         if (amount > units(row.remainingQuantity)) fail(409, 'QUANTITY_EXCEEDED');
         if (source.origin.source.trackingPolicy === 'LOT' ? unitIds.length !== 0 : !unitIds.length || amount !== BigInt(unitIds.length) * 1000000n || unitIds.some(unitId => !row.unitIds.includes(unitId) || row.shippedUnitIds.includes(unitId))) fail(400, 'INVALID_UNITS');

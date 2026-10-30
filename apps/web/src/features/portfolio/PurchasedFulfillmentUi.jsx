@@ -6,7 +6,7 @@ import { AuditDetails,CustomerName,OperatorBlockers } from './OperatorUi.jsx';
 import { displayReference,operatorStatus } from './operator.mjs';
 import { currentStockEvidence,sourceVersionMatches,stockOptionsPath } from './internal-execution.mjs';
 import { invoiceCommand,validQuantity } from './fulfillment.mjs';
-import { CommandForm } from './FulfillmentWorkspace.jsx';
+import { CommandForm, AccountSettlement } from './FulfillmentWorkspace.jsx';
 import { purchasedBase,purchasedBlockerHints,purchasedHint,purchasedOrderUrl,purchasedReadActions,purchasedReservationStatus,purchasedUnitLabels,releasePurchasedCommand,reservePurchasedCommand,shipPurchasedCommand } from './purchased-fulfillment.mjs';
 
 function Read({children}) {const identity=useContext(IdentityContext);return purchasedReadActions.every(action=>identity?.permissions?.includes(action)) ? children : <p className="pf-disabled-reason">You need permission to read fulfillment and catalog stock to review purchased order fulfillment.</p>;}
@@ -33,7 +33,7 @@ function OrderDetail(){
     <section className="pf-panel"><h2>Reservation history and remaining identities</h2>{!view.reservations.length?<p>No purchased stock reservations yet.</p>:view.reservations.map(row=><Reservation key={`${row._id}-${row.version}`} row={row} view={view} path={path} {...props} />)}</section>
     <Ship key={`ship-${view.version}`} view={view} path={path} {...props} />
     <section className="pf-panel"><h2>Actual purchased shipments</h2>{view.shipments.length?<ul className="pf-list">{view.shipments.map(row=><li key={row._id}><Link to={`/portfolio/fulfillment/shipments/${row._id}`}>{row.reference}</Link><p>{row.quantity} {row.uom} · Order line {row.lineIndex+1}</p><p>Open this shipment to confirm actual delivery. Source holds after dispatch do not reverse shipped stock.</p></li>)}</ul>:<p>No purchased shipments recorded yet.</p>}</section>
-    <Invoice view={view} {...props} /><History key={`history-${view.version}`} path={path} locked={locked} />
+    <AccountSettlement key={`settlement-${view.salesOrder.accountId}`} accountId={view.salesOrder.accountId} currency={view.salesOrder.snapshot.currency} locked={locked} onLockChange={setLocked} onSaved={refresh} /><Invoice view={view} {...props} /><History key={`history-${view.version}`} path={path} locked={locked} />
   </section>;}}</Resource>;
 }
 function CommercialOrderLink({order}){const identity=useContext(IdentityContext);return identity?.permissions?.includes('quote.read')?<Link to={`/portfolio/orders/${order._id}`}>Open commercial sales order</Link>:null;}

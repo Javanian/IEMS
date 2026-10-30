@@ -7,7 +7,7 @@ export function shipmentCommand(order, values, key) {
   return { salesOrderId: order._id, expectedVersion: order.version, lineIndex, uom: order.snapshot.lines[lineIndex].uom, reference: values.reference, sources: [{ sourceType: values.sourceType, sourceId: values.sourceId, quantity: values.quantity, ...serials }], idempotencyKey: key };
 }
 export function invoiceCommand(order, values, key) {
-  return { salesOrderId: order._id, expectedVersion: order.version, lines: [{ shipmentId: values.shipmentId, quantity: values.quantity }], idempotencyKey: key };
+  return { salesOrderId: order._id, expectedVersion: order.version, lines: [{ shipmentId: values.shipmentId, quantity: values.quantity }], ...(values.dueAt ? { dueAt: new Date(`${values.dueAt}Z`).toISOString() } : {}), idempotencyKey: key };
 }
 export function paymentCommand(invoice, values, key) {
   return { accountId: invoice.accountId, amount: values.amount, currency: invoice.currency, reference: values.reference, allocations: [{ invoiceId: invoice._id, expectedVersion: invoice.version, amount: values.amount }], idempotencyKey: key };

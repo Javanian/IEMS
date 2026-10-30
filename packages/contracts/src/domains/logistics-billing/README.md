@@ -34,3 +34,54 @@ Focused synthetic smoke: `node --test --test-concurrency=1 packages/contracts/sr
 It verifies two partial shipments, no overdelivery, pack CAS, same-key replay, POD/return
 conservation and the absence of automatic payment/stock restoration. Final race/security/browser
 and full regression are deferred.
+
+## PLAT-016 settlement authority
+
+New invoice issues retain immutable `fulfillmentInvoicePostings` snapshots, exact currency-scale
+amounts, optional UTC dueAt and a settlement projection verified against immutable receipts.
+Existing purchased invoice/payment proof chains remain authoritative. There is no endpoint to
+edit issued lines or erase a receipt. Legacy invoices remain explicitly LEGACY proof mode;
+credit adjustments require the new immutable issue proof. Existing renderer snapshots are reused.
+
+`POST /api/fulfillment/deposits` records accountId/amount/currency/reference/idempotencyKey.
+The receipt is immutable and account-bound, with a CAS deposit balance projection. It is not
+silently assigned to an order. `/payments` preserves its existing explicit invoice allocations
+and accepts settlementKind CASH (default), DEPOSIT or CREDIT. DEPOSIT also requires depositId
+and expectedDepositVersion; CREDIT requires creditReason plus both fulfillment.pay and
+fulfillment.invoice. All effects, proof-chain snapshots, deposit application or credit note,
+audit/outbox and key share one transaction. Credit reduces outstandingAmount and increases
+creditedAmount, without increasing paidAmount or claiming cash. Payment/deposit allocation
+and credit records remain immutable. A return never creates one automatically.
+
+`GET /api/fulfillment/accounts/:id/ledger` returns exact per-currency aging, invoice details and
+deposit balances. Missing due dates are UNDATED. The read is capped at 100 invoices/deposits;
+if incomplete, aging is null rather than a partial total. No currency conversion is invented.
+UI entry points are order fulfillment and invoice detail, with labelled native inputs, contained
+semantic aging tables, explicit loading/error/empty states and retained mutation commands.
+
+Procurement commitment reader returns UNSUPPORTED with explicit unknown R/C/I when complete
+supplier-invoicing and distinct-commitment authority cannot be proven. It supplies observed
+validated receipt evidence and source revision/hash; observed receipts are not a completeness
+claim. Reductions/repricing remain disabled. Caller would need PO/receiving-tally/receipt/stock
+and supplier-invoicing fences in its amendment transaction before enabling those operations.
+
+Reporting uses the completed data helper and same-session transactional grants. Live shipment
+snapshots cover generic and purchased shipments. Payment snapshots group actual explicit
+allocations by invoice.salesOrderId using persisted reportingPaymentIdentities UUIDs, shared with
+the source adapter. Amounts are exact grouped allocations and have no invented line allocation.
+Payment source metadata distinguishes CASH/DEPOSIT/CREDIT and cashEffect; the payment dataset
+represents receivable settlements, not an undifferentiated cash-receipt report. Invoice issuance
+is immutable reference evidence only in the frozen v2 data contract (no invoice dataset).
+Unallocated deposits, returns and packaging have no order snapshot mapping. They remain in
+their authoritative datasets. No financial correction/delete endpoint is added; no tombstone
+is fabricated for immutable posted evidence.
+
+New financial and reporting identity indexes are initialized through existing fulfillment
+initialization. No app/router/package change. Data source-adapter bootstrap currently handles
+the older generic source cohorts; integration must adopt new typed source/settlement metadata
+before claiming complete historical replay coverage. Full final QA remains NOT_RUN.
+
+Focused smoke: `node --test --test-concurrency=1 packages/contracts/src/domains/logistics-billing/settlement-flow.test.mjs`.
+Checks exact high-precision money/aging, deposit replay and allocation, separate credit/cash
+facts, posted-content tamper rejection, actual purchased proof-chain compatibility and live
+reporting receipts. It does not establish full regression or concurrency acceptance.

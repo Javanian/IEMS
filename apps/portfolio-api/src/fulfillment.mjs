@@ -1,5 +1,7 @@
 import { purchasedReadContext, purchasedReconciliation } from './purchased-fulfillment.mjs';
-import { preparePurchasedFinancial, recordPurchasedFinancial, purchasedFinancialReplay, validatePurchasedShipment, validatePurchasedInvoice, validatePurchasedPayment } from './purchased-financial.mjs';
+import { preparePurchasedFinancial, recordPurchasedFinancial, purchasedFinancialReplay, validatePurchasedShipment, validatePurchasedInvoice, validatePurchasedPayment, depositState, applyDeposit, saveSettlementEvidence } from './purchased-financial.mjs';
+import { validateInvoicePosting, settlementStatus } from './purchased-billing-state.mjs';
+import { agingBucket } from '../../../packages/contracts/src/domains/logistics-billing/values.mjs';
 import { requireUnboundSalesOrder } from './quote-catalog.mjs';
 import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
@@ -11,14 +13,20 @@ import { requireQuantityOnlyReceipt } from './serial-custody.mjs';
 import { requireLegacyReceipt } from './receipt-origin.mjs';
 import { businessNow } from './business-clock.mjs';
 import { requireQualityGates } from './quality.mjs';
+import { stockHash } from './catalog-stock-values.mjs';
+import { appendReportingSnapshot, initializeReportingSnapshots } from '../../../packages/domain-events/snapshot-source.mjs';
+import { sourceHash, addDecimals } from '../../../packages/domain-events/source-bindings.mjs';
 
 const verbs = ['read', 'ship', 'invoice', 'pay'];
 export const fulfillmentActions = verbs.map(v => `fulfillment.${v}`);
 export const fulfillmentRoles = Object.fromEntries(verbs.map(v => [`fulfillment${v[0].toUpperCase()}${v.slice(1)}`, [...new Set(['fulfillment.read', `fulfillment.${v}`])]]));
 export async function initializeFulfillment(db) {
+  await initializeReportingSnapshots(db);
+  await db.collection('reportingPaymentIdentities').createIndex({ tenantId: 1, plantId: 1, paymentId: 1, orderId: 1 }, { unique: true });
   await db.collection('fulfillmentKeys').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
   await db.collection('fulfillmentTallies').createIndex({ tenantId: 1, plantId: 1, kind: 1, subjectId: 1, lineIndex: 1 }, { unique: true });
   await db.collection('fulfillmentPacking').createIndex({ tenantId: 1, plantId: 1, salesOrderId: 1, _id: 1 });
+  for (const [name, keys] of [['fulfillmentInvoicePostings', { tenantId: 1, plantId: 1, invoiceId: 1 }], ['fulfillmentDepositAllocations', { tenantId: 1, plantId: 1, paymentId: 1 }], ['fulfillmentCreditNotes', { tenantId: 1, plantId: 1, paymentId: 1 }]]) await db.collection(name).createIndex(keys, { unique: true });
 }
 const scales = { USD: 2, EUR: 2, GBP: 2, IDR: 2, JPY: 0, KWD: 3 };
 const units = s => BigInt(s.split('.')[0]) * 1000000n + BigInt((s.split('.')[1] || '').padEnd(6, '0'));
@@ -28,6 +36,35 @@ const money = (n, scale) => { const s = n.toString().padStart(scale + 1, '0'); r
 // Half-up amount in currency minor units for a quantity in millionths at a fixed-scale unit price.
 const extend = (quantity, unitPrice) => (quantity * minor(unitPrice) * 2n + 1000000n) / 2000000n;
 const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(k => [k, canonical(value[k])])) : value;
+
+export async function appendFulfillmentReporting(runtime, req, kind, row, session, eventId, action = req.fulfillmentAction) {
+  // Invoice issuance is reference evidence in the v2 contract; it has no invoice dataset.
+  if (!['shipment.recorded', 'payment.recorded'].includes(kind)) return;
+  const grant = await runtime.foundation.authorizeInTransaction(req.scope, { ...req.filter, action }, { session });
+  const occurredAt = new Date(row.shippedAt || row.createdAt).toISOString();
+  const source = { collection: row.schema === 'PURCHASED_SHIPMENT_V1' ? 'fulfillmentShipments' : 'fulfillmentKeys', id: row._id, version: row.version, hash: sourceHash(JSON.parse(JSON.stringify(row))), eventIds: [eventId], sourceOccurredAt: occurredAt, ...(kind === 'payment.recorded' ? { settlementKind: row.settlementKind || 'CASH', cashEffect: row.settlementKind === 'CREDIT' || row.settlementKind === 'DEPOSIT' ? 'NONE' : 'RECEIPT', balanceEffect: 'RECEIVABLE_REDUCTION' } : {}) };
+  const targets = [];
+  if (kind === 'shipment.recorded') {
+    const order = await runtime.db.collection('salesOrders').findOne({ ...req.filter, _id: row.salesOrderId }, { session });
+    if (!order || order.accountId !== row.accountId || order.snapshot.lines[row.lineIndex]?.uom !== row.uom) throw new Error('SHIPMENT_REPORTING_SOURCE_CONFLICT');
+    targets.push({ resourceType: 'fulfillment', resourceId: row._id, eventKey: row._id, fullSnapshot: { orderId: row.salesOrderId, quantity: row.quantity, uom: row.uom, sourceLineIndex: row.lineIndex } });
+  } else {
+    const groups = new Map();
+    for (const allocation of row.allocations) {
+      const invoice = await runtime.db.collection('fulfillmentInvoices').findOne({ ...req.filter, _id: allocation.invoiceId }, { session });
+      if (!invoice || invoice.accountId !== row.accountId || invoice.currency !== row.currency || allocation.currency !== row.currency) throw new Error('PAYMENT_REPORTING_SOURCE_CONFLICT');
+      const values = groups.get(invoice.salesOrderId) || []; values.push(allocation.amount); groups.set(invoice.salesOrderId, values);
+    }
+    if (!groups.size || addDecimals(row.allocations.map(value => value.amount)) !== addDecimals([row.amount])) throw new Error('PAYMENT_REPORTING_CONSERVATION_CONFLICT');
+    for (const [orderId, amounts] of groups) {
+      const identity = { ...req.filter, paymentId: row._id, orderId };
+      await runtime.db.collection('reportingPaymentIdentities').updateOne(identity, { $setOnInsert: { resourceId: randomUUID() } }, { session, upsert: true });
+      const saved = await runtime.db.collection('reportingPaymentIdentities').findOne(identity, { session });
+      targets.push({ resourceType: 'payment', resourceId: saved.resourceId, eventKey: `${row._id}:${orderId}`, fullSnapshot: { orderId, amount: addDecimals(amounts), currency: row.currency } });
+    }
+  }
+  for (const target of targets) await appendReportingSnapshot({ db: runtime.db, session, grant, source, ...target, fullSnapshot: { ...target.fullSnapshot, baseline: false, deleted: false, observedAt: occurredAt }, occurredAt });
+}
 
 export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
   const c = n => runtime.db.collection(n);
@@ -54,7 +91,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
   app.use('/api/fulfillment', async (req, res, next) => {
     req.filter = resolveScopeAliases({ body: { tenantId: req.scope.tenantId, plantId: req.scope.selectedPlantId, ...req.body }, query: req.query, headers: req.headers });
     if (req.filter.plantId !== req.scope.selectedPlantId) fail(403, 'SCOPE_DENIED');
-    const command = { '/shipments': 'ship', '/invoices': 'invoice', '/payments': 'pay', '/packing': 'ship' }[req.path] || (/^\/packing\/[^/]+\/pack$/.test(req.path) ? 'ship' : null);
+    const command = { '/shipments': 'ship', '/invoices': 'invoice', '/payments': 'pay', '/deposits': 'pay', '/packing': 'ship' }[req.path] || (/^\/packing\/[^/]+\/pack$/.test(req.path) ? 'ship' : null);
     req.fulfillmentAction = req.method === 'GET' ? 'fulfillment.read' : req.method === 'POST' && command ? `fulfillment.${command}` : null;
     if (!req.fulfillmentAction) fail(404, 'NOT_FOUND');
     await runtime.foundation.authorize(req.scope, { ...req.filter, action: req.fulfillmentAction }); next();
@@ -67,6 +104,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       const session = runtime.client.startSession();
       try { return await session.withTransaction(async () => {
         await guard(runtime, req, session, req.fulfillmentAction);
+        if (kind === 'payment.recorded' && req.body.settlementKind === 'CREDIT') await guard(runtime, req, session, 'fulfillment.invoice');
         const prior = await c('fulfillmentKeys').findOne({ ...req.filter, key }, { session });
         if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
         const purchased = await preparePurchasedFinancial(runtime.db, req.filter, kind, req.body, session, Boolean(prior));
@@ -77,14 +115,23 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
             if (invoice) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, invoice.salesOrderId, session), session);
           }
         }
-        if (prior) { await purchasedFinancialReplay(runtime.db, req.filter, kind, prior, session, Boolean(purchased)); return prior.result; }
+        if (prior) {
+          await purchasedFinancialReplay(runtime.db, req.filter, kind, prior, session, Boolean(purchased));
+          if (kind === 'deposit.recorded' || req.body.settlementKind === 'DEPOSIT') await depositState(runtime.db, req.filter, req.body.depositId || prior.result._id, session);
+          if (kind === 'payment.recorded') for (const allocation of req.body.allocations) await validateInvoicePosting(runtime.db, req.filter, await find('fulfillmentInvoices', req, allocation.invoiceId, session), session);
+          return prior.result;
+        }
         if (await c('purchasedFulfillmentKeys').findOne({ ...req.filter, key }, { session })) fail(409, 'IDEMPOTENCY_CONFLICT');
         const result = await effect(session);
         const purchasedProofHash = await recordPurchasedFinancial(runtime.db, req.filter, kind, req.body, result, purchased, req.scope.userId, session);
+        if (kind === 'invoice.issued') await c('fulfillmentInvoicePostings').insertOne({ _id: randomUUID(), ...req.filter, invoiceId: result._id, snapshot: structuredClone(result), contentHash: stockHash(result) }, { session });
+        if (kind === 'payment.recorded') await saveSettlementEvidence(runtime.db, req.filter, req.body, result, req.scope.userId, session);
         const event = { ...req.filter, kind, subjectId: result._id, version: result.version, userId: req.scope.userId, occurredAt: new Date() };
-        await c('fulfillmentAudit').insertOne({ _id: randomUUID(), ...event }, { session });
+        const eventId = randomUUID();
+        await c('fulfillmentAudit').insertOne({ _id: eventId, ...event }, { session });
         await c('fulfillmentOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
         await c('fulfillmentKeys').insertOne({ ...base(req), key, payloadHash, result, ...(purchasedProofHash ? { purchasedProofHash } : {}), ...(result.sourceReceiptIds ? { sourceReceiptIds: result.sourceReceiptIds, salesOrderId: result.salesOrderId } : {}) }, { session });
+        await appendFulfillmentReporting(runtime, req, kind, result, session, eventId);
         return result;
       }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' }); }
       catch (error) { if (error?.code === 11000 && attempt < 4) continue; throw error; }
@@ -95,7 +142,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
   const verifyRead = async (name, req, row, session) => {
     if (name === 'fulfillmentPacking') return row;
     if (name === 'fulfillmentShipments') await validatePurchasedShipment(runtime.db, req.filter, row._id, session);
-    else if (name === 'fulfillmentInvoices') await validatePurchasedInvoice(runtime.db, req.filter, row._id, session);
+    else if (name === 'fulfillmentInvoices') { await validatePurchasedInvoice(runtime.db, req.filter, row._id, session); await validateInvoicePosting(runtime.db, req.filter, row, session); }
     else await validatePurchasedPayment(runtime.db, req.filter, row._id, session);
     return row;
   };
@@ -113,6 +160,31 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
     });
     app.get(`/api/fulfillment/${path}/:id`, async (req, res) => res.json({ data: await read(async session => verifyRead(name, req, await find(name, req, req.params.id, session), session)) }));
   }
+  app.get('/api/fulfillment/accounts/:id/ledger', async (req, res) => res.json({ data: await read(async session => {
+    const account = await find('accounts', req, req.params.id, session), options = { session };
+    const invoices = await c('fulfillmentInvoices').find({ ...req.filter, accountId: account._id }, options).sort({ _id: 1 }).limit(101).toArray();
+    const deposits = await c('fulfillmentDeposits').find({ ...req.filter, accountId: account._id }, options).sort({ _id: 1 }).limit(101).toArray();
+    const complete = invoices.length <= 100 && deposits.length <= 100, at = businessNow(runtime), rows = [], credits = [];
+    for (const invoice of invoices.slice(0, 100)) { await verifyRead('fulfillmentInvoices', req, invoice, session); rows.push({ ...invoice, agingBucket: agingBucket(invoice.dueAt, at) }); }
+    for (const receipt of deposits.slice(0, 100)) credits.push(await depositState(runtime.db, req.filter, receipt._id, session));
+    const buckets = {};
+    if (complete) for (const invoice of rows) {
+      const currency = invoice.currency, bucket = invoice.agingBucket;
+      buckets[currency] ||= { CURRENT: money(0n, scales[currency]), DAYS_1_30: money(0n, scales[currency]), DAYS_31_60: money(0n, scales[currency]), DAYS_61_90: money(0n, scales[currency]), DAYS_91_PLUS: money(0n, scales[currency]), UNDATED: money(0n, scales[currency]) };
+      buckets[currency][bucket] = money(minor(buckets[currency][bucket]) + minor(invoice.outstandingAmount), scales[currency]);
+    }
+    return { accountId: account._id, invoices: rows, deposits: credits, aging: complete ? buckets : null, complete, limit: 100, asOf: at, taxCompliance: 'FIXTURE_ONLY_NOT_STATUTORY' };
+  }) }));
+  app.post('/api/fulfillment/deposits', async (req, res) => {
+    fields(req.body, ['accountId', 'amount', 'currency', 'reference', 'idempotencyKey']);
+    id(req.body.accountId); amount(req.body.amount, req.body.currency); const reference = text(req.body.reference);
+    const data = await tx(req, 'deposit.recorded', async session => {
+      await find('accounts', req, req.body.accountId, session);
+      const row = { ...base(req), accountId: req.body.accountId, amount: req.body.amount, currency: req.body.currency, reference, status: 'RECORDED', source: 'OPERATOR_RECORDED', binding: 'ACCOUNT_UNALLOCATED' };
+      await c('fulfillmentDeposits').insertOne(row, { session });
+      await c('fulfillmentDepositHeads').insertOne({ _id: row._id, ...req.filter, version: 1, allocatedAmount: money(0n, scales[row.currency]), availableAmount: row.amount }, { session }); return row;
+    }); res.status(201).json({ data });
+  });
   const packingSources = sources => sources.map(source => ({ sourceType: source.sourceType, sourceId: source.sourceId, quantity: decimal(units(source.quantity)), ...(source.serials ? { serials: [...source.serials].sort() } : {}) })).sort((a, b) => a.sourceId.localeCompare(b.sourceId));
   app.post('/api/fulfillment/packing', async (req, res) => {
     fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'uom', 'sources', 'reference', 'idempotencyKey']);
@@ -303,9 +375,10 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
   });
 
   app.post('/api/fulfillment/invoices', async (req, res) => {
-    fields(req.body, ['salesOrderId', 'expectedVersion', 'lines', 'idempotencyKey']);
+    fields(req.body, ['salesOrderId', 'expectedVersion', 'lines', 'dueAt', 'idempotencyKey']);
     const { salesOrderId, expectedVersion } = req.body;
     id(salesOrderId); version(expectedVersion);
+    if (req.body.dueAt !== undefined && (typeof req.body.dueAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(req.body.dueAt) || !Number.isFinite(Date.parse(req.body.dueAt)) || new Date(req.body.dueAt).toISOString() !== req.body.dueAt)) fail(400, 'INVALID_DUE_DATE');
     const lines = list(req.body.lines, 100).map(l => { fields(l, ['shipmentId', 'quantity']); return { shipmentId: id(l.shipmentId), quantity: l.quantity, amount: qty(l.quantity) }; });
     if (new Set(lines.map(l => l.shipmentId)).size !== lines.length) fail(400, 'DUPLICATE_SHIPMENT');
     const data = await tx(req, 'invoice.issued', async session => {
@@ -331,35 +404,51 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       const financial = vat ? { ...taxAmounts(total, taxTotal, scale), sourceVersion: so.version, quoteRevision: so.quoteRevision, taxRate: '0.11', taxPolicyVersion: 1 } : {};
       total += taxTotal;
       const row = { ...base(req), ...financial, salesOrderId: so._id, accountId: so.accountId, currency, taxPolicy: so.snapshot.taxPolicy, roundingPolicy: so.snapshot.roundingPolicy, lines: invoiceLines, total: money(total, scale), paidAmount: money(0n, scale), outstandingAmount: money(total, scale), allocations: [], status: total ? 'ISSUED' : 'PAID' };
+      row.settlementPolicy = 'IMMUTABLE_POSTING_V1'; row.creditedAmount = money(0n, scale);
+      if (req.body.dueAt !== undefined) row.dueAt = req.body.dueAt;
       await c('fulfillmentInvoices').insertOne(row, { session });
       return row;
     }); res.status(201).json({ data });
   });
 
   app.post('/api/fulfillment/payments', async (req, res) => {
-    fields(req.body, ['accountId', 'amount', 'currency', 'reference', 'allocations', 'idempotencyKey']);
+    fields(req.body, ['accountId', 'amount', 'currency', 'reference', 'allocations', 'settlementKind', 'depositId', 'expectedDepositVersion', 'creditReason', 'idempotencyKey']);
     const { accountId, currency } = req.body;
     id(accountId); const reference = text(req.body.reference), paid = amount(req.body.amount, currency);
+    const settlementKind = req.body.settlementKind || 'CASH';
+    if (!['CASH', 'DEPOSIT', 'CREDIT'].includes(settlementKind)) fail(400, 'INVALID_SETTLEMENT_KIND');
+    if (settlementKind === 'DEPOSIT') { id(req.body.depositId); version(req.body.expectedDepositVersion); }
+    else if (req.body.depositId !== undefined || req.body.expectedDepositVersion !== undefined) fail(400, 'INVALID_DEPOSIT');
+    if (settlementKind === 'CREDIT') text(req.body.creditReason);
+    else if (req.body.creditReason !== undefined) fail(400, 'INVALID_CREDIT');
     const allocations = list(req.body.allocations, 100).map(a => { fields(a, ['invoiceId', 'expectedVersion', 'amount']); return { invoiceId: id(a.invoiceId), expectedVersion: version(a.expectedVersion), amount: a.amount, value: amount(a.amount, currency) }; });
     if (new Set(allocations.map(a => a.invoiceId)).size !== allocations.length) fail(400, 'DUPLICATE_INVOICE');
     if (allocations.reduce((s, a) => s + a.value, 0n) !== paid) fail(400, 'ALLOCATION_MISMATCH');
     const scale = scales[currency];
     const data = await tx(req, 'payment.recorded', async session => {
       await find('accounts', req, accountId, session);
+      if (settlementKind === 'DEPOSIT') await applyDeposit(runtime.db, req.filter, req.body, req.scope.userId, session);
       const paymentId = randomUUID(), applied = [];
       for (const a of allocations) {
         const invoice = await find('fulfillmentInvoices', req, a.invoiceId, session);
+        await validateInvoicePosting(runtime.db, req.filter, invoice, session);
+        if (invoice.allocations.length >= 100) fail(409, 'FINANCIAL_HISTORY_LIMIT');
+        if (settlementKind === 'CREDIT' && invoice.settlementPolicy !== 'IMMUTABLE_POSTING_V1') fail(409, 'IMMUTABLE_INVOICE_POSTING_REQUIRED');
         if (invoice.accountId !== accountId) fail(409, 'ACCOUNT_CONFLICT');
         if (invoice.currency !== currency) fail(409, 'CURRENCY_CONFLICT');
         if (invoice.version !== a.expectedVersion) fail(409, 'VERSION_CONFLICT');
-        if (!['ISSUED', 'PARTIALLY_PAID'].includes(invoice.status)) fail(409, 'STATE_CONFLICT');
+        if (!['ISSUED', 'PARTIALLY_PAID', 'PARTIALLY_SETTLED'].includes(invoice.status)) fail(409, 'STATE_CONFLICT');
         const outstanding = minor(invoice.outstandingAmount) - a.value;
         if (outstanding < 0n) fail(409, 'OVERPAYMENT');
-        const updated = await c('fulfillmentInvoices').findOneAndUpdate({ ...req.filter, _id: invoice._id, version: invoice.version }, { $set: { paidAmount: money(minor(invoice.paidAmount) + a.value, scale), outstandingAmount: money(outstanding, scale), status: outstanding ? 'PARTIALLY_PAID' : 'PAID', updatedAt: new Date() }, $inc: { version: 1 }, $push: { allocations: { paymentId, amount: a.amount, currency, at: new Date() } } }, { session, returnDocument: 'after' });
+        const credited = minor(invoice.creditedAmount || money(0n, scale)) + (settlementKind === 'CREDIT' ? a.value : 0n);
+        const updated = await c('fulfillmentInvoices').findOneAndUpdate({ ...req.filter, _id: invoice._id, version: invoice.version }, { $set: { paidAmount: money(minor(invoice.paidAmount) + (settlementKind === 'CREDIT' ? 0n : a.value), scale), ...(invoice.creditedAmount !== undefined || settlementKind === 'CREDIT' ? { creditedAmount: money(credited, scale) } : {}), outstandingAmount: money(outstanding, scale), status: settlementStatus(outstanding, credited), updatedAt: new Date() }, $inc: { version: 1 }, $push: { allocations: { paymentId, amount: a.amount, currency, at: new Date() } } }, { session, returnDocument: 'after' });
         if (!updated) fail(409, 'VERSION_CONFLICT');
         applied.push({ invoiceId: invoice._id, amount: a.amount, currency, invoiceVersion: updated.version, invoiceStatus: updated.status });
       }
       const row = { ...base(req), _id: paymentId, accountId, amount: req.body.amount, currency, reference, allocations: applied, status: 'RECORDED', source: 'OPERATOR_RECORDED' };
+      row.settlementKind = settlementKind;
+      if (settlementKind === 'DEPOSIT') row.depositId = req.body.depositId;
+      if (settlementKind === 'CREDIT') row.creditReason = req.body.creditReason;
       await c('fulfillmentPayments').insertOne(row, { session });
       return row;
     }); res.status(201).json({ data });

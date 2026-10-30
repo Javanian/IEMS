@@ -1,8 +1,10 @@
 import { stockHash as hash, stockHashless as hashless, stockUnits as units, stockDecimal as decimal } from './catalog-stock-values.mjs';
 import { purchasedInvalid, invoiceSemantic } from './purchased-stock-proof.mjs';
+import { minorUnits, formatMinor } from '../../../packages/contracts/src/domains/logistics-billing/values.mjs';
 const fail = (status, code) => { throw Object.assign(new Error(code), { status, code }); };
 const without = (value, names) => Object.fromEntries(Object.entries(value).filter(([key]) => !names.includes(key)));
-const invoiceCore = value => without(invoiceSemantic(value), ['version', 'status', 'paidAmount', 'outstandingAmount', 'allocations', 'updatedAt']);
+export const invoiceCore = value => without(invoiceSemantic(value), ['version', 'status', 'paidAmount', 'creditedAmount', 'outstandingAmount', 'allocations', 'updatedAt']);
+export const settlementStatus = (outstanding, credited) => outstanding ? credited ? 'PARTIALLY_SETTLED' : 'PARTIALLY_PAID' : credited ? 'SETTLED' : 'PAID';
 const money = (value, scale) => { const text = value.toString().padStart(scale + 1, '0'); return scale ? `${text.slice(0, -scale)}.${text.slice(-scale)}` : text; };
 const scales = { USD: 2, EUR: 2, GBP: 2, IDR: 2, JPY: 0, KWD: 3 };
 const minor = value => { if (typeof value !== 'string' || !/^[0-9]+(?:\.[0-9]+)?$/.test(value)) purchasedInvalid(); return BigInt(value.replace('.', '')); };
@@ -33,12 +35,37 @@ export async function validatePurchasedInvoiceState(db, filter, invoiceId, sessi
   for (const step of chain) {
     const after = step.snapshot, allocation = step.payment.allocations.find(value => value.invoiceId === invoiceId), appended = after?.allocations?.at(-1);
     if (!after || !Array.isArray(after.allocations) || !Array.isArray(previous.allocations) || !allocation || !appended || step.previousVersion !== previous.version || step.previousHash !== hash(invoiceSemantic(previous)) || after.version !== previous.version + 1 || allocation.invoiceVersion !== after.version || allocation.invoiceStatus !== after.status || step.currentHash !== hash(invoiceSemantic(after)) || hash(invoiceCore(after)) !== hash(invoiceCore(previous)) || after.allocations.length !== previous.allocations.length + 1 || hash(after.allocations.slice(0, -1)) !== hash(previous.allocations) || appended.paymentId !== step.payment._id || appended.amount !== allocation.amount || appended.currency !== step.payment.currency || !(appended.at instanceof Date) || !(after.updatedAt instanceof Date)) purchasedInvalid();
-    const paid = minor(previous.paidAmount) + minor(allocation.amount), outstanding = minor(previous.total) - paid;
-    if (outstanding < 0n || after.paidAmount !== money(paid, scales[invoice.currency]) || after.outstandingAmount !== money(outstanding, scales[invoice.currency]) || after.status !== (outstanding ? 'PARTIALLY_PAID' : 'PAID')) purchasedInvalid();
+    const credit = step.payment.settlementKind === 'CREDIT', delta = minor(allocation.amount);
+    const paid = minor(previous.paidAmount) + (credit ? 0n : delta), credited = minor(previous.creditedAmount || money(0n, scales[invoice.currency])) + (credit ? delta : 0n), outstanding = minor(previous.total) - paid - credited;
+    if (outstanding < 0n || after.paidAmount !== money(paid, scales[invoice.currency]) || (after.creditedAmount !== undefined && after.creditedAmount !== money(credited, scales[invoice.currency])) || after.outstandingAmount !== money(outstanding, scales[invoice.currency]) || after.status !== settlementStatus(outstanding, credited)) purchasedInvalid();
     previous = after;
   }
   if (hash(invoiceSemantic(invoice)) !== hash(invoiceSemantic(previous))) purchasedInvalid();
   return { invoice, proof };
+}
+
+export async function validateInvoicePosting(db, filter, invoice, session) {
+  if (invoice.settlementPolicy !== 'IMMUTABLE_POSTING_V1') return { invoice, proofMode: 'LEGACY' };
+  const invalid = () => fail(409, 'FINANCIAL_POSTING_INVALID'), options = { session };
+  const posting = await db.collection('fulfillmentInvoicePostings').findOne({ ...filter, invoiceId: invoice._id }, options);
+  if (!posting || hash(posting.snapshot) !== posting.contentHash || hash(invoiceCore(posting.snapshot)) !== hash(invoiceCore(invoice))) invalid();
+  const payments = await db.collection('fulfillmentPayments').find({ ...filter, 'allocations.invoiceId': invoice._id }, options).limit(101).toArray();
+  if (payments.length > 100 || !Array.isArray(invoice.allocations) || invoice.allocations.length !== payments.length || invoice.version !== payments.length + 1) invalid();
+  let paid = 0n, credited = 0n;
+  for (const payment of payments) {
+    const allocation = payment.allocations.filter(value => value.invoiceId === invoice._id), applied = invoice.allocations.filter(value => value.paymentId === payment._id);
+    const key = await db.collection('fulfillmentKeys').findOne({ ...filter, 'result._id': payment._id }, options);
+    if (allocation.length !== 1 || applied.length !== 1 || !key || hash(key.result) !== hash(payment) || payment.accountId !== invoice.accountId || payment.currency !== invoice.currency || applied[0].amount !== allocation[0].amount || applied[0].currency !== invoice.currency) invalid();
+    const delta = minorUnits(allocation[0].amount, invoice.currency);
+    if (payment.settlementKind === 'CREDIT') {
+      const note = await db.collection('fulfillmentCreditNotes').findOne({ ...filter, paymentId: payment._id }, options);
+      if (!note || hash(hashless(note)) !== note.contentHash || hash(note.allocations) !== hash(payment.allocations) || note.amount !== payment.amount || note.accountId !== payment.accountId || note.currency !== payment.currency) invalid();
+      credited += delta;
+    } else paid += delta;
+  }
+  const outstanding = minorUnits(invoice.total, invoice.currency, { zero: true }) - paid - credited;
+  if (outstanding < 0n || invoice.paidAmount !== formatMinor(paid, invoice.currency) || invoice.creditedAmount !== formatMinor(credited, invoice.currency) || invoice.outstandingAmount !== formatMinor(outstanding, invoice.currency) || payments.length && invoice.status !== settlementStatus(outstanding, credited)) invalid();
+  return { invoice, posting, proofMode: 'IMMUTABLE_POSTING_V1' };
 }
 
 

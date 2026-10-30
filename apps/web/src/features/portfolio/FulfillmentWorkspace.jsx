@@ -13,6 +13,7 @@ import { capabilityState, permissionReason } from './customer-service.mjs';
 import { shipmentCommand, invoiceCommand, paymentCommand, validQuantity } from './fulfillment.mjs';
 import { PurchasedFulfillmentLink,PurchasedFulfillmentOrder } from './PurchasedFulfillmentUi.jsx';
 import { purchasedDocumentAccess,purchasedHint } from './purchased-fulfillment.mjs';
+import WorkspaceTable from '../../components/tables/WorkspaceTable.jsx';
 
 const Boundary = () => <p className="pf-tag">Synthetic data · Operator-recorded documents</p>;
 const money = (currency, amount) => <span className="pf-money">{currency} {displayMoney(amount)}</span>;
@@ -97,6 +98,7 @@ function LegacyFulfillmentOrder() {
     <div className="pf-summary"><span className="pf-status">{order.status}</span><span>{order.snapshot.currency}</span><AuditDetails action="fulfillment.read"><p>Version: {order.version}</p></AuditDetails></div>
     <div className="pf-actions"><Link to={`/portfolio/accounts/${order.accountId}`}>Open account</Link><Link to="/portfolio/fulfillment/invoices">Open invoices</Link><button type="button" disabled={!!commandLocked} onClick={refresh}>Refresh fulfillment</button></div>
     <Balances order={order} resource={balances} />
+    <AccountSettlement key={`account-${order.accountId}`} accountId={order.accountId} currency={order.snapshot.currency} locked={commandLocked} onLockChange={setLocked} onSaved={refresh} />
     <section className="pf-panel"><h2>Prepare dispatch</h2><label className="pf-field">Dispatch step<select value={dispatchStep} disabled={!!commandLocked} onChange={event => setDispatchStep(event.target.value)}><option value="pick">Record a pick for packing</option><option value="ship">Record direct dispatch</option></select></label><p>A pick records the selected goods. Packing records their package reference. Stock availability is checked again when goods are dispatched.</p></section>
     <div className="pf-columns">
       <CommandForm key={`${id}-${dispatchStep}`} title={dispatchStep === 'pick' ? 'Record pick' : 'Record shipment'} permission="fulfillment.ship" action={dispatchStep === 'pick' ? '/api/fulfillment/packing' : '/api/fulfillment/shipments'} locked={commandLocked} onLockChange={setLocked} build={(v, k) => { if (!v.sourceId) throw Error('Select a source.'); if (!validQuantity(v.quantity)) throw Error('Enter a positive quantity with up to 6 decimals.'); if (sourceType === 'WORK_ORDER' && sources.data?.find(source => source._id === v.sourceId)?.serialized && !v.serials?.length) throw Error('Select accepted output serials for this shipment.'); return shipmentCommand(order, v, k); }} onSaved={refresh}>
@@ -106,9 +108,10 @@ function LegacyFulfillmentOrder() {
         <Input label={`Quantity (${order.snapshot.lines[lineIndex]?.uom})`} name="quantity" inputMode="decimal" autoComplete="off" />
         <Input label="Dispatch reference" name="reference" maxLength={200} autoComplete="off" />
       </CommandForm>
-      <CommandForm key={`${id}-invoice`} title="Issue invoice" permission="fulfillment.invoice" action="/api/fulfillment/invoices" locked={commandLocked} onLockChange={setLocked} build={(v, k) => { if (!v.shipmentId) throw Error('Select a shipment.'); if (!validQuantity(v.invoiceQuantity)) throw Error('Enter a positive quantity with up to 6 decimals.'); return invoiceCommand(order, { shipmentId: v.shipmentId, quantity: v.invoiceQuantity }, k); }} onSaved={refresh}>
+      <CommandForm key={`${id}-invoice`} title="Issue invoice" permission="fulfillment.invoice" action="/api/fulfillment/invoices" locked={commandLocked} onLockChange={setLocked} build={(v, k) => { if (!v.shipmentId) throw Error('Select a shipment.'); if (!validQuantity(v.invoiceQuantity)) throw Error('Enter a positive quantity with up to 6 decimals.'); return invoiceCommand(order, { shipmentId: v.shipmentId, quantity: v.invoiceQuantity, dueAt: v.dueAt }, k); }} onSaved={refresh}>
         <Resource resource={shipments}>{({ data }) => { const rows = data.filter(s => s.salesOrderId === id); return rows.length ? <label className="pf-field">Shipment<select name="shipmentId" required defaultValue=""><option value="">Select shipment</option>{rows.map(s => <option key={s._id} value={s._id}>{s.reference} · {s.quantity} {s.uom}</option>)}</select></label> : <p>No shipments yet. Record a shipment first.</p>; }}</Resource>
         <Input label="Quantity to invoice" name="invoiceQuantity" inputMode="decimal" autoComplete="off" />
+        <label className="pf-field">Due date (UTC, optional)<input name="dueAt" type="datetime-local" /></label>
         <p className="pf-muted">Billed from shipped quantity at the order price in {order.snapshot.currency}.</p>
       </CommandForm>
     </div>
@@ -129,11 +132,13 @@ export function FulfillmentDetail({ kind }) {
     <div className="pf-summary"><span className="pf-status">{operatorStatus(row.status)}</span>{kind === 'shipments' && <strong>{row.quantity} {row.uom}</strong>}{kind === 'payments' && <strong>{money(row.currency, row.amount)}</strong>}{kind === 'invoices' && <span>Quote revision {row.quoteRevision || 'not recorded'}</span>}</div>
     <div className="pf-actions">{row.salesOrderId && <Link to={`/portfolio/fulfillment/orders/${row.salesOrderId}${['PURCHASED_SHIPMENT_V1','PURCHASED_INVOICE_V1','PURCHASED_PAYMENT_V1'].includes(row.schema)?'?catalog=1':''}`}>Open order fulfillment</Link>}{identity?.permissions?.includes('crm.read') && <Link to={`/portfolio/accounts/${row.accountId}`}>Open account</Link>}<button type="button" disabled={!!commandLocked} onClick={refresh}>Refresh record</button></div>
     {kind === 'shipments' && <><SourceLineage line={row} /><ShipmentDelivery key={row._id} shipment={row} onLockChange={onDeliveryLock} disabled={!!commandLocked && commandLocked !== 'Confirm delivery'} /><ShipmentReturns key={`returns-${row._id}`} shipment={row} locked={commandLocked} onLockChange={setLocked} /></>}
+    {kind === 'invoices' && <AccountSettlement key={`settlement-${row._id}`} accountId={row.accountId} currency={row.currency} invoice={row} locked={commandLocked} onLockChange={setLocked} onSaved={refresh} />}
+    {kind === 'payments' && <p>Settlement: {row.settlementKind || 'CASH'}{row.settlementKind === 'CREDIT' ? ' · Credit adjustment; no cash received.' : row.settlementKind === 'DEPOSIT' ? ' · Applied from an earlier deposit; no new cash receipt.' : ' · Operator-recorded cash receipt.'}</p>}
     <fieldset disabled={!!commandLocked} data-fulfillment-documents>{kind === 'invoices' && <DocumentIssue key={row._id} kind="invoice" sourceId={row._id} {...(row.schema==='PURCHASED_INVOICE_V1'?documentAccess:{})} />}
     {kind === 'shipments' && row.status === 'SHIPPED' && <DocumentIssue key={row._id} kind="shipment" sourceId={row._id} {...(row.schema==='PURCHASED_SHIPMENT_V1'?documentAccess:{})} />}</fieldset>
     <div className="pf-columns">
       <section className="pf-panel">
-        {kind === 'invoices' && <><h2>Balance</h2><MonetarySummary record={row} /></>}
+        {kind === 'invoices' && <><h2>Balance</h2><MonetarySummary record={row} /><p>Credits applied: {row.currency} {row.creditedAmount || '0'} · Due date: {row.dueAt || 'Not recorded'}</p><p>Posted line contents are immutable. Payment and credit allocations update the settlement projection.</p></>}
         <h2>Linked records</h2>
         <ul className="pf-list">
           {kind === 'shipments' && row.sources.map((s, i) => <li key={i}>{s.sourceType==='CATALOG_RESERVATION'?<PurchasedShipmentSource source={s} orderId={row.salesOrderId} />:<Link to={s.sourceType === 'WORK_ORDER' ? `/portfolio/manufacturing/work-orders/${s.sourceId}` : `/portfolio/warehouse/reservations/${s.sourceId}`}>{s.sourceType === 'WORK_ORDER' ? 'Work order' : 'Reservation'} {s.sourceId.slice(0, 8)}</Link>}<span>{s.quantity} {row.uom}</span>{s.serials && <p>Shipped serials: {s.serials.join(', ')}</p>}<>{s.genealogy && <div><Link to={`/portfolio/manufacturing/work-orders/${s.genealogy.workOrderId}#lot-genealogy`}>Frozen lot genealogy revision {s.genealogy.revision}</Link><AuditDetails action="fulfillment.read"><p className="pf-id">Content hash: {s.genealogy.contentHash}</p></AuditDetails></div>}</><>{s.installation && <div><Link to={`/portfolio/manufacturing/work-orders/${s.installation.workOrderId}#component-installation`}>Frozen received installation revision {s.installation.revision}</Link><AuditDetails action="fulfillment.read"><p className="pf-id">Installation content hash: {s.installation.contentHash}</p></AuditDetails></div>}</>{s.sourceType!=='CATALOG_RESERVATION'&&<MaterialTrace trace={s.materialTrace} output={s.sourceType === 'WORK_ORDER'} />}</li>)}
@@ -143,13 +148,37 @@ export function FulfillmentDetail({ kind }) {
         </ul>
         <h2>History</h2><p className="pf-muted">Created {new Date(row.createdAt).toLocaleString('en-US')}</p><AuditDetails action="fulfillment.read"><p>Version: {row.version}</p></AuditDetails>
       </section>
-      {kind === 'invoices' && row.status !== 'PAID' && <CommandForm title="Allocate payment" permission="fulfillment.pay" action="/api/fulfillment/payments" locked={commandLocked} onLockChange={setLocked} build={(v, k) => { if (!validMoney(v.amount, row.currency) || !/[1-9]/.test(v.amount)) throw Error(`Enter a positive ${row.currency} amount at the currency scale.`); return paymentCommand(row, v, k); }} onSaved={refresh}>
+      {kind === 'invoices' && /[1-9]/.test(row.outstandingAmount) && <CommandForm key={`cash-${row._id}`} title="Allocate payment" permission="fulfillment.pay" action="/api/fulfillment/payments" locked={commandLocked} onLockChange={setLocked} build={(v, k) => { if (!validMoney(v.amount, row.currency) || !/[1-9]/.test(v.amount)) throw Error(`Enter a positive ${row.currency} amount at the currency scale.`); return paymentCommand(row, v, k); }} onSaved={refresh}>
         <Input label={`Amount (${row.currency})`} name="amount" inputMode="decimal" autoComplete="off" />
         <Input label="Payment reference" name="reference" maxLength={200} autoComplete="off" />
         <p className="pf-muted">Applies to this invoice only. Outstanding {row.currency} {displayMoney(row.outstandingAmount)}.</p>
       </CommandForm>}
     </div>
   </>}</Resource></>;
+}
+
+export function AccountSettlement({ accountId, currency, invoice, locked, onLockChange, onSaved }) {
+  const ledger = useResource(`/api/fulfillment/accounts/${accountId}/ledger`);
+  const refresh = () => { ledger.reload(); onSaved?.(); };
+  const amount = values => { if (!validMoney(values.amount, currency) || !/[1-9]/.test(values.amount)) throw Error(`Enter a positive ${currency} amount at its currency scale.`); return values.amount; };
+  return <section className="pf-panel"><h2>Account settlement and aging</h2><Resource resource={ledger}>{({ data: view }) => <>
+    <p>As of {new Date(view.asOf).toLocaleString('en-US')}. Amounts stay in their recorded currency. Fixture tax is not statutory compliance.</p>
+    {!view.complete && <p role="alert">This account exceeds the bounded ledger view. Totals and aging are unavailable; displayed rows are incomplete.</p>}
+    <WorkspaceTable caption="Invoice aging" rowKey={row => row._id} rows={view.invoices} columns={[
+      { key: 'invoice', label: 'Invoice', render: row => <Link to={`/portfolio/fulfillment/invoices/${row._id}`}>{displayReference('invoice', row)}</Link> },
+      { key: 'outstanding', label: 'Outstanding', numeric: true, render: row => `${row.currency} ${row.outstandingAmount}` },
+      { key: 'dueAt', label: 'Due date (UTC)', render: row => row.dueAt || 'Not recorded' },
+      { key: 'agingBucket', label: 'Aging', render: row => row.agingBucket.replaceAll('_', ' ') }
+    ]} empty="No invoices recorded for this account." />
+    {view.aging && Object.entries(view.aging).map(([code, buckets]) => <p key={code}>{code}: {Object.entries(buckets).map(([bucket, value]) => `${bucket.replaceAll('_', ' ')} ${value}`).join(' · ')}</p>)}
+    <h3>Deposits</h3>{!view.deposits.length ? <p>No unallocated deposit receipts recorded.</p> : <ul className="pf-list">{view.deposits.map(row => <li key={row._id}><strong>{row.reference}</strong><span>Received {row.currency} {row.amount} · Applied {row.allocatedAmount} · Available {row.availableAmount}</span></li>)}</ul>}
+    <CommandForm key={`deposit-${accountId}`} title="Record deposit" permission="fulfillment.pay" action="/api/fulfillment/deposits" locked={locked} onLockChange={onLockChange} build={(values, key) => ({ accountId, currency, amount: amount(values), reference: values.reference, idempotencyKey: key })} onSaved={refresh}><Input name="amount" label={`Deposit received (${currency})`} inputMode="decimal" /><Input name="reference" label="Deposit receipt reference" maxLength={200} /><p>Records an account-bound receipt. It is available for an explicit invoice allocation and does not invent a sales order.</p></CommandForm>
+    {invoice && /[1-9]/.test(invoice.outstandingAmount) && <div className="pf-columns">
+      <CommandForm key={`apply-${invoice._id}-${invoice.version}`} title="Apply deposit" permission="fulfillment.pay" action="/api/fulfillment/payments" locked={locked} onLockChange={onLockChange} build={(values, key) => { const deposit = view.deposits.find(row => row._id === values.depositId); if (!deposit) throw Error('Select a deposit receipt.'); amount(values); return { ...paymentCommand(invoice, values, key), settlementKind: 'DEPOSIT', depositId: deposit._id, expectedDepositVersion: deposit.version }; }} onSaved={refresh}><label className="pf-field">Deposit receipt<select name="depositId" required defaultValue=""><option value="">Select deposit</option>{view.deposits.filter(row => row.currency === currency && /[1-9]/.test(row.availableAmount)).map(row => <option key={row._id} value={row._id}>{row.reference} · {row.currency} {row.availableAmount}</option>)}</select></label><Input name="amount" label={`Amount to apply (${currency})`} inputMode="decimal" /><Input name="reference" label="Allocation reference" maxLength={200} /></CommandForm>
+      <CommandForm key={`credit-${invoice._id}-${invoice.version}`} title="Issue credit adjustment" permission="fulfillment.invoice" action="/api/fulfillment/payments" locked={locked} onLockChange={onLockChange} build={(values, key) => { amount(values); return { ...paymentCommand(invoice, values, key), settlementKind: 'CREDIT', creditReason: values.creditReason }; }} onSaved={refresh}><Input name="amount" label={`Credit amount (${currency})`} inputMode="decimal" /><Input name="reference" label="Credit note reference" maxLength={200} /><Input name="creditReason" label="Approved adjustment reason" maxLength={200} /><p>Requires both invoice and payment authority. Reduces receivables without recording cash or changing posted invoice lines.</p></CommandForm>
+    </div>}
+    <button type="button" disabled={!!locked} onClick={ledger.reload}>Refresh account ledger</button>
+  </>}</Resource></section>;
 }
 
 function ShipmentSerials({ workOrderId }) {
