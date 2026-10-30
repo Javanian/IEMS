@@ -8,6 +8,7 @@ export async function initializeProcurement(db) {
   await db.collection('purchaseOrders').createIndex({ tenantId: 1, plantId: 1, requestId: 1 }, { unique: true });
   await db.collection('procurementConversions').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
   await db.collection('procurementPromiseKeys').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
+  await db.collection('procurementRfqKeys').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
 }
 export function installProcurement(app, runtime, { fail, guard, id, fields }) {
   const c = name => runtime.db.collection(name);
@@ -34,9 +35,9 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
     const scope = resolveScopeAliases({ body: { tenantId: req.scope.tenantId, plantId: req.scope.selectedPlantId, ...req.body }, query: req.query, headers: req.headers });
     if (scope.plantId !== req.scope.selectedPlantId) fail(403, 'SCOPE_DENIED');
     req.filter = scope;
-    const requestCommand = /^\/requests\/[^/]+\/(approve|convert)$/.exec(req.path)?.[1];
+    const requestCommand = /^\/requests\/[^/]+\/(approve|convert|rfq|rfq-response)$/.exec(req.path)?.[1];
     const orderCommand = /^\/orders\/[^/]+\/(issue|vendor-confirmation|vendor-promise)$/.exec(req.path)?.[1];
-    const command = ['/vendors', '/requests'].includes(req.path) ? 'write' : requestCommand || (['vendor-confirmation', 'vendor-promise'].includes(orderCommand) ? 'confirm' : orderCommand);
+    const command = ['/vendors', '/requests'].includes(req.path) || ['rfq', 'rfq-response'].includes(requestCommand) ? 'write' : requestCommand || (['vendor-confirmation', 'vendor-promise'].includes(orderCommand) ? 'confirm' : orderCommand);
     req.procurementAction = req.method === 'GET' ? 'procurement.read' : req.method === 'POST' && command ? `procurement.${command}` : null;
     if (!req.procurementAction) fail(404, 'NOT_FOUND');
     await runtime.foundation.authorize(req.scope, { ...scope, action: req.procurementAction }); next();
@@ -81,9 +82,47 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
     const vendorId = id(req.body.vendorId), content = snapshot(req.body);
     const data = await tx(req, 'purchaseRequest.created', async session => {
       await find('vendors', req, vendorId, session);
-      const row = { ...base(req), vendorId, snapshot: content, status: 'DRAFT' };
+      const row = { ...base(req), vendorId, snapshot: content, status: 'DRAFT', lineIds: content.lines.map(() => randomUUID()) };
       await c('purchaseRequests').insertOne(row, { session }); return row;
     }); res.status(201).json({ data });
+  });
+  for (const operation of ['rfq', 'rfq-response']) app.post(`/api/procurement/requests/:id/${operation}`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey', 'reference', ...(operation === 'rfq-response' ? ['rfqId', 'prices'] : [])]);
+    const { expectedVersion, idempotencyKey: key, reference } = req.body;
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) fail(400, 'INVALID_VERSION');
+    if (typeof key !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(key)) fail(400, 'INVALID_IDEMPOTENCY_KEY');
+    if (typeof reference !== 'string' || !reference.trim() || reference.length > 200) fail(400, 'INVALID_REFERENCE');
+    const payloadHash = createHash('sha256').update(JSON.stringify([operation, req.params.id, req.body])).digest('hex');
+    const data = await tx(req, `purchaseRequest.${operation}`, async session => {
+      const row = await find('purchaseRequests', req, req.params.id, session);
+      await find('vendors', req, row.vendorId, session);
+      const prior = await c('procurementRfqKeys').findOne({ ...req.filter, key }, { session });
+      if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return { ...prior.data, replay: true }; }
+      if (row.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
+      if (row.status !== 'DRAFT') fail(409, 'STATE_CONFLICT');
+      row.lineIds ||= row.snapshot.lines.map(() => randomUUID());
+      const event = { _id: randomUUID(), requestId: row._id, requestVersion: expectedVersion, vendorId: row.vendorId, reference: reference.trim(), recordedAt: new Date(), recordedBy: req.scope.userId, source: 'OPERATOR_RECORDED' };
+      if (operation === 'rfq') {
+        Object.assign(event, { kind: 'RFQ_PREPARED', lineIds: [...row.lineIds], snapshot: structuredClone(row.snapshot) });
+      } else {
+        const rfq = row.rfqHistory?.find(item => item._id === id(req.body.rfqId) && item.kind === 'RFQ_PREPARED');
+        if (!rfq || rfq.vendorId !== row.vendorId) fail(409, 'RFQ_CONFLICT');
+        if (row.rfqHistory.some(item => item.rfqId === rfq._id)) fail(409, 'RFQ_RESPONSE_RECORDED');
+        const prices = req.body.prices;
+        if (!Array.isArray(prices) || prices.length !== rfq.lineIds.length || new Set(prices.map(price => price?.lineId)).size !== prices.length) fail(400, 'INVALID_RFQ_PRICES');
+        for (const price of prices) { fields(price, ['lineId', 'unitPrice', 'currency']); if (!rfq.lineIds.includes(price.lineId)) fail(400, 'INVALID_RFQ_PRICES'); }
+        const selected = snapshot({ ...rfq.snapshot, lines: rfq.snapshot.lines.map((line, index) => { const price = prices.find(item => item.lineId === rfq.lineIds[index]); return { ...line, unitPrice: price.unitPrice, currency: price.currency }; }) });
+        Object.assign(event, { kind: 'RFQ_RESPONSE_SELECTED', rfqId: rfq._id, lineIds: [...rfq.lineIds], snapshot: structuredClone(selected) });
+        row.snapshot = selected; row.lineIds = [...rfq.lineIds]; row.selectedRfqResponseId = event._id;
+      }
+      row.rfqHistory = [...(row.rfqHistory || []), event];
+      row.version++; row.updatedAt = event.recordedAt;
+      const changed = await c('purchaseRequests').replaceOne({ ...req.filter, _id: row._id, version: expectedVersion }, row, { session });
+      if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+      await c('procurementRfqKeys').insertOne({ _id: randomUUID(), ...req.filter, key, payloadHash, data: row }, { session });
+      return row;
+    });
+    const { replay, ...record } = data; res.json({ data: record });
   });
   app.post('/api/procurement/orders/:id/vendor-promise', async (req, res) => {
     fields(req.body, ['expectedVersion', 'vendorId', 'promisedAt', 'reference', 'reason', 'idempotencyKey']);
@@ -138,7 +177,7 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
         let order;
         if (operation === 'approve') { row.approval = { snapshot: structuredClone(row.snapshot), approvedBy: req.scope.userId, approvedAt: new Date() }; row.status = 'APPROVED'; }
         if (operation === 'convert') {
-          order = { ...base(req), requestId: row._id, vendorId: row.vendorId, snapshot: structuredClone(row.approval.snapshot), status: 'DRAFT' };
+          order = { ...base(req), requestId: row._id, vendorId: row.vendorId, snapshot: structuredClone(row.approval.snapshot), status: 'DRAFT', ...(row.lineIds ? { lineIds: [...row.lineIds] } : {}), ...(row.selectedRfqResponseId ? { selectedRfqResponseId: row.selectedRfqResponseId } : {}) };
           await c('purchaseOrders').insertOne(order, { session });
           await c('procurementConversions').insertOne({ _id: randomUUID(), ...req.filter, key: idempotencyKey, payloadHash, requestId: row._id, orderId: order._id }, { session });
           row.status = 'CONVERTED'; row.orderId = order._id;
