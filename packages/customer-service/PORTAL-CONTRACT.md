@@ -1,11 +1,11 @@
-# Portal source adapter: PLAT-017 milestone
+# Scoped customer and vendor portals: PLAT-017 implementation handoff
 
 `apps/portfolio-api/src/portals.mjs` exports
 `readVendorPurchaseOrder(db, { tenantId, plantId, vendorId, cohort, orderId, documentRevision? }, session)`.
 It requires an active caller transaction. It does **not** authenticate a user or
 grant access. Before invoking it, resolve an active authenticated user's portal
 grant to the vendor within the same transaction; never trust a vendor ID from the
-request as authorization. No HTTP route is installed by this module yet.
+request as authorization. HTTP routes are exported by installPortals; shared mounting belongs to TPR-149.
 
 LEGACY uses `purchaseOrders.vendorId`; CATALOG uses
 `catalogPurchaseOrders.content.vendorId`. Each lookup includes tenant, plant,
@@ -24,7 +24,7 @@ snapshots are omitted. The source hash identifies the original approved snapshot
 not a hash of the public projection. Status is the current order status, even on a
 historical document read. No shipment or delivery promise is inferred.
 
-## Remaining implementation
+## Access and lifecycle contract
 
 `authorizePortalParty(runtime, opaqueScope, { plantId, partyId, kind, action }, session)`
 is the protected grant resolver. It calls foundation `authorizeInTransaction` and
@@ -74,14 +74,13 @@ there is no TTL deletion of grant history. Duplicate grants return
 Replay reauthorizes the administrator and returns the original ID-only receipt;
 it never recreates or reactivates a revoked grant. Every later portal read must
 resolve current recipient, source party and grant authority independently.
-HTTP integration remains unfinished.
+The owned HTTP installer is complete; shared host mounting remains TPR-149.
 No collection initialization or data migration has been executed. Callers must
 not insert grants from untrusted request fields or expose the low-level adapter.
 
-Portal endpoints, customer order
-views, durable vendor response/promise history, replay reauthorization and screens
-remain required. Shared mount and navigation belong to the integration owner.
-This adapter is a usable source contract, not an implemented portal or independent
+Portal endpoints, customer source/status views, durable vendor response/promise
+history, replay reauthorization and both screens have implementation handoff.
+Shared mount and navigation belong to TPR-149. Local checks are not independent
 acceptance. External sends remain disabled.
 
 ## Minimum evidence
@@ -148,7 +147,7 @@ remain NOT_RUN.
 - POST `/api/portals/grants` with grantId/userId/partyId/kind/actions/expiresAt/commandKey.
 - POST `/api/portals/grants/:grantId/revoke` with expectedRevision/commandKey.
 
-All plant IDs derive from authenticated selectedPlantId. Unknown query/body fields, including tenant/plant/actor overrides, are rejected. Existing service checks own domain errors/command receipts. Initializers remain explicit: createPortalAccessService(runtime).initialize() and createVendorResponseService(runtime).initialize(); never initialize DB from a request. Customer portal routes/screens remain incomplete. No shared app.mjs edits or external sends.
+All plant IDs derive from authenticated selectedPlantId. Unknown query/body fields, including tenant/plant/actor overrides, are rejected. Existing service checks own domain errors/command receipts. Initializers remain explicit: createPortalAccessService(runtime).initialize() and createVendorResponseService(runtime).initialize(); never initialize DB from a request. Customer routes and both screens are described below. No shared app.mjs edits or external sends.
 
 ## Customer source/status milestone
 
@@ -177,11 +176,11 @@ Source data is never rewritten. No second authoritative status ledger is stored.
 ACL/source predicates, denied short circuit, public projections, quantity/UOM
 boundaries, malformed/corrupt source errors, bounded coverage and HTTP scope.
 Actual Mongo isolation, running HTTP/browser and independent QA remain NOT_RUN.
-Integration mount still belongs to TPR-149; portal screens remain incomplete.
+Integration mount still belongs to TPR-149; both portal screens are ready for shared mounting.
 
 ## Customer screen integration delta
 
-`CustomerPortalWorkspace` named export from `apps/web/src/features/portfolio/CustomerPortalWorkspace.jsx` is ready for the authenticated shared route owner. Proposed route `/portfolio/portals/customer`; no shared route or navigation was edited. It looks up an account UUID and SO-/RP- number using the existing authenticated customer GET endpoint, showing public stage, source revision, checked time, coverage, confirmed dates and per-line shipment quantity/UOM. Identity changes and unmount cancel reads; obsolete results cannot overwrite the current lookup. Customer/vendor IDs never grant authorization. There is no party-discovery endpoint, so lookup uses the ID provided with access. Vendor screen remains outstanding. Browser/rendered accessibility and running API verification remain NOT_RUN; JSX compilation is not browser acceptance.
+`CustomerPortalWorkspace` named export from `apps/web/src/features/portfolio/CustomerPortalWorkspace.jsx` is ready for the authenticated shared route owner. Proposed route `/portfolio/portals/customer`; no shared route or navigation was edited. It looks up an account UUID and SO-/RP- number using the existing authenticated customer GET endpoint, showing public stage, source revision, checked time, coverage, confirmed dates and per-line shipment quantity/UOM. Identity changes and unmount cancel reads; obsolete results cannot overwrite the current lookup. Customer/vendor IDs never grant authorization. There is no party-discovery endpoint, so lookup uses the ID provided with access. Vendor screen handoff follows below. Browser/rendered accessibility and running API verification remain NOT_RUN; JSX compilation is not browser acceptance.
 
 ## Vendor screen integration delta
 
@@ -189,4 +188,4 @@ Integration mount still belongs to TPR-149; portal screens remain incomplete.
 
 Before POST, the exact command and public PO projection are saved in sessionStorage scoped by authenticated tenant/plant/user. A reload in the same tab restores reconciliation without automatically sending. Storage failure prevents POST. Pending attempts lock new submissions/lookup; explicit reconciliation uses the same payload, response ID and command key. Confirmed receipts clear recovery. Identity changes hide the previous account's data; the original scoped recovery remains available on return. No credential/private message/internal note is saved. Clearing tab storage or closing the tab loses client recovery; use recorded response/command references and purchasing support rather than inventing a new key. No external send.
 
-Minimum JSX compile and web build are not browser acceptance. Running HTTP/Mongo, rendered visual/accessibility, storage failure/reload and cross-identity browser scenarios remain final QA NOT_RUN. Shared route/role/initializer mounting remains TPR-149. PLAT-017 implementation handoff is ready subject to integration and independent QA; other assigned roadmap IDs remain incomplete.
+Minimum JSX compile and web build are not browser acceptance. Running HTTP/Mongo, rendered visual/accessibility, storage failure/reload and cross-identity browser scenarios remain final QA NOT_RUN. Shared route/role/initializer mounting remains TPR-149. PLAT-017 implementation handoff is ready subject to integration and independent QA; the latest implementation matrix and external boundaries are in IMPLEMENTATION-HANDOFF.md.
