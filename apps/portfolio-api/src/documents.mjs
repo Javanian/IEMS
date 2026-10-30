@@ -8,7 +8,7 @@ import { createSnapshot, createIssuer } from '../../../packages/document-renderi
 
 export const documentActions = ['document.read', 'document.issue'];
 export const documentRoles = { documentReader: ['document.read'], documentIssuer: documentActions };
-const kinds = { quote: ['quotes', 'quote.read'], purchaseOrder: ['purchaseOrders', 'procurement.read'], invoice: ['fulfillmentInvoices', 'fulfillment.read'], repairInvoice: ['repairInvoices', 'repair.read'], shipment: ['fulfillmentShipments', 'fulfillment.read'] };
+const kinds = { quote: ['quotes', 'quote.read'], purchaseRequest: ['purchaseRequests', 'procurement.read'], purchaseOrder: ['purchaseOrders', 'procurement.read'], invoice: ['fulfillmentInvoices', 'fulfillment.read'], repairInvoice: ['repairInvoices', 'repair.read'], shipment: ['fulfillmentShipments', 'fulfillment.read'] };
 const options = { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' };
 export async function initializeDocuments(runtime) {
   await runtime.db.collection('documentIntents').createIndex({ tenantId: 1, legalEntityId: 1, plantId: 1, kind: 1, sourceId: 1, sourceVersion: 1 }, { unique: true });
@@ -42,6 +42,9 @@ export function installDocuments(app, runtime, { fail, guard, id }) {
       const approval = row.approvals?.find(a => a.revision === key.sourceVersion);
       if (!approval) fail(409, 'SOURCE_NOT_ISSUED');
       source = { snapshot: approval.snapshot };
+    } else if (key.kind === 'purchaseRequest') {
+      if (!['APPROVED', 'CONVERTED'].includes(row.status) || !row.approval?.snapshot) fail(409, 'SOURCE_NOT_ISSUED');
+      source = { snapshot: row.approval.snapshot };
     } else if (key.kind === 'purchaseOrder') {
       if (!['ISSUED', 'CONFIRMED'].includes(row.status)) fail(409, 'SOURCE_NOT_ISSUED');
       source = { snapshot: row.snapshot };

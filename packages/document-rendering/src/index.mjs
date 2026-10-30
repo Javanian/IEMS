@@ -21,7 +21,7 @@ const minor = value => BigInt(value.replace('.', ''));
 const format = (value, scale) => { const raw = value.toString().padStart(scale + 1, '0'); return scale ? raw.slice(0,-scale)+'.'+raw.slice(-scale) : raw; };
 
 export function createSnapshot(kind, scope, source, { templateVersion } = {}) {
-  const vatBody = kind === 'quote' || kind === 'purchaseOrder' ? source.snapshot : source;
+  const vatBody = ['quote', 'purchaseRequest', 'purchaseOrder'].includes(kind) ? source.snapshot : source;
   if (vatBody?.schemaVersion !== undefined && vatBody.schemaVersion !== (vatBody.taxPolicy === 'FIXTURE_VAT_11_V1' ? 2 : 1)) fail('INVALID_POLICY_SCHEMA');
   if (vatBody?.taxPolicy === 'FIXTURE_VAT_11_V1') {
     if (templateVersion !== undefined && templateVersion !== 3) fail('INVALID_TEMPLATE');
@@ -39,12 +39,12 @@ export function createSnapshot(kind, scope, source, { templateVersion } = {}) {
   if (vatBody?.taxPolicy !== undefined && vatBody.taxPolicy !== 'NO_TAX') fail('INVALID_POLICY');
   templateVersion ??= 2;
   if (!Object.hasOwn(templates, templateVersion)) fail('INVALID_TEMPLATE');
-  if (!['quote', 'purchaseOrder', 'invoice', 'shipment'].includes(kind)) fail('INVALID_KIND');
+  if (!['quote', 'purchaseRequest', 'purchaseOrder', 'invoice', 'shipment'].includes(kind)) fail('INVALID_KIND');
   const selected = checkedScope(scope);
   if (scopeKeys.some(k => selected[k] !== source[k])) fail('SCOPE_MISMATCH');
   const sourceId = text(source._id, 100), sourceVersion = source.version;
   if (!Number.isSafeInteger(sourceVersion) || sourceVersion < 1) fail('INVALID_VERSION');
-  const body = kind === 'quote' || kind === 'purchaseOrder' ? source.snapshot : source;
+  const body = ['quote', 'purchaseRequest', 'purchaseOrder'].includes(kind) ? source.snapshot : source;
   let content;
   if (kind === 'shipment') {
     content = { salesOrderId: text(body.salesOrderId,100), reference: text(body.reference), lines: [{ description: `Sales order line ${body.lineIndex}`, quantity: quantity(body.quantity), uom: text(body.uom,16) }] };
@@ -91,7 +91,7 @@ export function createSnapshot(kind, scope, source, { templateVersion } = {}) {
 function verify(snapshot) {
   const { contentHash: hash, ...body } = snapshot;
   if (hash !== contentHash(body) || canonical(snapshot.template) !== canonical(snapshot.schemaVersion === 2 ? vatTemplate : templates[snapshot.template?.version])) fail('SNAPSHOT_INTEGRITY');
-  const recreated = createSnapshot(snapshot.kind, snapshot.scope, { _id: snapshot.sourceId, ...snapshot.scope, version: snapshot.sourceVersion, ...(snapshot.kind === 'quote' || snapshot.kind === 'purchaseOrder' ? { snapshot } : snapshot.kind === 'shipment' ? { ...snapshot, lineIndex: Number(snapshot.lines[0].description.replace('Sales order line ','')), ...snapshot.lines[0] } : snapshot) }, { templateVersion: snapshot.template.version });
+  const recreated = createSnapshot(snapshot.kind, snapshot.scope, { _id: snapshot.sourceId, ...snapshot.scope, version: snapshot.sourceVersion, ...(['quote', 'purchaseRequest', 'purchaseOrder'].includes(snapshot.kind) ? { snapshot } : snapshot.kind === 'shipment' ? { ...snapshot, lineIndex: Number(snapshot.lines[0].description.replace('Sales order line ','')), ...snapshot.lines[0] } : snapshot) }, { templateVersion: snapshot.template.version });
   if (canonical(recreated) !== canonical(snapshot)) fail('SNAPSHOT_INTEGRITY');
 }
 export async function renderPdf(snapshot) {
@@ -101,7 +101,7 @@ export async function renderPdf(snapshot) {
   const doc = new PDFDocument({ size: 'A4', margin: 48, compress: true, info: { Title: `${snapshot.kind} ${snapshot.sourceId}`, Author: 'IEMS', CreationDate: new Date('2000-01-01T00:00:00Z'), ModDate: new Date('2000-01-01T00:00:00Z') } });
   const chunks = [];
   const completed = new Promise((resolve,reject) => { doc.on('data',chunk=>chunks.push(chunk)); doc.on('end',()=>resolve(Buffer.concat(chunks))); doc.on('error',reject); });
-  doc.font('Helvetica').fontSize(22).fillColor('#153449').text(snapshot.kind === 'purchaseOrder' ? 'PURCHASE ORDER' : snapshot.kind.toUpperCase());
+  doc.font('Helvetica').fontSize(22).fillColor('#153449').text(({ purchaseOrder: 'PURCHASE ORDER', purchaseRequest: 'PURCHASE REQUEST' })[snapshot.kind] || snapshot.kind.toUpperCase());
   doc.moveDown().fontSize(10).fillColor('#111111');
   for (const row of [`Reference: ${snapshot.sourceId} / revision ${snapshot.sourceVersion}`, ...scopeKeys.map(k=>`${k}: ${snapshot.scope[k]}`), `Template: ${snapshot.template.id} v${snapshot.template.version}`]) doc.text(row);
   if (snapshot.reference) doc.text(`Dispatch reference: ${snapshot.reference}`);
