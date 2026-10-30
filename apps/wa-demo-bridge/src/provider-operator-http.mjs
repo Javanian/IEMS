@@ -10,7 +10,8 @@ const object = value => value && Object.getPrototypeOf(value) === Object.prototy
 export function createScopedProviderOperatorHandler(options) {
   const commands = Object.freeze({
     provision: createScopedProviderProvisioningCommands(options).provision,
-    revoke: createScopedProviderRevocationCommands(options).revoke,
+    revoke: createScopedProviderRevocationCommands({ ...options,
+      ...(options.now ? { now: () => new Date(options.now()) } : {}) }).revoke,
     configurePolicy: createScopedProviderPolicyCommands(options).configurePolicy,
     activate: createScopedProviderActivation(options),
     queueReply: createScopedProviderReplyCommands(options),

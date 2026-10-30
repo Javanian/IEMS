@@ -90,213 +90,64 @@ Authorization transitions, eligible inbox persistence, queue admission and local
 
 This is a standalone preview slice, not full WA acceptance, a live order integration, retention implementation, browser/account isolation, public production login, or a live delivery lease/receipt system. Actual tenant-foundation session authentication is integrated for the owned preview operator API; synthetic customer binding and single-use known-prompt scope remain preview-only. The synthetic HTTP endpoint necessarily parses its bounded JSON envelope including `text`; the lazy body privacy gate applies to `inbound(meta, readBody)` and no ignored content is durably stored or logged. A future provider must call that lazy interface only after metadata extraction, not forward private content through this HTTP fixture endpoint. Any future live adapter requires remote-call fencing, conversation modes and independent acceptance. No provider guarantees or exactly-once delivery claims are made.
 
-## Prompt body privacy (PLAT-051)
+## Local provider implementation (PLAT-047/051)
 
-Known-prompt answers now persist only a scoped receipt with prompt/session/binding versions and bodyRetained:false. No raw answer, body hash or derived answer is retained or sent to customer-service. Prompt consumption and the metadata receipt remain atomic. Explicit prefixed commands retain the existing scoped CS command contract. Historical preview rows are unchanged; this change does not erase existing data. The synthetic HTTP envelope still parses a bounded body in memory. Live browser/provider support remains unimplemented and disabled.
+Status: IMPLEMENTED_QA_PENDING for local policy, lifecycle and callback composition.
+External send is always disabled. Actual provider login, inbound collection and
+messaging acceptance require scoped provider/account access and final independent
+QA; no provider-specific navigation or transport is implemented by the blank-browser
+driver. It must not be represented as a live WhatsApp session.
 
-## Provider callback envelope contract (PLAT-047/051)
+`createLocalProviderRuntime` in `src/provider-runtime.mjs` composes the following
+owned modules with one fixed tenant/plant/account mapping and trusted host adapters:
 
-`src/provider-callback.mjs` exports `createProviderCallbackVerifier`. Trusted configuration supplies tenant UUID, account ID, a separate callback key as a Buffer of at least 32 bytes, and a clock. The adapter must bound raw request bytes before buffering; verifier accepts at most 4096 bytes. HMAC SHA256 covers `timestamp + "." + rawBody` (UTF-8 timestamp, exact request bytes), encoded as 64 lowercase hex characters. Timestamp is epoch milliseconds, within five minutes of server time. Never use service/approval keys as callback keys.
+| Boundary | Module | Behavior |
+| --- | --- | --- |
+| Verified source | provider-binding-source.mjs | Current CRM/contact/binding read and write fence in caller transaction; synthetic/fixture onboarding is denied for live authority. Verification methods are trusted host configuration. |
+| Policy | provider-policy.mjs, provider-authority.mjs | Allowlist, exact command prefix, expiry, pause, identity/binding/reply/approval versions and revocation fences before registration/replay. |
+| Operator commands | provider-operator.mjs, provider-operator-http.mjs | Foundation actor authorization in effect transaction; six metadata-only commands: provision, revoke, configurePolicy, activate, queueReply, approveReply. |
+| Durable commands | provider-provisioning.mjs, provider-policy-commands.mjs, provider-activation.mjs, provider-replies.mjs, provider-approvals.mjs, provider-commands.mjs | Inactive provisioning, revision CAS, separate explicit approval, atomic receipt/audit/outbox and replay reauthorization. No role grant or private body persistence. |
+| Session | provider-session.mjs, provider-lifecycle.mjs, provider-browser.mjs | One durable owner/generation; no lease timeout takeover; confirmed close before release. Delivery registration requires current policy/source. |
+| Callback | provider-callback.mjs, provider-reconciliation.mjs, provider-http.mjs | Exact-byte HMAC before parsing, durable event dedup, fixed delivery/provider ID and monotonic terminal-state reconciliation. Never resends. |
+| Concrete local browser | local-browser-driver.mjs | Installed Chromium, unique fresh scratch profile, about:blank only, sanitized child environment, confirmed process exit. No URL/evaluate/ready/send port. |
 
-Authenticated JSON must contain exactly version (1), tenantId, accountId, eventId, deliveryId (UUID), providerMessageId and status (ACCEPTED/DELIVERED/FAILED). Unknown fields, including bodies/notes, are rejected. The returned frozen object is metadata only. Authentication is not event consumption: the eventual handler must transactionally deduplicate eventId, bind deliveryId/providerMessageId to the configured account and session generation, enforce monotonic terminal states and preserve UNKNOWN until evidence reconciles it. A fresh signature must never authorize resending an ambiguous delivery.
+The runtime constructor does not read/write the DB or launch a process. Host startup
+must explicitly await initialize(), which declares the authority, command, session,
+delivery and callback indexes. Until then both handlers return 503 and lifecycle
+start/stop refuse. Initialization is not a production migration authorization.
+The host supplies db, bounded atomic transaction(fn), foundation,
+partyDirectory.verifyCustomerContact, fixed tenantId/plantId/accountId,
+verifiedMethods, authenticate, callbackSecret (Buffer at least 32 bytes), and browser
+{ ownerId, executablePath, scratchRoot, timeoutMs? }. Paths must be absolute, scratch
+must be run-owned, and executable must already be installed. Do not install a browser
+or forward CDP ports during startup. No credential secret is returned from status.
 
-This module is unmounted and makes no provider calls. HTTP wiring, durable callback processing, single browser ownership and provider integration remain incomplete. Live send remains disabled. The pure contract checks use synthetic envelopes and do not establish provider or Mongo acceptance.
+Mount operatorHandler on an exact authenticated host route before a JSON parser;
+authenticate must enforce host session, origin and CSRF policy. Mount callbackHandler
+on a separate exact route, preserving bytes for HMAC. Constructor configuration
+cannot come from request tenant/plant/account fields. Shared host mounting and role
+registration remain integration owner TPR-149 work; no root app/manifest was edited.
+start/stop are trusted local host operations, never public request endpoints. The
+runtime deliberately exposes no dispatch or delivery-registration port.
 
-`src/provider-reconciliation.mjs` now supplies an unmounted callback consumer. It verifies each envelope before an injected replica-set transaction, requires a pre-registered scoped delivery, pins the provider message ID, consumes metadata-only event IDs atomically with a revision CAS, and rejects conflicting replays or terminal receipts. Late ACCEPTED events cannot regress DELIVERED/FAILED. UNKNOWN is resolved only by authenticated receipt evidence; this module has no send method. A duplicate returns the current delivery state and never writes another event.
+Operator request is { action, payload }, with no extra envelope fields. The HTTP
+reader bounds UTF8 JSON to 8192 bytes; invalid content encoding and unknown actions
+fail closed. Commands use stable commandId and expected revisions. The composition
+adapts its epoch-millisecond clock to the revocation command's Date audit contract.
+Unknown outcomes return same-command reconciliation guidance without automatic retry.
 
-Integration must explicitly call `initializeProviderReconciliation(db)` before accepting callbacks, supplying unique event/delivery/provider-message indexes. This initializer is declared but has not been executed. The transaction dependency must commit/rollback all collection operations together and handle Mongo transient transaction conflicts with bounded retry; ambiguous commit outcomes must be reconciled using the same event ID. Delivery registration/session generation fencing, session ownership, HTTP wiring and actual provider receipts remain incomplete. No preview outbox records are treated as registered live deliveries. Run the bounded synthetic contract checks explicitly with `node --test apps/wa-demo-bridge/test/provider-callback.test.mjs apps/wa-demo-bridge/test/provider-reconciliation.test.mjs`; Mongo uniqueness/concurrency and provider acceptance remain final QA work.
+Callback envelope is exactly version=1, tenantId, accountId, eventId, deliveryId,
+providerMessageId and status (ACCEPTED/DELIVERED/FAILED). Sign lowercase hex HMAC-SHA256
+of timestamp + '.' + exact bytes using x-iems-timestamp and x-iems-signature; maximum
+body 4096 bytes and timestamp skew 5 minutes. Never persist message bodies, notes,
+raw callback bytes, session activation codes or prompt text in provider authority,
+callback/audit/outbox collections. `buildCsReplyBody` is metadata-only; private domain
+bodies remain outside automation/reporting/provider metadata storage.
 
-## Session and delivery registration boundary (PLAT-047)
-
-`src/provider-session.mjs` supplies an unmounted internal registry. Trusted configuration fixes tenant/account; acquire exclusively reserves one owner and monotonically increasing generation. An active owner cannot be acquired again, including by the same owner. There is no timeout takeover. Release requires the owner/generation plus an internal assertion that its adapter has closed. That assertion must come from successful browser teardown, never an HTTP body. A crashed or ambiguous acquire/close stays reserved pending operator reconciliation of the owned browser/process; do not automatically release or start another browser. This registry alone does not open, close or isolate a browser.
-
-Registration validates UUID delivery/reply IDs and the current owned generation in one transaction. Its required `authorizeRegistration(input, session)` dependency must reauthorize and fence current reply, identity, approval, allowlist, prefix, expiry and pause policy in that same transaction, returning exactly true. A permissive stub is not a live policy implementation. Registration contends with release on the session document. Unique scope/reply and scope/delivery indexes prevent another delivery for an ambiguous reply. Replays reauthorize, return the existing state and never reset an attempt; a different reply or session generation cannot reuse a delivery. Only metadata is retained. SENDING denotes a reserved attempt, not evidence that a provider was called. A failure after registration must retain the original ID and reconcile; never derive a new ID and resend. Historical receipts can reconcile a registered old-generation delivery after browser closure; they do not authorize new work in that generation.
-
-Integration must run both `initializeProviderSessions(db)` and `initializeProviderReconciliation(db)` before accepting registrations/callbacks. Neither initializer has been executed here. Use bounded transaction retry only for known aborted transactions and same-ID reconciliation for ambiguous commits. No registry method sends, and ready events have no dispatch hook. Browser lifecycle orchestration, actual policy dependency, callback HTTP mount and provider integration remain incomplete; external send is disabled. Synthetic checks: `node --test apps/wa-demo-bridge/test/provider-session.test.mjs apps/wa-demo-bridge/test/provider-callback.test.mjs apps/wa-demo-bridge/test/provider-reconciliation.test.mjs`. Real Mongo contention, index enforcement and browser recovery await final QA.
-# Provider lifecycle boundary
-
-`src/provider-lifecycle.mjs` wraps an injected registry and adapter with explicit
-start/stop operations. Durable acquisition precedes open; a confirmed
-`{ closed: true }` close precedes release. Overlapping operations are rejected.
-Any uncertain acquire, open, close or release enters `UNKNOWN`, retains the
-reservation and requires operator reconciliation; there is no automatic retry,
-reacquire or timeout takeover. The adapter receives only frozen ownership
-metadata, with no ready dispatch hook or send capability. External send remains
-disabled. This boundary is not mounted and supplies no browser/provider driver.
-
-`createBridge` optionally accepts `providerCallbacks: { secret: Buffer }` to mount
-`POST /provider/callback`. Default is disabled (404). This separate HMAC key is
-not the preview bearer secret. The reconciler is bound to the configured tenant
-and account and uses the bridge transaction; initialize provider indexes before
-enabling it. Only exact `application/json`, identity encoding, at most 4096 bytes,
-`x-iems-timestamp` and `x-iems-signature` are accepted. Authenticate exact bytes
-before metadata parsing; no private bodies are stored or logged. Conflict returns
-409; uncertain storage failure returns 503 without retry. The provider must retain
-the event/delivery IDs when reconciling a failed acknowledgement. Callbacks may
-reconcile registered deliveries while paused; they never authorize dispatch.
-This does not enable live mode, register deliveries, or open a browser. Policy and
-browser integration remain incomplete. HTTP contract checks use in-memory streams;
-real HTTP/Mongo/provider and independent QA remain NOT_RUN.
-
-`src/provider-policy.mjs` supplies the registration evaluator for
-`authorizeRegistration`. Its `readAndFence(request, session)` dependency must
-load current scoped policy, identity, binding, approval and reply metadata and
-write-fence their revocation authorities in that same registration transaction.
-Never pass caller snapshots or preview collections as live authority. The
-evaluator checks explicit approval, customer/recipient binding, identity/binding
-versions, content hash, configured command prefix, allowlist, pause and expiry
-on every call, including receipt replay. It accepts metadata only and does not
-read or persist message text. `commandPrefix` must be attested by the trusted
-command parser; it is not proof that arbitrary text has that prefix.
-The evaluator is not mounted: the durable live authority provisioning/read-and-
-fence adapter and browser driver remain incomplete. No live mode is enabled.
-Synthetic contract checks: `node --test apps/wa-demo-bridge/test/provider-policy.test.mjs`.
-# Durable registration authority
-
-`revokeProviderAuthority` disables one scoped authority with revision CAS in the
-caller's effect transaction. It never inserts a row, reactivates authority, or
-retries an uncertain write. Operator authorization and durable command receipt,
-audit and outbox must be supplied by the caller before mounting an endpoint.
-Policy, identity and binding revocations invalidate queued registrations through
-their existing read fences; reply and approval revocations invalidate that reply.
-This helper is not mounted and does not grant live authority.
-
-`createDurableProviderPolicy` requires a trusted `verifyBindingSource` reader
-(compose `createProviderBindingSource` for the configured plant/account). Binding
-authority must carry `sourceBindingId` and `sourceBindingVersion`. Each registration,
-including replay, revalidates and fences that source in the same effect transaction;
-the source expiry must cover the authority expiry. Missing composition fails closed.
-Existing authority rows without source provenance cannot register. No backfill or
-activation is performed by this reader.
-
-`createDurableProviderPolicy` reads metadata from `provider_authority` and writes
-a revision fence on each policy, identity, binding, reply and approval row in the
-registration effect transaction. Keys are tenant/account/kind/resourceId; policy
-uses resourceId `account`, identity/binding use recipient, reply/approval use
-replyId. Every row requires a positive `authorityRevision`. Authority writers
-must update the same row and advance that revision; revocation must retain the
-row rather than create a parallel authority. Private bodies are excluded from
-projections and returned snapshots. Transaction abort must roll back fences.
-
-The explicit unique-index initializer is not executed automatically. Provisioning,
-revocation endpoints and mounting remain incomplete. This adapter does not grant
-live authority or enable external sending. Real Mongo conflict/rollback behavior
-remains for final independent QA; current checks use synthetic storage doubles.
-# Durable authority revocation commands (PLAT-051)
-
-`createProviderRevocationCommands` is an injected command boundary. The trusted
-composition root supplies account-scoped operator authorization that write-fences
-current membership/account authority in the supplied effect session, and an atomic
-transaction runner. Authorization runs before command replay. The same command ID
-and actor recover a committed result; conflicting payloads or actors are rejected.
-Authority CAS, metadata audit, reconciliation outbox and command result commit
-together. Unknown storage outcomes propagate without automatic retries; recover
-using the original command ID after storage reconciliation. Outbox events are
-metadata for reconciliation, never send requests. No message body is accepted.
-
-Call `initializeProviderCommands` explicitly before mounting commands; it only
-declares the unique command index and has not been executed here. No HTTP mount,
-concrete operator authorization, authority provisioning or live-send permission is
-provided by this module. External sends remain disabled.
-
-# Foundation-backed operator authorization (PLAT-051)
-
-`createScopedProviderRevocationCommands` composes durable revocation with
-`createProviderOperatorAuthorization`. The integration owner supplies the existing
-foundation instance, atomic transaction runner, and a trusted immutable mapping of
-tenant/plant/provider account. Do not build that mapping from request fields or
-reuse one provider account for multiple plants. The opaque authenticated scope
-passes directly to foundation authorization in the caller's active transaction;
-foundation fences session, membership, user, tenant, plant and legal entity.
-Every replay rechecks this authority before reading its stored receipt.
-
-Register `providerOperatorRoles` with the foundation policy at composition time;
-this declaration grants no role to any user. The two declared permissions cover
-authority revocation and provisioning only. No send permission is declared.
-Wrong tenant/account/action, inactive transactions and mismatched foundation
-grants reject. Account mapping changes require composition restart and the same
-review as the original mapping. No mutable account directory is introduced.
-
-The composition is not mounted. Browser driver and final integration
-remain incomplete. No credentials, roles or live authorities were provisioned.
-External send remains disabled. Synthetic checks do not prove Mongo isolation or
-real authenticated HTTP behavior; those remain for final independent QA.
-
-# Initial inactive authority metadata (PLAT-051)
-
-`createScopedProviderProvisioningCommands` accepts `{commandId, kind, resourceId,
-metadata}` using the same trusted tenant/plant/account composition. Supported
-kinds are policy (`account`, metadata expiresAt/allowlist/prefix), identity
-(recipient ID, expiresAt), and binding (recipient ID, expiresAt/customerId).
-Expiry is an integer UTC epoch millisecond, future and at most 30 days away.
-Policy starts disabled and paused; identity and binding start inactive. Binding
-metadata is an unverified candidate and cannot authorize customer access.
-No reply, approval, message body, credential or activation fields are accepted.
-
-Provisioning reauthorizes before receipt lookup. Initial authority revision is 1;
-existing rows, including revoked rows, cannot be overwritten. Atomic authority,
-receipt, metadata audit and outbox use the caller transaction. Unknown outcomes
-require original-key reconciliation, without automatic retry. Initialize both
-authority and command unique indexes explicitly before mounting (not executed
-here). Activation/update commands, source-verified binding, reply/approval
-provisioning, HTTP mount and browser driver remain incomplete. No send occurs.
-
-Policy configuration: createScopedProviderPolicyCommands exposes configurePolicy(actor, { commandId, expectedRevision, policy: { enabled, paused, expiresAt, allowlist, prefix } }). Trusted account/plant composition and foundation provider.authority.configure authorization are required inside the effect transaction, including replay. Existing policy only; CAS advances authorityRevision and policy revision, invalidating queued approvals pinned to older policy revisions. Receipt/audit/outbox commit atomically; ambiguous writes are not retried. No command is mounted or executed by default. Identity/binding activation, reply approvals and browser driver remain incomplete; external send remains disabled.
-
-Provider binding source: src/provider-binding-source.mjs reads only scoped CS binding metadata, verifies the CRM contact in the caller effect transaction and write-fences the same binding revision. Trusted composition must supply permitted verification methods; ADMIN_FIXTURE and OPERATOR_ONBOARDING are forbidden. Synthetic, simulated, missing finite expiry and cross-customer bindings fail closed. Existing onboarding remains synthetic, so it cannot activate live authority. This reader is not mounted; live verification issuance, identity/binding activation and registration-time source revalidation remain incomplete. No send is enabled.
-
-Identity/binding activation: createScopedProviderActivation requires trusted account/plant composition, transactional operator authorization and verifyBindingSource. Input contains commandId, recipient, customerId, sourceBindingId/sourceBindingVersion, identityRevision/bindingRevision and expiresAt. Both existing authorities update atomically with authority CAS and version increments, invalidating older queued replies. Source validation runs before replay lookup; receipts never reactivate revoked rows. Audit/outbox/receipt are atomic. No private body is accepted. Mount, reply/approval writers and browser driver remain incomplete. No authority activation is executed and external send remains disabled.
-
-### PLAT-051 queued reply authority
-
-`createScopedProviderReplyCommands` requires the explicit `provider.reply.queue` foundation action, a configured account/plant mapping and trusted source verifier. It accepts only stable IDs, SHA-256 content hash, prefix, pinned policy/identity/binding versions and bounded expiry. No body is accepted or stored. Current policy, allowlist, pause, identity and binding are write-fenced in the effect transaction before replay; source verification runs again. Reply/receipt/audit/outbox commit atomically. Existing reply IDs cannot be replaced. Ambiguous writes require same-command reconciliation; no resend/retry is performed.
-
-The delivery-policy evaluator validates the proposed metadata using an in-memory candidate approval only; that candidate is never persisted or returned. Durable state remains QUEUED with no approval authority. A separate approval writer and HTTP composition are still required. No provider/browser send is enabled. Integration must register the exported role declaration with foundation; this module grants no role or membership.
-
-### Explicit reply approval (PLAT-051)
-`createScopedProviderApprovalCommands` requires the separately declared `providerReplyApprover`
-role action `provider.reply.approve` (no grants are installed automatically). Input is the exact
-queue metadata plus `commandId` and `expectedReplyRevision`. Current source, policy, identity,
-binding and reply are fenced before receipt lookup. Only a LIVE QUEUED reply at that revision
-can advance to APPROVED. Approval metadata, reply CAS, receipt, audit and outbox share one
-transaction. Replay reauthorizes and rejects revoked reply/approval or changed source authority.
-Expired approvals cannot be refreshed or replaced by replay: queue a new immutable reply.
-No private body is accepted or persisted. This command neither sends nor starts a browser;
-HTTP composition, UI and driver remain pending. External send stays disabled.
-
-### Operator HTTP composition (PLAT-051)
-
-`src/provider-operator-http.mjs` exports `createScopedProviderOperatorHandler` for one
-trusted tenant/plant/account mapping. Mount its native Node HTTP handler on an exact
-host route before any JSON stream parser. Supply `authenticate(req)` that enforces
-the host session, origin and CSRF policy and returns the opaque foundation scope;
-transactional authorization still runs inside every command, including replay.
-Register `providerOperatorRoles` through the integration owner's foundation contract;
-this factory installs no roles or grants. Do not expose this as a public callback.
-
-POST requires `application/json`, identity encoding and at most 8192 bytes. The exact
-envelope is `{ "action": "revoke", "payload": { ...commandMetadata } }`. Supported
-actions are provision, revoke, configurePolicy, activate, queueReply and approveReply;
-each payload uses the existing strict command contract. Tenant/account/plant scope
-comes only from configuration. Responses use `PROVIDER_OPERATOR_RESULT_V1`; errors
-expose stable codes with no exception details. A 503 indicates an unknown outcome:
-reconcile using the same commandId and exact payload, never issue a fresh command or
-send automatically. Nothing stores request bodies, starts a browser or enables send.
-Host mount, browser driver and operator UI remain pending for integration/follow-up.
-
-### Browser driver boundary (PLAT-047)
-
-The adapter exposes immutable `status()` ownership metadata for trusted-host UNKNOWN
-reconciliation. See [browser integration and recovery](BROWSER-INTEGRATION.md) for
-the exact local obligations, external access boundary and manual evidence procedure.
-
-`createProviderBrowserLifecycle` composes the durable session registry with an injected `driver.launch(metadata)` implementation. Launch receives only tenant/account/owner/generation and `externalSendEnabled: false`; no ready hook, message body or dispatch capability is supplied. The driver returns a handle whose explicit `close()` must confirm `{ closed: true }`. Launch/close deadlines retain UNKNOWN ownership, including late completion; operators must reconcile the actual process before release. No retry, timeout takeover or automatic cleanup is performed. The host must supply a trusted browser implementation that honors the disabled-send contract; this module alone cannot sandbox an arbitrary driver. No concrete browser package, credential session or live provider was installed or run. Concrete driver and host mounting remain incomplete.
-
-### PLAT-047 concrete local browser
-
-`src/local-browser-driver.mjs` implements a real isolated Chromium blank-browser
-lifecycle with a fixed trusted registry and explicit installed executable/scratch
-configuration. It has no navigation or messaging port. See BROWSER-INTEGRATION.md
-for composition, smoke command and UNKNOWN ownership procedure. Provider credentials,
-actual account authentication/inbound collection and live acceptance remain external;
-external send is disabled. Root manifests and shared host mounts belong to integration.
+No external provider/account is fabricated. Live source verification assertion
+issuance, account authentication and provider receipt delivery are external boundaries;
+fixtures and simulated bindings cannot activate live authority. main.mjs still refuses
+WA_LIVE_ENABLED. Local Chromium smoke does not establish provider or Mongo acceptance.
+See [browser integration and UNKNOWN reconciliation](BROWSER-INTEGRATION.md) for
+exact process evidence and safe manual reconciliation. Never release UNKNOWN after
+elapsed time alone, and never retry an ambiguous non-idempotent result blindly.
