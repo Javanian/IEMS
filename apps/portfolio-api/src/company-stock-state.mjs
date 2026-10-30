@@ -8,7 +8,7 @@ export function companySourceSnapshot(producer, companyUnitIds) {
   const receipt = producer.companyReceipt;
   if (!receipt || !Array.isArray(companyUnitIds) || !companyUnitIds.length || new Set(companyUnitIds).size !== companyUnitIds.length) companyStockInvalid();
   const pointers = companyUnitIds.map(companyUnitId => { const unit = producer.companyUnits.find(unit => unit._id === companyUnitId); if (!unit) companyStockInvalid(); return { companyUnitId, outputUnitId: unit.outputUnitId, serial: unit.serial, contentHash: unit.contentHash }; });
-  return { trackingPolicy: 'SERIAL', producerExecutionId: producer.head._id, companyReceiptId: receipt._id, openingHash: receipt.contentHash, provenanceHash: receipt.provenanceHash, qc: receipt.qc, consumedReceiptIds: receipt.consumedReceiptIds, locationSnapshot: receipt.locationSnapshot, units: pointers };
+  return { trackingPolicy: 'SERIAL', producerExecutionId: producer.head._id, companyReceiptId: receipt._id, openingHash: receipt.contentHash, provenanceHash: receipt.provenanceHash, qc: receipt.qc, consumedReceiptIds: receipt.consumedReceiptIds, ...(receipt.sourcePolicy === 'MULTI_GENERATION_SOURCE' ? { consumedAncestryReceiptIds: receipt.consumedAncestryReceiptIds } : {}), locationSnapshot: receipt.locationSnapshot, units: pointers };
 }
 export async function validateCompanyStockUse(db, filter, producer, session) {
   const receipt = producer.companyReceipt, opening = producer.companyUnits, options = { session }, match = { ...filter, companyReceiptId: receipt._id };

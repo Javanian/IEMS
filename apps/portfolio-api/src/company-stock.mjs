@@ -7,22 +7,31 @@ import { catalogStockContext } from './catalog-stock.mjs';
 import { validateCompanyStockUse, companyStockInvalid, companySourceSnapshot } from './company-stock-state.mjs';
 import { stockHash as hash, stockHashless as hashless, stockSemantic as semantic, stockUnits as units, stockDecimal as decimal } from './catalog-stock-use-state.mjs';
 import { initializeCompanyStockTrace, buildCompanyUnitTrace } from './company-stock-trace.mjs';
+import { manufacturedTraversal, visitManufacturedNode } from '../../../packages/contracts/src/domains/planning-execution/manufactured-graph.mjs';
 
 export const companyStockActions = ['company.stock.read', 'company.stock.reserve', 'company.stock.issue', 'company.stock.hold', 'company.stock.release'];
 export const companyStockRoles = Object.fromEntries([['Reader', 'read'], ['Reserver', 'reserve'], ['Issuer', 'issue'], ['Holder', 'hold'], ['Releaser', 'release']].map(([name, action]) => [`companyStock${name}`, [...new Set(['company.stock.read', `company.stock.${action}`])]]));
 const fail = (status, code) => { throw Object.assign(new Error(code), { status, code }); };
 const stamp = row => ({ ...row, contentHash: hash(row) });
-export async function companyStockContext(db, filter, companyReceiptId, session, { fresh = false, fence = false } = {}) {
+export async function companyStockContext(db, filter, companyReceiptId, session, options = {}, walk = manufacturedTraversal()) {
+  return visitManufacturedNode(walk, companyReceiptId, () => companyContextNode(db, filter, companyReceiptId, session, options, walk));
+}
+async function companyContextNode(db, filter, companyReceiptId, session, { fresh = false, fence = false }, walk) {
   const receipt = await db.collection('internalCompanyStockReceipts').findOne({ ...filter, _id: companyReceiptId }, { session }); if (!receipt) fail(404, 'NOT_FOUND');
   const producer = await validateInternalExecution(db, filter, receipt.executionId, session);
   if (producer.head.status !== 'STORED' || producer.companyReceipt?._id !== receipt._id) companyStockInvalid();
   const plant = await db.collection('plants').findOne({ tenantId: filter.tenantId, _id: filter.plantId, active: true }, { session });
   if (!plant || plant.legalEntityId !== receipt.ownerLegalEntityId || !await db.collection('legalEntities').findOne({ tenantId: filter.tenantId, _id: plant.legalEntityId, active: true }, { session })) fail(403, 'SCOPE_DENIED');
   const root = producer.head.schema === 'INTERNAL_EXECUTION_V1' && producer.head.sourceDemand.schema === 'INTERNAL_PLAN_V1' && producer.head.materials.every(row => row.itemSnapshot.content.kind === 'PURCHASED');
+  const reusable = root || receipt.sourcePolicy === 'MULTI_GENERATION_SOURCE';
   const use = await validateCompanyStockUse(db, filter, producer, session), blockers = [], ancestry = [];
   try { await requireInternalExecutionDemand(db, filter, producer.head.internalOrderId, producer.head.sourceDemand.version, producer.head.sourceDemand.engineering.currentRevision, receipt.ownerLegalEntityId, session, fence); } catch (error) { if (!['INTERNAL_DEMAND_CHANGED', 'CATALOG_DEPENDENCY_CHANGED', 'VERSION_CONFLICT', 'NOT_FOUND'].includes(error.code)) throw error; blockers.push('PRODUCER_DEMAND_CHANGED'); }
-  if (!root) blockers.push('LEAF_ONLY');
+  if (!reusable) blockers.push('LEAF_ONLY');
   if (use.hold?.active) blockers.push('COMPANY_SOURCE_HELD');
+  for (const receiptId of [...new Set(producer.reservations.filter(row => row.sourceKind === 'COMPANY_OUTPUT' && row.status === 'CONSUMED').map(row => row.companyReceiptId))]) {
+    const upstream = await companyStockContext(db, filter, receiptId, session, { fence }, walk);
+    for (const blocker of upstream.blockers) blockers.push(blocker === 'COMPANY_SOURCE_HELD' ? 'ANCESTOR_HELD' : blocker);
+  }
   const consumedReceiptIds = producer.reservations.filter(row => row.status === 'CONSUMED' && row.sourceKind !== 'COMPANY_OUTPUT').map(row => row.receiptId).sort();
   if (hash(consumedReceiptIds) !== hash(receipt.consumedReceiptIds)) companyStockInvalid();
   const actualAncestry = root ? consumedReceiptIds : (receipt.consumedAncestryReceiptIds || consumedReceiptIds);
@@ -35,9 +44,9 @@ export async function companyStockContext(db, filter, companyReceiptId, session,
   const location = receipt.locationSnapshot;
   try { const current = await requireQualifiedCompanyLocation(db, filter, location._id, location.version, receipt.ownerLegalEntityId, session, fence); if (current.authorityHash !== location.authorityHash) blockers.push('LOCATION_CHANGED'); } catch (error) { if (!['VERSION_CONFLICT', 'CATALOG_DEPENDENCY_CHANGED', 'NOT_FOUND'].includes(error.code)) throw error; blockers.push('LOCATION_CHANGED'); }
   if (fresh && blockers.some(code => ['COMPANY_SOURCE_HELD', 'ANCESTOR_HELD'].includes(code))) fail(409, 'STOCK_ENCUMBERED');
-  if (fresh && blockers.length) fail(409, root ? 'COMPANY_DEPENDENCY_CHANGED' : 'COMPANY_SOURCE_TERMINAL');
+  if (fresh && blockers.length) fail(409, reusable ? 'COMPANY_DEPENDENCY_CHANGED' : 'COMPANY_SOURCE_TERMINAL');
   if (fence) { if (!session?.inTransaction()) throw new Error('company source fence requires transaction'); const changed = await db.collection('internalExecutions').updateOne({ ...filter, _id: producer.head._id, version: producer.head.version, authorityHash: producer.head.authorityHash }, { $inc: { useFence: 1 } }, { session }); if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT'); if (use.head) { const touched = await db.collection('companyStockUseHeads').updateOne({ ...filter, _id: receipt._id, version: use.version, authorityHash: use.head.authorityHash }, { $inc: { useFence: 1 } }, { session }); if (touched.matchedCount !== 1) fail(409, 'VERSION_CONFLICT'); } }
-  return { receipt, producer, use, ancestry, sourcePolicy: root ? 'ONE_HOP_SOURCE' : 'LEAF_ONLY', blockers: [...new Set(blockers)] };
+  return { receipt, producer, use, ancestry, sourcePolicy: root ? 'ONE_HOP_SOURCE' : reusable ? 'MULTI_GENERATION_SOURCE' : 'LEAF_ONLY', blockers: [...new Set(blockers)] };
 }
 export function companyStockView(context) {
   const { receipt, producer, use, blockers, sourcePolicy } = context, terminal = sourcePolicy === 'LEAF_ONLY';
@@ -62,7 +71,7 @@ async function saveUse(db, filter, context, actor, reason, kind, session, hold =
   if (context.use.head) { const changed = await db.collection('companyStockUseHeads').replaceOne({ ...filter, _id: receiptId, version: context.use.version }, head, { session }); if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT'); } else await db.collection('companyStockUseHeads').insertOne(head, { session });
 }
 export async function writeCompanyReservation(db, filter, context, reservation, actor, reason, session) {
-  if (context.sourcePolicy !== 'ONE_HOP_SOURCE' || reservation.companyReceiptId !== context.receipt._id || reservation.openingHash !== context.receipt.contentHash) companyStockInvalid();
+  if (!['ONE_HOP_SOURCE', 'MULTI_GENERATION_SOURCE'].includes(context.sourcePolicy) || reservation.companyReceiptId !== context.receipt._id || reservation.openingHash !== context.receipt.contentHash) companyStockInvalid();
   if (!session?.inTransaction()) throw new Error('company write requires transaction');
   if (reservation.status !== 'RELEASED' && context.blockers.length) fail(409, context.blockers.some(code => ['COMPANY_SOURCE_HELD', 'ANCESTOR_HELD'].includes(code)) ? 'STOCK_ENCUMBERED' : 'COMPANY_DEPENDENCY_CHANGED');
   const previous = await db.collection('companyMaterialReservations').findOne({ ...filter, _id: reservation._id }, { session });
