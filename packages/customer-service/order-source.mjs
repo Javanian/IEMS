@@ -18,12 +18,12 @@ async function manufactureOrder(db, scope, customerId, orderNumber, opts) {
   if (!so) return null;
   const workOrders = await db.collection('manufacturingWorkOrders').find({ ...scope, accountId: customerId, salesOrderId: so._id }, opts).sort({ _id: 1 }).limit(501).toArray();
   const shipments = await db.collection('fulfillmentShipments').find({ ...scope, accountId: customerId, salesOrderId: so._id }, opts).sort({ _id: 1 }).limit(501).toArray();
-  if (workOrders.length > 500 || shipments.length > 500 || !Number.isSafeInteger(so.version) || so.version < 1) invalid();
+  if (workOrders.length > 500 || shipments.length > 500 || !uuid.test(so._id ?? '') || !Number.isSafeInteger(so.version) || so.version < 1) invalid();
   if (!Array.isArray(so.snapshot?.lines) || !so.snapshot.lines.length || so.snapshot.lines.some(l => !quantity(l.quantity) || units(l.quantity) <= 0n || typeof l.uom !== 'string' || !l.uom)) invalid();
   if (workOrders.some(w => !['PLANNED', 'RELEASED', 'IN_PROGRESS', 'QUARANTINED', 'QC_COMPLETED'].includes(w.status))) invalid();
   for (const s of shipments) {
     const line = so.snapshot.lines[s.lineIndex];
-    if (!Number.isSafeInteger(s.lineIndex) || s.lineIndex < 0 || !line || s.uom !== line.uom || s.status !== 'SHIPPED' || !quantity(s.quantity) || units(s.quantity) <= 0n) invalid();
+    if (!uuid.test(s._id ?? '') || !(s.shippedAt instanceof Date) || !Number.isFinite(s.shippedAt.getTime()) || !Number.isSafeInteger(s.lineIndex) || s.lineIndex < 0 || !line || s.uom !== line.uom || s.status !== 'SHIPPED' || !quantity(s.quantity) || units(s.quantity) <= 0n) invalid();
   }
   const shipped = shipments.length;
   const full = so.snapshot.lines.every((line, lineIndex) => shipments.filter(s => s.lineIndex === lineIndex).reduce((n, s) => n + units(s.quantity), 0n) >= units(line.quantity));
@@ -56,7 +56,7 @@ const REPAIR_STAGE = { INTAKE: ['RECEIVED', 'RECEIVED'], DIAGNOSIS_AUTHORIZED: [
 async function repairOrder(db, scope, customerId, orderNumber, opts) {
   const row = await db.collection('repairCases').findOne({ ...scope, ownerAccountId: customerId, caseNumber: orderNumber }, opts);
   if (!row) return null;
-  if (!Number.isSafeInteger(row.version) || row.version < 1) invalid();
+  if (!uuid.test(row._id ?? '') || !Number.isSafeInteger(row.version) || row.version < 1) invalid();
   const mapped = REPAIR_STAGE[row.status];
   if (!mapped) throw new Error('Unknown repair status');
   const [publicStage, current] = mapped;

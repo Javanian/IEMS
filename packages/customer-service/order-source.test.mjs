@@ -34,7 +34,7 @@ test('manufacture source uses caller transaction, current statuses and domain re
 });
 test('shipment quantities are compared per line and UOM, never added across units', async () => {
   const lines = [{ quantity: '2', uom: 'EA' }, { quantity: '10', uom: 'KG' }];
-  const shipment = { lineIndex: 0, quantity: '2', uom: 'EA', status: 'SHIPPED', shippedAt: new Date() };
+  const shipment = { _id: randomUUID(), lineIndex: 0, quantity: '2', uom: 'EA', status: 'SHIPPED', shippedAt: new Date() };
   assert.equal((await readerFixture({ lines, shipments: [shipment] }).read()).publicStage, 'PARTIALLY_SHIPPED');
   await assert.rejects(readerFixture({ lines, shipments: [{ ...shipment, uom: 'KG' }] }).read(), /STATUS_UNAVAILABLE/);
 });
@@ -42,7 +42,7 @@ test('incomplete source coverage fails closed without an invented stage', async 
   await assert.rejects(readerFixture({ work: Array.from({ length: 501 }, () => ({ status: 'PLANNED' })) }).read(), /STATUS_UNAVAILABLE/);
 });
 test('repair projects public milestones without private diagnostics or dates', async () => {
-  const result = await readerFixture({ repair: { version: 3, status: 'DIAGNOSIS_AUTHORIZED', history: [], privateNotes: 'excluded' } }).read('RP-TEST');
+  const result = await readerFixture({ repair: { _id: randomUUID(), version: 3, status: 'DIAGNOSIS_AUTHORIZED', history: [], privateNotes: 'excluded' } }).read('RP-TEST');
   assert.equal(result.kind, 'REPAIR'); assert.equal(result.publicStage, 'DIAGNOSIS');
   assert.equal(JSON.stringify(result).includes('excluded'), false); assert.deepEqual(result.confirmedDates, {});
 });
