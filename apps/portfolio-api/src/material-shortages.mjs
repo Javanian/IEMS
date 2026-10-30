@@ -63,7 +63,9 @@ export async function refreshShortage(db, filter, input, actor, session) {
   if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
   if (!positive(input.expectedDemandVersion) || !positive(input.engineeringRevision) || !Number.isSafeInteger(input.expectedShortageRevision) || input.expectedShortageRevision < 0) fail(400, 'INVALID_VERSION');
   const demand = await demandFor(db, filter, input, session), snapshots = [];
-  for (const line of demand.engineering.content.materials) {
+  const materials = input.materialLineId ? demand.engineering.content.materials.filter(line => line.lineId === input.materialLineId) : demand.engineering.content.materials;
+  if (input.materialLineId && !materials.length) fail(404, 'MATERIAL_LINE_NOT_FOUND');
+  for (const line of materials) {
     if (line.sourceKind === 'COMPANY_OUTPUT' || line.itemSnapshot.content.kind !== 'PURCHASED') continue;
     const demandKey = identity({ ...filter, ownerLegalEntityId: demand.ownerLegalEntityId, demandId: demand._id, materialLineId: line.lineId });
     const head = await db.collection('materialShortageHeads').findOne(demandKey, { session });
@@ -120,7 +122,8 @@ export function installMaterialShortages(app, runtime, { guard, fields, id }) {
     }, options); } finally { await session.endSession(); }
   };
   app.post(`${root}/refresh`, async (req, res) => {
-    fields(req.body, ['demandId', 'expectedDemandVersion', 'engineeringRevision', 'expectedShortageRevision', 'reason', 'idempotencyKey']); id(req.body.demandId);
+    fields(req.body, ['demandId', 'expectedDemandVersion', 'engineeringRevision', 'expectedShortageRevision', 'materialLineId', 'reason', 'idempotencyKey']); id(req.body.demandId);
+    if (req.body.materialLineId !== undefined) id(req.body.materialLineId);
     res.json({ data: await command(req, 'refreshed', (session, input) => refreshShortage(db, req.filter, input, req.scope.userId, session)) });
   });
   app.get(`${root}/:sourceId`, async (req, res) => {
