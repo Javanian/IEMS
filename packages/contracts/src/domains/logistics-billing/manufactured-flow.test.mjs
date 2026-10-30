@@ -1,0 +1,76 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { startOwned } from '../../../../../apps/portfolio-api/test/support/owned-mongo.mjs';
+import { companyOwnerFixture, companyCommand } from '../../../../../apps/portfolio-api/test/support/company-stock-owner-fixture.mjs';
+import { validateFulfillmentStockClaim } from '../../../../../apps/portfolio-api/src/manufactured-dispatch.mjs';
+
+test('manufactured customer dispatch uses canonical stock and freezes actual multigeneration closure', async t => {
+  const h = await startOwned(t), f = await companyOwnerFixture(h);
+  let child = await f.consumer(); child = await f.reserveCompany(child); child = await f.reserveRaw(child, f.directReceipt, f.direct, '2.5');
+  const parents = child.reservations.find(row => row.sourceKind === 'COMPANY_OUTPUT').companyUnitIds;
+  child = await f.mutate(child, 'release'); child = await f.mutate(child, 'issue');
+  for (let operationIndex = 0; operationIndex < 2; operationIndex++) child = await f.mutate(child, 'records', { operationIndex, inputQuantity: '2', goodQuantity: '2', scrapQuantity: '0', laborMinutes: '2', machineMinutes: '1', evidence: 'Synthetic dispatch child production', ...(operationIndex === 1 ? { outputSerials: ['DISPATCH-CHILD-1', 'DISPATCH-CHILD-2'] } : {}) });
+  for (const [index, unit] of child.outputUnits.entries()) child = await f.mutate(child, 'allocations', { outputUnitId: unit._id, sources: [{ sourceKind: 'COMPANY_OUTPUT', companyReceiptId: f.producer.companyStock._id, companyUnitIds: [parents[index]], quantity: '1' }, { sourceKind: 'CATALOG_RECEIPT', receiptId: f.directReceipt._id, quantity: '1.25' }] });
+  child = await f.mutate(child, 'qc', { acceptedSerials: ['DISPATCH-CHILD-1', 'DISPATCH-CHILD-2'], rejectedSerials: [], evidence: 'Synthetic accepted child outputs' });
+  child = await f.mutate(child, 'putaway', { locationId: f.location._id, expectedLocationVersion: f.location.version });
+  const account = await h.ok('/crm/accounts', { name: 'Synthetic manufactured customer' }, 201);
+  let quote = await h.ok('/commercial/quotes', { schema: 'CATALOG_QUOTE_V1', accountId: account._id, expiresAt: '2027-01-01T00:00:00.000Z', taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP', lines: [{ description: 'Customer manufactured output', quantity: '2', uom: 'UN', unitPrice: '10.00', currency: 'USD', catalogItem: { itemId: f.output._id, itemVersion: f.output.version, itemRevision: f.output.currentRevision } }], idempotencyKey: randomUUID() }, 201);
+  for (const action of ['approve', 'accept']) quote = await h.ok(`/commercial/quotes/${quote._id}/${action}`, { expectedVersion: quote.version, revision: 1, idempotencyKey: randomUUID() });
+  const so = await h.ok(`/commercial/quotes/${quote._id}/convert`, { expectedVersion: quote.version, revision: 1, idempotencyKey: randomUUID() });
+  const stockPath = `/company-stock/receipts/${child.companyStock._id}`, stock = () => h.ok(stockPath);
+  const body = (source, unit) => ({ salesOrderId: so._id, expectedVersion: so.version, lineIndex: 0, uom: 'UN', reference: 'Synthetic manufactured dispatch', packageReference: 'PACK-MFG-001', sources: [{ companyReceiptId: source._id, expectedStockVersion: source.version, units: [{ companyUnitId: unit._id, expectedUnitVersion: unit.version }] }], idempotencyKey: randomUUID() });
+  let source = await stock(), firstUnit = source.units[0];
+  const firstBody = body(source, firstUnit);
+  let parentStock = await f.company();
+  parentStock = await h.ok(`${f.companyPath}/holds`, companyCommand({ expectedVersion: parentStock.version, reasonCode: 'TRACE_REVIEW' }));
+  assert.equal((await h.req('/fulfillment/manufactured-shipments', firstBody, h.alpha)).status, 409);
+  await h.ok(`${f.companyPath}/holds/release`, companyCommand({ expectedVersion: parentStock.version, expectedHoldId: parentStock.hold._id }));
+  const first = await h.ok('/fulfillment/manufactured-shipments', firstBody, 201);
+  assert.equal(first.schema, 'MANUFACTURED_SHIPMENT_V1'); assert.equal(first.quantity, '1');
+  assert.deepEqual(await h.ok('/fulfillment/manufactured-shipments', firstBody, 201), first);
+  assert.equal((await h.req('/fulfillment/manufactured-shipments', firstBody, h.beta)).status, 404);
+  const closure = await h.db.collection('shipmentDescendantFreezes').findOne({ shipmentId: first._id });
+  assert.equal(closure.closure.length, 2);
+  const claim = await h.db.collection('companyMaterialReservations').findOne({ shipmentId: first._id });
+  assert.equal(claim.status, 'CONSUMED'); assert.equal(claim.version, 3); assert.equal(Object.hasOwn(claim, 'executionId'), false);
+  const session = h.client.startSession();
+  try { await assert.rejects(session.withTransaction(() => validateFulfillmentStockClaim(h.db, { tenantId: claim.tenantId, plantId: claim.plantId }, { ...claim, authorizationHash: '0'.repeat(64) }, session)), { code: 'FULFILLMENT_STOCK_AUTHORITY_INVALID' }); } finally { await session.endSession(); }
+  const restore = await h.setRoles(h.seeded[0], ['fulfillmentShip', 'companyStockReader', 'companyStockReserver']);
+  try { assert.equal((await h.req('/fulfillment/manufactured-shipments', firstBody, h.alpha)).status, 403); } finally { await restore(); }
+  const trace = await h.ok(`${stockPath}/units/${firstUnit._id}/trace`);
+  assert.equal(trace.current.status, 'SHIPPED'); assert.equal(trace.uses.shipments[0].shipmentId, first._id); assert.equal(trace.uses.outputs.length, 0);
+  assert.equal((await h.ok(`/fulfillment/orders/${so._id}/balances`)).lines[0].shippedQuantity, '1');
+  assert.equal((await h.ok(`/fulfillment/orders/${so._id}/reconciliation`)).matches, true);
+  let invoice = await h.ok('/fulfillment/invoices', { salesOrderId: so._id, expectedVersion: so.version, lines: [{ shipmentId: first._id, quantity: '1' }], idempotencyKey: randomUUID() }, 201);
+  assert.equal(invoice.schema, 'CATALOG_INVOICE_V2'); assert.equal(invoice.total, '10.00');
+  await h.ok('/fulfillment/payments', { accountId: account._id, amount: '10.00', currency: 'USD', reference: 'Manufactured settlement', allocations: [{ invoiceId: invoice._id, expectedVersion: invoice.version, amount: '10.00' }], idempotencyKey: randomUUID() }, 201);
+  invoice = await h.ok(`/fulfillment/invoices/${invoice._id}`); assert.equal(invoice.outstandingAmount, '0.00');
+  source = await stock(); const secondUnit = source.units.find(row => row.status === 'AVAILABLE');
+  const pending = body(source, secondUnit);
+  const q = values => ({ expectedVersion: 0, evidence: 'Synthetic dispatch resource evidence', idempotencyKey: randomUUID(), ...values });
+  const equipmentId = randomUUID(), equipmentPath = `/repair/quality/resources/EQUIPMENT/${equipmentId}`;
+  let equipment = await h.ok(`${equipmentPath}/configure`, q({ expectedVersion: 0, label: 'Synthetic dispatch handling equipment', disabled: false }));
+  equipment = await h.ok(`${equipmentPath}/calibrate`, q({ expectedVersion: equipment.version, validFrom: '2020-01-01T00:00:00.000Z', validUntil: '2030-01-01T00:00:00.000Z', certificate: 'Synthetic handling calibration' }));
+  const from = new Date(Math.floor(Date.now() / 60000) * 60000).toISOString(), until = new Date(Date.parse(from) + 3600000).toISOString();
+  const maintenancePath = `/repair/maintenance/equipment/${equipmentId}`;
+  const maintenance = await h.ok(`${maintenancePath}/schedule`, q({ expectedVersion: 0, from: new Date(Date.parse(from) + 1800000).toISOString(), until, kind: 'PREVENTIVE' }));
+  const handling = { equipmentId, expectedEquipmentVersion: equipment.version, expectedMaintenanceVersion: maintenance.version, from, until, requiredMinutes: '45' };
+  assert.equal((await h.req('/fulfillment/manufactured-shipments', { ...pending, handling }, h.alpha)).status, 409);
+  const cancelled = await h.ok(`${maintenancePath}/cancel`, q({ expectedVersion: maintenance.version, windowId: maintenance.windows[0]._id }));
+  pending.handling = { ...handling, expectedMaintenanceVersion: cancelled.version };
+  await h.db.command({ collMod: 'fulfillmentOutbox', validator: { forbidden: { $exists: true } } });
+  try { assert.equal((await h.req('/fulfillment/manufactured-shipments', pending, h.alpha)).status, 500); }
+  finally { await h.db.command({ collMod: 'fulfillmentOutbox', validator: {} }); }
+  assert.equal((await stock()).availableQuantity, '1');
+  assert.equal(await h.db.collection('fulfillmentShipments').countDocuments({ salesOrderId: so._id }), 1);
+  const second = await h.ok('/fulfillment/manufactured-shipments', pending, 201);
+  assert.notEqual(second._id, first._id); assert.equal((await stock()).availableQuantity, '0');
+  assert.equal((await h.req('/fulfillment/manufactured-shipments', { ...pending, idempotencyKey: randomUUID() }, h.alpha)).status, 409);
+  const pod = await h.ok(`/deliveries/shipments/${first._id}`);
+  await h.ok(`/deliveries/shipments/${first._id}/confirmations`, { expectedVersion: pod.version, expectedShipmentVersion: first.version, quantity: '1', serials: [firstUnit.serial], deliveredAt: new Date().toISOString(), receiverName: 'Synthetic receiver', receiverReference: 'POD-MFG', evidenceReference: 'Synthetic signed receiving note', evidenceNotes: 'Operator-confirmed fixture receipt', idempotencyKey: randomUUID() }, 201);
+  assert.equal((await h.ok(`/deliveries/shipments/${first._id}`)).status, 'DELIVERED');
+  assert.equal((await h.ok(`/fulfillment/manufactured/orders/${so._id}`)).shipments.length, 2);
+  await h.db.collection('companyMaterialReservations').updateOne({ _id: claim._id }, { $set: { authorityKind: 'FORGED_AUTHORITY' } });
+  assert.equal((await h.req(stockPath, undefined, h.alpha)).status, 409);
+});

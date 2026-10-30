@@ -34,17 +34,9 @@ export async function initializeGenealogy(db) {
   await db.collection('manufacturedGenealogySnapshots').createIndex({ tenantId: 1, plantId: 1, companyReceiptId: 1, companyUnitId: 1, referenceType: 1, referenceId: 1 }, { unique: true });
 }
 
-export async function readManufacturedGraph(db, filter, companyReceiptId, companyUnitId, session, { fence = false } = {}) {
-  if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
-  const { companyStockContext } = await import('./company-stock.mjs');
-  const { buildCompanyUnitTrace } = await import('./company-stock-trace.mjs');
-  const root = await companyStockContext(db, filter, companyReceiptId, session, { fresh: fence, fence });
-  const trace = await buildCompanyUnitTrace(db, filter, root, companyUnitId, session, receiptId => companyStockContext(db, filter, receiptId, session, { fresh: fence, fence }));
-  const snapshot = { schema: 'MANUFACTURED_GRAPH_V1', ...filter, ownerLegalEntityId: root.receipt.ownerLegalEntityId,
-    companyReceiptId, companyUnitId, outputUnitId: trace.outputUnitId, serial: trace.serial,
-    producer: { executionId: trace.producer.executionId, attributionRevision: root.producer.head.attributionRevision, provenanceHash: trace.producer.provenanceHash },
-    ancestry: trace.ancestry };
-  return { snapshot, contentHash: hash(snapshot), stockVersion: root.use.version, unit: root.use.units.find(unit => unit._id === companyUnitId), blockers: root.blockers };
+export async function readManufacturedGraph(db, filter, companyReceiptId, companyUnitId, session, options = {}) {
+  const { readDispatchManufacturedGraph } = await import('./descendant-freeze.mjs');
+  return readDispatchManufacturedGraph(db, filter, companyReceiptId, companyUnitId, session, options);
 }
 
 export async function freezeManufacturedGraph(db, filter, companyReceiptId, expectedStockVersion, selected, reference, actor, session) {

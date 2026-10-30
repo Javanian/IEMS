@@ -18,6 +18,7 @@ export async function hasPurchasedShipmentEvidence(db, filter, shipmentId, sessi
 
 export async function validatePurchasedShipment(db, filter, shipmentId, session) {
   const options = { session }, shipment = await db.collection('fulfillmentShipments').findOne({ ...filter, _id: shipmentId }, options), proof = await db.collection('purchasedShipmentProofs').findOne({ ...filter, shipmentId }, options);
+  if (shipment?.schema === 'MANUFACTURED_SHIPMENT_V1') { const { validateManufacturedShipment } = await import('./manufactured-dispatch.mjs'); return validateManufacturedShipment(db, filter, shipmentId, session); }
   if (!shipment) { if (proof) purchasedInvalid(); fail(404, 'NOT_FOUND'); }
   const ledger = await db.collection('catalogCustomerShipments').findOne({ ...filter, shipmentId }, options);
   const typed = Boolean(proof || ledger || await hasPurchasedShipmentEvidence(db, filter, shipmentId, session) || Array.isArray(shipment.sources) && shipment.sources.some(source => source.sourceType === 'CATALOG_RESERVATION'));
@@ -62,7 +63,7 @@ export async function preparePurchasedFinancial(db, filter, kind, body, session,
     if (!replay && await db.collection('purchasedInvoiceProofs').countDocuments({ ...filter, salesOrderId: order._id }, options) >= 100) fail(409, 'FULFILLMENT_HISTORY_LIMIT');
     const sources = [];
     for (const line of body.lines) { const source = await validatePurchasedShipment(db, filter, line.shipmentId, session); if (!source) fail(409, 'CATALOG_ORDER_UNSUPPORTED'); if (source.shipment.salesOrderId !== order._id) fail(409, 'SOURCE_CONFLICT'); sources.push(source); }
-    return { salesOrderId: order._id, sourceReceiptIds: [...new Set(sources.flatMap(source => source.sourceReceiptIds))], shipmentRefs: sources.map(source => ({ shipmentId: source.shipment._id, shipmentHash: source.proof.shipmentHash })) };
+    return { salesOrderId: order._id, sourceReceiptIds: [...new Set(sources.flatMap(source => source.sourceReceiptIds))], manufactured: sources.some(source => source.shipment.schema === 'MANUFACTURED_SHIPMENT_V1'), shipmentRefs: sources.map(source => ({ shipmentId: source.shipment._id, shipmentHash: source.proof.shipmentHash })) };
   }
   if (kind !== 'payment.recorded') return null;
   const sources = []; let legacy = false;
@@ -78,13 +79,13 @@ export async function preparePurchasedFinancial(db, filter, kind, body, session,
   if (!sources.length) return null;
   if (legacy || new Set(sources.map(source => source.invoice.salesOrderId)).size !== 1) fail(409, 'PURCHASED_FULFILLMENT_MODE_CONFLICT');
   if (!replay && await db.collection('purchasedPaymentProofs').countDocuments({ ...filter, salesOrderId: sources[0].invoice.salesOrderId }, options) >= 100) fail(409, 'FULFILLMENT_HISTORY_LIMIT');
-  return { salesOrderId: sources[0].invoice.salesOrderId, sourceReceiptIds: [...new Set(sources.flatMap(source => source.proof.sourceReceiptIds))], invoices: sources.map(source => source.invoice) };
+  return { salesOrderId: sources[0].invoice.salesOrderId, sourceReceiptIds: [...new Set(sources.flatMap(source => source.proof.sourceReceiptIds))], manufactured: sources.some(source => source.invoice.schema === 'CATALOG_INVOICE_V2'), invoices: sources.map(source => source.invoice) };
 }
 
 export async function recordPurchasedFinancial(db, filter, kind, body, result, current, actor, session) {
   if (!current) return;
   const options = { session };
-  result.schema = kind === 'invoice.issued' ? 'PURCHASED_INVOICE_V1' : 'PURCHASED_PAYMENT_V1'; result.sourceReceiptIds = current.sourceReceiptIds; result.salesOrderId = current.salesOrderId;
+  result.schema = kind === 'invoice.issued' ? current.manufactured ? 'CATALOG_INVOICE_V2' : 'PURCHASED_INVOICE_V1' : current.manufactured ? 'CATALOG_PAYMENT_V2' : 'PURCHASED_PAYMENT_V1'; result.sourceReceiptIds = current.sourceReceiptIds; result.salesOrderId = current.salesOrderId;
   await db.collection(kind === 'invoice.issued' ? 'fulfillmentInvoices' : 'fulfillmentPayments').updateOne({ ...filter, _id: result._id }, { $set: { schema: result.schema, sourceReceiptIds: result.sourceReceiptIds, salesOrderId: result.salesOrderId } }, options);
   const common = { _id: randomUUID(), ...filter, salesOrderId: current.salesOrderId, key: body.idempotencyKey, sourceReceiptIds: current.sourceReceiptIds, recordedBy: actor, recordedAt: new Date() };
   if (kind === 'invoice.issued') {

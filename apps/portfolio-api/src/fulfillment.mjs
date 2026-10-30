@@ -1,3 +1,5 @@
+import { requireDispatchResources } from './descendant-freeze.mjs';
+import { initializeManufacturedDispatch, installManufacturedDispatch, validateManufacturedShipment } from './manufactured-dispatch.mjs';
 import { purchasedReadContext, purchasedReconciliation } from './purchased-fulfillment.mjs';
 import { preparePurchasedFinancial, recordPurchasedFinancial, purchasedFinancialReplay, validatePurchasedShipment, validatePurchasedInvoice, validatePurchasedPayment, depositState, applyDeposit, saveSettlementEvidence } from './purchased-financial.mjs';
 import { validateInvoicePosting, settlementStatus } from './purchased-billing-state.mjs';
@@ -22,6 +24,7 @@ export const fulfillmentActions = verbs.map(v => `fulfillment.${v}`);
 export const fulfillmentRoles = Object.fromEntries(verbs.map(v => [`fulfillment${v[0].toUpperCase()}${v.slice(1)}`, [...new Set(['fulfillment.read', `fulfillment.${v}`])]]));
 export async function initializeFulfillment(db) {
   await initializeReportingSnapshots(db);
+  await initializeManufacturedDispatch(db);
   await db.collection('reportingPaymentIdentities').createIndex({ tenantId: 1, plantId: 1, paymentId: 1, orderId: 1 }, { unique: true });
   await db.collection('fulfillmentKeys').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
   await db.collection('fulfillmentTallies').createIndex({ tenantId: 1, plantId: 1, kind: 1, subjectId: 1, lineIndex: 1 }, { unique: true });
@@ -91,7 +94,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
   app.use('/api/fulfillment', async (req, res, next) => {
     req.filter = resolveScopeAliases({ body: { tenantId: req.scope.tenantId, plantId: req.scope.selectedPlantId, ...req.body }, query: req.query, headers: req.headers });
     if (req.filter.plantId !== req.scope.selectedPlantId) fail(403, 'SCOPE_DENIED');
-    const command = { '/shipments': 'ship', '/invoices': 'invoice', '/payments': 'pay', '/deposits': 'pay', '/packing': 'ship' }[req.path] || (/^\/packing\/[^/]+\/pack$/.test(req.path) ? 'ship' : null);
+    const command = { '/shipments': 'ship', '/manufactured-shipments': 'ship', '/invoices': 'invoice', '/payments': 'pay', '/deposits': 'pay', '/packing': 'ship' }[req.path] || (/^\/packing\/[^/]+\/pack$/.test(req.path) ? 'ship' : null);
     req.fulfillmentAction = req.method === 'GET' ? 'fulfillment.read' : req.method === 'POST' && command ? `fulfillment.${command}` : null;
     if (!req.fulfillmentAction) fail(404, 'NOT_FOUND');
     await runtime.foundation.authorize(req.scope, { ...req.filter, action: req.fulfillmentAction }); next();
@@ -104,11 +107,12 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       const session = runtime.client.startSession();
       try { return await session.withTransaction(async () => {
         await guard(runtime, req, session, req.fulfillmentAction);
+        if (req.manufacturedDispatch) for (const action of ['company.stock.read', 'company.stock.reserve', 'company.stock.issue']) await guard(runtime, req, session, action);
         if (kind === 'payment.recorded' && req.body.settlementKind === 'CREDIT') await guard(runtime, req, session, 'fulfillment.invoice');
         const prior = await c('fulfillmentKeys').findOne({ ...req.filter, key }, { session });
         if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
         const purchased = await preparePurchasedFinancial(runtime.db, req.filter, kind, req.body, session, Boolean(prior));
-        if (!purchased) {
+        if (!purchased && !req.manufacturedDispatch) {
           if (req.body.salesOrderId) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, req.body.salesOrderId, session), session);
           if (kind === 'payment.recorded') for (const allocation of req.body.allocations) {
             const invoice = await c('fulfillmentInvoices').findOne({ ...req.filter, _id: allocation.invoiceId }, { session });
@@ -117,6 +121,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
         }
         if (prior) {
           await purchasedFinancialReplay(runtime.db, req.filter, kind, prior, session, Boolean(purchased));
+          if (req.manufacturedDispatch && !await validateManufacturedShipment(runtime.db, req.filter, prior.result._id, session)) fail(409, 'FULFILLMENT_STOCK_AUTHORITY_INVALID');
           if (kind === 'deposit.recorded' || req.body.settlementKind === 'DEPOSIT') await depositState(runtime.db, req.filter, req.body.depositId || prior.result._id, session);
           if (kind === 'payment.recorded') for (const allocation of req.body.allocations) await validateInvoicePosting(runtime.db, req.filter, await find('fulfillmentInvoices', req, allocation.invoiceId, session), session);
           return prior.result;
@@ -292,7 +297,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
   });
 
   app.post('/api/fulfillment/shipments', async (req, res) => {
-    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'uom', 'sources', 'reference', 'packingId', 'expectedPackingVersion', 'idempotencyKey']);
+    fields(req.body, ['salesOrderId', 'expectedVersion', 'lineIndex', 'uom', 'sources', 'reference', 'packingId', 'expectedPackingVersion', 'handling', 'idempotencyKey']);
     const { salesOrderId, expectedVersion, lineIndex, uom } = req.body;
     id(salesOrderId); version(expectedVersion); const reference = text(req.body.reference);
     if (!Number.isSafeInteger(lineIndex) || lineIndex < 0) fail(400, 'INVALID_LINE');
@@ -315,6 +320,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
         if (packing.version !== version(req.body.expectedPackingVersion)) fail(409, 'VERSION_CONFLICT');
         if (packing.status !== 'PACKED' || packing.salesOrderId !== so._id || packing.lineIndex !== lineIndex || packing.uom !== uom || JSON.stringify(packing.sources) !== JSON.stringify(packingSources(sources))) fail(409, 'PACKING_SOURCE_CONFLICT');
       } else if (req.body.expectedPackingVersion !== undefined) fail(400, 'INVALID_PACKING');
+      const handling = await requireDispatchResources(runtime.db, req.filter, req.scope.userId, req.body.handling, session, businessNow(runtime));
       const shipmentId = randomUUID();
       for (const s of sources) {
         let receipt;
@@ -364,6 +370,7 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       const total = sources.reduce((a, s) => a + s.amount, 0n);
       await tally(req, 'SO_LINE_SHIPPED', so._id, lineIndex, total, units(line.quantity), session);
       const row = { ...base(req), ...(line.provenance ? { provenance: structuredClone(line.provenance) } : {}), _id: shipmentId, salesOrderId: so._id, accountId: so.accountId, lineIndex, uom, quantity: decimal(total), stockMovementCount: sources.length, sources: sources.map(({ amount: _, ...s }) => s), reference, status: 'SHIPPED', dispatchMode: 'OPERATOR_RECORDED', shippedBy: req.scope.userId, shippedAt: businessNow(runtime), ...(runtime.businessClock ? { recordedAt: new Date(), businessClockMode: runtime.businessClockMode } : {}) };
+      if (handling) row.handling = handling;
       if (packing) {
         row.packing = { packingId: packing._id, packageReference: packing.packageReference, packedBy: packing.packedBy, packedAt: packing.packedAt };
         const changed = await c('fulfillmentPacking').updateOne({ ...req.filter, _id: packing._id, version: packing.version, status: 'PACKED' }, { $set: { status: 'DISPATCHED', shipmentId }, $inc: { version: 1 } }, { session });
@@ -453,4 +460,5 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
       return row;
     }); res.status(201).json({ data });
   });
+  installManufacturedDispatch(app, runtime, { guard, id, fields, tx, find, tally, base, read });
 }

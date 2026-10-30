@@ -85,3 +85,62 @@ Focused smoke: `node --test --test-concurrency=1 packages/contracts/src/domains/
 Checks exact high-precision money/aging, deposit replay and allocation, separate credit/cash
 facts, posted-content tamper rejection, actual purchased proof-chain compatibility and live
 reporting receipts. It does not establish full regression or concurrency acceptance.
+
+## Manufactured dispatch and descendant evidence (amendment v4)
+
+`GET /api/fulfillment/manufactured/orders/:id` reads actual catalog manufactured lines and
+matching company stock, with current unit/source versions and bounded source completeness.
+`POST /api/fulfillment/manufactured-shipments` accepts salesOrderId/expectedVersion, lineIndex,
+uom, reference, packageReference, idempotencyKey and sources (companyReceiptId,
+expectedStockVersion, units[{companyUnitId,expectedUnitVersion}]). Quantity is the exact unique
+serial count, not a caller-supplied fractional stock amount. Maximum 20 sources / 100 units.
+Requires fulfillment.ship plus company.stock.read/reserve/issue; replay reauthorizes each.
+
+FULFILLMENT_SHIPMENT canonical claims reference immutable manufacturedShipmentAuthorizations
+and a hash-linked manufacturedShipmentEvents/head chain with reciprocal reservation refs.
+The binding contains actual shipment/order identity, stable lineId or explicit historical
+lineIndex + SO snapshot hash, authorizedShipmentVersion=1 and authorizationHash. It never
+fabricates an execution. Canonical RESERVED→ISSUED→CONSUMED transitions, stock revisions,
+movement proofs, shipment, audit/outbox, reporting snapshot and key commit atomically.
+No externally persisted half-dispatch is exposed, so this command needs no separate release
+operation. Existing internal/repair RESERVED release behavior remains unchanged and tested.
+
+Root graph is frozen under an actual SHIPMENT reference while the selected unit is AVAILABLE.
+Actual reachable ancestor graph/quality/source authority is validated and fenced in the same
+transaction. shipmentDescendantFreezes retains root and ancestor evidence hashes as a closure
+for the shipped descendant. Ancestors already consumed into that output remain unavailable
+for another shipment; no inventory is recreated. Stored producer/QC/attribution history stays
+immutable. Closure traversals fail closed on cycle/unique-parent/32-node bounds. Historical
+snapshots remain valid after later holds; current holds block new stock effects.
+
+Only the v4 allocated hunks change company-stock/state/trace and genealogy: shipment binding,
+validator/movement/effective-unit dispatch, typed shipment trace and repair-aware graph delegate.
+Existing graph hashes and internal/repair rules are retained. Traces expose uses.shipments,
+actual SHIPPED disposition and canonical CONSUMED state, never fabricated manufactured outputs.
+Catalog financial proof collections are reused for CATALOG_INVOICE_V2/CATALOG_PAYMENT_V2;
+mixed purchased/manufactured orders reconcile through their actual respective stock authorities.
+
+Actual handling equipment can be recorded with optional handling {equipmentId,
+expectedEquipmentVersion,expectedMaintenanceVersion,from,until,requiredMinutes}. Its UTC minute
+window must contain the current business time. Current calibration, quality holds and
+maintenance capacity are validated/fenced by the shared owner exports inside generic,
+purchased and manufactured shipment transactions. Operator quality holds are checked too.
+The UI selects real configured equipment and actual serials; no equipment or timing is inferred.
+
+New initialization is called inside existing initializeFulfillment, and routes are installed
+inside existing installFulfillment. No app.mjs/shared router/manifest delta. Bounded canDispatch
+also requires capacity for all three canonical stock events. Generic, purchased and manufactured
+shipment/POD/return/invoice UI all link actual source records.
+
+Focused command: `node --test --test-concurrency=1 packages/contracts/src/domains/logistics-billing/manufactured-flow.test.mjs packages/contracts/src/domains/engineering-repair/spare-flow.test.mjs packages/contracts/src/domains/planning-execution/manufactured-graph.test.mjs`.
+It covers two-generation closure, two partials, source holds, current actor permission on replay,
+immutable binding/unknown authority rejection, typed trace, invoice/payment/POD, real maintenance
+capacity, outbox rollback and retained repair/internal graph behavior. Final race/full browser
+acceptance remains deferred. Intermediate fixture field error and corrected runs are retained.
+
+Reporting adoption: generic/manufactured shipment uses immutable fulfillmentKeys result;
+purchased shipment uses its immutable fulfillmentShipments + purchased authority event. All
+source event IDs reference real persisted audit/authority records. Live emitter coverage is
+complete for these dispatch commands and explicitly allocated settlements. Data-owner historical
+bootstrap still requires its typed-shipment and settlement-metadata cohort extension at integration;
+do not claim whole-history/source coverage from this emitter handoff.

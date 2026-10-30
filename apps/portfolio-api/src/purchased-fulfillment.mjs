@@ -1,3 +1,4 @@
+import { requireDispatchResources } from './descendant-freeze.mjs';
 import { requireQualityGates } from './quality.mjs';
 import { validatePurchasedBillingAggregate } from './purchased-billing-state.mjs';
 import { randomUUID } from 'node:crypto';
@@ -31,15 +32,17 @@ export async function purchasedFulfillmentContext(db, filter, salesOrderId, sess
   }
   const proofs = await db.collection('purchasedShipmentProofs').find({ ...filter, salesOrderId }, { session }).limit(101).toArray(), shipments = [];
   const actualShipments = await db.collection('fulfillmentShipments').find({ ...filter, salesOrderId }, { session }).limit(101).toArray();
-  if (proofs.length > 100 || actualShipments.length !== proofs.length || actualShipments.some(row => !proofs.some(proof => proof.shipmentId === row._id)) || proofs.length !== (current.head?.shipmentRefs.length || 0)) purchasedInvalid();
+  const manufactured = actualShipments.filter(row => row.schema === 'MANUFACTURED_SHIPMENT_V1'), purchasedActual = actualShipments.filter(row => row.schema !== 'MANUFACTURED_SHIPMENT_V1');
+  if (actualShipments.length > 100 || proofs.length > 100 || purchasedActual.length !== proofs.length || purchasedActual.some(row => !proofs.some(proof => proof.shipmentId === row._id)) || proofs.length !== (current.head?.shipmentRefs.length || 0)) purchasedInvalid();
   for (const proof of proofs) {
     const shipment = await db.collection('fulfillmentShipments').findOne({ ...filter, _id: proof.shipmentId }, { session });
     if (!shipment || !Array.isArray(shipment.sources) || !Array.isArray(proof.snapshot?.sources) || hash(hashless(proof)) !== proof.contentHash || hash(shipmentSemantic(shipment)) !== proof.shipmentHash || !current.head.shipmentRefs.some(ref => ref.shipmentId === shipment._id && ref.contentHash === proof.contentHash) || shipment.sources.some(source => !rows.some(row => row._id === source.sourceId && row.receiptId === source.receiptId))) purchasedInvalid();
     shipments.push(shipmentSemantic(shipment));
   }
+  for (const row of manufactured) { const { validateManufacturedShipment } = await import('./manufactured-dispatch.mjs'); if (!await validateManufacturedShipment(db, filter, row._id, session)) purchasedInvalid(); shipments.push(shipmentSemantic(row)); }
   for (const [lineIndex, line] of order.snapshot.lines.entries()) {
     const claims = rows.filter(row => row.lineIndex === lineIndex), committed = claims.reduce((sum, row) => sum + units(row.remainingQuantity) + units(row.shippedQuantity), 0n), shipped = shipments.filter(row => row.lineIndex === lineIndex).reduce((sum, row) => sum + units(row.quantity), 0n);
-    if (committed > units(line.quantity) || shipped !== claims.reduce((sum, row) => sum + units(row.shippedQuantity), 0n)) purchasedInvalid();
+    if (committed > units(line.quantity) || (line.catalogBinding.itemSnapshot.content.kind === 'PURCHASED' ? shipped !== claims.reduce((sum, row) => sum + units(row.shippedQuantity), 0n) : claims.length !== 0)) purchasedInvalid();
     const tally = await db.collection('fulfillmentTallies').findOne({ ...filter, kind: 'SO_LINE_SHIPPED', subjectId: salesOrderId, lineIndex }, { session });
     if (units(tally?.quantity || '0') !== shipped) purchasedInvalid();
   }
@@ -56,7 +59,10 @@ export async function purchasedReadContext(db, filter, order, session) {
 
 export async function purchasedReconciliation(db, filter, current, session) {
   const moves = await db.collection('catalogCustomerShipments').find({ ...filter, salesOrderId: current.order._id }, { session }).limit(2001).toArray();
-  if (moves.length > 2000 || moves.length !== current.shipments.reduce((sum, shipment) => sum + shipment.sources.length, 0)) purchasedInvalid();
+  if (moves.length > 2000 || moves.length !== current.shipments.filter(row => row.schema !== 'MANUFACTURED_SHIPMENT_V1').reduce((sum, shipment) => sum + shipment.sources.length, 0)) purchasedInvalid();
+  const manufacturedMoves = await db.collection('companyMaterialConsumptions').find({ ...filter, salesOrderId: current.order._id, authorityKind: 'FULFILLMENT_SHIPMENT' }, { session }).limit(2001).toArray();
+  if (manufacturedMoves.length > 2000 || manufacturedMoves.length !== current.shipments.filter(row => row.schema === 'MANUFACTURED_SHIPMENT_V1').reduce((sum, row) => sum + row.sources.length, 0)) purchasedInvalid();
+  moves.push(...manufacturedMoves);
   const sum = rows => rows.reduce((total, row) => total + units(row.quantity), 0n);
   const lines = current.order.snapshot.lines.map((line, lineIndex) => {
     const shipped = sum(current.shipments.filter(row => row.lineIndex === lineIndex)), moved = sum(moves.filter(row => row.lineIndex === lineIndex));
@@ -65,8 +71,9 @@ export async function purchasedReconciliation(db, filter, current, session) {
   });
   const sources = [...new Set(moves.map(row => row.reservationId))].map(sourceId => {
     const own = moves.filter(row => row.reservationId === sourceId), claim = current.reservations.find(row => row._id === sourceId), moved = sum(own);
-    if (!claim || moved !== units(claim.shippedQuantity)) purchasedInvalid();
-    return { sourceType: 'CATALOG_RESERVATION', sourceId, talliedQuantity: decimal(moved), movementQuantity: decimal(moved), matches: true };
+    const company = current.shipments.flatMap(row => row.schema === 'MANUFACTURED_SHIPMENT_V1' ? row.sources : []).find(row => row.sourceId === sourceId);
+    if (claim ? moved !== units(claim.shippedQuantity) : !company || moved !== units(company.quantity)) purchasedInvalid();
+    return { sourceType: company ? 'COMPANY_OUTPUT' : 'CATALOG_RESERVATION', sourceId, talliedQuantity: decimal(moved), movementQuantity: decimal(moved), matches: true };
   });
   return { salesOrderId: current.order._id, lines, sources, shipmentCount: current.shipments.length, movementCount: moves.length, matches: true };
 }
@@ -101,7 +108,7 @@ async function view(db, filter, current, session) {
     const supported = line.catalogBinding?.itemSnapshot?.content.kind === 'PURCHASED', blockers = [];
     if (current.version >= 401 || current.shipments.length >= 100) blockers.push('FULFILLMENT_HISTORY_LIMIT');
     try { await currentLine(db, filter, current.order, lineIndex, session); } catch (error) { if (!['PURCHASED_LINE_UNSUPPORTED', 'PURCHASED_ITEM_CHANGED', 'NOT_FOUND'].includes(error.code)) throw error; blockers.push(error.code); }
-    const claims = current.reservations.filter(row => row.lineIndex === lineIndex), reserved = claims.reduce((sum, row) => sum + units(row.remainingQuantity), 0n), shipped = claims.reduce((sum, row) => sum + units(row.shippedQuantity), 0n), released = claims.reduce((sum, row) => sum + units(row.releasedQuantity), 0n);
+    const claims = current.reservations.filter(row => row.lineIndex === lineIndex), reserved = claims.reduce((sum, row) => sum + units(row.remainingQuantity), 0n), shipped = current.shipments.filter(row => row.lineIndex === lineIndex).reduce((sum, row) => sum + units(row.quantity), 0n), released = claims.reduce((sum, row) => sum + units(row.releasedQuantity), 0n);
     const ready = claims.some(row => units(row.remainingQuantity) > 0n && !current.stocks.get(row.receiptId).blockers.length);
     const invoiced = current.billing.byLine.get(lineIndex) || 0n;
     lines.push({ lineIndex, description: line.description, quantity: line.quantity, uom: line.uom, catalogBinding: line.catalogBinding, supported, blockers, reserveBlockers: [...blockers, ...(current.reservations.length >= 100 ? ['FULFILLMENT_HISTORY_LIMIT'] : [])], reservedQuantity: decimal(reserved), shippedQuantity: decimal(shipped), releasedQuantity: decimal(released), invoicedQuantity: decimal(invoiced), remainingReserveQuantity: decimal(units(line.quantity) - shipped - reserved), remainingShipQuantity: decimal(reserved), canReserve: supported && !blockers.length && units(line.quantity) > shipped + reserved && current.reservations.length < 100, canShip: supported && !blockers.length && ready && current.shipments.length < 100 });
@@ -199,11 +206,12 @@ export function installPurchasedFulfillment(app, runtime, { guard, fields, id })
     }) });
   });
   app.post(`${root}/orders/:id/shipments`, async (req, res) => {
-    fields(req.body, [...common, 'expectedSalesOrderVersion', 'lineIndex', 'reference', 'sources']); const body = req.body; index(body.lineIndex); positive(body.expectedSalesOrderVersion);
+    fields(req.body, [...common, 'expectedSalesOrderVersion', 'lineIndex', 'reference', 'handling', 'sources']); const body = req.body; index(body.lineIndex); positive(body.expectedSalesOrderVersion);
     if (typeof body.reference !== 'string' || !body.reference.trim() || body.reference.length > 200 || !Array.isArray(body.sources) || !body.sources.length || body.sources.length > 20) fail(400, 'INVALID_SOURCE');
     for (const part of body.sources) { fields(part, ['reservationId', 'expectedReservationVersion', 'expectedReceiptVersion', 'expectedStockVersion', 'quantity', 'unitIds']); id(part.reservationId); for (const key of ['expectedReservationVersion', 'expectedReceiptVersion', 'expectedStockVersion']) positive(part[key]); quantity(part.quantity); if (part.unitIds !== undefined && (!Array.isArray(part.unitIds) || part.unitIds.length > 100 || new Set(part.unitIds).size !== part.unitIds.length)) fail(400, 'INVALID_UNITS'); part.unitIds?.forEach(id); }
     if (new Set(body.sources.map(row => row.reservationId)).size !== body.sources.length) fail(400, 'INVALID_SOURCE');
     res.status(201).json({ data: await mutate(req, 'SHIPMENT_POSTED', async (current, session) => {
+      const handling = await requireDispatchResources(db, req.filter, req.scope.userId, body.handling, session, businessNow(runtime));
       if (current.order.version !== body.expectedSalesOrderVersion) fail(409, 'VERSION_CONFLICT'); if (current.shipments.length >= 100) fail(409, 'FULFILLMENT_HISTORY_LIMIT');
       await currentLine(db, req.filter, current.order, body.lineIndex, session, true);
       const sources = [], movements = [], planned = [], fresh = new Map(), shipmentId = randomUUID(); let total = 0n, selectedCount = 0;
@@ -226,6 +234,7 @@ export function installPurchasedFulfillment(app, runtime, { guard, fields, id })
       for (const movement of movements) await db.collection('catalogCustomerShipments').insertOne(movement, { session });
       for (const change of planned) await writeCatalogReservation(db, req.filter, change.source, change.row, req.scope.userId, body.reason.trim(), session);
       const shipment = { _id: shipmentId, ...req.filter, schema: 'PURCHASED_SHIPMENT_V1', sourceReceiptIds: [...fresh.keys()], version: 1, createdBy: req.scope.userId, createdAt: new Date(), salesOrderId: current.order._id, accountId: current.order.accountId, lineIndex: body.lineIndex, uom: current.order.snapshot.lines[body.lineIndex].uom, quantity: decimal(total), stockMovementCount: sources.length, sources, reference: body.reference.trim(), status: 'SHIPPED', dispatchMode: 'OPERATOR_RECORDED', shippedBy: req.scope.userId, shippedAt: businessNow(runtime) };
+      if (handling) shipment.handling = handling;
       await db.collection('fulfillmentShipments').insertOne(shipment, { session });
       const proof = stamp({ _id: randomUUID(), ...req.filter, salesOrderId: current.order._id, shipmentId, orderHash: current.orderProof.orderHash, shipmentHash: hash(shipment), snapshot: shipment, sourceReceiptIds: [...fresh.keys()], movementRefs: movements.map(row => ({ movementId: row._id, contentHash: row.contentHash })) }); await db.collection('purchasedShipmentProofs').insertOne(proof, { session });
       for (const [kind, subjectId, lineIndex, amount] of [['SO_LINE_SHIPPED', current.order._id, body.lineIndex, total], ...sources.map(source => ['SOURCE_SHIPPED', source.sourceId, 0, units(source.quantity)])]) {

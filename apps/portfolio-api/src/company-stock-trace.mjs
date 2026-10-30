@@ -1,3 +1,4 @@
+import { buildFulfillmentCompanyTrace } from './manufactured-dispatch.mjs';
 import { Buffer } from 'node:buffer';
 import { validateInternalExecution, reconcileInternalAttribution, executionInvalid } from './internal-execution-state.mjs';
 import { catalogStockContext } from './catalog-stock.mjs';
@@ -16,6 +17,7 @@ export async function initializeCompanyStockTrace(db) {
 }
 
 export async function buildCompanyUnitTrace(db, filter, root, companyUnitId, session, loadCompanyContext) {
+  if (root.use.reservations.some(row => row.authorityKind === 'FULFILLMENT_SHIPMENT' && row.companyUnitIds.includes(companyUnitId))) return buildFulfillmentCompanyTrace(db, filter, root, companyUnitId, session, () => { throw new Error('SHIPMENT_TRACE_DISPATCH_REQUIRED'); });
   const openingUnit = root.producer.companyUnits.find(unit => unit._id === companyUnitId), unit = root.use.units.find(unit => unit._id === companyUnitId);
   if (!openingUnit || !unit || openingUnit.companyReceiptId !== root.receipt._id) notFound();
   const executions = new Map(), companies = new Map(), rawReceipts = new Map(), outputIds = new Set(), useIds = new Set(), checkedExecutions = new Set();
