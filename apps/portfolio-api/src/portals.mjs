@@ -14,6 +14,57 @@ export const portalRoles = {
   portalAccessAdmin: ['portal.access.manage'],
 };
 
+export function createVendorResponseService(runtime) {
+  return Object.freeze({
+    async initialize() { await createCommandExecutor(runtime).initialize(); },
+    async respond(scope, input) {
+      const keys = ['plantId', 'vendorId', 'orderId', 'responseId', 'cohort', 'documentRevision', 'sourceHash', 'decision', 'promises', 'commandKey'];
+      if (!input || Object.getPrototypeOf(input) !== Object.prototype || Object.keys(input).some(key => !keys.includes(key))) fail(400, 'INVALID_VENDOR_RESPONSE');
+      const { plantId, vendorId, orderId, responseId, cohort, documentRevision, sourceHash, decision, commandKey } = input;
+      let { promises } = input;
+      if (![plantId, vendorId, orderId, responseId].every(uuid) || !['LEGACY', 'CATALOG'].includes(cohort) ||
+          !positive(documentRevision) || typeof sourceHash !== 'string' || !/^[a-f0-9]{64}$/.test(sourceHash) || !['ACCEPT', 'DECLINE'].includes(decision) ||
+          !Array.isArray(promises) || promises.length > 500 || (decision === 'DECLINE' && promises.length) ||
+          promises.some(line => !line || Object.getPrototypeOf(line) !== Object.prototype ||
+            Object.keys(line).some(key => !['lineId', 'promisedAt'].includes(key)) || !uuid(line.lineId) ||
+            typeof line.promisedAt !== 'string' || !Number.isFinite(Date.parse(line.promisedAt)) || new Date(line.promisedAt).toISOString() !== line.promisedAt) ||
+          new Set(promises.map(line => line.lineId)).size !== promises.length) fail(400, 'INVALID_VENDOR_RESPONSE');
+      promises = structuredClone(promises);
+      let source;
+      // This authorization hook runs before the executor's receipt lookup, including replay.
+      const commands = createCommandExecutor({ ...runtime, foundation: {
+        async authorizeInTransaction(receivedScope, target, { session }) {
+          const actor = await authorizePortalParty(runtime, receivedScope, {
+            plantId, partyId: vendorId, kind: 'VENDOR', action: 'portal.vendor.respond',
+          }, session);
+          source = await readVendorPurchaseOrder(runtime.db, { tenantId: actor.tenantId, plantId, vendorId, orderId, cohort, documentRevision }, session);
+          if (!source) fail(404, 'PORTAL_ORDER_NOT_FOUND');
+          if (source.sourceHash !== sourceHash || promises.some(line => !source.lines.some(item => item.lineId === line.lineId))) fail(409, 'PORTAL_SOURCE_MISMATCH');
+          return runtime.foundation.authorizeInTransaction(receivedScope, target, { session });
+        },
+      } });
+      return commands.execute(scope, {
+        plantId, action: 'portal.vendor.respond', key: commandKey, aggregateId: responseId, expectedRevision: 0,
+        input: { vendorId, orderId, cohort, documentRevision, sourceHash, decision, promises },
+      }, async ({ session, grant }) => {
+        if (source.currentDocumentRevision !== documentRevision) fail(409, 'PORTAL_DOCUMENT_SUPERSEDED');
+        try {
+          await runtime.db.collection('portal_vendor_responses').insertOne({
+            _id: responseId, tenantId: grant.tenantId, plantId, vendorId, orderId, cohort,
+            documentRevision, sourceHash, decision, promises: structuredClone(promises), revision: 1,
+            createdAt: new Date(), createdBy: grant.userId,
+          }, { session });
+        } catch (error) {
+          if (error.code === 11000) fail(409, 'PORTAL_RESPONSE_EXISTS');
+          throw error;
+        }
+        return { revision: 1, data: { schema: 'PORTAL_VENDOR_RESPONSE_V1', responseId, orderId, documentRevision, revision: 1 },
+          events: [{ type: 'portal.vendor.responded', version: 1, data: { responseId, orderId, documentRevision } }] };
+      });
+    },
+  });
+}
+
 export function createPortalAccessService(runtime) {
   const commands = createCommandExecutor(runtime);
   return Object.freeze({

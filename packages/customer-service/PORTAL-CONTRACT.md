@@ -107,3 +107,31 @@ write-conflict behavior, durable restart recovery and HTTP mounting remain NOT_R
 validation, recipient fences, atomic rollback, duplicate grants, command replay
 and declared indexes with the real command executor and a transactional DB double.
 Actual Mongo index enforcement and concurrent invalidation remain NOT_RUN.
+
+## Immutable vendor responses
+
+`createVendorResponseService(runtime).respond(opaqueScope, { plantId, vendorId,
+orderId, responseId, cohort, documentRevision, sourceHash, decision, promises,
+commandKey })` records an immutable response at revision 1. `decision` is ACCEPT
+or DECLINE; declined responses cannot contain promises. Promises contain unique
+approved `lineId` values and canonical UTC `promisedAt` timestamps (maximum 500).
+They are vendor statements, not stock reservations or financial commitments.
+Corrections use a new response ID and command key; history is never overwritten.
+
+The foundation authorization hook resolves the current vendor grant and approved
+source on every attempt before receipt lookup, including replay. Cross-party or
+unissued orders return PORTAL_ORDER_NOT_FOUND; hash/line mismatch returns
+PORTAL_SOURCE_MISMATCH. New responses require the approved revision to be current
+in the transaction snapshot (PORTAL_DOCUMENT_SUPERSEDED otherwise). Replay can
+return an existing historical receipt while the same approved source remains
+accessible. No commercial PO, financial snapshot or approved revision is mutated.
+Response, receipt, audit and ID-only outbox event share the foundation transaction.
+Duplicate response IDs conflict; ambiguous commit results reconcile with the same
+command key. Initialize foundation indexes before mounting mutations. No service
+initialization is executed on import. This service still needs HTTP/UI integration.
+
+`portal-response.test.mjs` checks atomic persistence/rollback, unchanged PO,
+permission and party/source reauthorization on replay, input/hash/line validation,
+immutable response IDs and idempotency conflicts with the real executor and a
+transactional DB double. Actual Mongo isolation, HTTP/browser and independent QA
+remain NOT_RUN.
