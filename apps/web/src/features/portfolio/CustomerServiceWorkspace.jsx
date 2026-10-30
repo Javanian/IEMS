@@ -7,7 +7,7 @@ import { deliveryLabel } from './fulfillment.mjs';
 import { nextStages, stageCommand, messageLabel, inboxPath, humanize, persistedIdentity, previewView, DELIVERY_NOTES, metricsWindow, metricsPath, metricsView } from './customer-service.mjs';
 
 const STAGES = ['NEW', 'TRIAGED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_FOR_CUSTOMER', 'RESOLVED', 'REOPENED', 'CLOSED'];
-export const Boundary = () => <p className="pf-tag">Synthetic data · Simulated provider · No live messages</p>;
+export const Boundary = () => <p className="pf-tag">Simulated provider · No live messages · Order source shown per record</p>;
 const pageLink = (params, cursor) => { const q = new URLSearchParams(params); if (cursor) q.set('cursor', cursor); else q.delete('cursor'); return `?${q}`; };
 const when = at => (at ? new Date(at).toLocaleString('en-US') : '');
 
@@ -29,6 +29,8 @@ function ServiceMetrics() {
       <label className="pf-field pf-compact">Window<select name="metricsWindow" value={range.days} onChange={e => setRange(metricsWindow(Number(e.target.value)))}><option value={1}>Last 24 hours</option><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option></select></label>
       <button type="button" onClick={() => setRange(metricsWindow(range.days))}>Reload metrics</button></div>
     {resource.loading ? <p role="status">Loading metrics...</p> : resource.error ? <div className="pf-error" role="alert"><p>Metrics unavailable. {errorMessage(resource.error)}</p>{resource.error.code && <p>Code: {resource.error.code}</p>}<button type="button" onClick={resource.reload}>Retry metrics</button></div> : <>
+      {m.coverage === 'INCOMPLETE' && <p className="pf-error" role="status">Coverage is incomplete. Counts are bounded samples; response and resolution percentiles are unavailable.</p>}
+      {m.provenance && <p className="pf-muted">Window ticket origin: {m.provenance.syntheticRuntime} synthetic runtime · {m.provenance.seeded} seeded · {m.provenance.unknown} unknown historical origin. Preview records do not establish live messaging acceptance.</p>}
       <dl className="pf-metrics">{metricsView(m).map(x => <div key={x.key} className={x.empty ? 'pf-metric pf-metric-empty' : 'pf-metric'} data-metric={x.key}><dt>{x.label}</dt><dd><strong>{x.value}</strong><span>{x.detail}</span></dd></div>)}</dl>
       <p className="pf-muted">Window {when(m.window?.from ?? range.from)} to {when(m.window?.to ?? range.to)} · as of {when(m.asOf)}. Open, unassigned and overdue are current counts. Bot acknowledgements are not human responses.</p>
     </>}
@@ -70,12 +72,12 @@ export function ServiceTicket() {
   const refresh = () => { r.reload(); notes.reload(); };
   const userId = me.data?.user?.id;
   return <><Link to="/portfolio/service/tickets">Back to tickets</Link><Resource resource={r}>{({ data: t }) => <>
-    <h1>{t.ticketNumber}</h1><Boundary />
+    <h1>{t.ticketNumber}</h1><Boundary /><p className="pf-muted">Ticket origin: {humanize(t.dataOrigin)}. Order source: {t.orderSource ? humanize(t.orderSource) : 'No linked order'}.</p>
     <div className="pf-summary"><span className="pf-status">{humanize(t.stage)}</span><span>{humanize(t.category)}</span><span>{t.orderNumber || 'General inquiry'}</span><span>Assignee: {!t.assigneeId ? 'Unassigned' : t.assigneeId === userId ? 'You' : 'Another agent'}</span></div>
     <div className="pf-actions"><Link to={`/portfolio/accounts/${t.customerId}`}>Open customer account</Link>{t.conversationId && <Link to={`/portfolio/service/conversations/${t.conversationId}`}>Open conversation</Link>}<button type="button" onClick={refresh}>Refresh ticket</button></div>
     <div className="pf-columns">
       <section className="pf-panel"><h2>Public history</h2><p className="pf-ticket-description">{t.description}</p>
-        <ol className="pf-list">{(t.history || []).map((e, index) => <li key={e.eventId || e._id ? persistedIdentity(e, 'history') : `${t.ticketId}-history-${index}`}><strong>Public · {humanize(e.kind)}</strong>{(e.text || e.reason) && <p>{e.text || e.reason}</p>}<span className="pf-muted">{e.fromStage ? `${humanize(e.fromStage)} → ` : ''}{humanize(e.toStage)}</span></li>)}</ol>
+        <ol className="pf-list">{(t.history || []).map((e, index) => <li key={e.eventId || e._id ? persistedIdentity(e, 'history') : `${t.ticketId}-history-${index}`}><strong>Public · {humanize(e.kind)}</strong><span className="pf-id">{e.historyOrigin === 'SEEDED' ? 'Seeded history' : e.historyOrigin === 'RECORDED' ? 'Recorded runtime event' : 'Historical origin not recorded'}{e.at ? ` · ${when(e.at)}` : ''}</span>{(e.text || e.reason) && <p>{e.text || e.reason}</p>}<span className="pf-muted">{e.fromStage ? `${humanize(e.fromStage)} → ` : ''}{humanize(e.toStage)}</span></li>)}</ol>
         <CommandForm title="Add public update" permission="cs.ticket.write" action={`/api/cs/tickets/${id}/public-update`} build={(v, k) => ({ expectedVersion: t.version, text: v.publicText, commandKey: k })} onSaved={refresh}><label className="pf-field">Customer-visible update<textarea name="publicText" required maxLength={2000} rows={3} /></label></CommandForm>
       </section>
       <div>
@@ -114,6 +116,7 @@ function OrderStatus({ order }) {
 
 export function ServiceConversation() {
   const { id } = useParams(), query = new URLSearchParams(useLocation().search), cursor = query.get('cursor');
+  const me = useResource('/api/session/me');
   const r = useResource(`/api/cs/conversations/${id}`), thread = useResource(`/api/cs/conversations/${id}/thread?limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
   const refresh = () => { r.reload(); thread.reload(); };
   return <><Link to="/portfolio/service/conversations">Back to conversations</Link><Resource resource={r}>{({ data: c }) => <>
@@ -125,11 +128,12 @@ export function ServiceConversation() {
         {!data.length ? <p>No messages yet.</p> : <ol className="pf-list pf-thread">{data.map(m => <ThreadMessage key={persistedIdentity(m, 'message')} m={m} />)}</ol>}
         <div className="pf-actions">{cursor && <Link to="?">Newest page</Link>}{page?.nextCursor && <Link to={pageLink(query, page.nextCursor)}>More messages</Link>}</div>
       </>}</Resource>
-        {c.mode === 'HUMAN_ACTIVE' && <CommandForm title="Reply to customer" permission="cs.reply" action={`/api/cs/conversations/${id}/reply`} build={(v, k) => ({ text: v.replyText, commandKey: k })} onSaved={refresh}><label className="pf-field">Public reply<textarea required name="replyText" rows={3} maxLength={2000} /></label><p className="pf-muted">Preview delivery only.</p></CommandForm>}
+        {c.mode === 'HUMAN_ACTIVE' && c.assigneeId !== me.data?.user?.id && <p className="pf-muted">Assigned to another agent. Only the assigned agent can reply or resume the bot.</p>}
+        {c.mode === 'HUMAN_ACTIVE' && c.assigneeId === me.data?.user?.id && <CommandForm title="Reply to customer" permission="cs.reply" action={`/api/cs/conversations/${id}/reply`} build={(v, k) => ({ text: v.replyText, commandKey: k })} onSaved={refresh}><label className="pf-field">Public reply<textarea required name="replyText" rows={3} maxLength={2000} /></label><p className="pf-muted">Preview delivery only.</p></CommandForm>}
       </section>
       <div>
         {!['HUMAN_ACTIVE', 'CLOSED'].includes(c.mode) && <CommandForm title="Take over conversation" permission="cs.conversation.handoff" action={`/api/cs/conversations/${id}/takeover`} build={(_, k) => ({ expectedVersion: c.version, commandKey: k })} onSaved={refresh}><p>Pauses bot replies and assigns you.</p></CommandForm>}
-        {['HUMAN_ACTIVE', 'PAUSED', 'HUMAN_PENDING'].includes(c.mode) && <CommandForm title="Resume bot" permission="cs.conversation.handoff" action={`/api/cs/conversations/${id}/mode`} build={(v, k) => ({ expectedVersion: c.version, toMode: 'BOT_ACTIVE', reason: v.reason, commandKey: k })} onSaved={refresh}><Input label="Resume reason" name="reason" maxLength={500} /></CommandForm>}
+        {['HUMAN_ACTIVE', 'PAUSED', 'HUMAN_PENDING'].includes(c.mode) && (!c.assigneeId || c.assigneeId === me.data?.user?.id) && <CommandForm title="Resume bot" permission="cs.conversation.handoff" action={`/api/cs/conversations/${id}/mode`} build={(v, k) => ({ expectedVersion: c.version, toMode: 'BOT_ACTIVE', reason: v.reason, commandKey: k })} onSaved={refresh}><Input label="Resume reason" name="reason" maxLength={500} /></CommandForm>}
         <section className="pf-panel"><h2>Delivery status</h2><p className="pf-muted">Preview only means rendered and not sent. Unknown means the result could not be confirmed.</p>{c.deliveries?.some(d => d.state === 'QUEUED') && <CommandForm title="Preview queued replies" permission="cs.simulator.use" action="/api/cs/simulator/dispatch" build={() => ({})} onSaved={refresh}><p className="pf-muted">Runs the local preview dispatcher. Replies become Preview only; nothing is sent.</p></CommandForm>}{!c.deliveries?.length ? <p>No outbound deliveries.</p> : <ul className="pf-list">{c.deliveries.map(d => <li key={persistedIdentity(d, 'delivery')}><strong>{humanize(d.kind)}</strong><span className="pf-status">{deliveryLabel(d.state)}</span>
           {d.state === 'UNKNOWN' && <CommandForm title="Resolve delivery" permission="cs.delivery.review" action={`/api/cs/deliveries/${d.deliveryId}/resolve`} build={(v, k) => ({ resolution: v.resolution, evidence: v.evidence, commandKey: k })} onSaved={refresh}><label className="pf-field">Resolution<select name="resolution"><option value="ABANDON">Abandon</option><option value="CONFIRMED_NOT_SENT_REQUEUE">Not sent, requeue</option></select></label><Input label="Evidence" name="evidence" maxLength={1000} /></CommandForm>}</li>)}</ul>}</section>
       </div>
