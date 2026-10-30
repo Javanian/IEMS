@@ -149,3 +149,32 @@ remain NOT_RUN.
 - POST `/api/portals/grants/:grantId/revoke` with expectedRevision/commandKey.
 
 All plant IDs derive from authenticated selectedPlantId. Unknown query/body fields, including tenant/plant/actor overrides, are rejected. Existing service checks own domain errors/command receipts. Initializers remain explicit: createPortalAccessService(runtime).initialize() and createVendorResponseService(runtime).initialize(); never initialize DB from a request. Customer portal routes/screens remain incomplete. No shared app.mjs edits or external sends.
+
+## Customer source/status milestone
+
+`createCustomerPortalReader(runtime).order(scope,{plantId,customerId,orderNumber})`
+accepts SO-/RP- numbers and authenticates `portal.customer.read` plus the current
+customer account grant in the same snapshot/majority transaction as all source
+reads. GET `/api/portals/customers/:customerId/orders/:orderNumber` derives plant
+from authenticated scope and rejects all query fields. Denied grant returns 403;
+another customer's or missing source returns the same 404. No raw commercial
+snapshot, internal repair history, notes, costs or contact fields are returned.
+
+`PORTAL_CUSTOMER_ORDER_V1` carries source order ID/revision, public stage, actual
+read `asOf`, and coverage. Manufacture stage uses scoped manufacturing facts and
+fulfillment shipment quantities per source line/UOM, with decimal arithmetic.
+Shipment rows expose only ID, line index, decimal quantity, UOM and recorded
+shipped time. They do not assert carrier delivery. Repair stages map only known
+source statuses. Missing promised dates remain `{}`; no estimates are invented.
+Malformed quantities, UOM mismatch, unknown states or missing source revision
+fail closed. Related collections are bounded to 501 records; more than 500 means
+INCOMPLETE coverage, a null publicStage, and at most 500 shipment facts. No total
+across UOM is emitted. `asOf` is read time, not a domain update timestamp;
+sourceRevision belongs only to the order and is not a composite change token.
+Source data is never rewritten. No second authoritative status ledger is stored.
+
+`portal-customer.test.mjs` uses transactional DB doubles to inspect same-session
+ACL/source predicates, denied short circuit, public projections, quantity/UOM
+boundaries, malformed/corrupt source errors, bounded coverage and HTTP scope.
+Actual Mongo isolation, running HTTP/browser and independent QA remain NOT_RUN.
+Integration mount still belongs to TPR-149; portal screens remain incomplete.

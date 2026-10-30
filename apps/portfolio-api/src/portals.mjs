@@ -14,6 +14,73 @@ export const portalRoles = {
   portalAccessAdmin: ['portal.access.manage'],
 };
 
+const repairStages = {
+  INTAKE: 'RECEIVED', DIAGNOSIS_AUTHORIZED: 'DIAGNOSIS', TEARDOWN: 'DIAGNOSIS',
+  SCOPE_QUOTED: 'AWAITING_APPROVAL', AUTHORIZED: 'REPAIR', IN_PROGRESS: 'REPAIR',
+  TESTING: 'TESTING', REWORK: 'TESTING', TEST_PASSED: 'TESTING',
+  READY_FOR_RETURN: 'READY_TO_RETURN', REJECTED: 'READY_TO_RETURN', RETURNED: 'RETURNED',
+};
+
+export function createCustomerPortalReader(runtime) {
+  return Object.freeze({ async order(scope, input) {
+    if (!input || Object.getPrototypeOf(input) !== Object.prototype ||
+        Object.keys(input).some(key => !['plantId', 'customerId', 'orderNumber'].includes(key)) ||
+        ![input.plantId, input.customerId].every(uuid) || typeof input.orderNumber !== 'string' ||
+        !/^(SO|RP)-[A-Z0-9][A-Z0-9-]{0,36}$/.test(input.orderNumber)) fail(400, 'INVALID_PORTAL_READ');
+    const { plantId, customerId, orderNumber } = input;
+    const session = runtime.client.startSession();
+    try {
+      return await session.withTransaction(async () => {
+        const actor = await authorizePortalParty(runtime, scope, {
+          plantId, partyId: customerId, kind: 'CUSTOMER', action: 'portal.customer.read',
+        }, session);
+        const filter = { tenantId: actor.tenantId, plantId }, opts = { session };
+        const repair = orderNumber.startsWith('RP-');
+        const row = await runtime.db.collection(repair ? 'repairCases' : 'salesOrders').findOne({
+          ...filter, [repair ? 'ownerAccountId' : 'accountId']: customerId,
+          [repair ? 'caseNumber' : 'orderNumber']: orderNumber,
+        }, opts);
+        if (!row) fail(404, 'PORTAL_ORDER_NOT_FOUND');
+        if (!uuid(row._id) || !positive(row.version)) fail(409, 'PORTAL_SOURCE_INVALID');
+        let publicStage, shipments = [], coverage = 'COMPLETE';
+        if (repair) {
+          publicStage = repairStages[row.status];
+          if (!publicStage) fail(409, 'PORTAL_SOURCE_INVALID');
+        } else {
+          const related = { ...filter, accountId: customerId, salesOrderId: row._id };
+          const work = await runtime.db.collection('manufacturingWorkOrders').find(related, opts).sort({ _id: 1 }).limit(501).toArray();
+          const shipped = await runtime.db.collection('fulfillmentShipments').find(related, opts).sort({ _id: 1 }).limit(501).toArray();
+          if (work.some(w => !['PLANNED', 'RELEASED', 'IN_PROGRESS', 'QUARANTINED', 'QC_COMPLETED'].includes(w.status))) fail(409, 'PORTAL_SOURCE_INVALID');
+          coverage = work.length > 500 || shipped.length > 500 ? 'INCOMPLETE' : 'COMPLETE';
+          publicStage = coverage === 'INCOMPLETE' ? null : work.some(w => w.status === 'QUARANTINED') ? 'QUALITY_INSPECTION'
+            : work.some(w => w.status === 'IN_PROGRESS') ? 'PRODUCTION'
+              : work.length && work.every(w => w.status === 'QC_COMPLETED') ? 'READY_TO_SHIP' : work.length ? 'PLANNING' : 'ACCEPTED';
+          const lines = row.snapshot?.lines;
+          if (!Array.isArray(lines) || !lines.length) fail(409, 'PORTAL_SOURCE_INVALID');
+          const quantity = value => typeof value === 'string' && /^(0|[1-9][0-9]*)(\.[0-9]{1,6})?$/.test(value);
+          const units = value => { const [whole, fraction = ''] = value.split('.'); return BigInt(whole) * 1000000n + BigInt(fraction.padEnd(6, '0')); };
+          if (lines.some(line => !quantity(line.quantity) || units(line.quantity) <= 0n || typeof line.uom !== 'string' || !line.uom)) fail(409, 'PORTAL_SOURCE_INVALID');
+          for (const shipment of shipped.slice(0, 500)) {
+            const line = lines[shipment.lineIndex];
+            if (!Number.isSafeInteger(shipment.lineIndex) || shipment.lineIndex < 0 || !line ||
+                shipment.uom !== line.uom || !quantity(shipment.quantity) || units(shipment.quantity) <= 0n ||
+                !uuid(shipment._id) || shipment.status !== 'SHIPPED' ||
+                !(shipment.shippedAt instanceof Date) || !Number.isFinite(shipment.shippedAt.getTime())) fail(409, 'PORTAL_SOURCE_INVALID');
+          }
+          if (coverage === 'COMPLETE' && shipped.length) {
+            publicStage = lines.every((line, index) => shipped.filter(s => s.lineIndex === index)
+              .reduce((sum, s) => sum + units(s.quantity), 0n) >= units(line.quantity)) ? 'SHIPPED' : 'PARTIALLY_SHIPPED';
+          }
+          shipments = shipped.slice(0, 500).map(s => ({ shipmentId: s._id, ...select(s, ['lineIndex', 'quantity', 'uom', 'shippedAt']) }));
+        }
+        return { schema: 'PORTAL_CUSTOMER_ORDER_V1', kind: repair ? 'REPAIR' : 'MANUFACTURE',
+          orderId: row._id, orderNumber, sourceRevision: row.version, publicStage, coverage,
+          source: 'PORTFOLIO_API_OWNED', asOf: new Date(), confirmedDates: {}, shipments };
+      }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
+    } finally { await session.endSession(); }
+  } });
+}
+
 export function createVendorPortalReader(runtime) {
   const read = async (scope, input, history) => {
     const allowed = ['plantId', 'vendorId', 'orderId', 'cohort', 'documentRevision', ...(history ? ['limit', 'after'] : [])];
@@ -51,9 +118,16 @@ export function createVendorPortalReader(runtime) {
 // Mount after the application's authenticated scope middleware. No public or
 // dispatcher routes are installed here; the integration owner owns app.mjs.
 export function installPortals(app, runtime) {
+  const customers = createCustomerPortalReader(runtime);
   const reader = createVendorPortalReader(runtime);
   const responses = createVendorResponseService(runtime);
   const access = createPortalAccessService(runtime);
+  app.get('/api/portals/customers/:customerId/orders/:orderNumber', async (req, res) => {
+    if (!req.scope || !uuid(req.scope.selectedPlantId)) fail(403, 'SCOPE_DENIED');
+    if (Object.keys(req.query).length) fail(400, 'UNKNOWN_FIELD');
+    res.json({ data: await customers.order(req.scope, { plantId: req.scope.selectedPlantId,
+      customerId: req.params.customerId, orderNumber: req.params.orderNumber }) });
+  });
   const input = (req, history = false) => {
     if (!req.scope || !uuid(req.scope.selectedPlantId)) fail(403, 'SCOPE_DENIED');
     const allowed = ['cohort', 'documentRevision', ...(history ? ['limit', 'after'] : [])];
