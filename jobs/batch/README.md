@@ -8,4 +8,3 @@ MERGE inserts only missing event IDs; existing different checksums fail. Retries
 # Reporting v2 backfills
 
 Raw Parquet preserves the complete v2 envelope and source provenance without flattening order quantities or repeating money across units. The shared codec validates v2 resource/source contracts; original v1 raw evidence remains separate and is never upgraded into historical financial snapshots. Backfill retains stable reporting UUIDs/sequences/receipts and immutable manifests. Rebuild needs complete reporting source history plus its authorized coverage manifests for trusted marts; raw Iceberg storage alone does not establish complete financial balances. Actual Spark/Iceberg runtime parity/recovery remains NOT_RUN until final QA.
-
