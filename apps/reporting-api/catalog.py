@@ -9,7 +9,7 @@ from publish import verify_publication
 from events import now, utc
 
 DATASETS = {
-    'order-balances': {'table':'order_balances', 'columns':['order_id','currency','uom','ordered_amount','ordered_quantity','deposited_amount','unpaid_amount','fulfilled_quantity','remaining_quantity'], 'description':'Current orders, deposits and partial fulfillment from reconciled snapshots.'},
+    'order-balances': {'table':'order_balances', 'columns':['order_id','currency','ordered_amount','deposited_amount','unpaid_amount','quantities','coverage_status'], 'description':'One monetary row per order with quantities by UOM and reconciled source coverage.'},
     'resource-history': {'table':'resource_history', 'columns':['event_id','aggregate_id','aggregate_version','resource_type','occurred_at','received_at','available_at','valid_from','valid_to','known_until','deleted'], 'description':'Versioned resource history with source and availability times.'},
 }
 
