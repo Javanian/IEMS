@@ -43,7 +43,9 @@ export function installPlatform(app, runtime) {
     const rate = await runtime.platform.rateLimiter.consume({ ...grant, authScope: req.scope }, { subjectId: grant.userId, policy: 'platform.job.request', limit: 20, windowMs: 60000 });
     if (!rate.allowed) { res.set('Retry-After', String(Math.max(1, Math.ceil((Date.parse(rate.retryAt) - Date.now()) / 1000)))); throw new JobError('JOB_RATE_LIMITED', 429); }
     const jobId = randomUUID();
-    const result = await runtime.commands.execute(req.scope, { ...scope, action: 'platform.job.request', key: input.key, aggregateId: `job:${input.key}`, expectedRevision: 0, input: { kind: input.kind, input: input.input } }, async ({ session, grant }) => {
+    const requiredAction = runtime.platform.actionForKind(input.kind);
+    const result = await runtime.commands.execute(req.scope, { ...scope, action: requiredAction, key: input.key, aggregateId: `job:${input.key}`, expectedRevision: 0, input: { kind: input.kind, input: input.input } }, async ({ session, grant }) => {
+      await runtime.foundation.authorizeInTransaction(req.scope, { ...scope, action: 'platform.job.request' }, { session });
       await runtime.foundation.authorizeInTransaction(req.scope, { ...scope, action: runtime.platform.actionForKind(input.kind) }, { session });
       const s = await runtime.db.collection('sessions').findOne({ tokenHash: createHash('sha256').update(req.token).digest('hex'), revoked: false }, { session });
       if (!s) throw new JobError('UNAUTHENTICATED', 401);

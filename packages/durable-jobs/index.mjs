@@ -57,7 +57,7 @@ export function createDurableJobs({ client, db, authorizeJob, handlers = {}, lea
       });
     },
     async claim(envelope) {
-      if (!uuid(envelope?.jobId)) throw new JobError('INVALID_JOB_ENVELOPE', 400);
+      if (envelope?.schemaVersion !== 1 || !uuid(envelope.jobId)) throw new JobError('INVALID_JOB_ENVELOPE', 400);
       const scope = jobScope(envelope), at = now();
       return tx(async session => {
         const job = await jobs.findOne({ _id: envelope.jobId, ...scope, engine: 'durable-v1', active: true }, { session });
