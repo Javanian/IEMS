@@ -6,16 +6,21 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const scratch = process.env.PAPERCLIP_RUN_SCRATCH_DIR || process.env.PAPERCLIP_SCRATCH_DIR;
 if (!scratch) throw new Error('PAPERCLIP_RUN_SCRATCH_DIR required');
 const result = { mode: 'OFFLINE_MOCK_ONLY', checks: [], status: 'NOT_RUN' };
+const env = { ...process.env, CHECKPOINT_DISABLE: '1', TF_IN_AUTOMATION: '1', TF_INPUT: '0', AWS_EC2_METADATA_DISABLED: 'true', AWS_ACCESS_KEY_ID: 'offline-mock-only', AWS_SECRET_ACCESS_KEY: 'offline-mock-only', AWS_SESSION_TOKEN: '' };
+for (const key of Object.keys(env)) if (key.startsWith('TF_CLI_ARGS') || key.startsWith('TF_VAR_')) delete env[key];
 const run = args => {
-  const proc = spawnSync('terraform', args, { cwd: target, encoding: 'utf8', timeout: 120000, windowsHide: true, env: { ...process.env, TF_CLI_CONFIG_FILE: config, TF_IN_AUTOMATION: '1', TF_INPUT: '0', AWS_EC2_METADATA_DISABLED: 'true', AWS_ACCESS_KEY_ID: 'offline-mock-only', AWS_SECRET_ACCESS_KEY: 'offline-mock-only', AWS_SESSION_TOKEN: '' } });
+  const proc = spawnSync('terraform', args, { cwd: target, encoding: 'utf8', timeout: 120000, windowsHide: true, env });
   result.checks.push({ command: ['terraform', ...args], cwd: target, exit: proc.status, error: proc.error?.code, stdout: proc.stdout, stderr: proc.stderr });
   return !proc.error && proc.status === 0;
 };
 const target = join(resolve(scratch), `terraform-aws-${Date.now()}`), config = `${target}.tfrc`;
+env.TF_CLI_CONFIG_FILE = config;
+env.TF_DATA_DIR = join(target, '.terraform');
+env.TF_WORKSPACE = 'default';
 mkdirSync(target, { recursive: true });
 cpSync(join(root, 'infra/terraform/aws'), target, { recursive: true });
 const mirror = process.env.PLATFORM_TF_PROVIDER_MIRROR;
-const cli = spawnSync('terraform', ['version', '-json'], { encoding: 'utf8', timeout: 10000, windowsHide: true });
+const cli = spawnSync('terraform', ['version', '-json'], { encoding: 'utf8', timeout: 10000, windowsHide: true, env });
 if (cli.error?.code === 'ENOENT') result.reason = 'Terraform executable unavailable';
 else if (cli.status !== 0 || cli.error) { result.status = 'FAIL'; result.reason = 'Terraform version check failed'; }
 else {

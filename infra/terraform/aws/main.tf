@@ -87,6 +87,7 @@ resource "aws_security_group" "app" {
   name_prefix = "${var.name}-"
   description = "Private application contract; ingress integration owned by cloud delivery"
   vpc_id      = aws_vpc.app.id
+  ingress     = []
   egress {
     description = "TLS to private endpoints only"
     from_port   = 443
