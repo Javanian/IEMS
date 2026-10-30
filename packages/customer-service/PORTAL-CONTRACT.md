@@ -56,12 +56,29 @@ Foundation atomically saves the result, audit and ID-only `portal.grant.revoked`
 event. Command-key reuse with different input conflicts. Unknown commit outcomes
 must reconcile using the same key; no new command should be sent blindly.
 
-This is not a grant provisioning API. Trusted provisioning, expiry policy,
-unique grant indexes and HTTP integration remain unfinished.
+`provision(opaqueScope, { plantId, grantId, userId, partyId, kind, actions,
+expiresAt, commandKey })` creates revision 1 using `portal.access.manage`.
+It requires a canonical UTC ISO expiry in the future, at most 30 days away.
+Vendor actions require read and optionally respond; customer grants only allow
+customer read. The recipient must already have an active foundation user and
+tenant membership covering the plant and its legal entity (or tenant-wide
+membership). Both recipient records are fenced in the effect transaction;
+foundation fences the administrator, tenant, plant and legal entity. The scoped
+source account/vendor must exist. This command grants neither foundation roles
+nor membership; the recipient still needs the corresponding portal role to read.
+
+Initialize also declares a unique tenant/plant/user/party/kind index for active
+grants. Expired active grants must be explicitly revoked before replacement;
+there is no TTL deletion of grant history. Duplicate grants return
+`409 PORTAL_GRANT_EXISTS`. Receipt, audit and ID-only provision event are atomic.
+Replay reauthorizes the administrator and returns the original ID-only receipt;
+it never recreates or reactivates a revoked grant. Every later portal read must
+resolve current recipient, source party and grant authority independently.
+HTTP integration remains unfinished.
 No collection initialization or data migration has been executed. Callers must
 not insert grants from untrusted request fields or expose the low-level adapter.
 
-Authenticated party ACL provisioning, portal endpoints, customer order
+Portal endpoints, customer order
 views, durable vendor response/promise history, replay reauthorization and screens
 remain required. Shared mount and navigation belong to the integration owner.
 This adapter is a usable source contract, not an implemented portal or independent
@@ -85,3 +102,8 @@ it does not prove server-side expiry matching or concurrent revocation isolation
 foundation command executor with a transactional DB double to check atomic failure,
 replay reauthorization, scope/revision denial and idempotency conflicts. Mongo
 write-conflict behavior, durable restart recovery and HTTP mounting remain NOT_RUN.
+
+`portal-provisioning.test.mjs` checks recipient scope denial, permission/expiry
+validation, recipient fences, atomic rollback, duplicate grants, command replay
+and declared indexes with the real command executor and a transactional DB double.
+Actual Mongo index enforcement and concurrent invalidation remain NOT_RUN.

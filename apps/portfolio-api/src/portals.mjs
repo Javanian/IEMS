@@ -17,7 +17,58 @@ export const portalRoles = {
 export function createPortalAccessService(runtime) {
   const commands = createCommandExecutor(runtime);
   return Object.freeze({
-    initialize: () => commands.initialize(),
+    async initialize() {
+      await commands.initialize();
+      await runtime.db.collection('portal_party_grants').createIndex(
+        { tenantId: 1, plantId: 1, userId: 1, partyId: 1, kind: 1 },
+        { unique: true, partialFilterExpression: { active: true } },
+      );
+    },
+    async provision(scope, input) {
+      if (!input || Object.getPrototypeOf(input) !== Object.prototype) fail(400, 'INVALID_PORTAL_GRANT');
+      const { plantId, grantId, userId, partyId, kind, actions, expiresAt, commandKey } = input;
+      const allowed = kind === 'VENDOR' ? ['portal.vendor.read', 'portal.vendor.respond'] : kind === 'CUSTOMER' ? ['portal.customer.read'] : [];
+      const expiry = typeof expiresAt === 'string' ? new Date(expiresAt) : new Date(NaN);
+      if (![plantId, grantId, userId, partyId].every(uuid) || !allowed.length ||
+          !Array.isArray(actions) || !actions.length || actions.length > allowed.length ||
+          new Set(actions).size !== actions.length || actions.some(action => !allowed.includes(action)) ||
+          !actions.includes(allowed[0]) || !Number.isFinite(expiry.getTime()) || expiry.toISOString() !== expiresAt ||
+          Object.keys(input).some(key => !['plantId', 'grantId', 'userId', 'partyId', 'kind', 'actions', 'expiresAt', 'commandKey'].includes(key))) fail(400, 'INVALID_PORTAL_GRANT');
+      return commands.execute(scope, {
+        plantId, action: 'portal.access.manage', key: commandKey, aggregateId: grantId, expectedRevision: 0,
+        input: { operation: 'PROVISION', userId, partyId, kind, actions: [...actions].sort(), expiresAt },
+      }, async ({ session, grant }) => {
+        const now = new Date();
+        if (expiry <= now || expiry.getTime() - now.getTime() > 30 * 86400000) fail(400, 'INVALID_PORTAL_EXPIRY');
+        const member = await runtime.db.collection('memberships').findOne({ tenantId: grant.tenantId, userId, active: true }, { session });
+        if (!member || !positive(member.version) || (member.tenantWide !== true &&
+            (!member.plantIds?.includes(plantId) || !member.legalEntityIds?.includes(grant.legalEntityId)))) fail(403, 'PORTAL_TARGET_DENIED');
+        // Fence the recipient as well as the administrator; a concurrent membership
+        // invalidation or user disable must conflict with this grant creation.
+        for (const [name, filter] of [
+          ['memberships', { _id: member._id, tenantId: grant.tenantId, userId, active: true, version: member.version }],
+          ['users', { _id: userId, active: true }],
+        ]) {
+          const result = await runtime.db.collection(name).updateOne(filter, { $inc: { authorizationFence: 1 } }, { session });
+          if (result.matchedCount !== 1) fail(403, 'PORTAL_TARGET_DENIED');
+        }
+        if (!await runtime.db.collection(kind === 'VENDOR' ? 'vendors' : 'accounts').findOne({
+          _id: partyId, tenantId: grant.tenantId, plantId,
+        }, { session })) fail(403, 'PORTAL_TARGET_DENIED');
+        try {
+          await runtime.db.collection('portal_party_grants').insertOne({
+            _id: grantId, tenantId: grant.tenantId, plantId, userId, partyId, kind,
+            actions: [...actions].sort(), expiresAt: expiry, active: true, revision: 1,
+            authorizationFence: 0, createdAt: now, createdBy: grant.userId,
+          }, { session });
+        } catch (error) {
+          if (error.code === 11000) fail(409, 'PORTAL_GRANT_EXISTS');
+          throw error;
+        }
+        return { revision: 1, data: { schema: 'PORTAL_GRANT_V1', grantId, active: true, revision: 1 },
+          events: [{ type: 'portal.grant.provisioned', version: 1, data: { grantId, revision: 1 } }] };
+      });
+    },
     async revoke(scope, input) {
       if (!input || Object.getPrototypeOf(input) !== Object.prototype) fail(400, 'INVALID_PORTAL_REVOCATION');
       const { plantId, grantId, expectedRevision, commandKey } = input;
