@@ -4,6 +4,8 @@ import { installInquiries, initializeInquiries } from './inquiries.mjs';
 import { fixtureVat, fixtureTax, taxAmounts, formatMoney } from './fixture-tax.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { businessNow } from './business-clock.mjs';
+import { appendReportingSnapshot } from '../../../packages/domain-events/snapshot-source.mjs';
+import { addDecimals, sourceHash } from '../../../packages/domain-events/source-bindings.mjs';
 import { catalogQuoteSchema, initializeQuoteCatalog, typedQuoteInput, bindQuoteRevision, validateCatalogQuote, quoteCurrentDependencies, catalogQuoteView, catalogOrderView, saveCatalogQuote, saveCatalogOrder, quoteCatalogKey, quoteCatalogPayloadHash, quoteCatalogReplay, installQuoteCatalogOptions } from './quote-catalog.mjs';
 export const commercialActions = ['quote.read', 'quote.write', 'quote.approve', 'quote.accept', 'quote.convert'];
 export const roleActions = { owner: ['crm.read', 'crm.write', ...commercialActions], quoteEditor: ['quote.read', 'quote.write'], quoteApprover: ['quote.read', 'quote.approve'], quoteAcceptor: ['quote.read', 'quote.accept'], quoteConverter: ['quote.read', 'quote.convert'], quoteReader: ['quote.read'] };
@@ -201,6 +203,14 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
           const order = { _id: orderId, ...req.filter, orderNumber: orderNumberFor(req.filter, orderId), quoteId: row._id, quoteRevision: revision, accountId: row.accountId, version: 1, status: 'OPEN', snapshot: structuredClone(row.approvals.find(approval => approval.revision === revision).snapshot), createdAt: new Date(), createdBy: req.scope.userId, ...(typed ? { schema: 'CATALOG_SALES_ORDER_V1', ownerLegalEntityId: row.ownerLegalEntityId } : {}) };
           if (row.opportunityId) { order.opportunityId = row.opportunityId; order.opportunityVersion = row.opportunityVersion; }
           await c('salesOrders').insertOne(order, { session });
+          const reportingGrant = await runtime.foundation.authorizeInTransaction(req.scope, { ...req.filter, action: 'quote.convert' }, { session });
+          const quantityGroups = new Map();
+          order.snapshot.lines.forEach((line, index) => {
+            const group = quantityGroups.get(line.uom) || { uom: line.uom, values: [], sourceLineIndexes: [] };
+            group.values.push(line.quantity); group.sourceLineIndexes.push(index); quantityGroups.set(line.uom, group);
+          });
+          const reportingSource = JSON.parse(JSON.stringify({ snapshot: order.snapshot, accountId: order.accountId, quoteId: order.quoteId, quoteRevision: order.quoteRevision }));
+          await appendReportingSnapshot({ db: runtime.db, session, grant: reportingGrant, resourceType: 'order', resourceId: order._id, eventKey: order._id, mappingVersion: 1, occurredAt: order.createdAt.toISOString(), source: { collection: 'salesOrders', id: order._id, version: order.quoteRevision, hash: sourceHash(reportingSource), eventIds: [], sourceOccurredAt: order.createdAt.toISOString() }, fullSnapshot: { amount: order.snapshot.total, currency: order.snapshot.currency, quantities: [...quantityGroups.values()].sort((a, b) => a.uom.localeCompare(b.uom)).map(group => ({ uom: group.uom, quantity: addDecimals(group.values), sourceLineIndexes: group.sourceLineIndexes })), deleted: false, baseline: false, observedAt: order.createdAt.toISOString() } });
           await c('quoteConversions').insertOne({ _id: randomUUID(), ...req.filter, key: idempotencyKey, payloadHash, quoteId: row._id, orderId: order._id }, { session });
           await c('commercialOutbox').insertOne({ _id: randomUUID(), ...req.filter, kind: 'salesOrder.created', subjectId: order._id, quoteId: row._id, occurredAt: new Date(), state: 'PENDING' }, { session });
           row.status = 'CONVERTED'; row.orderId = order._id; row.version++; row.updatedAt = new Date();
