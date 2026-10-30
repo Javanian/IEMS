@@ -50,12 +50,13 @@ export function createProjectionConsumer({ client, db, name, apply, authorize })
         if (old) { if (old.hash !== digest) throw new Error('EVENT_ID_CONFLICT'); return 'duplicate'; }
         const key = { consumer: name, tenantId: e.tenantId, plantId: e.plantId, aggregateId: e.aggregateId };
         const heads = db.collection('analyticsHeads'), head = await heads.findOne(key, { session });
+        if (head && (head.resourceType !== e.payload.resourceType || head.legalEntityId !== e.payload.legalEntityId)) throw new Error('PROJECTION_IDENTITY_CONFLICT');
         if (e.aggregateVersion !== (head?.version ?? 0) + 1) throw new Error('VERSION_GAP_OR_CONFLICT');
         await apply(e, { session });
         if (head) {
           const result = await heads.updateOne({ ...key, version: head.version }, { $set: { version: e.aggregateVersion } }, { session });
           if (result.modifiedCount !== 1) throw new Error('PROJECTION_CONTENTION');
-        } else await heads.insertOne({ ...key, version: e.aggregateVersion }, { session });
+        } else await heads.insertOne({ ...key, version: e.aggregateVersion, resourceType: e.payload.resourceType, legalEntityId: e.payload.legalEntityId }, { session });
         await receipts.insertOne({ ...filter, hash: digest, consumedAt: new Date() }, { session });
         return 'applied';
       });

@@ -61,6 +61,7 @@ export function createReportingSource({ db, client, foundation, authorizeResourc
       const parent = await requiredOrder(scope, r.salesOrderId, session, observedAt);
       const line = parent.snapshot.lines[r.lineIndex];
       if (!line || line.uom !== r.uom || parent.accountId !== r.accountId || r.status !== 'SHIPPED') throw new Error('SHIPMENT_SOURCE_CONFLICT');
+      if (!Array.isArray(r.sources) || !r.sources.length || r.sources.length>100 || r.sources.some(s => !['WORK_ORDER','RESERVATION'].includes(s.sourceType) || !uuid.test(s.sourceId)) || addDecimals(r.sources.map(s => s.quantity))!==addDecimals([r.quantity])) throw new Error('SHIPMENT_QUANTITY_PROOF_MISSING');
       targets.push({ resourceType: 'fulfillment', resourceId: r._id, eventKey: r._id, data: { orderId: parent._id, quantity: decimal(r.quantity), uom: r.uom, sourceLineIndex: r.lineIndex, deleted: false } });
     } else {
       if (!Array.isArray(r.allocations) || r.allocations.length > 100 || r.status !== 'RECORDED') throw new Error('PAYMENT_ALLOCATION_EVIDENCE_MISSING');
@@ -99,6 +100,7 @@ export function createReportingSource({ db, client, foundation, authorizeResourc
       if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error('BOUNDED_SOURCE_SCAN_REQUIRED');
       return boundedTransaction(client, async session => {
         const grant = await foundation.authorizeInTransaction(scope, { tenantId: scope.tenantId, plantId: scope.selectedPlantId ?? scope.plantId, action: 'fulfillment.read' }, { session });
+        await foundation.authorizeInTransaction(scope, { tenantId: grant.tenantId, plantId: grant.plantId, action: 'quote.read' }, { session });
         const filter = { tenantId: grant.tenantId, plantId: grant.plantId };
         const orders = await db.collection('salesOrders').find(filter, { session }).sort({ _id: 1 }).limit(limit + 1).toArray();
         const receipts = await db.collection('fulfillmentKeys').find(filter, { session }).sort({ _id: 1 }).limit(limit + 1).toArray();
@@ -106,6 +108,7 @@ export function createReportingSource({ db, client, foundation, authorizeResourc
         const observedAt = new Date().toISOString(), envelopes = [];
         for (const row of orders) envelopes.push(await order(scope, row, session, observedAt));
         for (const row of receipts) envelopes.push(...await fulfillment(scope, row, session, observedAt));
+        if (envelopes.length>1000) throw new Error('REPORTING_SCOPE_RESOURCE_BOUND_EXCEEDED');
         const resources = [...new Set(envelopes.map(e => e.aggregateId))];
         if (await db.collection('reportingSnapshotHeads').findOne({ ...filter, resourceId: { $nin: resources } }, { session })) throw new Error('MISSING_SOURCE_AUTHORITY_NO_INFERRED_DELETE');
         const manifest = { _id: randomUUID(), ...filter, legalEntityId: grant.legalEntityId, runId: randomUUID(), observedAt, coverage: 'COMPLETE', trustedZero: true, baseline: true, sourceHighWater: { salesOrders: orders.at(-1)?._id ?? null, fulfillmentKeys: receipts.at(-1)?._id ?? null }, sourceHashes: { salesOrders: contentHash(json(orders)), fulfillmentKeys: contentHash(json(receipts)) }, counts: { salesOrders: orders.length, fulfillmentKeys: receipts.length }, quarantine: [], unsupported: [], fence: 'single-snapshot-transaction', validity: 'as-of-observedAt-only' };
