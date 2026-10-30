@@ -3,6 +3,7 @@ import { createProviderProvisioningCommands } from './provider-provisioning.mjs'
 import { createProviderPolicyCommands } from './provider-policy-commands.mjs';
 import { createProviderActivation } from './provider-activation.mjs';
 import { createProviderReplyCommands } from './provider-replies.mjs';
+import { createProviderApprovalCommands } from './provider-approvals.mjs';
 
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const identifier = value => typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(value);
@@ -10,8 +11,14 @@ const denied = () => { throw Object.assign(new Error('PROVIDER_OPERATOR_DENIED')
 
 export const providerOperatorRoles = Object.freeze({
   providerReplyOperator: Object.freeze(['provider.reply.queue']),
+  providerReplyApprover: Object.freeze(['provider.reply.approve']),
   providerAuthorityAdmin: Object.freeze(['provider.authority.revoke', 'provider.authority.provision', 'provider.authority.configure']),
 });
+
+export function createScopedProviderApprovalCommands({ db, transaction, foundation, verifyBindingSource, tenantId, plantId, accountId, now }) {
+  const authorize = createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId });
+  return createProviderApprovalCommands({ db, transaction, authorize, verifyBindingSource, tenantId, accountId, now });
+}
 
 export function createScopedProviderReplyCommands({ db, transaction, foundation, verifyBindingSource, tenantId, plantId, accountId, now }) {
   const authorize = createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId });

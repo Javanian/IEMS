@@ -252,3 +252,14 @@ Identity/binding activation: createScopedProviderActivation requires trusted acc
 `createScopedProviderReplyCommands` requires the explicit `provider.reply.queue` foundation action, a configured account/plant mapping and trusted source verifier. It accepts only stable IDs, SHA-256 content hash, prefix, pinned policy/identity/binding versions and bounded expiry. No body is accepted or stored. Current policy, allowlist, pause, identity and binding are write-fenced in the effect transaction before replay; source verification runs again. Reply/receipt/audit/outbox commit atomically. Existing reply IDs cannot be replaced. Ambiguous writes require same-command reconciliation; no resend/retry is performed.
 
 The delivery-policy evaluator validates the proposed metadata using an in-memory candidate approval only; that candidate is never persisted or returned. Durable state remains QUEUED with no approval authority. A separate approval writer and HTTP composition are still required. No provider/browser send is enabled. Integration must register the exported role declaration with foundation; this module grants no role or membership.
+
+### Explicit reply approval (PLAT-051)
+`createScopedProviderApprovalCommands` requires the separately declared `providerReplyApprover`
+role action `provider.reply.approve` (no grants are installed automatically). Input is the exact
+queue metadata plus `commandId` and `expectedReplyRevision`. Current source, policy, identity,
+binding and reply are fenced before receipt lookup. Only a LIVE QUEUED reply at that revision
+can advance to APPROVED. Approval metadata, reply CAS, receipt, audit and outbox share one
+transaction. Replay reauthorizes and rejects revoked reply/approval or changed source authority.
+Expired approvals cannot be refreshed or replaced by replay: queue a new immutable reply.
+No private body is accepted or persisted. This command neither sends nor starts a browser;
+HTTP composition, UI and driver remain pending. External send stays disabled.
