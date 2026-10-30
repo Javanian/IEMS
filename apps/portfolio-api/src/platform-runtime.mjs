@@ -3,14 +3,17 @@ import { createDurableJobs, JobError } from '../../../packages/durable-jobs/inde
 import { createJobAuthorization } from '../../../packages/durable-jobs/authorization.mjs';
 import { boundedTransaction } from '../../../packages/tenant-foundation/commands.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
+import { createCacheCoordination, createDurableRateLimiter } from '../../../packages/cache-coordination/index.mjs';
 
 export const platformActions = ['platform.read', 'platform.job.request'];
 export const platformRoles = { platformReader: ['platform.read'], platformOperator: platformActions };
-export async function initializePlatformRuntime(runtime, { roleActions, handlers = {}, actionForKind = () => 'platform.job.request', ...options }) {
+export async function initializePlatformRuntime(runtime, { roleActions, handlers = {}, actionForKind = () => 'platform.job.request', redis, ...options }) {
   const authorizeJob = createJobAuthorization({ db: runtime.db, roleActions, actionForKind });
   const jobs = createDurableJobs({ ...runtime, ...options, authorizeJob, handlers });
   await jobs.initialize();
-  return { jobs, handlers, actionForKind };
+  const rateLimiter = createDurableRateLimiter({ ...runtime, authorize: (scope, { session }) => runtime.foundation.authorizeInTransaction(scope.authScope, { ...scope, action: 'platform.job.request' }, { session }) });
+  await rateLimiter.initialize();
+  return { jobs, handlers, actionForKind, rateLimiter, coordination: redis ? createCacheCoordination(redis) : null };
 }
 const publicJob = j => ({ id: j._id, kind: j.kind, status: j.status, attempt: j.attempt, maxAttempts: j.maxAttempts, revision: j.revision, createdAt: j.createdAt, updatedAt: j.updatedAt, errorCode: j.errorCode || null, nextState: j.status === 'DEAD' ? 'Review failure before requesting a new job.' : j.status === 'QUEUED' ? 'Waiting for worker.' : j.status === 'RUNNING' ? 'Worker owns an attempt.' : 'No further action.' });
 export function installPlatform(app, runtime) {
@@ -36,6 +39,9 @@ export function installPlatform(app, runtime) {
   app.post('/api/platform/jobs', async (req, res) => {
     const scope = target(req), input = req.body;
     if (!input || Object.keys(input).some(k => !['tenantId', 'plantId', 'kind', 'input', 'key'].includes(k)) || !Object.hasOwn(runtime.platform.handlers, input.kind)) throw new JobError('INVALID_JOB_REQUEST', 400);
+    const grant = await runtime.foundation.authorize(req.scope, { ...scope, action: 'platform.job.request' });
+    const rate = await runtime.platform.rateLimiter.consume({ ...grant, authScope: req.scope }, { subjectId: grant.userId, policy: 'platform.job.request', limit: 20, windowMs: 60000 });
+    if (!rate.allowed) { res.set('Retry-After', String(Math.max(1, Math.ceil((Date.parse(rate.retryAt) - Date.now()) / 1000)))); throw new JobError('JOB_RATE_LIMITED', 429); }
     const jobId = randomUUID();
     const result = await runtime.commands.execute(req.scope, { ...scope, action: 'platform.job.request', key: input.key, aggregateId: `job:${input.key}`, expectedRevision: 0, input: { kind: input.kind, input: input.input } }, async ({ session, grant }) => {
       await runtime.foundation.authorizeInTransaction(req.scope, { ...scope, action: runtime.platform.actionForKind(input.kind) }, { session });
