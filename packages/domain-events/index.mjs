@@ -1,11 +1,16 @@
 import { boundedTransaction, canonicalJson, contentHash } from '../tenant-foundation/commands.mjs';
+import { SNAPSHOT_TYPE, SNAPSHOT_TOPIC, validateSnapshot, validateSource } from './source-bindings.mjs';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export function validateEvent(e) {
   for (const key of ['eventId', 'tenantId', 'plantId', 'aggregateId']) if (!uuid.test(e?.[key])) throw new Error(`INVALID_${key}`);
-  if (e.schemaVersion !== 1 || !Number.isSafeInteger(e.aggregateVersion) || e.aggregateVersion < 1 || !/^[a-zA-Z][\w.-]{0,127}$/.test(e.type)) throw new Error('UNSUPPORTED_EVENT');
+  if (![1, 2].includes(e.schemaVersion) || !Number.isSafeInteger(e.aggregateVersion) || e.aggregateVersion < 1 || !/^[a-zA-Z][\w.-]{0,127}$/.test(e.type)) throw new Error('UNSUPPORTED_EVENT');
   if (typeof e.occurredAt !== 'string' || !/^\d{4}-\d\d-\d\dT.*Z$/.test(e.occurredAt) || !Number.isFinite(Date.parse(e.occurredAt))) throw new Error('INVALID_EVENT_TIME');
   if (!e.payload || Object.getPrototypeOf(e.payload) !== Object.prototype) throw new Error('INVALID_PAYLOAD');
+  if (e.schemaVersion === 2) {
+    if (e.type !== SNAPSHOT_TYPE || e.payload.resourceId !== e.aggregateId || e.payload.source?.mappingVersion !== 1 || typeof e.payload.baseline !== 'boolean') throw new Error('INVALID_SNAPSHOT_V2');
+    validateSnapshot(e.payload); validateSource(e.payload.source);
+  }
   if (Buffer.byteLength(canonicalJson(e)) > 1024 * 1024) throw new Error('EVENT_TOO_LARGE');
   return e;
 }
@@ -37,6 +42,7 @@ export function createProjectionConsumer({ client, db, name, apply, authorize })
     },
     async consume(input) {
       const e = validateEvent(input), digest = contentHash(e);
+      if (e.schemaVersion !== 2 || e.type !== SNAPSHOT_TYPE) throw new Error('SNAPSHOT_STREAM_REQUIRED');
       return boundedTransaction(client, async session => {
         await authorize(e, session);
         const filter = { consumer: name, tenantId: e.tenantId, plantId: e.plantId, eventId: e.eventId };
@@ -57,7 +63,8 @@ export function createProjectionConsumer({ client, db, name, apply, authorize })
   };
 }
 
-export async function consumeKafka({ consumer, projection, topic = 'iems.domain.v1' }) {
+export async function consumeKafka({ consumer, projection, topic = SNAPSHOT_TOPIC }) {
+  if (topic !== SNAPSHOT_TOPIC) throw new Error('SNAPSHOT_TOPIC_REQUIRED');
   await consumer.subscribe({ topic, fromBeginning: true });
   await consumer.run({ autoCommit: false, eachMessage: async ({ topic, partition, message }) => {
     await projection.consume(JSON.parse(message.value.toString('utf8')));
