@@ -113,3 +113,13 @@ Integration must explicitly call `initializeProviderReconciliation(db)` before a
 Registration validates UUID delivery/reply IDs and the current owned generation in one transaction. Its required `authorizeRegistration(input, session)` dependency must reauthorize and fence current reply, identity, approval, allowlist, prefix, expiry and pause policy in that same transaction, returning exactly true. A permissive stub is not a live policy implementation. Registration contends with release on the session document. Unique scope/reply and scope/delivery indexes prevent another delivery for an ambiguous reply. Replays reauthorize, return the existing state and never reset an attempt; a different reply or session generation cannot reuse a delivery. Only metadata is retained. SENDING denotes a reserved attempt, not evidence that a provider was called. A failure after registration must retain the original ID and reconcile; never derive a new ID and resend. Historical receipts can reconcile a registered old-generation delivery after browser closure; they do not authorize new work in that generation.
 
 Integration must run both `initializeProviderSessions(db)` and `initializeProviderReconciliation(db)` before accepting registrations/callbacks. Neither initializer has been executed here. Use bounded transaction retry only for known aborted transactions and same-ID reconciliation for ambiguous commits. No registry method sends, and ready events have no dispatch hook. Browser lifecycle orchestration, actual policy dependency, callback HTTP mount and provider integration remain incomplete; external send is disabled. Synthetic checks: `node --test apps/wa-demo-bridge/test/provider-session.test.mjs apps/wa-demo-bridge/test/provider-callback.test.mjs apps/wa-demo-bridge/test/provider-reconciliation.test.mjs`. Real Mongo contention, index enforcement and browser recovery await final QA.
+# Provider lifecycle boundary
+
+`src/provider-lifecycle.mjs` wraps an injected registry and adapter with explicit
+start/stop operations. Durable acquisition precedes open; a confirmed
+`{ closed: true }` close precedes release. Overlapping operations are rejected.
+Any uncertain acquire, open, close or release enters `UNKNOWN`, retains the
+reservation and requires operator reconciliation; there is no automatic retry,
+reacquire or timeout takeover. The adapter receives only frozen ownership
+metadata, with no ready dispatch hook or send capability. External send remains
+disabled. This boundary is not mounted and supplies no browser/provider driver.
