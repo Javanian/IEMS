@@ -65,7 +65,10 @@ export function createDurableRateLimiter({ client, db, authorize, now = () => ne
         const row = await buckets.findOne({ _id: id }, { session });
         if (row && (row.limit !== limit || row.windowMs !== windowMs)) throw new JobError('RATE_POLICY_CONFLICT');
         if ((row?.used || 0) >= limit) return { allowed: false, remaining: 0, retryAt: new Date(start + windowMs).toISOString() };
-        if (row) await buckets.updateOne({ _id: id, used: row.used }, { $inc: { used: 1 } }, { session });
+        if (row) {
+          const changed = await buckets.updateOne({ _id: id, used: row.used }, { $inc: { used: 1 } }, { session });
+          if (changed.matchedCount !== 1) throw new JobError('RATE_FENCE_LOST');
+        }
         else await buckets.insertOne({ _id: id, ...jobScope(scope), subjectId, policy, limit, windowMs, used: 1, expiresAt: new Date(start + windowMs * 2) }, { session });
         return { allowed: true, remaining: limit - (row?.used || 0) - 1, retryAt: new Date(start + windowMs).toISOString() };
       });
