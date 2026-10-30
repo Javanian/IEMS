@@ -16,7 +16,7 @@ def atomic_json(path, body):
     os.replace(temp, path)
 
 
-def build(root, manifests, run_id, interval, project, profiles, max_age_seconds=86400):
+def build(root, manifests, run_id, interval, project, profiles, max_age_seconds=86400, coverage_manifests=()):
     """A failed dbt build leaves diagnostics, never a trusted publication."""
     from re import fullmatch
     if not fullmatch(r'[A-Za-z0-9_.-]{1,160}', run_id):
@@ -24,7 +24,8 @@ def build(root, manifests, run_id, interval, project, profiles, max_age_seconds=
     root = Path(root).resolve(); root.mkdir(parents=True, exist_ok=True)
     publication = root / f'{run_id}.trusted.json'
     sources = [{'name': Path(p).name, 'sha256': hashlib.sha256(Path(p).read_bytes()).hexdigest()} for p in manifests]
-    identity = digest({'sources': sources, 'interval': interval})
+    coverage_sources = [{'name':Path(p).name,'sha256':hashlib.sha256(Path(p).read_bytes()).hexdigest()} for p in coverage_manifests]
+    identity = digest({'sources': sources, 'coverageSources':coverage_sources, 'interval': interval})
     if publication.exists():
         previous = json.loads(publication.read_text())
         if previous['inputHash'] != identity:
@@ -34,10 +35,10 @@ def build(root, manifests, run_id, interval, project, profiles, max_age_seconds=
     attempt = root / f'{run_id}.{uuid4()}'
     attempt.mkdir()
     database = attempt / 'candidate.duckdb'
-    lineage = {'runId': run_id, 'attemptId': attempt.name, 'inputHash': identity, 'sources': sources, 'interval': interval, 'startedAt': now(), 'status': 'building'}
+    lineage = {'runId': run_id, 'attemptId': attempt.name, 'inputHash': identity, 'sources': sources, 'coverageSources':coverage_sources, 'interval': interval, 'startedAt': now(), 'status': 'building'}
     atomic_json(attempt/'lineage.json', lineage)
     try:
-        result = load(manifests, database, max_age_seconds)
+        result = load(manifests, database, max_age_seconds, coverage_manifests)
         env = dict(os.environ, IEMS_ANALYTICS_DB=str(database))
         with (attempt/'dbt.log').open('w', encoding='utf8') as log:
             subprocess.run(['dbt','build','--project-dir',str(Path(project).resolve()),'--profiles-dir',str(Path(profiles).resolve()),'--target-path',str(attempt/'dbt-target'),'--log-path',str(attempt/'dbt-logs')], env=env, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=600)

@@ -17,11 +17,14 @@ def reporting():
         interval = {'start':ctx['data_interval_start'].isoformat(),'end':ctx['data_interval_end'].isoformat()}
         selection = root / (ctx['data_interval_end'].strftime('%Y%m%dT%H%M%SZ')+'.json')
         relative = json.loads(selection.read_text())
-        manifests = [(root/p).resolve() for p in relative]
-        if not manifests or any(root not in p.parents for p in manifests):
+        if isinstance(relative,list):
+            relative={'manifests':relative,'coverage':[]}
+        manifests = [(root/p).resolve() for p in relative['manifests']]
+        coverage = [(root/p).resolve() for p in relative.get('coverage',[])]
+        if not manifests or any(root not in p.parents for p in [*manifests,*coverage]):
             raise ValueError('Input manifest outside owned root')
         run_id = 'interval-'+ctx['data_interval_end'].strftime('%Y%m%dT%H%M%SZ')
-        return build(os.environ['IEMS_ANALYTICS_PUBLISH_ROOT'],manifests,run_id,interval,os.environ['IEMS_DBT_PROJECT'],os.environ['IEMS_DBT_PROFILES'])['hash']
+        return build(os.environ['IEMS_ANALYTICS_PUBLISH_ROOT'],manifests,run_id,interval,os.environ['IEMS_DBT_PROJECT'],os.environ['IEMS_DBT_PROFILES'],coverage_manifests=coverage)['hash']
     publish()
 
 
