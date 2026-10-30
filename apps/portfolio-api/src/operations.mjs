@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { businessNow } from './business-clock.mjs';
 import { scopedModule } from './quality.mjs';
 import { maintenanceCapacity } from './maintenance.mjs';
-import { boundedTransaction } from '../../../packages/tenant-foundation/commands.mjs';
+import { boundedTransaction, contentHash } from '../../../packages/tenant-foundation/commands.mjs';
 import { addDecimals, decimal, uuid } from '../../../packages/domain-events/source-bindings.mjs';
 import { minorUnits, formatMinor } from '../../../packages/contracts/src/domains/logistics-billing/values.mjs';
 import { validateInvoicePosting } from './purchased-billing-state.mjs';
@@ -18,6 +18,10 @@ const sources = Object.freeze({
   receipts: { collection: 'warehouseReceipts', action: 'warehouse.read', route: 'warehouse/receipts' },
 });
 const legacyKinds = ['NFC', 'TIMESHEET', 'HMI', 'SOW', 'SPC'];
+export function sampleDecimal(value) {
+  if (typeof value!=='string' || !/^-?(0|[1-9]\d{0,25})(\.\d{1,12})?$/.test(value)) reject(400,'EXACT_SAMPLE_DECIMAL_REQUIRED');
+  return value;
+}
 export function exactUtc(value) {
   if (typeof value !== 'string' || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) reject(400, 'UTC_TIMESTAMP_REQUIRED');
   return value;
@@ -86,19 +90,21 @@ export async function initializeOperations(db) {
   await db.collection('operationsTelemetryOutbox').createIndex({ publishedAt: 1, tenantId: 1, plantId: 1, resourceId: 1, businessRevision: 1 });
 }
 // Each adapter is a private, registered read contract. Raw legacy rows never cross this boundary.
-export async function legacySnapshot(adapter, { filter, now, session, scope }) {
+export async function legacySnapshot(adapter, { filter, now, session, scope, clock }) {
   if (!adapter || typeof adapter.read !== 'function' || typeof adapter.authorize !== 'function' || !legacyKinds.includes(adapter.kind)) return { status: 'NO_DATA', reason: 'ADAPTER_NOT_CONFIGURED', samples: [] };
   await adapter.authorize({ ...filter, scope, session });
-  const result = await adapter.read({ ...filter, scope, session, limit: 100 });
+  const result = await adapter.read({ ...filter, scope, session, limit: 100, until: now.toISOString() });
+  const checkedAt = clock ? clock() : now;
   if (!result || !Array.isArray(result.samples) || result.samples.length > 100 || !['COMPLETE', 'INCOMPLETE'].includes(result.completeness)) reject(502, 'LEGACY_CONTRACT_INVALID');
   exactUtc(result.observedAt);
   const samples = result.samples.map(s => {
     if (!uuid.test(s.resourceId) || typeof s.sourceRevision !== 'string' || s.sourceRevision.length > 128 || !s.sourceRevision.length) reject(502, 'LEGACY_PROVENANCE_REQUIRED');
-    decimal(s.value); exactUtc(s.sampleAt); exactUtc(s.windowFrom); exactUtc(s.windowUntil);
-    if (!/^[A-Z][A-Z0-9_]{0,31}$/.test(s.uom) || s.windowFrom > s.sampleAt || s.sampleAt > s.windowUntil || s.windowUntil > result.observedAt || result.observedAt > now.toISOString()) reject(502, 'LEGACY_SAMPLE_INVALID');
-    return { resourceId: s.resourceId, sourceRevision: s.sourceRevision, value: s.value, uom: s.uom, sampleAt: s.sampleAt, windowFrom: s.windowFrom, windowUntil: s.windowUntil };
+    sampleDecimal(s.value); exactUtc(s.sampleAt); exactUtc(s.windowFrom); exactUtc(s.windowUntil);
+    if (!/^[A-Z][A-Z0-9_]{0,31}$/.test(s.uom) || s.windowFrom > s.sampleAt || s.sampleAt > s.windowUntil || s.windowUntil > result.observedAt || result.observedAt > checkedAt.toISOString()) reject(502, 'LEGACY_SAMPLE_INVALID');
+    return { resourceId: s.resourceId, sourceRevision: s.sourceRevision, value: s.value, uom: s.uom, sampleAt: s.sampleAt, windowFrom: s.windowFrom, windowUntil: s.windowUntil, freshness:freshness(s.sampleAt,checkedAt) };
   });
-  return { status: samples.length ? 'AVAILABLE' : 'NO_DATA', completeness: result.completeness, freshness: freshness(result.observedAt, now), samples };
+  const latest=samples.map(s=>s.sampleAt).sort().at(-1);
+  return { status: samples.length ? 'AVAILABLE' : 'NO_DATA', completeness: result.completeness, observationFreshness:freshness(result.observedAt,checkedAt), freshness: freshness(latest, checkedAt), samples };
 }
 export function installOperations(app, runtime, helpers, { legacyAdapters = [], telemetryMappings = {} } = {}) {
   const root = '/api/operations', { id, fields, transaction } = scopedModule(app, runtime, root, 'operations', { ...helpers, guard: async (rt, req, session, action) => {
@@ -118,7 +124,7 @@ export function installOperations(app, runtime, helpers, { legacyAdapters = [], 
       for (const kind of Object.keys(sources)) metrics[kind] = await readSource(runtime, req, kind, session, now);
       const legacy = {};
       for (const kind of legacyKinds) {
-        try { legacy[kind] = await legacySnapshot(legacyAdapters.find(a => a.kind === kind), { filter: req.filter, scope: req.scope, now, session }); }
+        try { legacy[kind] = await legacySnapshot(legacyAdapters.find(a => a.kind === kind), { filter: req.filter, scope: req.scope, now, session, clock:()=>businessNow(runtime) }); }
         catch (e) { if (![403,502].includes(e.status)) throw e; legacy[kind] = { status: e.status === 403 ? 'ACCESS_DENIED' : 'ERROR', reason: e.status === 403 ? 'SOURCE_ACCESS_DENIED' : 'ADAPTER_CONTRACT_INVALID', samples: [] }; }
       }
       const samples = await runtime.db.collection('operationsSamples').find(req.filter, { session }).sort({ sampleAt: -1, resourceId: 1 }).limit(100).toArray();
@@ -160,7 +166,7 @@ export function installOperations(app, runtime, helpers, { legacyAdapters = [], 
     fields(req.body, ['expectedVersion', 'idempotencyKey', 'mapping', 'value', 'uom', 'sampleAt', 'windowFrom', 'windowUntil', 'sourceRevision']);
     const resourceId = id(req.params.id), b = req.body, mapping = telemetryMappings[b.mapping];
     if (!mapping || typeof mapping.authorize !== 'function' || mapping.uom !== b.uom || !/^[A-Z][A-Z0-9_]{0,31}$/.test(b.uom)) reject(400, 'UNREGISTERED_TELEMETRY_MAPPING');
-    decimal(b.value); exactUtc(b.sampleAt); exactUtc(b.windowFrom); exactUtc(b.windowUntil);
+    sampleDecimal(b.value); exactUtc(b.sampleAt); exactUtc(b.windowFrom); exactUtc(b.windowUntil);
     if (b.windowFrom > b.sampleAt || b.sampleAt > b.windowUntil || b.windowUntil > businessNow(runtime).toISOString() || typeof b.sourceRevision !== 'string' || !b.sourceRevision.length || b.sourceRevision.length > 128) reject(400, 'INVALID_SAMPLE');
     const data = await transaction(req, async session => {
       await mapping.authorize({ scope: req.scope, filter: req.filter, resourceId, session });
@@ -187,9 +193,46 @@ export async function relayOperationsTelemetry({ db, producer, authorize, limit 
     if (row.type !== 'operations.sample.snapshot.v1' || row.snapshot.schema !== 'OPERATIONS_SAMPLE_V1') throw new Error('UNREGISTERED_TELEMETRY_EVENT');
     const s = row.snapshot;
     const envelope = { eventId: row._id, schemaVersion: 1, tenantId: row.tenantId, plantId: row.plantId, resourceId: row.resourceId, businessRevision: row.businessRevision, occurredAt: row.occurredAt, type: row.type,
-      snapshot: { mapping: s.mapping, value: decimal(s.value), uom: s.uom, sampleAt: exactUtc(s.sampleAt), windowFrom: exactUtc(s.windowFrom), windowUntil: exactUtc(s.windowUntil), sourceRevision: s.sourceRevision } };
+      snapshot: { mapping: s.mapping, value: sampleDecimal(s.value), uom: s.uom, sampleAt: exactUtc(s.sampleAt), windowFrom: exactUtc(s.windowFrom), windowUntil: exactUtc(s.windowUntil), sourceRevision: s.sourceRevision } };
     await producer.send({ topic: 'iems.operations.samples.v1', acks: -1, messages: [{ key: `${row.tenantId}:${row.plantId}:${row.resourceId}`, value: JSON.stringify(envelope) }] });
     await db.collection('operationsTelemetryOutbox').updateOne({ _id: row._id, publishedAt: null }, { $set: { publishedAt: new Date() } });
   }
   return rows.length;
+}
+
+const legacyQueries = Object.freeze({
+  NFC: { uom:'COUNT', sql:'SELECT COUNT(*)::text AS value FROM public.usernfc WHERE machineid::text = $1' },
+  TIMESHEET: { uom:'HOUR', sql:'SELECT SUM(duration)::text AS value, MAX(longdate_checkout) AS sample_at FROM public.timesheet_transaction WHERE workcentercode = $1 AND longdate_checkin >= $2::timestamptz AND longdate_checkout <= $3::timestamptz AND longdate_checkout IS NOT NULL' },
+  HMI: { uom:'MS', sql:'SELECT avg_latency_ms::text AS value, checked_at AS sample_at FROM public.mch_machine_ping_log WHERE machineid::text = $1 AND checked_at >= $2::timestamptz AND checked_at <= $3::timestamptz ORDER BY checked_at DESC LIMIT 1' },
+  SOW: { uom:'HOUR', sql:'SELECT SUM(planhours)::text AS value, MAX(updated_at) AS sample_at FROM public.sow WHERE workcenter = $1 AND updated_at >= $2::timestamptz AND updated_at <= $3::timestamptz' },
+  SPC: { sql:"SELECT replace(trim(pci.value), ',', '.') AS value, pcd.createddate AS sample_at, pp.uom FROM public.processcontroldata_item pci JOIN public.processcontroldata pcd ON pcd.id_processcontroldata = pci.id_processcontroldata JOIN public.process_parameter pp ON pp.id_parameter = pci.id_parameter WHERE pcd.machineid::text = $1 AND pcd.createddate >= $2::timestamptz AND pcd.createddate <= $3::timestamptz AND pci.id_parameter = $4 ORDER BY pcd.createddate DESC, pci.id_processcontroldata_item DESC LIMIT 1" },
+});
+export function createLegacyReadAdapters({ pool, authorize, resolveBindings, windowMs = 86400000 }) {
+  if (typeof pool?.connect !== 'function' || typeof authorize !== 'function' || typeof resolveBindings !== 'function' || !Number.isSafeInteger(windowMs) || windowMs < 60000 || windowMs > 31*86400000) throw new Error('EXPLICIT_LEGACY_SCOPE_BINDINGS_REQUIRED');
+  return legacyKinds.map(kind=>({ kind, authorize: context=>authorize({ ...context,kind }), read: async context=>{
+    const bindings=await resolveBindings({ ...context,kind });
+    if (!Array.isArray(bindings) || bindings.length>100) reject(502,'LEGACY_BINDING_LIMIT');
+    if (!bindings.length) return { observedAt:context.until,completeness:'COMPLETE',samples:[] };
+    const connection=await pool.connect();
+    try {
+      await connection.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      await connection.query('SET LOCAL statement_timeout = 2000');
+      const observed = await connection.query('SELECT transaction_timestamp() AS observed_at');
+      const observedAt=new Date(observed.rows[0].observed_at).toISOString(), until=new Date(Math.min(Date.parse(context.until),Date.parse(observedAt))).toISOString(), from=new Date(Date.parse(until)-windowMs).toISOString(), samples=[];
+      for (const b of bindings.slice(0,20)) {
+        if (!uuid.test(b.resourceId) || typeof b.sourceKey!=='string' || !b.sourceKey.length || b.sourceKey.length>128 || (kind==='SPC' && (!Number.isSafeInteger(b.parameterId)||b.parameterId<1))) reject(502,'INVALID_LEGACY_BINDING');
+        const spec=legacyQueries[kind], values=kind==='NFC'?[b.sourceKey]:[b.sourceKey,from,until,...(kind==='SPC'?[b.parameterId]:[])];
+        const result=await connection.query(spec.sql,values), row=result.rows[0];
+        if (!row || row.value===null || row.value===undefined) continue;
+        sampleDecimal(row.value);
+        const sampleAt=kind==='NFC'?observedAt:new Date(row.sample_at).toISOString(), uom=spec.uom || b.uom;
+        if (kind==='SPC' && (typeof b.sourceUom!=='string' || b.sourceUom!==row.uom || !/^[A-Z][A-Z0-9_]{0,31}$/.test(b.uom))) reject(502,'SPC_UNIT_MAPPING_REQUIRED');
+        const full={resourceId:b.resourceId,value:row.value,uom,sampleAt,windowFrom:kind==='NFC'?observedAt:from,windowUntil:kind==='NFC'?observedAt:until};
+        samples.push({ ...full, sourceRevision:contentHash({ kind,sourceKey:b.sourceKey,parameterId:b.parameterId??null,...full }) });
+      }
+      await connection.query('COMMIT');
+      return { observedAt, completeness:bindings.length>20?'INCOMPLETE':'COMPLETE',samples };
+    } catch (error) { await connection.query('ROLLBACK').catch(()=>{}); if(error.status)throw error;reject(502,'LEGACY_READ_UNAVAILABLE'); }
+    finally { connection.release(); }
+  } }));
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { freshness, quantityBuckets, legacySnapshot, invoiceBalance } from '../../apps/portfolio-api/src/operations.mjs';
+import { freshness, quantityBuckets, legacySnapshot, invoiceBalance, createLegacyReadAdapters } from '../../apps/portfolio-api/src/operations.mjs';
 
 test('quantity buckets retain exact decimals and units; missing fields remain incomplete', () => {
   const result = quantityBuckets([{ quantity: '9007199254740993.1', uom: 'EA' }, { quantity: '0.9', uom: 'EA' }, { quantity: '2.25', uom: 'KG' }, { uom: 'KG' }], r => [r]);
@@ -30,4 +30,13 @@ test('legacy adapters require scoped authorization and strip private fields', as
   assert.equal(result.samples[0].biometricTemplate, undefined);
   assert.equal((await legacySnapshot(null, {})).status, 'NO_DATA');
   await assert.rejects(legacySnapshot({ kind: 'NFC', authorize: async () => {}, read: async () => ({ observedAt: '2026-10-30T23:00:00.000Z', completeness: 'COMPLETE', samples: [{ ...sample, uom: 'private value' }] }) }, { filter: {}, now: new Date('2026-10-31T00:00:00.000Z') }), /LEGACY_SAMPLE_INVALID/);
+});
+test('five legacy adapters bind source keys, read only, and preserve signed SPC units', async () => {
+  const observedAt='2026-10-31T00:00:00.000Z',calls=[],key='machine; DELETE FROM usernfc',resourceId='11111111-1111-4111-8111-111111111111';let authorized=false;
+  const pool={connect:async()=>({query:async(sql,values)=>{assert(authorized);calls.push({sql,values});if(sql.includes('transaction_timestamp'))return{rows:[{observed_at:observedAt}]};if(sql.startsWith('SELECT'))return{rows:[{value:sql.includes('pci.value')?'-1.25':'3',sample_at:observedAt,uom:'°C'}]};return{rows:[]};},release:()=>{}})};
+  const adapters=createLegacyReadAdapters({pool,authorize:async()=>{authorized=true;},resolveBindings:async()=>[{resourceId,sourceKey:key,parameterId:1,sourceUom:'°C',uom:'DEG_C'}]});
+  for(const adapter of adapters){authorized=false;const r=await legacySnapshot(adapter,{filter:{},scope:{},now:new Date(observedAt)});assert.equal(r.samples.length,1);if(adapter.kind==='SPC'){assert.equal(r.samples[0].value,'-1.25');assert.equal(r.samples[0].uom,'DEG_C');}}
+  assert.equal(calls.filter(c=>c.sql==='BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY').length,5);
+  assert(calls.every(c=>!c.sql.includes(key)));assert(calls.some(c=>c.values?.includes(key)));
+  assert(calls.every(c=>!/^\s*(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i.test(c.sql)));
 });
