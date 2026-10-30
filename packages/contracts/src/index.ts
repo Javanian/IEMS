@@ -9,6 +9,7 @@ export * from './common/error.js';
 export * from './common/idempotency.js';
 export * from './common/pagination.js';
 export * from './common/audit.js';
+export * from './common/foundation.js';
 
 export * from './auth/roles.js';
 
