@@ -8,4 +8,3 @@ State per window capped at 5000 samples and 20000 receipts, cleared at window en
 # Stream separation after reporting v2
 
 Financial full snapshots use iems.reporting.snapshots.v2 and never enter the telemetry operator. Telemetry retains its existing explicit sample schema/event-time/UOM contract and separate routing; generic source metadata is not a financial snapshot. Shared events.validate recognizes both existing v1 raw events and strictly validated reporting v2. No telemetry emitter adoption or live Flink/checkpoint acceptance is claimed by the v2 source adapter. Independent runtime QA remains at program end.
-
