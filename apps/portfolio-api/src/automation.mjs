@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { submitLocalMail, verifiedSinkReceipt, localUrl, hashText } from './automation-transport.mjs';
 
 export const automationRoles = {
@@ -12,6 +12,7 @@ const c = (runtime, name) => runtime.db.collection(name);
 const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(k => [k, canonical(value[k])])) : value;
 const digest = value => hashText(JSON.stringify(canonical(value)));
 const scope = req => ({ tenantId: req.scope.tenantId, plantId: req.scope.selectedPlantId });
+const dueTicketFilter = (req, at, minutes) => ({ ...scope(req), stage: { $in: ['NEW', 'TRIAGED'] }, assigneeId: null, assignedUserId: null, isEscalated: { $ne: true }, createdAt: { $lte: new Date(at.getTime() - minutes * 60000) } });
 const workflows = [
   { id: 'wf-sla-escalation', name: 'Unassigned ticket escalation', type: 'POLL_AND_RECHECK', path: 'iems-sla-escalation' },
   { id: 'wf-cs-weekly-digest', name: 'Weekly CS digest', type: 'SCHEDULED_DIGEST', path: 'iems-cs-weekly-digest' },
@@ -26,6 +27,7 @@ export async function initializeAutomation(db) {
   await db.collection('automation_audit_logs').createIndex({ tenantId: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } });
   await db.collection('cs_resolution_drafts').createIndex({ tenantId: 1, plantId: 1, status: 1 });
   await db.collection('automation_tasks').createIndex({ tenantId: 1, plantId: 1, kind: 1, occurrence: 1 }, { unique: true });
+  await db.collection('cs_tickets').createIndex({ tenantId: 1, plantId: 1, stage: 1, assigneeId: 1, assignedUserId: 1, createdAt: 1, _id: 1 });
   await db.collection('cs_outbox').createIndex({ tenantId: 1, origin: 1, plantId: 1, state: 1 });
 }
 
@@ -97,12 +99,13 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
   const schedule = async req => tx(req, 'cs.automation.read', async session => {
     const p = policy();
     if (!(p.minutes >= 0 && p.minutes <= 1440)) fail(503, 'INVALID_SLA_POLICY');
-    const tickets = await c(runtime, 'cs_tickets').find({ ...scope(req), stage: { $in: ['NEW', 'TRIAGED'] }, assigneeId: null, assignedUserId: null, isEscalated: { $ne: true } }, { session }).toArray();
+    const now = new Date(), limit = 100;
+    const tickets = await c(runtime, 'cs_tickets').find(dueTicketFilter(req, now, p.minutes), { session }).sort({ createdAt: 1, _id: 1 }).limit(limit).toArray();
     for (const ticket of tickets) {
       const occurrence = `${ticket._id}:${p.version}`;
       await c(runtime, 'automation_tasks').updateOne({ ...scope(req), kind: 'SLA', occurrence }, { $setOnInsert: { _id: randomUUID(), ...scope(req), kind: 'SLA', occurrence, ticketId: ticket._id, dueAt: new Date(new Date(ticket.createdAt).getTime() + p.minutes * 60000), policyVersion: p.version, policyMinutes: p.minutes, state: 'PENDING', createdAt: new Date() } }, { upsert: true, session });
     }
-    return tickets.filter(t => eligible(t));
+    return tickets.filter(t => eligible(t, now));
   });
   const getDraft = async (req, draftId, session) => {
     const draft = await c(runtime, 'cs_resolution_drafts').findOne({ ...scope(req), _id: id(draftId) }, { session });
@@ -209,19 +212,32 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     await human(req, 'cs.automation.admin'); fields(req.body, ['label', 'ttlMinutes']);
     const label = text(req.body.label || 'n8n local orchestrator', 80), ttlMinutes = Number(req.body.ttlMinutes || 60);
     if (!Number.isSafeInteger(ttlMinutes) || ttlMinutes < 1 || ttlMinutes > 1440) fail(400, 'INVALID_EXPIRY');
-    const userId = randomUUID(), membershipId = randomUUID(), plant = await c(runtime, 'plants').findOne({ _id: req.scope.selectedPlantId, tenantId: req.scope.tenantId });
-    await runtime.foundation.provisionUser({ id: userId, tenantId: req.scope.tenantId });
-    await runtime.foundation.provisionMembership({ id: membershipId, tenantId: req.scope.tenantId, userId, legalEntityIds: [plant.legalEntityId], plantIds: [plant._id], roles: [{ role: 'automationService', plantIds: [plant._id] }] });
-    const issued = await runtime.foundation.issueSession({ userId, tenantId: req.scope.tenantId, selectedPlantId: plant._id, ttlMs: ttlMinutes * 60000 });
-    await c(runtime, 'sessions').updateOne({ _id: issued.sessionId }, { $set: { automationService: true, label } });
-    res.status(201).json({ data: { ...issued, label, scope: scope(req), grants: ['cs.automation.read', 'cs.automation.execute'] } });
+    const userId = randomUUID(), membershipId = randomUUID(), sessionId = randomUUID(), token = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60000), createdAt = new Date();
+    const session = runtime.client.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const grant = await auth(req, 'cs.automation.admin', session);
+        const plant = await c(runtime, 'plants').findOne({ _id: req.scope.selectedPlantId, tenantId: req.scope.tenantId, active: true }, { session });
+        if (!plant || plant.legalEntityId !== grant.legalEntityId) fail(404, 'NOT_FOUND');
+        await c(runtime, 'users').insertOne({ _id: userId, active: true, version: 1 }, { session });
+        await c(runtime, 'memberships').insertOne({ _id: membershipId, tenantId: req.scope.tenantId, userId, legalEntityIds: [plant.legalEntityId], plantIds: [plant._id], tenantWide: false, roles: [{ role: 'automationService', plantIds: [plant._id], tenantWide: false }], active: true, version: 1 }, { session });
+        await c(runtime, 'sessions').insertOne({ _id: sessionId, userId, tenantId: req.scope.tenantId, selectedPlantId: plant._id, membershipId, membershipVersion: 1, tokenHash: hashText(token), expiresAt, revoked: false, automationService: true, label }, { session });
+        await c(runtime, 'audit').insertOne({ _id: randomUUID(), tenantId: req.scope.tenantId, kind: 'sessions.issued', subjectId: sessionId, occurredAt: createdAt }, { session });
+      }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
+    } finally { await session.endSession(); }
+    res.status(201).json({ data: { token, sessionId, expiresAt, label, scope: scope(req), grants: ['cs.automation.read', 'cs.automation.execute'] } });
   });
   app.post('/api/cs/automation/service-credentials/:id/revoke', async (req, res) => {
-    await human(req, 'cs.automation.admin'); fields(req.body, []);
-    const row = await c(runtime, 'sessions').findOne({ _id: id(req.params.id), tenantId: req.scope.tenantId, selectedPlantId: req.scope.selectedPlantId, automationService: true });
-    if (!row) fail(404, 'NOT_FOUND');
-    await runtime.foundation.revokeSession({ tenantId: req.scope.tenantId, sessionId: row._id });
-    res.json({ data: { sessionId: row._id, revoked: true } });
+    await human(req, 'cs.automation.admin');
+    fields(req.body, []);
+    const sessionId = id(req.params.id);
+    await tx(req, 'cs.automation.admin', async session => {
+      const result = await c(runtime, 'sessions').updateOne({ _id: sessionId, tenantId: req.scope.tenantId, selectedPlantId: req.scope.selectedPlantId, automationService: true, revoked: false }, { $set: { revoked: true } }, { session });
+      if (result.matchedCount !== 1) fail(404, 'NOT_FOUND');
+      await c(runtime, 'audit').insertOne({ _id: randomUUID(), tenantId: req.scope.tenantId, kind: 'sessions.revoked', subjectId: sessionId, occurredAt: new Date() }, { session });
+    });
+    res.json({ data: { sessionId, revoked: true } });
   });
   app.get('/api/cs/automation/status', async (req, res) => {
     await auth(req);
@@ -250,8 +266,10 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
   });
   app.get('/api/cs/automation/sla-breaches', async (req, res) => {
     await auth(req);
-    const items = (await schedule(req)).map(t => ({ ticketId: t._id, ticketNumber: t.ticketNumber, stage: t.stage, expectedVersion: t.version, createdAt: t.createdAt, dueAt: new Date(new Date(t.createdAt).getTime() + policy().minutes * 60000), ageMinutes: Math.floor((Date.now() - new Date(t.createdAt)) / 60000), thresholdMinutes: policy().minutes, policyVersion: policy().version, occurrenceKey: `sla:${t._id}:${policy().version}`, assigneeId: null, slaStatus: 'BREACHED' }));
-    res.json({ data: { totalBreached: items.length, thresholdMinutes: policy().minutes, items: items.slice(0, 100) } });
+    const now = new Date(), p = policy();
+    const [due, totalBreached] = await Promise.all([schedule(req), c(runtime, 'cs_tickets').countDocuments(dueTicketFilter(req, now, p.minutes))]);
+    const items = due.map(t => ({ ticketId: t._id, ticketNumber: t.ticketNumber, stage: t.stage, expectedVersion: t.version, createdAt: t.createdAt, dueAt: new Date(new Date(t.createdAt).getTime() + p.minutes * 60000), ageMinutes: Math.floor((now.getTime() - new Date(t.createdAt)) / 60000), thresholdMinutes: p.minutes, policyVersion: p.version, occurrenceKey: `sla:${t._id}:${p.version}`, assigneeId: null, slaStatus: 'BREACHED' }));
+    res.json({ data: { totalBreached, thresholdMinutes: p.minutes, items } });
   });
   app.post('/api/cs/automation/recheck', async (req, res) => {
     await auth(req); fields(req.body, ['ticketId', 'expectedVersion', 'action']);
