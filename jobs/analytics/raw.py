@@ -19,6 +19,8 @@ def ingest(records, root, stream, start, end, previous=None):
         if previous['stream'] != stream or previous['end'] != start:
             raise ValueError('Cursor discontinuity')
     rows, rejected, seen, size = [], [], {}, 0
+    snapshot_heads=dict(previous.get('snapshotHeads',{})) if previous else {}
+    snapshot_receipts=dict(previous.get('snapshotReceipts',{})) if previous else {}
     for index, record in enumerate(records):
         if index >= 10000:
             raise ValueError('Batch exceeds 10000 records')
@@ -28,6 +30,8 @@ def ingest(records, root, stream, start, end, previous=None):
             raise ValueError('Batch exceeds 32 MiB; split input, cursor unchanged')
         try:
             e = validate(record['event'])
+            if stream.startswith('iems.reporting.snapshots.v2:') and e['schemaVersion']!=2:
+                raise ValueError('Generic domain evidence belongs to separate raw stream')
             receipt, available = record['receivedAt'], record['availableAt']
             if not utc(e['occurredAt']) <= utc(receipt) <= utc(available) <= utc(now()):
                 raise ValueError('Unavailable provenance')
@@ -36,6 +40,21 @@ def ingest(records, root, stream, start, end, previous=None):
                 if seen[key] != checksum:
                     raise ValueError('Event identity corruption')
                 continue
+            if e['schemaVersion']==2:
+                if not stream.startswith('iems.reporting.snapshots.v2:'):
+                    raise ValueError('Snapshot topic/partition stream required')
+                resource=':'.join([e['tenantId'],e['plantId'],e['aggregateId']])
+                prior=snapshot_receipts.get(key)
+                if prior:
+                    if prior!=checksum:
+                        raise ValueError('Snapshot replay corruption')
+                else:
+                    if e['aggregateVersion']!=snapshot_heads.get(resource,0)+1:
+                        raise ValueError('Snapshot sequence gap; cursor unchanged')
+                    snapshot_heads[resource]=e['aggregateVersion']
+                    snapshot_receipts[key]=checksum
+                if len(snapshot_receipts)>100000:
+                    raise ValueError('Snapshot receipt state bound; explicit replay/partition operation required, no expiry')
             seen[key] = checksum
             rows.append((key, e['tenantId'], e['plantId'], e['aggregateId'], e['aggregateVersion'], e['occurredAt'], receipt, available, checksum, canonical(e)))
         except (KeyError, TypeError, ValueError) as error:
@@ -58,6 +77,8 @@ def ingest(records, root, stream, start, end, previous=None):
     finally:
         con.close()
     manifest = {'version': 1, 'batchId': batch, 'stream': stream, 'start': start, 'end': end, 'previous': previous and previous['hash'], 'file': target.name, 'sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'count': len(rows), 'eventsHash': digest(sorted(seen.items())), 'publishedAt': now()}
+    if snapshot_receipts:
+        manifest.update(snapshotHeads=snapshot_heads,snapshotReceipts=snapshot_receipts)
     manifest['hash'] = digest(manifest)
     tmp = root / f'{batch}.manifest.tmp'
     with tmp.open('x', encoding='utf8') as f:

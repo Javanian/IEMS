@@ -39,11 +39,16 @@ def now():
 def validate(e):
     for key in ('eventId', 'tenantId', 'plantId', 'aggregateId'):
         UUID(e[key])
-    if type(e['schemaVersion']) is not int or e['schemaVersion'] != 1 or type(e['aggregateVersion']) is not int or not 1 <= e['aggregateVersion'] <= 9007199254740991:
+    if type(e['schemaVersion']) is not int or e['schemaVersion'] not in (1, 2) or type(e['aggregateVersion']) is not int or not 1 <= e['aggregateVersion'] <= 9007199254740991:
         raise ValueError('Unsupported event version')
     if not re.fullmatch(r'[A-Za-z][\w.-]{0,127}', e['type']) or not isinstance(e['payload'], dict):
         raise ValueError('Invalid event')
     utc(e['occurredAt'])
+    if e['schemaVersion'] == 2:
+        if e['type'] != 'reporting.snapshot.v2':
+            raise ValueError('Unsupported v2 stream')
+        from snapshots import snapshot
+        snapshot(e)
     if len(canonical(e).encode()) > 1024 * 1024:
         raise ValueError('Oversized event')
     return e
