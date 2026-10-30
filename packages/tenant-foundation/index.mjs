@@ -69,6 +69,8 @@ export function createTenantFoundation({ client, db, roleActions }) {
       await c('memberships').createIndex({ tenantId: 1, userId: 1 }, { unique: true });
       await c('sessions').createIndex({ tokenHash: 1 }, { unique: true });
       await c('audit').createIndex({ tenantId: 1, occurredAt: 1 });
+      await c('sessions').createIndex({ tenantId: 1, selectedPlantId: 1, userId: 1, revoked: 1 });
+      await c('audit').createIndex({ tenantId: 1, occurredAt: -1, _id: -1 });
     },
     async provisionTenant({ id: value }) { return provision('tenants', { _id: id(value) }, value); },
     async provisionUser({ id: value, tenantId }) {
