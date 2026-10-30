@@ -26,6 +26,28 @@ historical document read. No shipment or delivery promise is inferred.
 
 ## Remaining implementation
 
+`authorizePortalParty(runtime, opaqueScope, { plantId, partyId, kind, action }, session)`
+is the protected grant resolver. It calls foundation `authorizeInTransaction` and
+uses its returned tenant/user identity, never a request user ID. It requires a
+matching active `portal_party_grants` document with tenant, plant, user, party,
+kind, explicit action and a future BSON Date `expiresAt`. It increments
+`authorizationFence` in the caller transaction, then verifies the scoped source
+vendor/account exists. A missing grant/party yields `403 PORTAL_ACCESS_DENIED`.
+Revocation must update the same grant document, so it conflicts with concurrent
+access. Reads requiring this fence must commit their transaction before returning.
+Do not reuse a returned grant as an authorization cache or replay authorization.
+
+`readVendorPurchaseOrderForPrincipal(runtime, opaqueScope, input, session)` uses
+this resolver before the approved source reader and replaces request tenant
+identity with the foundation identity. It performs no source lookup after denied
+authorization. `portalRoles` exports scoped permission definitions for integration;
+no owner-wide party grant is implied by an operator/admin role.
+
+This is not a grant provisioning API. Trusted provisioning, expiry policy,
+revocation handlers, unique grant indexes and HTTP integration remain unfinished.
+No collection initialization or data migration has been executed. Callers must
+not insert grants from untrusted request fields or expose the low-level adapter.
+
 Authenticated party ACL provisioning/revocation, portal endpoints, customer order
 views, durable vendor response/promise history, replay reauthorization and screens
 remain required. Shared mount and navigation belong to the integration owner.
@@ -39,3 +61,9 @@ adapter boundaries with an in-memory database double and the real commercial
 legacy revision reader. It does not establish Mongo isolation, authenticated API
 authorization, catalog authority fixture acceptance or browser behavior. Those
 remain for final independent QA after implementation and integration.
+
+`node --test packages/customer-service/portal-access.test.mjs` additionally checks
+opaque authentication propagation, exact grant predicates, permission escalation,
+missing source parties, denied-access short circuiting and request identity
+replacement. It inspects the Mongo filter and write fence using a DB double;
+it does not prove server-side expiry matching or concurrent revocation isolation.

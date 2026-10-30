@@ -6,6 +6,40 @@ const positive = value => Number.isSafeInteger(value) && value > 0;
 const fail = (status, code) => { throw Object.assign(new Error(code), { status, code }); };
 const select = (row, keys) => Object.fromEntries(keys.filter(key => Object.hasOwn(row, key)).map(key => [key, structuredClone(row[key])]));
 
+export const portalRoles = {
+  vendorPortalReader: ['portal.vendor.read'],
+  vendorPortalResponder: ['portal.vendor.read', 'portal.vendor.respond'],
+  customerPortalReader: ['portal.customer.read'],
+  portalAccessAdmin: ['portal.access.manage'],
+};
+
+// Foundation verifies the opaque authenticated scope; request user/party IDs never
+// substitute for it. The write conflicts with concurrent grant revocation.
+export async function authorizePortalParty(runtime, scope, { plantId, partyId, kind, action }, session) {
+  if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
+  const actions = kind === 'VENDOR' ? ['portal.vendor.read', 'portal.vendor.respond'] : kind === 'CUSTOMER' ? ['portal.customer.read'] : [];
+  if (![plantId, partyId].every(uuid) || !actions.includes(action)) fail(400, 'INVALID_PORTAL_ACCESS');
+  const actor = await runtime.foundation.authorizeInTransaction(scope, { plantId, action }, { session });
+  if (![actor?.tenantId, actor?.userId].every(uuid) || actor.plantId !== plantId) fail(403, 'PORTAL_ACCESS_DENIED');
+  const grant = await runtime.db.collection('portal_party_grants').findOneAndUpdate({
+    tenantId: actor.tenantId, plantId, userId: actor.userId, partyId, kind,
+    active: true, expiresAt: { $gt: new Date() }, actions: action,
+  }, { $inc: { authorizationFence: 1 } }, { session, returnDocument: 'after' });
+  if (!grant) fail(403, 'PORTAL_ACCESS_DENIED');
+  const party = await runtime.db.collection(kind === 'VENDOR' ? 'vendors' : 'accounts').findOne({
+    tenantId: actor.tenantId, plantId, _id: partyId,
+  }, { session });
+  if (!party) fail(403, 'PORTAL_ACCESS_DENIED');
+  return Object.freeze({ tenantId: actor.tenantId, plantId, userId: actor.userId, partyId, kind, grantId: grant._id });
+}
+
+export async function readVendorPurchaseOrderForPrincipal(runtime, scope, input, session) {
+  const actor = await authorizePortalParty(runtime, scope, {
+    plantId: input.plantId, partyId: input.vendorId, kind: 'VENDOR', action: 'portal.vendor.read',
+  }, session);
+  return readVendorPurchaseOrder(runtime.db, { ...input, tenantId: actor.tenantId }, session);
+}
+
 // This source adapter is not an authorization entry point. Its caller must resolve
 // the authenticated principal's vendor grant in the same snapshot transaction.
 export async function readVendorPurchaseOrder(db, { tenantId, plantId, vendorId, cohort, orderId, documentRevision }, session) {
