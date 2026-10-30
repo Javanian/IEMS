@@ -1,7 +1,7 @@
 """Flink 1.20 keyed event-time correction windows with checkpointed state."""
 import json
 import sys
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'analytics'))
 from events import canonical, digest, utc, validate
@@ -54,7 +54,9 @@ class Corrections(KeyedProcessFunction):
 
     def projection(self,key):
         values=[json.loads(v) for _,v in self.samples.items()]
-        total=sum((Decimal(v['value']) for v in values if not v['deleted']),Decimal(0))
+        with localcontext() as decimal_context:
+            decimal_context.prec=50
+            total=sum((Decimal(v['value']) for v in values if not v['deleted']),Decimal(0))
         count=sum(not v['deleted'] for v in values)
         revision=(self.revision.value() or 0)+1; self.revision.update(revision)
         return canonical({'kind':'projection','key':key,'revision':revision,'count':count,'sum':str(total),'windowMs':WINDOW_MS,'authority':'projection'})
