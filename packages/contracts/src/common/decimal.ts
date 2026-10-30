@@ -61,13 +61,13 @@ export function compareDecimals(a: string, b: string): number {
   assertValidSignedDecimal(a, 'a');
   assertValidSignedDecimal(b, 'b');
 
-  const negA = a.startsWith('-');
-  const negB = b.startsWith('-');
+  const negA = a.startsWith('-') && /[1-9]/.test(a);
+  const negB = b.startsWith('-') && /[1-9]/.test(b);
   if (negA && !negB) return -1;
   if (!negA && negB) return 1;
 
-  const absA = negA ? a.slice(1) : a;
-  const absB = negB ? b.slice(1) : b;
+  const absA = a.startsWith('-') ? a.slice(1) : a;
+  const absB = b.startsWith('-') ? b.slice(1) : b;
 
   const [intA = '0', fracA = ''] = absA.split('.');
   const [intB = '0', fracB = ''] = absB.split('.');
@@ -87,7 +87,7 @@ export function compareDecimals(a: string, b: string): number {
   if (normalizedA < normalizedB) cmp = -1;
   else if (normalizedA > normalizedB) cmp = 1;
 
-  return negA ? -cmp : cmp;
+  return cmp === 0 ? 0 : negA ? -cmp : cmp;
 }
 
 export function addDecimals(a: string, b: string): DecimalString {
@@ -118,6 +118,9 @@ export function addDecimals(a: string, b: string): DecimalString {
 
 export function multiplyDecimalByInteger(dec: string, factor: number | bigint): DecimalString {
   assertValidDecimal(dec, 'dec');
+  if (typeof factor !== 'bigint' && (typeof factor !== 'number' || !Number.isSafeInteger(factor))) {
+    throw new RangeError('Multiplier must be a safe integer number or bigint');
+  }
   const bigFactor = BigInt(factor);
   if (bigFactor < 0n) throw new RangeError('Multiplier must be non-negative');
 
