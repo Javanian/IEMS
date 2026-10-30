@@ -48,8 +48,7 @@ def build(root, manifests, run_id, interval, project, profiles, max_age_seconds=
         lineage['hash'] = digest(lineage)
         atomic_json(attempt/'lineage.json', lineage)
         # Orchestrator enforces one active run. Exclusive create detects conflicting retries.
-        with publication.open('x', encoding='utf8') as f:
-            f.write(canonical(lineage)); f.flush(); os.fsync(f.fileno())
+        os.link(attempt/'lineage.json', publication)
         return lineage
     except BaseException as error:
         lineage.update(status='failed', completedAt=now(), errorType=type(error).__name__)
