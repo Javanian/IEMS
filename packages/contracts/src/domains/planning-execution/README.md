@@ -42,10 +42,47 @@ UI uses the existing IEMS navy/white/blue tokens and bundled typography. ENERGY 
 Native disclosure shows component ancestry on demand so deep graphs do not force every level open at once.
 Existing state, focus and permission-aware links are retained. No shared shell, routing, manifest or schema delta.
 
+## Approved customer and internal shortage demand
+
+CTO contract v3 transfers only the demand-kind dispatch/identity/revalidation hunks of `material-shortages.mjs`
+to manufacturing after commercial handoff. Procurement lifecycle, stock arithmetic, claim CAS and release remain
+the commercial implementation. The optional refresh `demandKind` defaults to `INTERNAL_PRODUCTION`;
+`SALES_ORDER_WORK_ORDER` identifies a WO UUID. Unknown kinds never fall back to another authority.
+
+Engineering drafts/revisions accept optional `purchasedMaterials` with explicit approved item ID/version/revision,
+exact quantity per output UOM and material UOM. Item snapshots and stable line IDs are server-derived. Typed-only
+demand can be drafted before receiving stock. Release validates current item authority and freezes these requirements.
+Legacy receipt-only revisions keep their prior shape; existing purchased requirements are retained when an older
+revision client omits the optional field. Editing purchased demand creates another draft and requires release again.
+
+`POST /api/manufacturing/work-orders/:id/material-demand` binds exact released engineering ID/version/revision to
+a PLANNED WO with expected WO version and idempotency key. It does not release or reserve stock.
+`requireApprovedSalesOrderWorkOrderDemand(db, filter, workOrderId, expectedVersion, engineeringRevision,
+ownerLegalEntityId, session, fence=false)` requires an active transaction, validates WO/SO line identity, active
+owner, released engineering and approved purchased items, and returns WO-scaled `MATERIAL_SHORTAGE_V1` input.
+WO, SO, engineering and item fences conflict with concurrent changes. Missing purchased authority fails closed.
+
+Refresh and claims use the stored verified demand kind. Customer replay checks current source authority before
+returning its original result; no new claim/revision is written. Internal output hashes and old request-key hashing
+retain their original semantics. MRP UI calls the existing refresh and requests/from-shortage endpoints from both
+internal plans and bound customer WOs, showing observed quantities separately from current retained claims.
+Prices/currency and supplier are explicit operator inputs. Claim approval/conversion/release stay in procurement.
+
+The purchased requirement binding is planning authority. It does not add typed receipt consumption to the existing
+legacy customer WO execution path. That path continues to require actual supported receipt routing and custody;
+typed-only demand cannot bypass its stock release checks. Internal execution already uses typed stock reservations.
+
+## Reporting coverage
+
+The inherited data registry accepts order/payment/fulfillment resources and source collections only.
+Manufacturing, warehouse and genealogy audit deltas are not reporting snapshots. No registry-approved emitter exists
+inside this owned vertical: manufacturing adapters are `NOT_YET_WIRED`. Existing commercial SO snapshot adoption
+comes from prerequisite c7b8c4e. Extending reporting schemas/bindings remains data/CTO ownership; no fabricated
+order/payment/fulfillment event is emitted from manufacturing.
+
 ## Remaining assignment work
 
-General manufactured installation graph mutation/freeze integration, shortage API adoption/customer demand
-adapter, F5 contention review and reporting producer coverage are not completed by these two features.
+General manufactured installation graph mutation/freeze integration and F5 contention safeguards remain open.
 Do not mark PLAT-011/012 fully implemented from this partial handoff. The shortage producer is owned by
 commercial; proposed customer demand dispatch is recorded on TPR-153 for the CTO allocation decision.
 
