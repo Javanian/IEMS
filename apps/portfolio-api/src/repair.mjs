@@ -1,19 +1,25 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { businessNow } from './business-clock.mjs';
+import { initializeQuality, installQuality, qualityActions, qualityRoles, requireQualityGates } from './quality.mjs';
+import { initializeMaintenance, installMaintenance, maintenanceActions, maintenanceRoles } from './maintenance.mjs';
 
-const verbs = ['read', 'intake', 'diagnostic-authorize', 'teardown', 'scope', 'decide', 'deposit', 'start', 'execute', 'test', 'rework', 'qc', 'hold', 'return', 'bill', 'settle', 'warranty', 'warranty-claim', 'warranty-void'];
-export const repairActions = verbs.map(v => `repair.${v}`);
-export const repairRoles = Object.fromEntries(verbs.map(v => [`repair${v.split('-').map(s => s[0].toUpperCase() + s.slice(1)).join('')}`, [...new Set(['repair.read', `repair.${v}`])]]));
+const verbs = ['read', 'intake', 'diagnostic-authorize', 'teardown', 'scope', 'decide', 'deposit', 'start', 'execute', 'test', 'test-plan', 'rework', 'qc', 'hold', 'return', 'bill', 'settle', 'warranty', 'warranty-claim', 'warranty-void'];
+export const repairActions = [...verbs.map(v => `repair.${v}`), ...qualityActions, ...maintenanceActions];
+export const repairRoles = { ...Object.fromEntries(verbs.map(v => [`repair${v.split('-').map(s => s[0].toUpperCase() + s.slice(1)).join('')}`, [...new Set(['repair.read', `repair.${v}`])]])), ...qualityRoles, ...maintenanceRoles };
 // Public customer-facing repair number: stable, unique per tenant+plant, never the raw case UUID.
 export const repairNumberFor = ({ tenantId, plantId }, caseId) => `RP-${createHash('sha256').update(`repair:${tenantId}:${plantId}:${caseId}`).digest('hex').slice(0, 16).toUpperCase()}`;
 export async function initializeRepair(db) {
+  await initializeQuality(db);
+  await initializeMaintenance(db);
   await db.collection('repairCases').createIndex({ tenantId: 1, plantId: 1, caseNumber: 1 }, { unique: true, partialFilterExpression: { caseNumber: { $type: 'string' } } });
   await db.collection('repairInvoices').createIndex({ tenantId: 1, plantId: 1, caseId: 1, kind: 1 }, { unique: true });
   await db.collection('repairPayments').createIndex({ tenantId: 1, plantId: 1, reference: 1 }, { unique: true });
   await db.collection('repairKeys').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
 }
 export function installRepair(app, runtime, { fail, guard, id, fields }) {
+  installQuality(app, runtime, { fail, guard, id, fields });
+  installMaintenance(app, runtime, { fail, guard, id, fields });
   const c = name => runtime.db.collection(name);
   const text = value => { if (typeof value !== 'string' || !value.trim() || value.length > 1000) fail(400, 'INVALID_TEXT'); return value.trim(); };
   const base = req => ({ _id: randomUUID(), ...req.filter, version: 1, createdBy: req.scope.userId, createdAt: new Date() });
@@ -61,7 +67,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     if (new Set(rows.map(v => v.component)).size !== rows.length) fail(400, 'INVALID_DISPOSITIONS'); return rows;
   };
   for (const action of verbs.filter(v => !['read', 'intake', 'settle'].includes(v))) app.post(`/api/repair/cases/:id/${action}`, async (req, res) => {
-    const allowed = { 'diagnostic-authorize': ['feeCap', 'evidence'], teardown: ['findings', 'evidence'], scope: ['quoteId', 'revision', 'depositRequired', 'evidence'], decide: ['decision', 'revision', 'diagnosticFee', 'evidence'], deposit: ['amount', 'currency', 'reference'], start: [], execute: ['dispositions', 'evidence'], test: ['result', 'evidence'], rework: ['evidence'], qc: ['evidence'], hold: ['active', 'evidence'], return: ['evidence'], bill: [], warranty: ['days', 'terms', 'evidence'], 'warranty-claim': ['condition', 'evidence'], 'warranty-void': ['evidence'] }[action];
+    const allowed = { 'diagnostic-authorize': ['feeCap', 'evidence'], teardown: ['findings', 'evidence'], scope: ['quoteId', 'revision', 'depositRequired', 'evidence'], decide: ['decision', 'revision', 'diagnosticFee', 'evidence'], deposit: ['amount', 'currency', 'reference'], start: [], execute: ['dispositions', 'evidence'], test: ['result', 'evidence'], 'test-plan': ['equipmentId', 'operation', 'evidence'], rework: ['evidence'], qc: ['evidence'], hold: ['active', 'evidence'], return: ['evidence'], bill: [], warranty: ['days', 'terms', 'evidence'], 'warranty-claim': ['condition', 'evidence'], 'warranty-void': ['evidence'] }[action];
     fields(req.body, ['expectedVersion', 'idempotencyKey', ...allowed]);
     const b = req.body;
     if (!Number.isSafeInteger(b.expectedVersion) || b.expectedVersion < 1) fail(400, 'INVALID_VERSION');
@@ -69,6 +75,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     const data = await tx(req, `repair.${action}`, async session => {
       const row = await find('repairCases', req, req.params.id, session);
       if (row.version !== b.expectedVersion) fail(409, 'VERSION_CONFLICT');
+      if (['start','execute','test','rework','qc','return','warranty','warranty-claim'].includes(action)) await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'REPAIR_CASE', resourceId: row._id }], session, { at: businessNow(runtime) });
       const requireState = (...states) => { if (!states.includes(row.status)) fail(409, 'STATE_CONFLICT'); };
       if (row.decision?.decision === 'ACCEPT') {
         const deposits = await c('repairDeposits').find({ ...req.filter, caseId: row._id, accountId: row.ownerAccountId, currency: row.currency }, { session }).toArray();
@@ -124,16 +131,23 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
         const sort = values => JSON.stringify([...values].sort((a, b) => a.component.localeCompare(b.component)));
         if (sort(actual) !== sort(row.scopes.at(-1).findings)) fail(409, 'DISPOSITION_CONFLICT');
         row.execution = { ...record('EXECUTED'), dispositions: actual }; row.status = 'TESTING';
+      } else if (action === 'test-plan') {
+        requireState('TEARDOWN', 'SCOPE_QUOTED', 'AUTHORIZED', 'IN_PROGRESS', 'TESTING', 'REWORK');
+        row.testPlan = { ...record('TEST_PLAN'), equipmentId: id(b.equipmentId), operation: text(b.operation) };
       } else if (action === 'test') {
-        requireState('TESTING'); if (!['PASS', 'FAIL'].includes(b.result)) fail(400, 'INVALID_TEST');
-        row.tests.push({ ...record('TEST'), result: b.result, run: row.tests.length + 1 }); row.status = b.result === 'FAIL' ? 'REWORK' : 'TEST_PASSED';
+        requireState('TESTING');
+        const qualityGates = row.testPlan ? await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'EQUIPMENT', resourceId: row.testPlan.equipmentId, requireCalibration: true }, { resourceType: 'OPERATOR', resourceId: req.scope.userId, operation: row.testPlan.operation }], session, { at: businessNow(runtime) }) : [];
+        if (!['PASS', 'FAIL'].includes(b.result)) fail(400, 'INVALID_TEST');
+        row.tests.push({ ...record('TEST'), result: b.result, run: row.tests.length + 1, ...(row.testPlan ? { testPlan: structuredClone(row.testPlan), qualityGates } : {}) }); row.status = b.result === 'FAIL' ? 'REWORK' : 'TEST_PASSED';
       } else if (action === 'rework') {
         requireState('REWORK'); row.reworks.push({ ...record('REWORK'), failedRun: row.tests.at(-1).run }); row.status = 'TESTING';
       } else if (action === 'hold') {
         if (row.status === 'RETURNED' || typeof b.active !== 'boolean') fail(409, 'STATE_CONFLICT');
         row.holds.push({ ...record('HOLD'), active: b.active }); row.holdActive = b.active;
       } else if (action === 'qc') {
-        requireState('TEST_PASSED'); if (row.holdActive || row.tests.at(-1)?.result !== 'PASS') fail(409, 'QC_BLOCKED');
+        requireState('TEST_PASSED');
+        if (row.testPlan) await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'EQUIPMENT', resourceId: row.testPlan.equipmentId, requireCalibration: true }, { resourceType: 'OPERATOR', resourceId: row.tests.at(-1).recordedBy, operation: row.testPlan.operation }], session, { at: businessNow(runtime) });
+        if (row.holdActive || row.tests.at(-1)?.result !== 'PASS') fail(409, 'QC_BLOCKED');
         row.qc = { ...record('QC_RELEASED'), testRun: row.tests.at(-1).run }; row.status = 'READY_FOR_RETURN'; row.custodyState = 'RELEASED_FOR_RETURN'; row.custody.push(record('REASSEMBLED'));
       } else if (action === 'bill') {
         requireState('READY_FOR_RETURN', 'RETURNED');
