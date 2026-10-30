@@ -253,7 +253,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
       return {orderNumber: snapshot.orderNumber, publicStage: snapshot.publicStage, progress: snapshot.progress, source: snapshot.source, sourceId: snapshot.sourceId, sourceVersion: snapshot.sourceVersion, asOf: snapshot.asOf, liveLookup: true, ...(snapshot.kind === undefined ? {} : { kind: snapshot.kind, milestones: snapshot.milestones.map(m => ({ code: m.code, label: m.label, at: m.at, state: m.state })), confirmedDates: { ...snapshot.confirmedDates } })};
     }
     if (!allowSyntheticOrders) fail('STATUS_UNAVAILABLE');
-    const s = await c('cs_order_snapshots').findOne({ tenantId: binding.tenantId, customerId: binding.customerId, orderNumber }, { session });
+    const s = await c('cs_order_snapshots').findOne({ tenantId: binding.tenantId, plantId: binding.plantId, customerId: binding.customerId, orderNumber }, { session });
     return s ?? fail('NOT_FOUND');
   }
 
@@ -782,15 +782,18 @@ export function createCustomerService({ client, db, foundation, now = () => new 
 
     // Operator view of what the bound customer would see; a revoked/expired/foreign binding reads as NOT_FOUND.
     async getOrderStatusForBinding(scope, { plantId, bindingId, orderNumber }) {
-      const g = await operator(scope, plantId, 'cs.ticket.read');
+      await operator(scope, plantId, 'cs.ticket.read');
       if (typeof bindingId !== 'string' || !UUID_RE.test(bindingId)) fail('NOT_FOUND');
       orderNo(orderNumber);
-      const b = await c('cs_contact_bindings').findOne({ _id: bindingId, tenantId: g.tenantId, plantId: g.plantId, status: 'ACTIVE', ...unexpired() });
-      if (!b) fail('NOT_FOUND');
-      const s = await ownSnapshot(undefined, b, orderNumber);
-      // Re-check after the (possibly slow) read so a revocation during the read cannot leak the result.
-      if (!(await c('cs_contact_bindings').findOne({ _id: b._id, tenantId: b.tenantId, status: 'ACTIVE', version: b.version, ...unexpired() }))) fail('NOT_FOUND');
-      return { orderNumber: s.orderNumber, publicStage: s.publicStage, progress: s.progress, asOf: s.asOf, source: s.source, liveLookup: s.liveLookup ?? false, sourceId: s.sourceId ?? null, sourceVersion: s.sourceVersion ?? null, kind: s.kind ?? null, milestones: s.milestones ?? [], confirmedDates: s.confirmedDates ?? {} };
+      return operatorTx(scope, plantId, 'cs.ticket.read', async (session, g) => {
+        const b = await c('cs_contact_bindings').findOne({ _id: bindingId, tenantId: g.tenantId, plantId: g.plantId, status: 'ACTIVE', ...unexpired() }, { session });
+        if (!b) fail('NOT_FOUND');
+        const s = await ownSnapshot(session, b, orderNumber);
+        // The write conflicts with concurrent revocation; expiry is checked after the bounded source read.
+        const fenced = await c('cs_contact_bindings').updateOne({ _id: b._id, tenantId: g.tenantId, plantId: g.plantId, status: 'ACTIVE', version: b.version, ...unexpired() }, { $inc: { commandFence: 1 } }, { session });
+        if (fenced.matchedCount !== 1) fail('NOT_FOUND');
+        return { orderNumber: s.orderNumber, publicStage: s.publicStage, progress: s.progress, asOf: s.asOf, source: s.source, liveLookup: s.liveLookup ?? false, sourceId: s.sourceId ?? null, sourceVersion: s.sourceVersion ?? null, kind: s.kind ?? null, milestones: s.milestones ?? [], confirmedDates: s.confirmedDates ?? {} };
+      });
     },
 
     // Product path for simulated inbound messages: same handleInboundCommand as the bridge, inside an operator transaction.
