@@ -135,3 +135,17 @@ permission and party/source reauthorization on replay, input/hash/line validatio
 immutable response IDs and idempotency conflicts with the real executor and a
 transactional DB double. Actual Mongo isolation, HTTP/browser and independent QA
 remain NOT_RUN.
+
+## Vendor read and HTTP integration milestone
+
+`createVendorPortalReader(runtime)` exposes `order(scope,input)` and `history(scope,input)`. Both authorize the opaque foundation scope and active party grant, fence revocation, and verify the approved source in the same snapshot/majority transaction. Session always closes. History filters tenant/plant/vendor/order/cohort and optional approved document revision. Limit defaults to 25 (max100); `after` is the last response UUID in ascending UUID order (stable ID pagination, not chronological order). Fetches limit+1; returns explicit public fields and nextCursor. No raw body, internal note, author or tenant metadata projection. Missing source is 404; denied grant is 403. Malformed/injected identity fields fail before session creation.
+
+`installPortals(app,runtime)` is an integration delta for TPR-149, not mounted by this branch. Install after authenticated scope middleware and JSON parsing, before shared error handling; register portalRoles in foundation role configuration. Routes:
+
+- GET `/api/portals/vendors/:vendorId/orders/:orderId` with required cohort and optional documentRevision.
+- GET same path + `/responses` with optional limit/after/documentRevision.
+- POST same path + `/responses` with responseId/cohort/documentRevision/sourceHash/decision/promises/commandKey.
+- POST `/api/portals/grants` with grantId/userId/partyId/kind/actions/expiresAt/commandKey.
+- POST `/api/portals/grants/:grantId/revoke` with expectedRevision/commandKey.
+
+All plant IDs derive from authenticated selectedPlantId. Unknown query/body fields, including tenant/plant/actor overrides, are rejected. Existing service checks own domain errors/command receipts. Initializers remain explicit: createPortalAccessService(runtime).initialize() and createVendorResponseService(runtime).initialize(); never initialize DB from a request. Customer portal routes/screens remain incomplete. No shared app.mjs edits or external sends.

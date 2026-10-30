@@ -14,6 +14,79 @@ export const portalRoles = {
   portalAccessAdmin: ['portal.access.manage'],
 };
 
+export function createVendorPortalReader(runtime) {
+  const read = async (scope, input, history) => {
+    const allowed = ['plantId', 'vendorId', 'orderId', 'cohort', 'documentRevision', ...(history ? ['limit', 'after'] : [])];
+    if (!input || Object.getPrototypeOf(input) !== Object.prototype || Object.keys(input).some(key => !allowed.includes(key)) ||
+        ![input.plantId, input.vendorId, input.orderId].every(uuid) || !['LEGACY', 'CATALOG'].includes(input.cohort) ||
+        (input.documentRevision !== undefined && !positive(input.documentRevision)) ||
+        (history && ((input.limit !== undefined && (!positive(input.limit) || input.limit > 100)) ||
+          (input.after !== undefined && !uuid(input.after))))) fail(400, 'INVALID_PORTAL_READ');
+    input = { ...input };
+    const session = runtime.client.startSession();
+    try {
+      return await session.withTransaction(async () => {
+        const actor = await authorizePortalParty(runtime, scope, {
+          plantId: input.plantId, partyId: input.vendorId, kind: 'VENDOR', action: 'portal.vendor.read',
+        }, session);
+        const source = await readVendorPurchaseOrder(runtime.db, { ...input, tenantId: actor.tenantId }, session);
+        if (!source) fail(404, 'PORTAL_ORDER_NOT_FOUND');
+        if (!history) return source;
+        const limit = input.limit ?? 25;
+        const filter = { tenantId: actor.tenantId, plantId: input.plantId, vendorId: input.vendorId,
+        orderId: input.orderId, cohort: input.cohort,
+        ...(input.documentRevision === undefined ? {} : { documentRevision: input.documentRevision }),
+        ...(input.after === undefined ? {} : { _id: { $gt: input.after } }) };
+        const rows = await runtime.db.collection('portal_vendor_responses').find(filter, { session })
+          .sort({ _id: 1 }).limit(limit + 1).toArray();
+        return { schema: 'PORTAL_VENDOR_RESPONSE_PAGE_V1', items: rows.slice(0, limit).map(row => ({
+          responseId: row._id, ...select(row, ['orderId', 'cohort', 'documentRevision', 'sourceHash', 'decision', 'promises', 'revision', 'createdAt']),
+        })), nextCursor: rows.length > limit ? rows[limit - 1]._id : null };
+      }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
+    } finally { await session.endSession(); }
+  };
+  return Object.freeze({ order: (scope, input) => read(scope, input, false), history: (scope, input) => read(scope, input, true) });
+}
+
+// Mount after the application's authenticated scope middleware. No public or
+// dispatcher routes are installed here; the integration owner owns app.mjs.
+export function installPortals(app, runtime) {
+  const reader = createVendorPortalReader(runtime);
+  const responses = createVendorResponseService(runtime);
+  const access = createPortalAccessService(runtime);
+  const input = (req, history = false) => {
+    if (!req.scope || !uuid(req.scope.selectedPlantId)) fail(403, 'SCOPE_DENIED');
+    const allowed = ['cohort', 'documentRevision', ...(history ? ['limit', 'after'] : [])];
+    if (Object.keys(req.query).some(key => !allowed.includes(key))) fail(400, 'UNKNOWN_FIELD');
+    const integer = value => {
+      if (typeof value !== 'string' || !/^[1-9][0-9]{0,14}$/.test(value) || !positive(Number(value))) fail(400, 'INVALID_PORTAL_READ');
+      return Number(value);
+    };
+    return { plantId: req.scope.selectedPlantId, vendorId: req.params.vendorId, orderId: req.params.orderId,
+      cohort: req.query.cohort,
+      ...(req.query.documentRevision === undefined ? {} : { documentRevision: integer(req.query.documentRevision) }),
+      ...(req.query.limit === undefined ? {} : { limit: integer(req.query.limit) }),
+      ...(req.query.after === undefined ? {} : { after: req.query.after }) };
+  };
+  const body = (req, allowed) => {
+    if (!req.scope || !uuid(req.scope.selectedPlantId)) fail(403, 'SCOPE_DENIED');
+    if (Object.keys(req.query).length || !req.body || Object.getPrototypeOf(req.body) !== Object.prototype ||
+        Object.keys(req.body).some(key => !allowed.includes(key))) fail(400, 'UNKNOWN_FIELD');
+    return { ...req.body, plantId: req.scope.selectedPlantId };
+  };
+  app.get('/api/portals/vendors/:vendorId/orders/:orderId', async (req, res) => res.json({ data: await reader.order(req.scope, input(req)) }));
+  app.get('/api/portals/vendors/:vendorId/orders/:orderId/responses', async (req, res) => res.json({ data: await reader.history(req.scope, input(req, true)) }));
+  app.post('/api/portals/vendors/:vendorId/orders/:orderId/responses', async (req, res) => {
+    const payload = body(req, ['responseId', 'cohort', 'documentRevision', 'sourceHash', 'decision', 'promises', 'commandKey']);
+    res.json({ data: await responses.respond(req.scope, { ...payload, vendorId: req.params.vendorId, orderId: req.params.orderId }) });
+  });
+  app.post('/api/portals/grants', async (req, res) => res.json({ data: await access.provision(req.scope,
+    body(req, ['grantId', 'userId', 'partyId', 'kind', 'actions', 'expiresAt', 'commandKey'])) }));
+  app.post('/api/portals/grants/:grantId/revoke', async (req, res) => res.json({ data: await access.revoke(req.scope, {
+    ...body(req, ['expectedRevision', 'commandKey']), grantId: req.params.grantId,
+  }) }));
+}
+
 export function createVendorResponseService(runtime) {
   return Object.freeze({
     async initialize() { await createCommandExecutor(runtime).initialize(); },
