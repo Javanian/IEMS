@@ -15,13 +15,14 @@ export function fromOutbox(row) {
 }
 
 // Publication is deliberately at least once: a lost marker repeats the same event ID.
-export async function relayBatch({ db, producer, topic = 'iems.domain.v1', limit = 100 }) {
+export async function relayBatch({ db, producer, eventTypes, topic = 'iems.domain.v1', limit = 100 }) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error('INVALID_LIMIT');
-  const rows = await db.collection('outbox').find({ publishedAt: null }).sort({ occurredAt: 1, _id: 1 }).limit(limit).toArray();
+  if (!Array.isArray(eventTypes) || !eventTypes.length || eventTypes.length > 100 || !eventTypes.every(t => typeof t === 'string' && /^[a-zA-Z][\w.-]{0,127}$/.test(t))) throw new Error('EXPLICIT_EVENT_ROUTING_REQUIRED');
+  const rows = await db.collection('outbox').find({ type: { $in: eventTypes }, kafkaPublishedAt: null }).sort({ tenantId: 1, plantId: 1, aggregateId: 1, aggregateRevision: 1, _id: 1 }).limit(limit).toArray();
   for (const row of rows) {
     const event = fromOutbox(row);
     await producer.send({ topic, acks: -1, messages: [{ key: `${event.tenantId}:${event.plantId}:${event.aggregateId}`, value: canonicalJson(event), headers: { schemaVersion: '1', eventId: event.eventId } }] });
-    await db.collection('outbox').updateOne({ _id: row._id, publishedAt: null }, { $set: { publishedAt: new Date() } });
+    await db.collection('outbox').updateOne({ _id: row._id, kafkaPublishedAt: null }, { $set: { kafkaPublishedAt: new Date() } });
   }
   return rows.length;
 }
