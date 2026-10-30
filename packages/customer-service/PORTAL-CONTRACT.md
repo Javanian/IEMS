@@ -178,3 +178,7 @@ ACL/source predicates, denied short circuit, public projections, quantity/UOM
 boundaries, malformed/corrupt source errors, bounded coverage and HTTP scope.
 Actual Mongo isolation, running HTTP/browser and independent QA remain NOT_RUN.
 Integration mount still belongs to TPR-149; portal screens remain incomplete.
+
+## Customer screen integration delta
+
+`CustomerPortalWorkspace` named export from `apps/web/src/features/portfolio/CustomerPortalWorkspace.jsx` is ready for the authenticated shared route owner. Proposed route `/portfolio/portals/customer`; no shared route or navigation was edited. It looks up an account UUID and SO-/RP- number using the existing authenticated customer GET endpoint, showing public stage, source revision, checked time, coverage, confirmed dates and per-line shipment quantity/UOM. Identity changes and unmount cancel reads; obsolete results cannot overwrite the current lookup. Customer/vendor IDs never grant authorization. There is no party-discovery endpoint, so lookup uses the ID provided with access. Vendor screen remains outstanding. Browser/rendered accessibility and running API verification remain NOT_RUN; JSX compilation is not browser acceptance.
