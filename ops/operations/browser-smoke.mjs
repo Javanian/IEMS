@@ -41,7 +41,7 @@ try {
  for(const width of [1440,375]) {
   await page.setViewportSize({width,height:1000});await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__operations_inspection`);
   await page.getByRole('heading',{level:1}).waitFor();
-  if(workspace==='Workforce'){await page.getByLabel('Operator ID',{exact:true}).fill(subject);await page.getByRole('button',{name:'Open operator',exact:true}).click();await page.getByRole('heading',{name:'Operator verification',exact:true}).waitFor();}
+  if(workspace==='Workforce'){await page.getByLabel(/^Operator ID/).fill(subject);await page.getByRole('button',{name:'Open operator',exact:true}).click();await page.getByRole('heading',{name:'Operator verification',exact:true}).waitFor();}
   if(workspace==='Operations') await page.getByRole('table',{name:'Production records',exact:true}).waitFor();
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.getByRole('button').first().focus();assert(await page.evaluate(()=>document.activeElement.tagName==='BUTTON'));
