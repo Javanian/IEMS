@@ -98,6 +98,24 @@ standalone quality register blocks an existing shipment handler automatically.
 
 ## Component authority boundary
 
+POST `/api/repair/cases/:id/component-remove` requires accepted scope and an
+IN_PROGRESS/REWORK case; body component, serial (or identity mark), condition,
+evidence, expectedVersion, idempotencyKey. Only the frozen REPLACE/SCRAP findings
+authorize removal. Customer-owned component becomes QUARANTINED with stable ID,
+case/customer/parent serial and scope revision lineage, in the same transaction
+as case/result/audit/outbox. Duplicate removal of that slot is rejected.
+
+POST `.../component-dispose` uses componentId, disposition RETURN_TO_CUSTOMER or
+SCRAP, evidence, expectedVersion, idempotencyKey. Scrap requires frozen SCRAP
+authority; replacement authorization alone cannot authorize scrapping customer
+property. Both legacy case holds and new quality holds block these actions.
+Separate `repair.component-remove` / `repair.component-dispose` permissions apply.
+Case response includes current componentRemovals; immutable component revisions
+retain original custody and disposition. UI forms are in the repair case.
+No available stock or manufacturing execution is created for removed property.
+One removed slot per case is supported at this milestone; later replacement
+lineage must supply actual issued source proof before further removal cycles.
+
 Manufacturing prerequisite tip 693a129f04038188b0d1f52bbef6b91a0d001708 was
 fast-forwarded without conflict from accepted base 0ad4248. Its stock validators
 require internal execution authority for issued/consumed claims. Repair adapter

@@ -1,16 +1,18 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
+import { initializeRepairComponents, recordComponentCustody } from './repair-components.mjs';
 import { businessNow } from './business-clock.mjs';
 import { initializeQuality, installQuality, qualityActions, qualityRoles, requireQualityGates } from './quality.mjs';
 import { initializeMaintenance, installMaintenance, maintenanceActions, maintenanceRoles } from './maintenance.mjs';
 
-const verbs = ['read', 'intake', 'diagnostic-authorize', 'teardown', 'scope', 'decide', 'deposit', 'start', 'execute', 'test', 'test-plan', 'rework', 'qc', 'hold', 'return', 'bill', 'settle', 'warranty', 'warranty-claim', 'warranty-void'];
+const verbs = ['read', 'intake', 'diagnostic-authorize', 'teardown', 'scope', 'decide', 'deposit', 'start', 'execute', 'test', 'test-plan', 'rework', 'qc', 'hold', 'return', 'bill', 'settle', 'warranty', 'warranty-claim', 'warranty-void', 'component-remove', 'component-dispose'];
 export const repairActions = [...verbs.map(v => `repair.${v}`), ...qualityActions, ...maintenanceActions];
 export const repairRoles = { ...Object.fromEntries(verbs.map(v => [`repair${v.split('-').map(s => s[0].toUpperCase() + s.slice(1)).join('')}`, [...new Set(['repair.read', `repair.${v}`])]])), ...qualityRoles, ...maintenanceRoles };
 // Public customer-facing repair number: stable, unique per tenant+plant, never the raw case UUID.
 export const repairNumberFor = ({ tenantId, plantId }, caseId) => `RP-${createHash('sha256').update(`repair:${tenantId}:${plantId}:${caseId}`).digest('hex').slice(0, 16).toUpperCase()}`;
 export async function initializeRepair(db) {
   await initializeQuality(db);
+  await initializeRepairComponents(db);
   await initializeMaintenance(db);
   await db.collection('repairCases').createIndex({ tenantId: 1, plantId: 1, caseNumber: 1 }, { unique: true, partialFilterExpression: { caseNumber: { $type: 'string' } } });
   await db.collection('repairInvoices').createIndex({ tenantId: 1, plantId: 1, caseId: 1, kind: 1 }, { unique: true });
@@ -67,7 +69,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     if (new Set(rows.map(v => v.component)).size !== rows.length) fail(400, 'INVALID_DISPOSITIONS'); return rows;
   };
   for (const action of verbs.filter(v => !['read', 'intake', 'settle'].includes(v))) app.post(`/api/repair/cases/:id/${action}`, async (req, res) => {
-    const allowed = { 'diagnostic-authorize': ['feeCap', 'evidence'], teardown: ['findings', 'evidence'], scope: ['quoteId', 'revision', 'depositRequired', 'evidence'], decide: ['decision', 'revision', 'diagnosticFee', 'evidence'], deposit: ['amount', 'currency', 'reference'], start: [], execute: ['dispositions', 'evidence'], test: ['result', 'evidence'], 'test-plan': ['equipmentId', 'operation', 'evidence'], rework: ['evidence'], qc: ['evidence'], hold: ['active', 'evidence'], return: ['evidence'], bill: [], warranty: ['days', 'terms', 'evidence'], 'warranty-claim': ['condition', 'evidence'], 'warranty-void': ['evidence'] }[action];
+    const allowed = { 'diagnostic-authorize': ['feeCap', 'evidence'], teardown: ['findings', 'evidence'], scope: ['quoteId', 'revision', 'depositRequired', 'evidence'], decide: ['decision', 'revision', 'diagnosticFee', 'evidence'], deposit: ['amount', 'currency', 'reference'], start: [], execute: ['dispositions', 'evidence'], test: ['result', 'evidence'], 'test-plan': ['equipmentId', 'operation', 'evidence'], rework: ['evidence'], qc: ['evidence'], hold: ['active', 'evidence'], return: ['evidence'], bill: [], warranty: ['days', 'terms', 'evidence'], 'warranty-claim': ['condition', 'evidence'], 'warranty-void': ['evidence'], 'component-remove': ['component', 'serial', 'condition', 'evidence'], 'component-dispose': ['componentId', 'disposition', 'evidence'] }[action];
     fields(req.body, ['expectedVersion', 'idempotencyKey', ...allowed]);
     const b = req.body;
     if (!Number.isSafeInteger(b.expectedVersion) || b.expectedVersion < 1) fail(400, 'INVALID_VERSION');
@@ -75,7 +77,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     const data = await tx(req, `repair.${action}`, async session => {
       const row = await find('repairCases', req, req.params.id, session);
       if (row.version !== b.expectedVersion) fail(409, 'VERSION_CONFLICT');
-      if (['start','execute','test','rework','qc','return','warranty','warranty-claim'].includes(action)) await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'REPAIR_CASE', resourceId: row._id }], session, { at: businessNow(runtime) });
+      if (['start','execute','test','rework','qc','return','warranty','warranty-claim','component-remove','component-dispose'].includes(action)) await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'REPAIR_CASE', resourceId: row._id }], session, { at: businessNow(runtime) });
       const requireState = (...states) => { if (!states.includes(row.status)) fail(409, 'STATE_CONFLICT'); };
       if (row.decision?.decision === 'ACCEPT') {
         const deposits = await c('repairDeposits').find({ ...req.filter, caseId: row._id, accountId: row.ownerAccountId, currency: row.currency }, { session }).toArray();
@@ -167,6 +169,9 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
         requireState('READY_FOR_RETURN', 'REJECTED'); if (row.holdActive) fail(409, 'QC_BLOCKED');
         row.returnedAt = businessNow(runtime);
         row.custodyState = row.status === 'REJECTED' ? 'RETURNED_UNREPAIRED_TO_CUSTOMER' : 'RETURNED_TO_CUSTOMER'; row.custody.push(record(row.custodyState)); row.status = 'RETURNED';
+      } else if (['component-remove', 'component-dispose'].includes(action)) {
+        if (action === 'component-dispose') id(b.componentId);
+        await recordComponentCustody(runtime.db, req.filter, row, action, b, req.scope.userId, session, businessNow(runtime));
       } else if (action === 'warranty') {
         requireState('RETURNED');
         if (row.decision?.decision !== 'ACCEPT' || !row.qc || row.holdActive || row.warranty || !row.returnedAt) fail(409, 'WARRANTY_CONFLICT');
