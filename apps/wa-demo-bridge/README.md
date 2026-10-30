@@ -190,3 +190,26 @@ Call `initializeProviderCommands` explicitly before mounting commands; it only
 declares the unique command index and has not been executed here. No HTTP mount,
 concrete operator authorization, authority provisioning or live-send permission is
 provided by this module. External sends remain disabled.
+
+# Foundation-backed operator authorization (PLAT-051)
+
+`createScopedProviderRevocationCommands` composes durable revocation with
+`createProviderOperatorAuthorization`. The integration owner supplies the existing
+foundation instance, atomic transaction runner, and a trusted immutable mapping of
+tenant/plant/provider account. Do not build that mapping from request fields or
+reuse one provider account for multiple plants. The opaque authenticated scope
+passes directly to foundation authorization in the caller's active transaction;
+foundation fences session, membership, user, tenant, plant and legal entity.
+Every replay rechecks this authority before reading its stored receipt.
+
+Register `providerOperatorRoles` with the foundation policy at composition time;
+this declaration grants no role to any user. The two declared permissions cover
+authority revocation and provisioning only. No send permission is declared.
+Wrong tenant/account/action, inactive transactions and mismatched foundation
+grants reject. Account mapping changes require composition restart and the same
+review as the original mapping. No mutable account directory is introduced.
+
+The composition is not mounted. Provisioning, browser driver and final integration
+remain incomplete. No credentials, roles or live authorities were provisioned.
+External send remains disabled. Synthetic checks do not prove Mongo isolation or
+real authenticated HTTP behavior; those remain for final independent QA.
