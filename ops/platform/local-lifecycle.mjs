@@ -103,12 +103,12 @@ try {
     verifyState();
     const mirror = process.env.PLATFORM_TF_PROVIDER_MIRROR;
     if (!mirror || !existsSync(mirror)) throw new Error('Installed offline Docker provider mirror required');
-    record('terraform', ['version', '-json'], { env: tfEnv, timeout: 10000 });
     await new Promise((resolvePort, reject) => {
       const socket = createServer(); socket.once('error', reject); socket.listen(state.apiPort, '127.0.0.1', () => socket.close(resolvePort));
     });
     if (!existsSync(tfDir)) cpSync(join(root, 'infra/terraform/local'), tfDir, { recursive: true });
     writeFileSync(tfEnv.TF_CLI_CONFIG_FILE, `provider_installation {\n filesystem_mirror {\n path = ${JSON.stringify(resolve(mirror).replaceAll('\\', '/'))}\n include = ["registry.terraform.io/kreuzwerker/docker"]\n }\n}\ndisable_checkpoint = true\n`, { mode: 0o600 });
+    record('terraform', ['version', '-json'], { env: tfEnv, timeout: 10000 });
     writeFileSync(join(tfDir, 'owned.auto.tfvars.json'), JSON.stringify({ owner: state.owner, source_sha: state.sourceSha, image: state.image, api_port: state.apiPort, docker_host: dockerHost, rabbit_password: state.password }), { mode: 0o600 });
     record('docker', ['--host', dockerHost, 'build', '--file', 'ops/platform/Dockerfile', '--tag', state.image, '.'], { timeout: 600000 });
     terraform(['fmt', '-check']); terraform(['init', '-backend=false', '-input=false']); terraform(['validate', '-no-color']);
