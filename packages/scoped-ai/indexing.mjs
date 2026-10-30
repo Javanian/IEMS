@@ -55,6 +55,23 @@ export function createScopedIndex({ client, db, foundation, source, vectors, emb
       await commands.initialize();
       await indexes.createIndex({ tenantId: 1, plantId: 1, resourceId: 1 }, { unique: true });
     },
+    async status(scope, input) {
+      validateRequest(input);
+      return boundedTransaction(client, async session => {
+        const grant = await authorize(scope, input.plantId, 'ai.index', session);
+        const current = await readSource(source, grant, input.resourceId, session);
+        const row = await indexes.findOne({ tenantId: grant.tenantId, plantId: grant.plantId,
+          resourceId: input.resourceId }, { session });
+        const state = !row ? 'NOT_INDEXED' : !row.active ? 'REVOKED' :
+          row.model !== embeddings.model || row.dimensions !== embeddings.dimensions ? 'MODEL_CHANGED' :
+            row.sourceHash !== current.hash ? 'SOURCE_CHANGED' : 'CURRENT';
+        return { schema: 'SCOPED_INDEX_STATUS_V1', resourceId: input.resourceId,
+          revision: row?.revision ?? 0, sourceRevision: current.revision, aclRevision: current.aclRevision,
+          indexedSourceRevision: row?.sourceRevision ?? null, model: embeddings.model,
+          indexedModel: row?.model ?? null, state, nextAction: state === 'CURRENT' ? 'NONE' : 'REBUILD',
+          asOf: clock().toISOString() };
+      });
+    },
     async rebuild(scope, input) {
       validateRequest(input);
       if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0 || typeof input.key !== 'string') fail('AI_INVALID_COMMAND');

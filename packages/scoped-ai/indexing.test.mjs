@@ -78,3 +78,33 @@ test('invalid vector/query is rejected before publication', async () => {
   await assert.rejects(f.build(), { code: 'AI_VECTOR_INVALID' });
   await assert.rejects(f.api.retrieve(f.scope, { plantId: f.plantId, query: 'x', limit: 41 }), { code: 'AI_INVALID_QUERY' });
 });
+
+test('status exposes revision and recovery state without contacting providers', async () => {
+  const f = fixture();
+  const status = () => f.api.status(f.scope, { plantId: f.plantId, resourceId: f.resourceId });
+  assert.equal((await status()).state, 'NOT_INDEXED');
+  assert.equal((await status()).revision, 0);
+  assert.equal(f.state.calls, 0);
+  await f.build();
+  assert.equal((await status()).state, 'CURRENT');
+  f.state.source.aclRevision++;
+  assert.equal((await status()).state, 'SOURCE_CHANGED');
+  f.state.source.aclRevision--;
+  f.state.index.model = 'retired-model';
+  assert.equal((await status()).state, 'MODEL_CHANGED');
+  f.state.index.active = false;
+  assert.equal((await status()).state, 'REVOKED');
+  assert.equal((await status()).nextAction, 'REBUILD');
+  assert.equal(f.state.calls, 1);
+  assert.equal('points' in await status(), false);
+});
+
+test('status rechecks actor and source ACL even for an existing index', async () => {
+  const f = fixture(); await f.build();
+  const status = () => f.api.status(f.scope, { plantId: f.plantId, resourceId: f.resourceId });
+  f.state.denied = true;
+  await assert.rejects(status(), { status: 403 });
+  f.state.denied = false; f.state.revoked = true;
+  await assert.rejects(status(), { status: 403 });
+  await assert.rejects(f.api.status(f.scope, { plantId: f.plantId, resourceId: 'bad' }), { code: 'AI_INVALID_RESOURCE' });
+});

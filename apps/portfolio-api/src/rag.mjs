@@ -26,6 +26,17 @@ export function installRag(app, rag) {
   const resource = req => { if (!uuid(req.params.id)) fail('AI_INVALID_RESOURCE'); return req.params.id; };
   const respond = (res, data) => res.set('Cache-Control', 'no-store').json({ data });
   app.get('/api/ai/documents', async (req, res) => respond(res, await rag.documents.list(req.scope, plant(req))));
+  app.get('/api/ai/documents/:id/index', async (req, res) => {
+    const plantId = plant(req), resourceId = resource(req);
+    if (!rag.index) fail('AI_PROVIDER_UNAVAILABLE', 503);
+    respond(res, await rag.index.status(req.scope, { plantId, resourceId }));
+  });
+  app.post('/api/ai/documents/:id/index/revoke', async (req, res) => {
+    const body = input(req, ['key', 'expectedRevision']);
+    const plantId = plant(req), resourceId = resource(req);
+    if (!rag.index) fail('AI_PROVIDER_UNAVAILABLE', 503);
+    respond(res, await rag.index.revoke(req.scope, { ...body, plantId, resourceId }));
+  });
   app.put('/api/ai/documents/:id', async (req, res) => {
     const body = input(req, ['key', 'expectedRevision', 'title', 'text', 'allowedUserIds']);
     respond(res, await rag.documents.publish(req.scope, { ...body, plantId: plant(req), resourceId: resource(req) }));
