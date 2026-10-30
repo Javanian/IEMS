@@ -7,13 +7,13 @@ const replyId = '22222222-2222-4222-8222-222222222222';
 const customerId = '33333333-3333-4333-8333-333333333333';
 const scope = { tenantId, accountId: 'synthetic' };
 const input = { ...scope, replyId, deliveryId: customerId, ownerId: 'owner', generation: 1 };
-function fixture({ missing, conflict, storageFailure } = {}) {
+function fixture({ missing, conflict, storageFailure, sourcePatch, sourceFailure } = {}) {
   const common = { ...scope, authorityRevision: 1, recipient: 'test:recipient', expiresAt: 2000 };
   const versions = { policyRevision: 1, identityVersion: 2, bindingVersion: 3 };
   const rows = {
     policy: { ...common, enabled: true, paused: false, revision: 1, prefix: 'IEMS ', allowlist: [common.recipient] },
     identity: { ...common, active: true, version: 2 },
-    binding: { ...common, active: true, version: 3, customerId },
+    binding: { ...common, active: true, version: 3, customerId, sourceBindingId: customerId, sourceBindingVersion: 7 },
     reply: { ...common, ...versions, replyId, customerId, mode: 'LIVE', state: 'APPROVED', contentHash: 'a'.repeat(64), commandPrefix: 'IEMS ' },
     approval: { ...common, ...versions, replyId, customerId, revoked: false, state: 'APPROVED', approvedBy: customerId, contentHash: 'a'.repeat(64) },
   };
@@ -42,8 +42,31 @@ function fixture({ missing, conflict, storageFailure } = {}) {
       },
     };
   } };
-  return { authorize: createDurableProviderPolicy({ db, ...scope, now: () => 1000 }), session, rows, calls };
+  const verifyBindingSource = async (request, effectSession) => {
+    assert.equal(effectSession, session);
+    assert.deepEqual(request, { bindingId: customerId, version: 7, recipient: common.recipient, customerId });
+    calls.push(['source', 'binding']);
+    if (sourceFailure) throw new Error('SOURCE_REVOKED');
+    return { ...scope, ...request, expiresAt: 2000, ...sourcePatch };
+  };
+  return { authorize: createDurableProviderPolicy({ db, ...scope, verifyBindingSource, now: () => 1000 }), session, rows, calls };
 }
+
+test('source authority is mandatory and revalidated on every registration including replay', async () => {
+  assert.throws(() => createDurableProviderPolicy({ db: { collection() {} }, ...scope }), /INVALID_PROVIDER_AUTHORITY_CONFIGURATION/);
+  const f = fixture();
+  await f.authorize(input, f.session);
+  await f.authorize(input, f.session);
+  assert.equal(f.calls.filter(([op]) => op === 'source').length, 2);
+  for (const sourcePatch of [{ tenantId: customerId }, { accountId: 'other' }, { bindingId: replyId },
+    { version: 8 }, { recipient: 'other' }, { customerId: tenantId }, { expiresAt: 1999 }, { expiresAt: NaN }]) {
+    const denied = fixture({ sourcePatch });
+    await assert.rejects(denied.authorize(input, denied.session), /PROVIDER_AUTHORITY_FENCED/);
+  }
+  const revoked = fixture({ sourceFailure: true });
+  await assert.rejects(revoked.authorize(input, revoked.session), /SOURCE_REVOKED/);
+  assert.equal(revoked.calls.filter(([op]) => op === 'source').length, 1);
+});
 
 test('all five scoped authorities are write-fenced in the supplied effect transaction', async () => {
   const f = fixture();

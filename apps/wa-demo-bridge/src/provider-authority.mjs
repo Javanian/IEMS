@@ -3,7 +3,7 @@ import { createProviderRegistrationPolicy } from './provider-policy.mjs';
 const fields = {
   policy: ['enabled', 'paused', 'revision', 'expiresAt', 'allowlist', 'prefix'],
   identity: ['recipient', 'active', 'version', 'expiresAt'],
-  binding: ['recipient', 'active', 'version', 'customerId', 'expiresAt'],
+  binding: ['recipient', 'active', 'version', 'customerId', 'expiresAt', 'sourceBindingId', 'sourceBindingVersion'],
   reply: ['replyId', 'recipient', 'customerId', 'mode', 'state', 'expiresAt', 'policyRevision', 'commandPrefix', 'contentHash', 'identityVersion', 'bindingVersion'],
   approval: ['replyId', 'recipient', 'customerId', 'revoked', 'state', 'approvedBy', 'contentHash', 'policyRevision', 'identityVersion', 'bindingVersion', 'expiresAt'],
 };
@@ -38,8 +38,8 @@ export async function initializeProviderAuthority(db) {
 }
 
 // Authority writers must update these same rows; transaction conflicts fence revocation.
-export function createDurableProviderPolicy({ db, tenantId, accountId, now }) {
-  if (!db?.collection) throw new Error('INVALID_PROVIDER_AUTHORITY_CONFIGURATION');
+export function createDurableProviderPolicy({ db, tenantId, accountId, verifyBindingSource, now }) {
+  if (!db?.collection || typeof verifyBindingSource !== 'function') throw new Error('INVALID_PROVIDER_AUTHORITY_CONFIGURATION');
   const collection = db.collection('provider_authority');
   return createProviderRegistrationPolicy({ tenantId, accountId, now,
     readAndFence: async (request, session) => {
@@ -57,13 +57,21 @@ export function createDurableProviderPolicy({ db, tenantId, accountId, now }) {
       }
       const reply = await read('reply', request.replyId);
       if (typeof reply.recipient !== 'string' || !/^[A-Za-z0-9_.:-]{1,160}$/.test(reply.recipient)) denied();
-      return {
+      const snapshot = {
         reply,
         policy: await read('policy', 'account'),
         identity: await read('identity', reply.recipient),
         binding: await read('binding', reply.recipient),
         approval: await read('approval', request.replyId),
       };
+      const binding = snapshot.binding;
+      const source = await verifyBindingSource({ bindingId: binding.sourceBindingId,
+        version: binding.sourceBindingVersion, recipient: binding.recipient, customerId: binding.customerId }, session);
+      if (!source || source.tenantId !== tenantId || source.accountId !== accountId
+        || source.bindingId !== binding.sourceBindingId || source.version !== binding.sourceBindingVersion
+        || source.recipient !== binding.recipient || source.customerId !== binding.customerId
+        || !Number.isSafeInteger(source.expiresAt) || source.expiresAt < binding.expiresAt) denied();
+      return snapshot;
     },
   });
 }

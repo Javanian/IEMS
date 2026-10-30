@@ -161,6 +161,14 @@ Policy, identity and binding revocations invalidate queued registrations through
 their existing read fences; reply and approval revocations invalidate that reply.
 This helper is not mounted and does not grant live authority.
 
+`createDurableProviderPolicy` requires a trusted `verifyBindingSource` reader
+(compose `createProviderBindingSource` for the configured plant/account). Binding
+authority must carry `sourceBindingId` and `sourceBindingVersion`. Each registration,
+including replay, revalidates and fences that source in the same effect transaction;
+the source expiry must cover the authority expiry. Missing composition fails closed.
+Existing authority rows without source provenance cannot register. No backfill or
+activation is performed by this reader.
+
 `createDurableProviderPolicy` reads metadata from `provider_authority` and writes
 a revision fence on each policy, identity, binding, reply and approval row in the
 registration effect transaction. Keys are tenant/account/kind/resourceId; policy
