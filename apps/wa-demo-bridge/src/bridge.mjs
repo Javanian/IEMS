@@ -114,7 +114,8 @@ export async function createBridge({ db, tenant, account, serviceSecret, approva
       if ((meta.replyTo !== undefined && !prompt) || (!prompt && !text.startsWith('IEMS ')) || text.startsWith('IEMS DEMO ')) { ignored++; return { ignored: true }; }
       if (await inbox.findOne({ ...scope, eventId: meta.eventId }, { session })) return { duplicate: true };
       if (prompt) await prompts.updateOne({ _id: prompt._id }, { $set: { consumed: true } }, { session });
-      await inbox.insertOne({ ...scope, eventId: meta.eventId, recipient: meta.recipient, customer: current.customer, bindingVersion: current.bindingVersion, sessionVersion: current.version, promptId: prompt?._id ?? null, text, receivedAt: now() }, { session });
+      // A prompt authorizes receipt, not retention of an arbitrary private answer.
+      await inbox.insertOne({ ...scope, eventId: meta.eventId, recipient: meta.recipient, customer: current.customer, bindingVersion: current.bindingVersion, sessionVersion: current.version, promptId: prompt?._id ?? null, ...(prompt ? { bodyRetained: false } : { text }), receivedAt: now() }, { session });
       await sessions.updateOne({ _id: current._id }, { $set: { lastActivity: now() } }, { session });
       return { accepted: true, mode: 'PREVIEW_ONLY' };
     }));

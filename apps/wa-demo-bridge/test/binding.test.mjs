@@ -82,7 +82,11 @@ test('known prompt reply is owned by exact session and cannot capture broad free
   assert.equal((await bridge.inbound({ ...meta('wrong-prompt'), replyTo: 'guessed' }, () => { reads++; return 'private text'; })).ignored, true);
   assert.equal(reads, 0);
   assert.equal((await request('/inbound', { metadata: { ...meta('owned-reply'), replyTo: prompt.body.id }, text: 'synthetic form answer' })).body.accepted, true);
-  assert.equal(await db.collection('preview_inbox').countDocuments({ eventId: 'owned-reply', text: 'synthetic form answer', bindingVersion: 4 }), 1);
+  const receipt = await db.collection('preview_inbox').findOne({ eventId: 'owned-reply', bindingVersion: 4 });
+  assert.equal(receipt.promptId, prompt.body.id);
+  assert.equal(receipt.bodyRetained, false);
+  assert.equal(Object.hasOwn(receipt, 'text'), false);
+  assert.equal(JSON.stringify(receipt).includes('synthetic form answer'), false);
   assert.equal((await request('/inbound', { metadata: { ...meta('reuse-prompt'), replyTo: prompt.body.id }, text: 'not accepted' })).body.ignored, true);
   const stale = await request('/prompts', { recipient: 'contact', sessionVersion: version, expiresAt: Date.now() + 60000 });
   await activate();
