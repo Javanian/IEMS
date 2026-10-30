@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDurableProviderPolicy } from '../src/provider-authority.mjs';
+import { createDurableProviderPolicy, revokeProviderAuthority } from '../src/provider-authority.mjs';
 
 const tenantId = '11111111-1111-4111-8111-111111111111';
 const replyId = '22222222-2222-4222-8222-222222222222';
@@ -69,4 +69,48 @@ test('malformed request performs no storage access; uncertain storage is never r
   const failed = fixture({ storageFailure: true });
   await assert.rejects(failed.authorize(input, failed.session), /UNKNOWN_STORAGE/);
   assert.equal(failed.calls.length, 2);
+});
+
+test('revocation disables each authority using scoped revision CAS in the effect session', async () => {
+  for (const kind of ['policy', 'identity', 'binding', 'reply', 'approval']) {
+    const session = {};
+    const resourceId = kind === 'policy' ? 'account' : ['reply', 'approval'].includes(kind) ? replyId : 'test:recipient';
+    const db = { collection(name) {
+      assert.equal(name, 'provider_authority');
+      return { async updateOne(key, update, options) {
+        assert.deepEqual(key, { ...scope, kind, resourceId, authorityRevision: 7 });
+        assert.equal(options.session, session);
+        assert.deepEqual(update.$inc, { authorityRevision: 1 });
+        assert.deepEqual(update.$set, {
+          policy: { enabled: false, paused: true }, identity: { active: false },
+          binding: { active: false }, reply: { state: 'REVOKED' },
+          approval: { revoked: true, state: 'REVOKED' },
+        }[kind]);
+        return { matchedCount: 1 };
+      } };
+    } };
+    assert.deepEqual(await revokeProviderAuthority({ db, ...scope, kind, resourceId, expectedRevision: 7 }, session),
+      { kind, resourceId, authorityRevision: 8 });
+  }
+});
+
+test('revocation rejects malformed input, missing session, stale revisions and uncertain writes without retry', async () => {
+  let calls = 0;
+  let fail = false;
+  const db = { collection: () => ({ async updateOne() {
+    calls++;
+    if (fail) throw new Error('UNKNOWN_STORAGE');
+    return { matchedCount: 0 };
+  } }) };
+  const input = { db, ...scope, kind: 'policy', resourceId: 'account', expectedRevision: 1 };
+  for (const delta of [{ kind: '__proto__' }, { expectedRevision: 0 }, { expectedRevision: Number.MAX_SAFE_INTEGER },
+    { tenantId: 'other' }, { resourceId: 'other' }, { kind: 'reply', resourceId: 'invalid' }]) {
+    await assert.rejects(revokeProviderAuthority({ ...input, ...delta }, {}), /PROVIDER_AUTHORITY_FENCED/);
+  }
+  await assert.rejects(revokeProviderAuthority(input), /PROVIDER_AUTHORITY_FENCED/);
+  assert.equal(calls, 0);
+  await assert.rejects(revokeProviderAuthority(input, {}), /PROVIDER_AUTHORITY_FENCED/);
+  fail = true;
+  await assert.rejects(revokeProviderAuthority(input, {}), /UNKNOWN_STORAGE/);
+  assert.equal(calls, 2);
 });

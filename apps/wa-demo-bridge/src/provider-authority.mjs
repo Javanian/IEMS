@@ -9,6 +9,28 @@ const fields = {
 };
 const denied = () => { throw Object.assign(new Error('PROVIDER_AUTHORITY_FENCED'), { status: 403 }); };
 
+// Call only after operator reauthorization, in the audit/result effect transaction.
+export async function revokeProviderAuthority({ db, tenantId, accountId, kind, resourceId, expectedRevision }, session) {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const id = /^[A-Za-z0-9_.:-]{1,160}$/;
+  if (!db?.collection || !session || !uuid.test(tenantId ?? '') || !id.test(accountId ?? '')
+    || !Object.hasOwn(fields, kind) || !Number.isSafeInteger(expectedRevision)
+    || expectedRevision < 1 || expectedRevision >= Number.MAX_SAFE_INTEGER
+    || (kind === 'policy' ? resourceId !== 'account'
+      : ['reply', 'approval'].includes(kind) ? !uuid.test(resourceId ?? '') : !id.test(resourceId ?? ''))) denied();
+  const disabled = {
+    policy: { enabled: false, paused: true }, identity: { active: false },
+    binding: { active: false }, reply: { state: 'REVOKED' },
+    approval: { revoked: true, state: 'REVOKED' },
+  };
+  const result = await db.collection('provider_authority').updateOne(
+    { tenantId, accountId, kind, resourceId, authorityRevision: expectedRevision },
+    { $set: disabled[kind], $inc: { authorityRevision: 1 } }, { session },
+  );
+  if (result.matchedCount !== 1) denied();
+  return { kind, resourceId, authorityRevision: expectedRevision + 1 };
+}
+
 export async function initializeProviderAuthority(db) {
   await db.collection('provider_authority').createIndex(
     { tenantId: 1, accountId: 1, kind: 1, resourceId: 1 }, { unique: true },

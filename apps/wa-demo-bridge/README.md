@@ -153,6 +153,14 @@ fence adapter and browser driver remain incomplete. No live mode is enabled.
 Synthetic contract checks: `node --test apps/wa-demo-bridge/test/provider-policy.test.mjs`.
 # Durable registration authority
 
+`revokeProviderAuthority` disables one scoped authority with revision CAS in the
+caller's effect transaction. It never inserts a row, reactivates authority, or
+retries an uncertain write. Operator authorization and durable command receipt,
+audit and outbox must be supplied by the caller before mounting an endpoint.
+Policy, identity and binding revocations invalidate queued registrations through
+their existing read fences; reply and approval revocations invalidate that reply.
+This helper is not mounted and does not grant live authority.
+
 `createDurableProviderPolicy` reads metadata from `provider_authority` and writes
 a revision fence on each policy, identity, binding, reply and approval row in the
 registration effect transaction. Keys are tenant/account/kind/resourceId; policy
