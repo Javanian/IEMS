@@ -137,14 +137,14 @@ export function installOperations(app, runtime, helpers, { legacyAdapters = [], 
         balances = { status: 'AVAILABLE', completeness: invoices.length>100?'INCOMPLETE':'COMPLETE_OBSERVED_INVOICE_SET', rows: metrics.orders.records.map(o=>invoiceBalance(o,verified.filter(i=>i.salesOrderId===o.id),invoices.length<=100)) };
       } else if (!metrics.orders.records.length && metrics.orders.status!=='ACCESS_DENIED') balances={status:'NO_DATA',rows:[]};
       return { schema: 'OPERATIONS_DASHBOARD_V1', observedAt: now.toISOString(), metrics, legacy, balances, telemetry: { status: samples.length ? 'AVAILABLE' : 'NO_DATA', completeness: 'BOUNDED_LATEST_100', samples: samples.map(s=>({ resourceId:s.resourceId,version:s.version,mapping:s.mapping,value:s.value,uom:s.uom,sampleAt:s.sampleAt,windowFrom:s.windowFrom,windowUntil:s.windowUntil,sourceRevision:s.sourceRevision,freshness:freshness(s.sampleAt,now) })) },
-        reportingCoverage: coverage ? { status: 'AVAILABLE', observedAt: coverage.observedAt ?? null, manifestId: coverage._id, freshness: freshness(coverage.observedAt, now) } : { status: 'NO_DATA', reason: 'RECONCILED_MANIFEST_NOT_AVAILABLE' },
+        reportingCoverage: coverage ? { status: 'AVAILABLE', observedAt: coverage.observedAt ?? null, manifestId: coverage._id, baseline:coverage.baseline===true, completeness:coverage.coverage, sourceHighWater:{salesOrders:coverage.sourceHighWater?.salesOrders??null,fulfillmentKeys:coverage.sourceHighWater?.fulfillmentKeys??null}, freshness: freshness(coverage.observedAt, now) } : { status: 'NO_DATA', reason: 'RECONCILED_MANIFEST_NOT_AVAILABLE' },
         warnings: Object.entries(metrics).flatMap(([source, m]) => m.stages?.filter(s => s.oldestDaysSinceUpdate >= 7 && !['COMPLETED', 'CANCELLED', 'CLOSED', 'SHIPPED', 'PAID'].includes(s.stage)).map(s => ({ id: `${source}:${s.stage}`, source, stage: s.stage, reason: 'NO_RECORDED_UPDATE_FOR_7_DAYS', days: s.oldestDaysSinceUpdate })) || []) };
     }); res.json({ data });
   });
   app.get(`${root}/drilldown/:source`, async (req, res) => {
     if (!sources[req.params.source]) reject(404, 'UNKNOWN_METRIC_SOURCE');
     const after = req.query.after ? id(req.query.after) : undefined;
-    const data = await boundedTransaction(runtime.client, session => readSource(runtime, req, req.params.source, session, businessNow(runtime), after)); res.json({ data });
+    const data = await boundedTransaction(runtime.client, async session => { await grant(runtime,req,'operations.read',session);return readSource(runtime, req, req.params.source, session, businessNow(runtime), after); }); res.json({ data });
   });
   app.get(`${root}/capacity/:id`, async (req, res) => {
     exactUtc(req.query.from); exactUtc(req.query.until);
