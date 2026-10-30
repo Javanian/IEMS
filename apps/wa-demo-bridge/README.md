@@ -283,3 +283,7 @@ expose stable codes with no exception details. A 503 indicates an unknown outcom
 reconcile using the same commandId and exact payload, never issue a fresh command or
 send automatically. Nothing stores request bodies, starts a browser or enables send.
 Host mount, browser driver and operator UI remain pending for integration/follow-up.
+
+### Browser driver boundary (PLAT-047)
+
+`createProviderBrowserLifecycle` composes the durable session registry with an injected `driver.launch(metadata)` implementation. Launch receives only tenant/account/owner/generation and `externalSendEnabled: false`; no ready hook, message body or dispatch capability is supplied. The driver returns a handle whose explicit `close()` must confirm `{ closed: true }`. Launch/close deadlines retain UNKNOWN ownership, including late completion; operators must reconcile the actual process before release. No retry, timeout takeover or automatic cleanup is performed. The host must supply a trusted browser implementation that honors the disabled-send contract; this module alone cannot sandbox an arbitrary driver. No concrete browser package, credential session or live provider was installed or run. Concrete driver and host mounting remain incomplete.
