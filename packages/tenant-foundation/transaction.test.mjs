@@ -26,6 +26,12 @@ test('successful commit retry returns original result', async () => {
   assert.equal(await boundedTransaction(client, async () => ++client.calls.effects), 1);
   assert.equal(client.calls.commits, 2);
 });
+test('a later transient commit error cannot replay an earlier ambiguous effect', async () => {
+  const client = clientWith([labelled('UnknownTransactionCommitResult'), labelled('TransientTransactionError')]);
+  await assert.rejects(boundedTransaction(client, async () => ++client.calls.effects), { code: 'COMMIT_OUTCOME_UNKNOWN' });
+  assert.equal(client.calls.effects, 1);
+  assert.equal(client.calls.aborts, 0);
+});
 test('command hashing is stable and rejects floating point payloads', () => {
   assert.equal(canonicalJson({ z: '0.01', a: 1 }), canonicalJson({ a: 1, z: '0.01' }));
   assert.throws(() => canonicalJson({ amount: 0.1 }), { code: 'INVALID_COMMAND_VALUE' });

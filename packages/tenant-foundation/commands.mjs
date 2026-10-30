@@ -24,10 +24,15 @@ export async function boundedTransaction(client, effect, { attempts = 3, commitA
       session.startTransaction({ readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority', wtimeoutMS: 5000 }, readPreference: 'primary', maxCommitTimeMS: 5000 });
       try {
         const result = await effect(session);
+        let ambiguous = false;
         for (let commit = 1; commit <= commitAttempts; commit++) {
           try { await session.commitTransaction(); return result; }
           catch (error) {
-            if (!labelled(error, 'UnknownTransactionCommitResult')) throw error;
+            if (!labelled(error, 'UnknownTransactionCommitResult')) {
+              if (ambiguous) throw new CommandError('COMMIT_OUTCOME_UNKNOWN', 503);
+              throw error;
+            }
+            ambiguous = true;
             if (commit === commitAttempts) throw new CommandError('COMMIT_OUTCOME_UNKNOWN', 503, 'Reconcile using the same command key; do not submit a new command');
           }
         }
@@ -84,7 +89,7 @@ export function createCommandExecutor({ client, db, foundation }) {
       return boundedTransaction(client, async session => {
         const grant = await foundation.authorizeInTransaction(scope, { tenantId, plantId, action }, { session });
         const resource = await db.collection(collection).findOne({ _id: resourceId, tenantId: grant.tenantId, plantId: grant.plantId }, { session });
-        if (!resource || (Array.isArray(resource.allowedUserIds) && !resource.allowedUserIds.includes(grant.userId))) throw new CommandError('RESOURCE_NOT_FOUND', 404);
+        if (!resource || resource.revoked === true || resource.active === false || (resource.legalEntityId !== undefined && resource.legalEntityId !== grant.legalEntityId) || (Object.hasOwn(resource, 'allowedUserIds') && (!Array.isArray(resource.allowedUserIds) || !resource.allowedUserIds.includes(grant.userId)))) throw new CommandError('RESOURCE_NOT_FOUND', 404);
         return resource;
       });
     }
