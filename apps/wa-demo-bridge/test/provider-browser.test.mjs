@@ -5,6 +5,32 @@ import { createProviderBrowserAdapter, createProviderBrowserLifecycle } from '..
 const ownership = Object.freeze({ tenantId: 'synthetic', accountId: 'test', ownerId: 'owner:1', generation: 1 });
 const config = { tenantId: ownership.tenantId, accountId: ownership.accountId, timeoutMs: 20 };
 
+test('late launch leaves immutable reconciliation evidence and cannot launch again', async () => {
+  let complete;
+  let launches = 0;
+  let closes = 0;
+  const adapter = createProviderBrowserAdapter({ ...config, driver: { launch: () => {
+    launches++;
+    return new Promise(resolve => { complete = resolve; });
+  } } });
+  const initial = adapter.status();
+  assert.equal(initial.state, 'IDLE');
+  assert.equal(initial.ownerId, null);
+  await assert.rejects(adapter.open(ownership), /RECONCILIATION/);
+  const evidence = adapter.status();
+  assert.deepEqual(evidence, { ...ownership, state: 'UNKNOWN', externalSendEnabled: false });
+  assert.ok(Object.isFrozen(evidence));
+  assert.throws(() => { evidence.generation = 99; }, TypeError);
+  complete({ close: async () => { closes++; return { closed: true }; } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(adapter.status(), evidence);
+  await assert.rejects(adapter.open({ ...ownership, generation: 2 }), /BUSY/);
+  await assert.rejects(adapter.close(ownership), /NOT_OPEN/);
+  assert.equal(launches, 1);
+  assert.equal(closes, 0);
+  assert.equal(initial.state, 'IDLE');
+});
+
 test('launch receives only fenced metadata; explicit close precedes release', async () => {
   const calls = [];
   const lifecycle = createProviderBrowserLifecycle({ ...config, ownerId: ownership.ownerId,

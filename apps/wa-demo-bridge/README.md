@@ -286,4 +286,8 @@ Host mount, browser driver and operator UI remain pending for integration/follow
 
 ### Browser driver boundary (PLAT-047)
 
+The adapter exposes immutable `status()` ownership metadata for trusted-host UNKNOWN
+reconciliation. See [browser integration and recovery](BROWSER-INTEGRATION.md) for
+the exact local obligations, external access boundary and manual evidence procedure.
+
 `createProviderBrowserLifecycle` composes the durable session registry with an injected `driver.launch(metadata)` implementation. Launch receives only tenant/account/owner/generation and `externalSendEnabled: false`; no ready hook, message body or dispatch capability is supplied. The driver returns a handle whose explicit `close()` must confirm `{ closed: true }`. Launch/close deadlines retain UNKNOWN ownership, including late completion; operators must reconcile the actual process before release. No retry, timeout takeover or automatic cleanup is performed. The host must supply a trusted browser implementation that honors the disabled-send contract; this module alone cannot sandbox an arbitrary driver. No concrete browser package, credential session or live provider was installed or run. Concrete driver and host mounting remain incomplete.

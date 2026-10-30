@@ -23,6 +23,10 @@ export function createProviderBrowserAdapter({ driver, tenantId, accountId, time
   const matches = value => value && value.tenantId === tenantId && value.accountId === accountId
     && id(value.ownerId) && Number.isSafeInteger(value.generation) && value.generation > 0;
   return Object.freeze({
+    status() {
+      return Object.freeze({ state, tenantId, accountId, ownerId: pinned?.ownerId ?? null,
+        generation: pinned?.generation ?? null, externalSendEnabled: false });
+    },
     async open(ownership) {
       if (state !== 'IDLE' && state !== 'CLOSED') fail('BROWSER_BUSY');
       if (!matches(ownership)) fail('BROWSER_SCOPE_MISMATCH');
