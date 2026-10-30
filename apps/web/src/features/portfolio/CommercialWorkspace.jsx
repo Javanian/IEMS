@@ -1,6 +1,6 @@
 import { AuditDetails,CustomerName } from './OperatorUi.jsx';
 import { displayReference,operatorStatus,quantitySummary } from './operator.mjs';
-import { useContext, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { OrderStockExceptions } from './HoldsWorkspace.jsx';
 import { DocumentIssue } from './DocumentIssue.jsx';
 import { MonetarySummary } from './MonetarySummary.jsx';
@@ -28,22 +28,24 @@ export function Lines({ snapshot }) {
   return <><ol className="pf-list">{snapshot.lines.map((line, i) => <li key={i}><strong>{line.description}</strong><span>Quantity: {line.quantity} {line.uom}</span><span>Unit price: {line.currency} {line.unitPrice}</span><SourceLineage line={line} /><CatalogBinding line={line} /></li>)}</ol><AuditDetails action="quote.read"><p>Rounding: {snapshot.roundingPolicy}</p></AuditDetails><MonetarySummary record={{...snapshot, currency: snapshot.currency || snapshot.lines[0]?.currency}} /></>;
 }
 function ContentForm({ quote, onSaved }) {
-  const [count, setCount] = useState(1), [error, setError] = useState(null), [busy, setBusy] = useState(false);
-  const lock = useRef(false);
   const latest = quote?.revisions.at(-1);
+  const [count, setCount] = useState(latest?.lines.length || 1), [error, setError] = useState(null), [busy, setBusy] = useState(false);
+  const lock = useRef(false), pending = useRef(null);
+  useEffect(() => () => pending.current?.abort(), []);
   return <form className="pf-panel pf-form" onSubmit={async event => {
     event.preventDefault(); if (lock.current) return;
     const values = Object.fromEntries(new FormData(event.currentTarget)); lock.current = true; setBusy(true); setError(null);
+    const controller = new AbortController(); pending.current = controller;
     try {
       const body = quoteContent(values, count);
-      const result = await request(quote ? `/api/commercial/quotes/${quote._id}/revisions` : '/api/commercial/quotes', { body: quote ? { ...body, expectedVersion: quote.version } : { ...body, accountId: values.accountId } });
-      onSaved(result.data);
-    } catch (err) { setError(err); } finally { lock.current = false; setBusy(false); }
+      const result = await request(quote ? `/api/commercial/quotes/${quote._id}/revisions` : '/api/commercial/quotes', { body: quote ? { ...body, expectedVersion: quote.version } : { ...body, accountId: values.accountId }, signal: controller.signal });
+      if (!controller.signal.aborted) onSaved(result.data);
+    } catch (err) { if (!controller.signal.aborted) setError(err); } finally { if (!controller.signal.aborted) { lock.current = false; pending.current = null; setBusy(false); } }
   }}><h2>{quote ? 'New revision' : 'Quote content'}</h2>{!quote && <Input label="Account ID" name="accountId" required />}
     <Input label="Expires at (UTC ISO)" name="expiresAt" required defaultValue={latest?.expiresAt} placeholder="YYYY-MM-DDTHH:mm:ss.sssZ" />
     <label className="pf-field">Tax policy<select name="taxPolicy" defaultValue={latest?.taxPolicy || 'NO_TAX'} disabled={busy}><option value="NO_TAX">No tax</option><option value="FIXTURE_VAT_11_V1">Fixture VAT 11% (scenario only)</option></select></label>
     <p>Original decimal strings are retained. All lines must share one currency. LINE_HALF_UP and the selected policy are applied by the server. Fixture VAT is not a statutory rate or tax advice. No FX is implied.</p>
-    {Array.from({ length: count }, (_, i) => <fieldset key={i}><legend>Line {i + 1}</legend><div className="pf-fields"><Input label="Description" name={`description${i}`} required maxLength={200} /><Input label="Quantity (exact decimal)" name={`quantity${i}`} inputMode="decimal" required /><Input label="UOM" name={`uom${i}`} pattern="[A-Z][A-Z0-9_]{0,15}" required /><Input label="Unit price (fixed scale)" name={`unitPrice${i}`} inputMode="decimal" required /><label className="pf-field">Currency<select name={`currency${i}`}>{['USD','EUR','GBP','IDR','JPY','KWD'].map(c => <option key={c}>{c}</option>)}</select></label></div></fieldset>)}
+    {Array.from({ length: count }, (_, i) => <fieldset key={i}><legend>Line {i + 1}</legend><div className="pf-fields"><Input label="Description" name={`description${i}`} defaultValue={latest?.lines[i]?.description} required maxLength={200} /><Input label="Quantity (exact decimal)" name={`quantity${i}`} defaultValue={latest?.lines[i]?.quantity} inputMode="decimal" required /><Input label="UOM" name={`uom${i}`} defaultValue={latest?.lines[i]?.uom} pattern="[A-Z][A-Z0-9_]{0,15}" required /><Input label="Unit price (fixed scale)" name={`unitPrice${i}`} defaultValue={latest?.lines[i]?.unitPrice} inputMode="decimal" required /><label className="pf-field">Currency<select name={`currency${i}`} defaultValue={latest?.lines[i]?.currency || 'USD'}>{['USD','EUR','GBP','IDR','JPY','KWD'].map(c => <option key={c}>{c}</option>)}</select></label></div></fieldset>)}
     <div className="pf-actions"><button type="button" disabled={count >= 100 || busy} onClick={() => setCount(n => n + 1)}>Add line</button>{count > 1 && <button type="button" disabled={busy} onClick={() => setCount(n => n - 1)}>Remove last line</button>}</div>
     <Failure error={error} mutation retry={quote ? onSaved : undefined} /><button className="pf-primary" disabled={busy || error?.status === 409}>{busy ? 'Saving...' : quote ? 'Save revision' : 'Save quote'}</button>
   </form>;
@@ -61,17 +63,20 @@ export function NewQuote() {
 export function Quote() {
   const { id } = useParams(), resource = useResource(`/api/commercial/quotes/${id}`);
   const [error, setError] = useState(null), [busy, setBusy] = useState(false), [order, setOrder] = useState(null);
-  const attempt = useRef(null), lock = useRef(false);
+  const attempt = useRef(null), lock = useRef(false), pending = useRef(null);
+  useEffect(() => () => pending.current?.abort(), []);
   const refresh = () => { setError(null); attempt.current = null; resource.reload(); };
   async function transition(action, quote) {
     if (lock.current) return; lock.current = true; setBusy(true); setError(null);
+    const controller = new AbortController(); pending.current = controller;
     try {
       if (action === 'convert' && !attempt.current) attempt.current = conversionAttempt(quote, crypto.randomUUID());
       const body = action === 'convert' ? attempt.current : { expectedVersion: quote.version, revision: quote.revisions.at(-1).number };
-      const result = await request(`/api/commercial/quotes/${id}/${action}`, { body });
+      const result = await request(`/api/commercial/quotes/${id}/${action}`, { body, signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (action === 'convert') setOrder(result.data);
       resource.reload();
-    } catch (err) { setError(err); } finally { lock.current = false; setBusy(false); }
+    } catch (err) { if (!controller.signal.aborted) setError(err); } finally { if (!controller.signal.aborted) { lock.current = false; pending.current = null; setBusy(false); } }
   }
   if(!resource.loading&&!resource.error&&resource.data?.schema==='CATALOG_QUOTE_V1')return <><Link to="/portfolio/quotes">Back to quotes</Link><CatalogQuoteDetail quote={resource.data} refresh={resource.reload} Lines={Lines} /></>;
   return <><Link to="/portfolio/quotes">Back to quotes</Link><Resource resource={resource}>{({ data:q }) => <><h1>Quote</h1><p className="pf-reference">{displayReference("quotes",q)}</p><AuditDetails action="quote.read"><p className="pf-id">Quote ID: {q._id} · Version {q.version}</p></AuditDetails><section className="pf-panel"><p>Status: {operatorStatus(q.status)}</p><p className="pf-next-action">Next: {({DRAFT:"Review and approve this quotation revision.",APPROVED:"Record the customer acceptance decision.",ACCEPTED:"Convert the accepted quotation to a sales order.",CONVERTED:"Open the sales order to plan production."})[q.status] || "Review quotation history."}</p><div>Customer: <CustomerName id={q.accountId} /></div><p>Revision: {q.revisions.at(-1).number}</p><Link to={`/portfolio/accounts/${q.accountId}`}>Open related account</Link><button type="button" onClick={refresh}>Refresh record</button><Failure error={error} mutation retry={refresh} /><div className="pf-actions">{[['DRAFT','approve','Approve revision'],['APPROVED','accept','Record acceptance'],['ACCEPTED','convert','Convert to sales order']].filter(([state]) => q.status === state).map(([, action, label]) => <button key={action} className="pf-primary" disabled={busy || error?.status === 409} onClick={() => transition(action,q)}>{busy ? 'Saving...' : label}</button>)}{attempt.current && error && error.status !== 409 && <button disabled={busy} onClick={() => transition('convert',q)}>Retry same conversion</button>}</div><p>Acceptance records the authenticated internal decision, not an external signature.</p></section>

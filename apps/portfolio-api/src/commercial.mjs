@@ -65,7 +65,11 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
     try { return await session.withTransaction(async () => {
       await guard(runtime, req, session, req.commercialAction);
       const result = await effect(session);
-      if (!result.replay) await c('commercialAudit').insertOne({ _id: randomUUID(), ...req.filter, userId: req.scope.userId, kind, subjectId: result._id, version: result.version, occurredAt: new Date() }, { session });
+      if (!result.replay) {
+        const event = { ...req.filter, userId: req.scope.userId, kind, subjectId: result._id, version: result.version, occurredAt: new Date() };
+        await c('commercialAudit').insertOne({ _id: randomUUID(), ...event }, { session });
+        if (kind !== 'quote.converted') await c('commercialOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
+      }
       return result;
     }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' }); }
     finally { await session.endSession(); }
