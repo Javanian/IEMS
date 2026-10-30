@@ -7,6 +7,7 @@ import { validateInternalExecution, reconcileInternalAttribution, executionInval
 import { companyStockContext, companyStockView, writeCompanyReservation } from './company-stock.mjs';
 import { companySourceSnapshot } from './company-stock-state.mjs';
 import { consumedManufacturedAncestry, manufacturedGraphLimits } from '../../../packages/contracts/src/domains/planning-execution/manufactured-graph.mjs';
+import { freezeManufacturedGraph } from './genealogy.mjs';
 
 const commands = ['create', 'reserve', 'release', 'issue', 'record', 'attribute', 'qc', 'putaway'];
 export const internalExecutionActions = ['internal.execution.read', ...commands.map(command => `internal.execution.${command}`)];
@@ -56,7 +57,10 @@ export function installInternalExecution(app, runtime, { guard, fields, id }) {
   }
   async function view(req, current, session) {
     const head = current.head, blockers = await live(req, current, session), enough = head.materials.every(material => current.reservations.filter(row => row.materialLineId === material.lineId && row.status === 'RESERVED').reduce((total, row) => total + units(row.quantity), 0n) === units(material.requiredQuantity));
-    return { ...semantic(head), authorityHash: head.authorityHash, reservations: current.reservations, outputUnits: current.outputs, companyStock: current.companyReceipt ? companyStockView(await companyStockContext(db, req.filter, current.companyReceipt._id, session)) : null, stockSources: [...current.stocks.values()].map(catalogStockView), ...(head.schema === 'INTERNAL_EXECUTION_V2' ? { companyStockSources: [...current.companyStocks.values()].map(companyStockView) } : {}), blockers, canReserve: head.status === 'PLANNED' && !blockers.length, canRelease: head.status === 'PLANNED' && enough && !blockers.length, canIssue: head.status === 'RELEASED' && !blockers.length, canRecord: ['ISSUED', 'IN_PROGRESS'].includes(head.status) && !blockers.length, canAttribute: head.status === 'QUARANTINED', canQC: head.status === 'QUARANTINED' && !blockers.length, canPutaway: head.status === 'QC_RELEASED' && head.qc.acceptedSerials.length > 0 && !blockers.length };
+    const snapshots = await c('manufacturedGenealogySnapshots').find({ ...req.filter, referenceType: 'INTERNAL_EXECUTION', referenceId: head._id }, { session }).sort({ companyUnitId: 1 }).limit(101).toArray();
+    if (snapshots.length > 100) executionInvalid();
+    const frozen = snapshots.map(row => { if (hash(row.snapshot) !== row.contentHash) executionInvalid(); return { snapshotId: row._id, companyReceiptId: row.companyReceiptId, companyUnitId: row.companyUnitId, contentHash: row.contentHash }; });
+    return { ...semantic(head), authorityHash: head.authorityHash, reservations: current.reservations, outputUnits: current.outputs, companyStock: current.companyReceipt ? companyStockView(await companyStockContext(db, req.filter, current.companyReceipt._id, session)) : null, ...(frozen.length ? { manufacturedGenealogy: frozen } : {}), stockSources: [...current.stocks.values()].map(catalogStockView), ...(head.schema === 'INTERNAL_EXECUTION_V2' ? { companyStockSources: [...current.companyStocks.values()].map(companyStockView) } : {}), blockers, canReserve: head.status === 'PLANNED' && !blockers.length, canRelease: head.status === 'PLANNED' && enough && !blockers.length, canIssue: head.status === 'RELEASED' && !blockers.length, canRecord: ['ISSUED', 'IN_PROGRESS'].includes(head.status) && !blockers.length, canAttribute: head.status === 'QUARANTINED', canQC: head.status === 'QUARANTINED' && !blockers.length, canPutaway: head.status === 'QC_RELEASED' && head.qc.acceptedSerials.length > 0 && !blockers.length };
   }
   async function save(req, head, previous, kind, reason, session) {
     const snapshot = semantic(head), eventId = randomUUID(); head.eventId = eventId; head.authorityHash = hash(snapshot);
@@ -226,7 +230,13 @@ export function installInternalExecution(app, runtime, { guard, fields, id }) {
         refs.push({ unitId: output._id, contentHash: output.contentHash });
       }
       const head = { ...semantic(current.head), version: current.head.version + 1, status: 'STORED', outputHashes: refs, companyStock: { receiptId: receipt._id, contentHash: receipt.contentHash, unitHashes: companyUnitHashes } };
-      return save(req, head, current.head.version, 'COMPANY_STOCK_RECEIVED', reason, session);
+      const result = await save(req, head, current.head.version, 'COMPANY_STOCK_RECEIVED', reason, session);
+      if (v2) {
+        const selected = result.companyStock.units.map(unit => ({ companyUnitId: unit._id, expectedUnitVersion: unit.version }));
+        await freezeManufacturedGraph(db, req.filter, receipt._id, result.companyStock.version, selected, { type: 'INTERNAL_EXECUTION', id: head._id }, req.scope.userId, session);
+        return view(req, await context({ ...req, params: { ...req.params, id: head._id } }, session), session);
+      }
+      return result;
     }); res.json({ data });
   });
 }

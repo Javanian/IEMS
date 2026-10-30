@@ -31,6 +31,46 @@ export async function initializeGenealogy(db) {
     ['genealogyBalances', { tenantId: 1, plantId: 1, workOrderId: 1, receiptId: 1 }],
   ]) await db.collection(collection).createIndex(fields, { unique: true });
   await db.collection('genealogyAllocations').createIndex({ tenantId: 1, plantId: 1, receiptId: 1, _id: 1 });
+  await db.collection('manufacturedGenealogySnapshots').createIndex({ tenantId: 1, plantId: 1, companyReceiptId: 1, companyUnitId: 1, referenceType: 1, referenceId: 1 }, { unique: true });
+}
+
+export async function readManufacturedGraph(db, filter, companyReceiptId, companyUnitId, session, { fence = false } = {}) {
+  if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
+  const { companyStockContext } = await import('./company-stock.mjs');
+  const { buildCompanyUnitTrace } = await import('./company-stock-trace.mjs');
+  const root = await companyStockContext(db, filter, companyReceiptId, session, { fresh: fence, fence });
+  const trace = await buildCompanyUnitTrace(db, filter, root, companyUnitId, session, receiptId => companyStockContext(db, filter, receiptId, session, { fresh: fence, fence }));
+  const snapshot = { schema: 'MANUFACTURED_GRAPH_V1', ...filter, ownerLegalEntityId: root.receipt.ownerLegalEntityId,
+    companyReceiptId, companyUnitId, outputUnitId: trace.outputUnitId, serial: trace.serial,
+    producer: { executionId: trace.producer.executionId, attributionRevision: root.producer.head.attributionRevision, provenanceHash: trace.producer.provenanceHash },
+    ancestry: trace.ancestry };
+  return { snapshot, contentHash: hash(snapshot), stockVersion: root.use.version, unit: root.use.units.find(unit => unit._id === companyUnitId), blockers: root.blockers };
+}
+
+export async function freezeManufacturedGraph(db, filter, companyReceiptId, expectedStockVersion, selected, reference, actor, session) {
+  if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
+  const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  if (!Number.isSafeInteger(expectedStockVersion) || expectedStockVersion < 1 || !Array.isArray(selected) || !selected.length || selected.length > 100 || new Set(selected.map(unit => unit?.companyUnitId)).size !== selected.length || !['INTERNAL_EXECUTION','REPAIR','SHIPMENT'].includes(reference?.type) || !uuid(reference.id) || !uuid(actor)) abort(400, 'INVALID_GENEALOGY');
+  const pointers = [];
+  for (const unit of selected) {
+    if (!uuid(unit?.companyUnitId) || !Number.isSafeInteger(unit.expectedUnitVersion) || unit.expectedUnitVersion < 1) abort(400, 'INVALID_GENEALOGY');
+    const graph = await readManufacturedGraph(db, filter, companyReceiptId, unit.companyUnitId, session, { fence: true });
+    if (graph.stockVersion !== expectedStockVersion || graph.unit?.version !== unit.expectedUnitVersion) abort(409, 'VERSION_CONFLICT');
+    if (graph.blockers.length || graph.unit.status !== 'AVAILABLE') abort(409, 'STOCK_ENCUMBERED');
+    const match = { ...filter, companyReceiptId, companyUnitId: unit.companyUnitId, referenceType: reference.type, referenceId: reference.id };
+    let row = await db.collection('manufacturedGenealogySnapshots').findOne(match, { session });
+    if (row) {
+      if (row.contentHash !== graph.contentHash || hash(row.snapshot) !== row.contentHash) abort(409, 'GENEALOGY_SOURCE_INVALID');
+    } else {
+      row = { _id: randomUUID(), ...match, snapshot: graph.snapshot, contentHash: graph.contentHash, recordedBy: actor, recordedAt: new Date() };
+      await db.collection('manufacturedGenealogySnapshots').insertOne(row, { session });
+      const event = { ...match, snapshotId: row._id, contentHash: row.contentHash, kind: 'manufacturedGraph.frozen', recordedBy: actor, recordedAt: row.recordedAt };
+      await db.collection('manufacturedGenealogyAudit').insertOne({ _id: randomUUID(), ...event }, { session });
+      await db.collection('manufacturedGenealogyOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
+    }
+    pointers.push({ snapshotId: row._id, companyReceiptId, companyUnitId: unit.companyUnitId, contentHash: row.contentHash });
+  }
+  return pointers;
 }
 
 async function context(db, wo, session) {

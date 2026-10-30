@@ -80,12 +80,40 @@ inside this owned vertical: manufacturing adapters are `NOT_YET_WIRED`. Existing
 comes from prerequisite c7b8c4e. Extending reporting schemas/bindings remains data/CTO ownership; no fabricated
 order/payment/fulfillment event is emitted from manufacturing.
 
-## Remaining assignment work
+## Graph write and freeze integration
 
-General manufactured installation graph mutation/freeze integration and F5 contention safeguards remain open.
-Do not mark PLAT-011/012 fully implemented from this partial handoff. The shortage producer is owned by
-commercial; proposed customer demand dispatch is recorded on TPR-153 for the CTO allocation decision.
+General manufactured graph writes use the existing internal execution reservation, allocations and losses APIs.
+They bind real consumed units to actual output units, with immutable attribution revisions and current authorization.
+Stock use retains sole occupancy authority; no parallel edge balance is introduced. Complete attribution is immutable
+after QC, and new V2 putaway seals each accepted output's nested material provenance atomically.
+
+`readManufacturedGraph(db, filter, companyReceiptId, companyUnitId, session, {fence=false})` returns a validated
+`MANUFACTURED_GRAPH_V1` snapshot, hash and current unit/use evidence. `fence=true` revalidates current source
+authority and writes the same ancestor fences as consumption. It requires an active caller transaction.
+
+`freezeManufacturedGraph(db, filter, companyReceiptId, expectedStockVersion, selected, reference, actor, session)`
+accepts actual `{companyUnitId,expectedUnitVersion}` selections and `{type,id}` reference (`INTERNAL_EXECUTION`,
+`REPAIR`, or `SHIPMENT`). It requires current available units, writes immutable per-unit graph snapshots plus
+audit/outbox in the caller transaction and returns stable snapshot/hash pointers. Same-reference replay verifies
+the stored hash and reuses the pointer. The authorized caller must perform its own stock/custody change and command
+result in that transaction. This is provenance freezing, not a permit or allocation/dispatch authorization protocol.
+Call before committing units to a downstream use. The stock ledger continues to decide occupancy and availability.
+
+`initializeGenealogy` creates the snapshot reference uniqueness index through the existing manufacturing initializer.
+No new shared registration is needed. `internal-execution.mjs` invokes the freeze helper on new V2 putaway and returns
+the same proof pointers on subsequent GET. UI links the retained proof to the existing manufactured unit trace.
+Future repair/dispatch owners can use these exports without changing immutable production/source records.
+Legacy receipt-based customer installation and its shipment freeze remain supported through their existing contract;
+they are not silently reclassified as internal company stock.
+
+F5 first-use protection: creating the first company stock use/hold now fences the existing producer row even when
+no use head exists. Subsequent authority writers contend on the use head; stock/demand/item/location/revocation
+fences and domain/result/audit/outbox transactions remain in force. Stress and full contention acceptance are final QA.
 
 Checks: `node --test packages/contracts/src/domains/planning-execution/*.test.mjs`, API syntax and web build.
 Pure tests cover historical receipt preservation/tampering, DAG sharing/cycle/limit behavior, serialized
 unique-parent/loss conservation and operator selection. They do not prove real DB races, rollback or full QA.
+`customer-demand.test.mjs` and `multigeneration-flow.test.mjs` use the existing guarded synthetic Mongo/loopback API
+harness to cover approved WO scaling, source fencing/replay/revocation, omitted internal kind compatibility, three
+production generations, nested exact ancestry, first-hold authority fencing, idempotent putaway, frozen evidence and
+ancestor holds. Their bounded success is implementation evidence; independent/full regression QA remains deferred.
