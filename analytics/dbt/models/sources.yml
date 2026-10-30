@@ -3,6 +3,7 @@ sources:
   - name: raw
     schema: main
     tables:
+      - name: source_coverage
       - name: raw_events
         columns:
           - name: event_id
