@@ -123,3 +123,17 @@ reservation and requires operator reconciliation; there is no automatic retry,
 reacquire or timeout takeover. The adapter receives only frozen ownership
 metadata, with no ready dispatch hook or send capability. External send remains
 disabled. This boundary is not mounted and supplies no browser/provider driver.
+
+`createBridge` optionally accepts `providerCallbacks: { secret: Buffer }` to mount
+`POST /provider/callback`. Default is disabled (404). This separate HMAC key is
+not the preview bearer secret. The reconciler is bound to the configured tenant
+and account and uses the bridge transaction; initialize provider indexes before
+enabling it. Only exact `application/json`, identity encoding, at most 4096 bytes,
+`x-iems-timestamp` and `x-iems-signature` are accepted. Authenticate exact bytes
+before metadata parsing; no private bodies are stored or logged. Conflict returns
+409; uncertain storage failure returns 503 without retry. The provider must retain
+the event/delivery IDs when reconciling a failed acknowledgement. Callbacks may
+reconcile registered deliveries while paused; they never authorize dispatch.
+This does not enable live mode, register deliveries, or open a browser. Policy and
+browser integration remain incomplete. HTTP contract checks use in-memory streams;
+real HTTP/Mongo/provider and independent QA remain NOT_RUN.

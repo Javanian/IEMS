@@ -1,4 +1,6 @@
 import http from 'node:http';
+import { createProviderCallbackHandler } from './provider-http.mjs';
+import { createProviderReconciler } from './provider-reconciliation.mjs';
 import { createHash, createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import { createCustomerServicePort } from './customer-service-port.mjs';
 import { SIMULATED_CHANNEL_ACCOUNT } from '@iems/customer-service';
@@ -14,7 +16,7 @@ function equal(a, b) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 const fail = (status, code) => { throw Object.assign(new Error(code), { status }); };
-export async function createBridge({ db, tenant, account, serviceSecret, approvalKey, participants = [], receiveEnabled = false, liveEnabled = false, scopeAdapter, customerService, now = () => Date.now() }) {
+export async function createBridge({ db, tenant, account, serviceSecret, approvalKey, participants = [], receiveEnabled = false, liveEnabled = false, scopeAdapter, customerService, providerCallbacks, now = () => Date.now() }) {
   if (liveEnabled) fail(403, 'LIVE_POLICY_NOT_INTEGRATED');
   if (customerService && account !== SIMULATED_CHANNEL_ACCOUNT) throw new Error('Customer service preview requires the SIMULATED channel account');
   // customer-service keys tenants by UUID; a configured non-UUID tenant cannot be routed safely.
@@ -52,6 +54,9 @@ export async function createBridge({ db, tenant, account, serviceSecret, approva
       });
     } finally { await session.endSession(); }
   }
+  const callbackHandler = providerCallbacks ? createProviderCallbackHandler(createProviderReconciler({
+    db, transaction, tenantId: tenant, accountId: account, secret: providerCallbacks.secret, now,
+  })) : null;
   let ignored = 0;
   const publicMessage = m => ({ id: m._id, state: m.state, mode: 'PREVIEW_ONLY', providerMessageId: null, reason: m.reason ?? null });
   async function active(recipient, version, session) {
@@ -174,6 +179,10 @@ export async function createBridge({ db, tenant, account, serviceSecret, approva
   const server = http.createServer(async (req, res) => {
     const respond = (status, data) => { res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(data)); };
     try {
+      if (req.url === '/provider/callback') {
+        if (!callbackHandler) return respond(404, { error: 'NOT_FOUND' });
+        return await callbackHandler(req, res);
+      }
       if (req.url === '/health' && req.method === 'GET') { await db.command({ ping: 1 }); return respond(200, { healthy: true, mode: 'PREVIEW_ONLY' }); }
       const operatorRoute = req.method === 'POST' && ['/bindings', '/bindings/revoke', '/prompts', '/session', '/session/pause', '/session/resume'].includes(req.url);
       if (!operatorRoute && !equal(req.headers.authorization, `Bearer ${serviceSecret}`)) fail(401, 'UNAUTHORIZED');
