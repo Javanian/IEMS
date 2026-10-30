@@ -263,3 +263,23 @@ transaction. Replay reauthorizes and rejects revoked reply/approval or changed s
 Expired approvals cannot be refreshed or replaced by replay: queue a new immutable reply.
 No private body is accepted or persisted. This command neither sends nor starts a browser;
 HTTP composition, UI and driver remain pending. External send stays disabled.
+
+### Operator HTTP composition (PLAT-051)
+
+`src/provider-operator-http.mjs` exports `createScopedProviderOperatorHandler` for one
+trusted tenant/plant/account mapping. Mount its native Node HTTP handler on an exact
+host route before any JSON stream parser. Supply `authenticate(req)` that enforces
+the host session, origin and CSRF policy and returns the opaque foundation scope;
+transactional authorization still runs inside every command, including replay.
+Register `providerOperatorRoles` through the integration owner's foundation contract;
+this factory installs no roles or grants. Do not expose this as a public callback.
+
+POST requires `application/json`, identity encoding and at most 8192 bytes. The exact
+envelope is `{ "action": "revoke", "payload": { ...commandMetadata } }`. Supported
+actions are provision, revoke, configurePolicy, activate, queueReply and approveReply;
+each payload uses the existing strict command contract. Tenant/account/plant scope
+comes only from configuration. Responses use `PROVIDER_OPERATOR_RESULT_V1`; errors
+expose stable codes with no exception details. A 503 indicates an unknown outcome:
+reconcile using the same commandId and exact payload, never issue a fresh command or
+send automatically. Nothing stores request bodies, starts a browser or enables send.
+Host mount, browser driver and operator UI remain pending for integration/follow-up.
