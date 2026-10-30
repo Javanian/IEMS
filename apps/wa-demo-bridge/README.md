@@ -232,3 +232,5 @@ require original-key reconciliation, without automatic retry. Initialize both
 authority and command unique indexes explicitly before mounting (not executed
 here). Activation/update commands, source-verified binding, reply/approval
 provisioning, HTTP mount and browser driver remain incomplete. No send occurs.
+
+Policy configuration: createScopedProviderPolicyCommands exposes configurePolicy(actor, { commandId, expectedRevision, policy: { enabled, paused, expiresAt, allowlist, prefix } }). Trusted account/plant composition and foundation provider.authority.configure authorization are required inside the effect transaction, including replay. Existing policy only; CAS advances authorityRevision and policy revision, invalidating queued approvals pinned to older policy revisions. Receipt/audit/outbox commit atomically; ambiguous writes are not retried. No command is mounted or executed by default. Identity/binding activation, reply approvals and browser driver remain incomplete; external send remains disabled.
