@@ -1,7 +1,8 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
+import { businessNow } from './business-clock.mjs';
 
-const verbs = ['read', 'intake', 'diagnostic-authorize', 'teardown', 'scope', 'decide', 'deposit', 'start', 'execute', 'test', 'rework', 'qc', 'hold', 'return', 'bill', 'settle'];
+const verbs = ['read', 'intake', 'diagnostic-authorize', 'teardown', 'scope', 'decide', 'deposit', 'start', 'execute', 'test', 'rework', 'qc', 'hold', 'return', 'bill', 'settle', 'warranty', 'warranty-claim', 'warranty-void'];
 export const repairActions = verbs.map(v => `repair.${v}`);
 export const repairRoles = Object.fromEntries(verbs.map(v => [`repair${v.split('-').map(s => s[0].toUpperCase() + s.slice(1)).join('')}`, [...new Set(['repair.read', `repair.${v}`])]]));
 // Public customer-facing repair number: stable, unique per tenant+plant, never the raw case UUID.
@@ -60,7 +61,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     if (new Set(rows.map(v => v.component)).size !== rows.length) fail(400, 'INVALID_DISPOSITIONS'); return rows;
   };
   for (const action of verbs.filter(v => !['read', 'intake', 'settle'].includes(v))) app.post(`/api/repair/cases/:id/${action}`, async (req, res) => {
-    const allowed = { 'diagnostic-authorize': ['feeCap', 'evidence'], teardown: ['findings', 'evidence'], scope: ['quoteId', 'revision', 'depositRequired', 'evidence'], decide: ['decision', 'revision', 'diagnosticFee', 'evidence'], deposit: ['amount', 'currency', 'reference'], start: [], execute: ['dispositions', 'evidence'], test: ['result', 'evidence'], rework: ['evidence'], qc: ['evidence'], hold: ['active', 'evidence'], return: ['evidence'], bill: [] }[action];
+    const allowed = { 'diagnostic-authorize': ['feeCap', 'evidence'], teardown: ['findings', 'evidence'], scope: ['quoteId', 'revision', 'depositRequired', 'evidence'], decide: ['decision', 'revision', 'diagnosticFee', 'evidence'], deposit: ['amount', 'currency', 'reference'], start: [], execute: ['dispositions', 'evidence'], test: ['result', 'evidence'], rework: ['evidence'], qc: ['evidence'], hold: ['active', 'evidence'], return: ['evidence'], bill: [], warranty: ['days', 'terms', 'evidence'], 'warranty-claim': ['condition', 'evidence'], 'warranty-void': ['evidence'] }[action];
     fields(req.body, ['expectedVersion', 'idempotencyKey', ...allowed]);
     const b = req.body;
     if (!Number.isSafeInteger(b.expectedVersion) || b.expectedVersion < 1) fail(400, 'INVALID_VERSION');
@@ -150,7 +151,27 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
         row.finalInvoiceId = invoice._id;
       } else if (action === 'return') {
         requireState('READY_FOR_RETURN', 'REJECTED'); if (row.holdActive) fail(409, 'QC_BLOCKED');
+        row.returnedAt = businessNow(runtime);
         row.custodyState = row.status === 'REJECTED' ? 'RETURNED_UNREPAIRED_TO_CUSTOMER' : 'RETURNED_TO_CUSTOMER'; row.custody.push(record(row.custodyState)); row.status = 'RETURNED';
+      } else if (action === 'warranty') {
+        requireState('RETURNED');
+        if (row.decision?.decision !== 'ACCEPT' || !row.qc || row.holdActive || row.warranty || !row.returnedAt) fail(409, 'WARRANTY_CONFLICT');
+        if (!Number.isSafeInteger(b.days) || b.days < 1 || b.days > 3650) fail(400, 'INVALID_WARRANTY_PERIOD');
+        const startsAt = new Date(row.returnedAt), expiresAt = new Date(startsAt.getTime() + b.days * 86400000);
+        if (expiresAt <= businessNow(runtime)) fail(409, 'WARRANTY_EXPIRED');
+        row.warranty = { ...record('WARRANTY_ISSUED'), _id: randomUUID(), status: 'ACTIVE', startsAt, expiresAt, days: b.days, terms: text(b.terms), scopeRevision: row.decision.revision, serial: row.serial, accountId: row.ownerAccountId };
+      } else if (action === 'warranty-void') {
+        requireState('RETURNED'); if (row.warranty?.status !== 'ACTIVE') fail(409, 'WARRANTY_CONFLICT');
+        row.warranty = { ...row.warranty, status: 'VOID', voided: record('WARRANTY_VOIDED') };
+      } else if (action === 'warranty-claim') {
+        requireState('RETURNED');
+        const now = businessNow(runtime), warranty = row.warranty;
+        if (row.holdActive || warranty?.status !== 'ACTIVE' || new Date(warranty.startsAt) > now || new Date(warranty.expiresAt) <= now) fail(409, 'WARRANTY_UNAVAILABLE');
+        if ((row.warrantyClaims?.length || 0) >= 100) fail(409, 'WARRANTY_HISTORY_LIMIT');
+        const caseId = randomUUID(), condition = text(b.condition);
+        const claim = { ...base(req), _id: caseId, caseNumber: repairNumberFor(req.filter, caseId), ownerAccountId: row.ownerAccountId, serial: row.serial, initialCondition: condition, currency: row.currency, status: 'INTAKE', custodyState: 'IN_CUSTODY', custody: [evidence(req, 'WARRANTY_RECEIVED', condition)], history: [], scopes: [], deposits: [], tests: [], reworks: [], holds: [], warrantyOrigin: { caseId: row._id, warrantyId: warranty._id, warranty: structuredClone(warranty), claim: record('WARRANTY_CLAIM') } };
+        await c('repairCases').insertOne(claim, { session });
+        row.warrantyClaims = [...(row.warrantyClaims || []), { caseId, caseNumber: claim.caseNumber, ...record('WARRANTY_CLAIM') }];
       }
       row.history.push({ ...base(req), action, fromVersion: row.version, status: row.status }); row.version++; row.updatedAt = new Date();
       const saved = await c('repairCases').replaceOne({ ...req.filter, _id: row._id, version: b.expectedVersion }, row, { session }); if (!saved.matchedCount) fail(409, 'VERSION_CONFLICT'); return row;

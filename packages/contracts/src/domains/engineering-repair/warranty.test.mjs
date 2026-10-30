@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { startOwned } from '../../../../../apps/portfolio-api/test/support/owned-mongo.mjs';
+
+test('returned repair warranty creates one scoped claim, preserves lineage and rejects void/denied replay', async t => {
+  const h = await startOwned(t);
+  const account = await h.ok('/crm/accounts', { name: 'Synthetic warranty customer' }, 201);
+  let row = await h.ok('/repair/cases', { accountId: account._id, serial: 'WARRANTY-LOCAL', condition: 'Cracked housing', currency: 'USD', idempotencyKey: randomUUID() }, 201);
+  const step = async (action, body = {}) => row = await h.ok(`/repair/cases/${row._id}/${action}`, { expectedVersion: row.version, idempotencyKey: randomUUID(), ...body });
+  await step('diagnostic-authorize', { feeCap: '20.00', evidence: 'Synthetic approval' });
+  await step('teardown', { findings: [{ component: 'Housing', disposition: 'REPAIR' }], evidence: 'Crack confirmed' });
+  const quote = await h.ok('/commercial/quotes', { accountId: account._id, expiresAt: '2030-01-01T00:00:00.000Z', taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP', lines: [{ description: 'Repair housing', quantity: '1', uom: 'EA', unitPrice: '20.00', currency: 'USD' }] }, 201);
+  await h.ok(`/commercial/quotes/${quote._id}/approve`, { expectedVersion: 1, revision: 1 });
+  await step('scope', { quoteId: quote._id, revision: 1, depositRequired: '0.00', evidence: 'Approved scope' });
+  await step('decide', { decision: 'ACCEPT', revision: 1, evidence: 'Synthetic customer acceptance' });
+  await step('start');
+  await step('execute', { dispositions: row.scopes[0].findings, evidence: 'Housing restored' });
+  await step('test', { result: 'PASS', evidence: 'Pressure checked' });
+  await step('qc', { evidence: 'Inspection released' });
+  await step('return', { evidence: 'Custody returned' });
+  const warrantyPath = `/repair/cases/${row._id}/warranty`;
+  assert.equal((await h.req(warrantyPath, { expectedVersion: row.version, idempotencyKey: randomUUID(), days: 0, terms: 'Housing', evidence: 'Invalid period' }, h.alpha)).status, 400);
+  await step('warranty', { days: 30, terms: 'Housing repair workmanship', evidence: 'Terms agreed' });
+  assert.equal(Date.parse(row.warranty.expiresAt) - Date.parse(row.returnedAt), 30 * 86400000);
+  const path = `/repair/cases/${row._id}/warranty-claim`, body = { expectedVersion: row.version, idempotencyKey: randomUUID(), condition: 'Housing leak', evidence: 'Synthetic returned unit' };
+  assert.equal((await h.req(path, body, h.beta)).status, 404);
+  const restore = await h.setRoles(h.seeded[0], ['repairRead']);
+  try { assert.equal((await h.req(path, body, h.alpha)).status, 403); } finally { await restore(); }
+  const result = await h.ok(path, body);
+  assert.deepEqual(await h.ok(path, body), result);
+  assert.equal(result.warrantyClaims.length, 1);
+  const child = await h.ok(`/repair/cases/${result.warrantyClaims[0].caseId}`);
+  assert.equal(child.status, 'INTAKE'); assert.equal(child.serial, row.serial); assert.equal(child.ownerAccountId, account._id);
+  assert.equal(child.warrantyOrigin.caseId, row._id); assert.deepEqual(child.warrantyOrigin.warranty, row.warranty);
+  row = result;
+  await step('warranty-void', { evidence: 'Coverage withdrawn for future claims' });
+  assert.equal((await h.req(path, { ...body, expectedVersion: row.version, idempotencyKey: randomUUID() }, h.alpha)).error.code, 'WARRANTY_UNAVAILABLE');
+  assert.equal(await h.db.collection('repairCases').countDocuments(), 2);
+});
