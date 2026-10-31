@@ -27,10 +27,10 @@ while ((Get-Date) -lt $deadline) {
       $exitDeadline = (Get-Date).AddSeconds(20)
       do {
         $remaining = Get-CimInstance Win32_Process -Filter "ProcessId=$($state.supervisorPid)" -ErrorAction SilentlyContinue
-        if (-not $remaining -or -not $remaining.CommandLine.Contains($runtimeScript)) { break }
+        if (-not $remaining -or -not ([string]$remaining.CommandLine).Contains($runtimeScript)) { break }
         Start-Sleep -Milliseconds 500
       } while ((Get-Date) -lt $exitDeadline)
-      if ($remaining -and $remaining.CommandLine.Contains($runtimeScript)) { throw 'Owned services stopped but supervisor has not exited; inspect its log before starting again.' }
+      if ($remaining -and ([string]$remaining.CommandLine).Contains($runtimeScript)) { throw 'Owned services stopped but supervisor has not exited; inspect its log before starting again.' }
     }
     Write-Output "$Action completed; phase $($latest.phase)"; exit 0
   }
