@@ -12,6 +12,8 @@ The former readiness assertion modeled only `crmFence`. Its replacement preserve
 
 The maintained readiness test retains the actual 99/100/101 reservation and 499/500 event histories, physical-stock assertions, denied-command rollback and historical trace checks. No business expectation is replaced.
 
+The first composed maintained run on `549289f` also exposed the same omitted enrollment field in purchased and typed-quote replay assertions. Purchased stock replay executes two guards and one receipt hook: CRM +2, enrollment +3. Payment and typed/legacy quote replay execute one guard and one receipt hook: CRM +1, enrollment +2. These three remaining snapshot hunks now permit only those exact increments on the actor tenant. All original acknowledgement, current advanced state, financial/source corruption, immutable master, physical stock and denied full-snapshot assertions remain. No arbitrary counter or business field is omitted.
+
 ## Residual QA-005
 
 | Old expectation or fixture | Current contract and stronger checks |
@@ -24,6 +26,10 @@ The maintained readiness test retains the actual 99/100/101 reservation and 499/
 | Historical document repair expected a persisted PREPARED intermediate | Predecessor commit `6767c4c` already reconciled this: source/artifact/receipt/publication roll back together, authorized concurrent retries publish once, and historical PREPARED remains private and cannot be resealed. Preserve and rerun those API and lifecycle tests. |
 
 Private customer principals remain factory-issued opaque capabilities. Existing native lifecycle tests cover forged/cross-binding authority, revocation, nested receipts, lost acknowledgements and current enrollment; no principal/grant guard is changed here. Existing unmanaged engine/vendor, PREPARED, SENDING and UNKNOWN gates remain mandatory.
+
+## Unowned reader regression
+
+`apps/portfolio-api/test/order-reader.test.mjs:92` still injects `runtime.orderReader`, while the current CS runtime reads `customerServiceOrderReader`. The first clean composed maintained run returned `OK` where its outage assertion expected `STATUS_UNAVAILABLE`; the other real SO/WO/QC/shipment paths passed. This test seam belongs to TPR-157, whose assignment explicitly owns reader compatibility and corresponding tests. TPR-158 does not edit that unowned file. Changing only the seam in an isolated diagnostic exposed a second obsolete expectation: current receipt source revalidation rejects inbound `STATUS_UNAVAILABLE` instead of persisting the old fallback. A second diagnostic preserves outage/timeout/staleness and revocation assertions, proves full database rollback, then restores the actual reader and retries the exact key/body with one authoritative reply and no duplicate. That native diagnostic passed all 7 reported tests. Both diagnostic versions, failure evidence and an unapplied proposal remain in TPR-158 evidence for CTO TPR-151 to route to TPR-157. The maintained gate remains FAIL while the original repository test fails. No source authority or fallback guard is weakened.
 
 ## Final source pins
 

@@ -28,7 +28,8 @@ function withReplayAuthorization(before, h) {
   for (const [collection, target] of Object.entries(targets)) {
     const rows = before[collection].filter(row => row._id === target);
     assert.equal(rows.length, 1, `one actual replay authority ${collection}`);
-    expected[collection] = before[collection].map(row => row._id === target ? { ...row, crmFence: (row.crmFence || 0) + 1 } : row);
+    expected[collection] = before[collection].map(row => row._id === target ? { ...row, crmFence: (row.crmFence || 0) + 1,
+      ...(collection === 'tenants' ? { saasEnrollmentFence: (row.saasEnrollmentFence || 0) + 2 } : {}) } : row);
   }
   return expected;
 }
@@ -91,7 +92,7 @@ test('Explicit catalog quote identity through real native SO', async t => {
     assert.equal(read.catalogEntitlement.currentEligible, false);
     const before = await snapshot(h), replay = await h.ok('/commercial/quotes', payload, 201);
     assert.deepEqual(replay.revisions, draft.revisions); assert.equal(replay.catalogEntitlement.currentEligible, false);
-    assert.deepEqual(await snapshot(h), withReplayAuthorization(before, h), 'successful replay permits exactly one actual authorization fence increment; domain/master/stock evidence is unchanged');
+    assert.deepEqual(await snapshot(h), withReplayAuthorization(before, h), 'replay permits exactly one CRM and two enrollment authorization increments; domain/master/stock evidence is unchanged');
     await deny(h, `/commercial/quotes/${draft._id}/approve`, { expectedVersion: draft.version, revision: 1, idempotencyKey: key() }, 409, 'QUOTE_ITEM_CHANGED');
     const originalItem = await item(h), originalBody = body(account, [line(originalItem)]), original = await h.ok('/commercial/quotes', originalBody, 201);
     const replacementBody = { ...body(account, [line(serial)]), expectedVersion: original.version };

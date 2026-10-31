@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 export const command = extra => ({ expectedVersion: 1, reason: 'Owner synthetic purchased stock fulfillment evidence', idempotencyKey: randomUUID(), ...extra });
 export async function allSnapshot(h) { const result = {}; for (const { name } of await h.db.listCollections({}, { nameOnly: true }).toArray()) result[name] = await h.db.collection(name).find({}).sort({ _id: 1 }).toArray(); return result; }
 export async function denied(h, path, body, code, status = 409) { const before = await allSnapshot(h), result = await h.req(path, body, h.alpha); assert.equal(result.status, status, JSON.stringify(result)); assert.equal(result.error.code, code); assert.deepEqual(await allSnapshot(h), before, `${path} failure mutated durable state`); }
-export function withAuth(before, h, count) {
+export function withAuth(before, h, count, enrollmentCount) {
+  assert.ok(Number.isSafeInteger(enrollmentCount) && enrollmentCount >= 0);
   const expected = { ...before }, person = h.seeded[0], tokenHash = createHash('sha256').update(h.alpha.slice('portfolio_session='.length)).digest('hex'), plant = before.plants.find(row => row._id === person.plantId);
   const ids = { sessions: before.sessions.find(row => row.tokenHash === tokenHash)._id, memberships: person.membershipId, users: person.userId, tenants: person.tenantId, plants: person.plantId, legalEntities: plant.legalEntityId };
-  for (const [name, id] of Object.entries(ids)) { assert.equal(before[name].filter(row => row._id === id).length, 1); expected[name] = before[name].map(row => row._id === id ? { ...row, crmFence: (row.crmFence || 0) + count } : row); }
+  for (const [name, id] of Object.entries(ids)) { assert.equal(before[name].filter(row => row._id === id).length, 1); expected[name] = before[name].map(row => row._id === id ? { ...row, crmFence: (row.crmFence || 0) + count,
+    ...(name === 'tenants' ? { saasEnrollmentFence: (row.saasEnrollmentFence || 0) + enrollmentCount } : {}) } : row); }
   return expected;
 }
 

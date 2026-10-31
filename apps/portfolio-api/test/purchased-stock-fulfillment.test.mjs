@@ -27,7 +27,7 @@ test('purchased LOT/SERIAL stock fulfills real typed customer demand without pro
   await t.test('one shared stock claim reserves actual serials and stable replay acknowledges the original command', async () => {
     const result = await f.reserve(1, f.serialReceipt, '3', serialIds); firstReserveBody = result.body; serialClaim = result.view.commandReceipt.reservationId;
     const source = await f.stock(f.serialReceipt); assert.equal(source.reservedQuantity, '3'); assert.equal(source.availableQuantity, '0'); assert.equal(source.consumedQuantity, '0'); assert.equal(source.onHandQuantity, '3'); assert.equal(source.units.filter(unit => unit.status === 'RESERVED').length, 3);
-    const before = await allSnapshot(h), replay = await h.ok(`${f.path}/reservations`, firstReserveBody); assert.deepEqual(replay.commandReceipt, result.view.commandReceipt); assert.deepEqual(await allSnapshot(h), withAuth(before, h, 2));
+    const before = await allSnapshot(h), replay = await h.ok(`${f.path}/reservations`, firstReserveBody); assert.deepEqual(replay.commandReceipt, result.view.commandReceipt); assert.deepEqual(await allSnapshot(h), withAuth(before, h, 2, 3));
     const claim = await h.db.collection('catalogMaterialReservations').findOne({ _id: serialClaim }); assert.equal(claim.demandKind, 'SALES_ORDER_LINE'); assert.equal(Object.hasOwn(claim, 'executionId'), false);
   });
   await t.test('partial serial dispatch then held remainder release never frees the actually shipped identity', async () => {
@@ -59,7 +59,7 @@ test('purchased LOT/SERIAL stock fulfills real typed customer demand without pro
     assert.equal(await h.db.collection('internalExecutions').countDocuments(), 0); assert.equal(await h.db.collection('manufacturingWorkOrders').countDocuments(), 0); assert.equal(await h.db.collection('catalogMaterialConsumptions').countDocuments(), 0);
   });
   await t.test('unknown-result replay returns the same immutable acknowledgement with current advanced state', async () => {
-    const current = await f.read(), before = await allSnapshot(h), replay = await h.ok(`${f.path}/reservations`, firstReserveBody); assert.equal(replay.commandReceipt.reservationId, serialClaim); assert.equal(replay.commandReceipt.version, 2); assert.equal(replay.version, current.version); assert.equal(replay.lines[1].shippedQuantity, '3'); assert.deepEqual(await allSnapshot(h), withAuth(before, h, 2));
+    const current = await f.read(), before = await allSnapshot(h), replay = await h.ok(`${f.path}/reservations`, firstReserveBody); assert.equal(replay.commandReceipt.reservationId, serialClaim); assert.equal(replay.commandReceipt.version, 2); assert.equal(replay.version, current.version); assert.equal(replay.lines[1].shippedQuantity, '3'); assert.deepEqual(await allSnapshot(h), withAuth(before, h, 2, 3));
     const restore = await h.setRoles(h.seeded[0], ['purchasedFulfillmentReader']); try { await denied(h, `${f.path}/reservations`, firstReserveBody, 'SCOPE_DENIED', 403); } finally { await restore(); }
   });
   await t.test('immutable acknowledgements and missing common source heads reject corruption atomically', async () => {
@@ -103,6 +103,6 @@ test('purchased LOT/SERIAL stock fulfills real typed customer demand without pro
       await denied(h, '/fulfillment/invoices', { ...invoiceBody, lines: [{ shipmentId: serialFirst._id, quantity: serialFirst.quantity }], idempotencyKey: randomUUID() }, 'PURCHASED_FULFILLMENT_SOURCE_INVALID');
       for (const path of [f.path, `/fulfillment/orders/${f.so._id}/balances`, `/fulfillment/orders/${f.so._id}/entitlement`]) await denied(h, path, undefined, 'PURCHASED_FULFILLMENT_SOURCE_INVALID');
     } finally { for (const row of [shipmentTally, lineTally]) await h.db.collection('fulfillmentTallies').replaceOne({ _id: row._id }, row); }
-    const before = await allSnapshot(h), replay = await h.ok('/fulfillment/payments', paymentBody, 201); assert.deepEqual(replay, payment); assert.deepEqual(await allSnapshot(h), withAuth(before, h, 1));
+    const before = await allSnapshot(h), replay = await h.ok('/fulfillment/payments', paymentBody, 201); assert.deepEqual(replay, payment); assert.deepEqual(await allSnapshot(h), withAuth(before, h, 1, 2));
   });
 });
