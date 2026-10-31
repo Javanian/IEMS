@@ -1,4 +1,18 @@
-# E02 v7 source handoff — runtime INCOMPLETE
+# E02 implementation handoff — IMPLEMENTED_QA_PENDING
+
+## V10 verified mounted runtime handoff
+
+Corrected candidate `daf1324a15a13f86b3138bd0b651b9edeeb950f9` passes the actual accepted/rejected E02 HTTP flow, exact initial/replay equality, stock/quarantine and typed order/POD/billing/warranty assertions. The allocated combined service-orders/POD/full-E02 command passed4/4 exit0 at `68860a4ece7c57db3b5bf5d6332c817396b07657`; final manifest-only enrichment passed the full-E02 test1/1 exit0 at `daf1324`. Runtime domain/registry source bytes are identical between these tested revisions. This is local implementation proof, not independent final product acceptance.
+
+V10 source formatting fix `cc9e6d87a8e505fbfc0a04e937431a41abd0342c` parenthesizes the null literal without changing behavior, preventing the unchanged schema generator from mistaking `null :` for a field. Generated pin commit `24d223d0de4f4b061a7ac34ead4160eaf10a1bf6` changes exactly delivery source SHA256 in each of domain-registry.json/admission-registry.json. Normalized-LF committed source digest `ac6c9e63567df966e0b5ae2f58eb121c095a93a430b9e82494e1c14afd26910f` matches both. Whole-JSON comparison masking only those two digests proves every schema/collection/field/path/section/route/receipt/classification/coverage/provenance field unchanged. Existing source/admission verifiers PASS; no generator, guard, wrapper or policy edits.
+
+Helper proof commits `68860a4` and `daf1324` publish actual consumption/issue IDs/hashes (read-only joins to canonical records), diagnostic/QC/scope event IDs, accepted warranty sources, rejected cancellation/billing evidence and SO/WO/shipment/POD hashes. Business effects all use authenticated mounted APIs. Artifact `v10-e02-runtime-manifests.json` records tested revisions and actual manifests; SHA256 `11520a5b7aa38287c65187bc4284f6c2782e5876eeeb767728941eb874627280`. Original canonical fixture SHA256 remains `6baee7beb75983827bd40f0064618af35b41e96ea6eba4ef3cb68dfdaba49d48`.
+
+Actual evidence retained under the owner checkpoint directory: `v10-e02-handoff.log` (combined4/4), `v10-e02-manifest-final.log` (final1/1), `v10-digest-proof.json`, `v10-api-check.log`, and the full runtime manifest JSON. Final1/1 log has no ECONNRESET warning; earlier failed/historical warning logs remain retained. Cached Mongo7.0.14/downloadfalse, marker-checked synthetic cleanup and ephemeral loopback HTTP only; no user-data/application credentials. API syntax/node checks PASS; no JSX changed after previously recorded build. No broader regression/browser/security/concurrency/visual/independent QA was run.
+
+Known synthetic limits below remain explicit: operator-recorded personnel/test/POD/payment evidence, supplemental calibration/qualification/heat/backup-ring lot, parent component-slot rework attribution, and diagnostic invoice atomic with rejection rather than a separately persisted May16 issue transition. COMPLETE manifests mean the allocated actual API chains and assertions passed; they do not establish hardware, bank, carrier, cloud/live or every canonical metadata field.
+
+Next owner CTO149 integrates this branch ancestry once (including14855e6c34 and original14278e0ce89), reviews the exact source/pin diff and regenerates final metadata if the assembled source changes. Independent150 then152 perform final QA on the immutable integrated candidate. No own implementation blocker remains; no push/deploy/production operation authorized. All earlier INCOMPLETE and pin-wait sections below are preserved historical evidence, superseded by this verified V10 handoff.
 
 ## V9 runtime continuation after usable148 base
 
