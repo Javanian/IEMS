@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { Resource, useResource } from './PortfolioWorkspace.jsx';
+import { IdentityContext, CommandAttemptState, Resource, useResource } from './PortfolioWorkspace.jsx';
 import { CommandForm, Input } from './FulfillmentWorkspace.jsx';
-import { errorMessage } from './client.mjs';
+import { errorMessage, useStableCommand } from './client.mjs';
 import { deliveryLabel } from './fulfillment.mjs';
 import { nextStages, stageCommand, messageLabel, inboxPath, humanize, persistedIdentity, previewView, DELIVERY_NOTES, metricsWindow, metricsPath, metricsView } from './customer-service.mjs';
 
@@ -114,6 +114,13 @@ function OrderStatus({ order }) {
   </div>;
 }
 
+export function ServiceCommandForm({title,path,slot=path,build,onSaved,permission,children}) {
+ const identity=useContext(IdentityContext),command=useStableCommand('service:'+slot,identity,{profile:'CS_AUTOMATION_V14'}),[error,setError]=useState(null),[notice,setNotice]=useState('');
+ const saved=result=>{setNotice(Array.isArray(result.previewedDeliveryIds)?`Local preview recorded for ${result.previewedDeliveryIds.length} messages. Nothing was sent.`:'Command confirmed. Stored result received.');onSaved?.(result);};
+ const allowed=identity?.permissions?.includes(permission);
+ return <form className="pf-panel pf-form" onSubmit={async event=>{event.preventDefault();if(!allowed||command.pending)return;const values=Object.fromEntries(new FormData(event.currentTarget));try{setError(null);const result=await command.send(path,{body:build(values)});saved(result.data);}catch(e){setError(e);}}}><h2>{title}</h2><fieldset disabled={!allowed||command.pending}>{children}<button className="pf-primary" disabled={!allowed||command.pending}>{title}</button></fieldset>{error&&<p role="alert">{errorMessage(error,true)}</p>}<p role="status">{notice}</p><CommandAttemptState command={command} onSaved={saved} onError={setError}/></form>;
+}
+
 export function ServiceConversation() {
   const { id } = useParams(), query = new URLSearchParams(useLocation().search), cursor = query.get('cursor');
   const me = useResource('/api/session/me');
@@ -129,12 +136,12 @@ export function ServiceConversation() {
         <div className="pf-actions">{cursor && <Link to="?">Newest page</Link>}{page?.nextCursor && <Link to={pageLink(query, page.nextCursor)}>More messages</Link>}</div>
       </>}</Resource>
         {c.mode === 'HUMAN_ACTIVE' && c.assigneeId !== me.data?.user?.id && <p className="pf-muted">Assigned to another agent. Only the assigned agent can reply or resume the bot.</p>}
-        {c.mode === 'HUMAN_ACTIVE' && c.assigneeId === me.data?.user?.id && <CommandForm title="Reply to customer" permission="cs.reply" action={`/api/cs/conversations/${id}/reply`} build={(v, k) => ({ text: v.replyText, commandKey: k })} onSaved={refresh}><label className="pf-field">Public reply<textarea required name="replyText" rows={3} maxLength={2000} /></label><p className="pf-muted">Preview delivery only.</p></CommandForm>}
+        {c.mode === 'HUMAN_ACTIVE' && c.assigneeId === me.data?.user?.id && <ServiceCommandForm title="Reply to customer" permission="cs.reply" path={`/api/cs/conversations/${id}/reply`} build={v => ({ text: v.replyText })} onSaved={refresh}><label className="pf-field">Public reply<textarea required name="replyText" rows={3} maxLength={2000} /></label><p className="pf-muted">Queued locally. Use the explicit simulator preview to review it; nothing is sent.</p></ServiceCommandForm>}
       </section>
       <div>
         {!['HUMAN_ACTIVE', 'CLOSED'].includes(c.mode) && <CommandForm title="Take over conversation" permission="cs.conversation.handoff" action={`/api/cs/conversations/${id}/takeover`} build={(_, k) => ({ expectedVersion: c.version, commandKey: k })} onSaved={refresh}><p>Pauses bot replies and assigns you.</p></CommandForm>}
         {['HUMAN_ACTIVE', 'PAUSED', 'HUMAN_PENDING'].includes(c.mode) && (!c.assigneeId || c.assigneeId === me.data?.user?.id) && <CommandForm title="Resume bot" permission="cs.conversation.handoff" action={`/api/cs/conversations/${id}/mode`} build={(v, k) => ({ expectedVersion: c.version, toMode: 'BOT_ACTIVE', reason: v.reason, commandKey: k })} onSaved={refresh}><Input label="Resume reason" name="reason" maxLength={500} /></CommandForm>}
-        <section className="pf-panel"><h2>Delivery status</h2><p className="pf-muted">Preview only means rendered and not sent. Unknown means the result could not be confirmed.</p>{c.deliveries?.some(d => d.state === 'QUEUED') && <CommandForm title="Preview queued replies" permission="cs.simulator.use" action="/api/cs/simulator/dispatch" build={() => ({})} onSaved={refresh}><p className="pf-muted">Runs the local preview dispatcher. Replies become Preview only; nothing is sent.</p></CommandForm>}{!c.deliveries?.length ? <p>No outbound deliveries.</p> : <ul className="pf-list">{c.deliveries.map(d => <li key={persistedIdentity(d, 'delivery')}><strong>{humanize(d.kind)}</strong><span className="pf-status">{deliveryLabel(d.state)}</span>
+        <section className="pf-panel"><h2>Delivery status</h2><p className="pf-muted">Preview only means rendered and not sent. Unknown means the result could not be confirmed.</p>{c.deliveries?.some(d => d.state === 'QUEUED') && <ServiceCommandForm title="Preview queued replies" permission="cs.simulator.use" path="/api/cs/simulator/dispatch" slot={"conversation-preview:"+id} build={() => ({deliveryIds:c.deliveries.filter(d=>d.state==='QUEUED').slice(0,25).map(d=>d.deliveryId??d.messageId??d._id)})} onSaved={refresh}><p className="pf-muted">Records local PREVIEWED results in one caller transaction; no worker or send runs.</p></ServiceCommandForm>}{!c.deliveries?.length ? <p>No outbound deliveries.</p> : <ul className="pf-list">{c.deliveries.map(d => <li key={persistedIdentity(d, 'delivery')}><strong>{humanize(d.kind)}</strong><span className="pf-status">{deliveryLabel(d.state)}</span>
           {d.state === 'UNKNOWN' && <CommandForm title="Resolve delivery" permission="cs.delivery.review" action={`/api/cs/deliveries/${d.deliveryId}/resolve`} build={(v, k) => ({ resolution: v.resolution, evidence: v.evidence, commandKey: k })} onSaved={refresh}><label className="pf-field">Resolution<select name="resolution"><option value="ABANDON">Abandon</option><option value="CONFIRMED_NOT_SENT_REQUEUE">Not sent, requeue</option></select></label><Input label="Evidence" name="evidence" maxLength={1000} /></CommandForm>}</li>)}</ul>}</section>
       </div>
     </div>

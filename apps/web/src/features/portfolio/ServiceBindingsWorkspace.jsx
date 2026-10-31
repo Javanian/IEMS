@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { IdentityContext, Resource, useResource } from './PortfolioWorkspace.jsx';
 import { useKeyedCommand } from './HoldsWorkspace.jsx';
 import { normalizePage } from './holds.mjs';
-import { Boundary, ServiceTabs, ThreadMessage } from './CustomerServiceWorkspace.jsx';
+import { Boundary, ServiceTabs, ThreadMessage, ServiceCommandForm } from './CustomerServiceWorkspace.jsx';
 import { bindingCommand, revokeCommand, bindingStatus, bindingIdOf, capabilityState, csOutcome, permissionReason, humanize } from './customer-service.mjs';
 
 const when = at => (at ? new Date(at).toLocaleString('en-US') : '');
@@ -97,7 +97,7 @@ function Simulator({ binding, status }) {
   const state = !status.usable ? { enabled: false, reason: status.reason } : base;
   return <section className="pf-panel" aria-labelledby="simulator-heading">
     <h2 id="simulator-heading">Inbound simulator</h2>
-    <p className="pf-muted">Sends a customer message through the same handler as the WhatsApp bridge, with the preview dispatcher. Nothing leaves this workspace.</p>
+    <p className="pf-muted">Sends a customer message through the same handler as the WhatsApp bridge, and queues a local reply when enrolled. Use the separate preview action below to review queued messages. Nothing leaves this workspace.</p>
     <div className="pf-actions" role="group" aria-label="Message presets">{PRESETS.map(([label, value]) => <button key={label} type="button" disabled={!state.enabled} onClick={() => setText(value)}>{label}</button>)}</div>
     <form className="pf-form" onSubmit={e => {
       e.preventDefault(); if (!state.enabled || command.pending() || !text.trim()) return;
@@ -108,6 +108,7 @@ function Simulator({ binding, status }) {
       <Outcome outcome={command.outcome} busy={command.busy} onRetry={command.send} onDiscard={command.discard} />
       <Submit label="Send simulated message" busyLabel="Sending..." busy={command.busy} state={state} id="simulator-reason" />
     </form>
+    <ServiceCommandForm title="Preview queued simulated messages" permission="cs.simulator.use" path="/api/cs/simulator/dispatch" slot={'preview:'+bindingIdOf(binding)} build={()=>({deliveryIds:null})} onSaved={()=>{}}><p>Previews up to25 scoped queued messages in this plant. No worker or external send runs.</p></ServiceCommandForm>
     {exchanges.length > 0 && <><h3>Replies in this session</h3><ol className="pf-list pf-thread" aria-label="Simulator replies">{exchanges.map((x, i) => <li key={`${x.conversationId}-${exchanges.length - i}`} className="pf-exchange">
       <p className="pf-id">Customer: {x.sent}</p>
       {x.reply ? <ol className="pf-list pf-sim-reply"><ThreadMessage m={{ direction: 'OUTBOUND', origin: 'BOT', at: x.reply.at || new Date().toISOString(), ...x.reply }} /></ol> : !x.suppressed && <p>No reply was prepared for this message.</p>}
