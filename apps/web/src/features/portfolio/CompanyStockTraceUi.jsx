@@ -43,6 +43,16 @@ function RawSources({ sources }) {
     <AuditDetails action="company.stock.read"><pre>{JSON.stringify(source,null,2)}</pre></AuditDetails>
   </li>)}</ul>;
 }
+function ManufacturedSources({ sources }) {
+  if (!sources?.length) return <p>No manufactured component was attributed to this output.</p>;
+  return <ul className="pf-list">{sources.map(source => <li key={source.companyUnitId}>
+    <strong>Component serial {source.serial}</strong><span>Attributed quantity {source.quantity}</span>
+    <div className="pf-actions"><Link to={`/portfolio/company-stock/receipts/${source.companyReceiptId}`}>Review component stock {displayReference('receipts',source.companyReceiptId)}</Link><JobLink id={source.producerExecutionId} /></div>
+    <details><summary>Review this component's material ancestry</summary><h4>Purchased sources</h4><RawSources sources={source.purchasedSources} />
+      {!!source.companySources?.length && <><h4>Manufactured sources</h4><ManufacturedSources sources={source.companySources} /></>}
+    </details>
+  </li>)}</ul>;
+}
 function TraceEvidence({ data }) {
   return <div data-trace-unit-id={data.companyUnitId} data-trace-complete="true" data-trace-stock-version={data.current.stockVersion}>
     <h3 style={{ overflowWrap: 'anywhere' }}>Trace for serial {data.serial}</h3>
@@ -53,7 +63,7 @@ function TraceEvidence({ data }) {
     <div className="pf-actions"><JobLink id={data.producer.executionId} /></div>
     <h3 id="company-trace-exact-purchased">Exact purchased sources attributed to this output</h3><RawSources sources={data.ancestry.purchasedSources} />
     <h3>Exact manufactured sources attributed to this output</h3>
-    {!data.ancestry.companySources.length ? <p>No manufactured component was attributed to this output.</p> : <ul className="pf-list">{data.ancestry.companySources.map(source => <li key={source.companyUnitId}><strong>Component serial {source.serial}</strong><span>Attributed quantity {source.quantity}</span><div className="pf-actions"><Link to={`/portfolio/company-stock/receipts/${source.companyReceiptId}`}>Review component stock {displayReference('receipts',source.companyReceiptId)}</Link><JobLink id={source.producerExecutionId} /></div><h4>Purchased sources attributed to this component</h4><RawSources sources={source.purchasedSources} /></li>)}</ul>}
+    <ManufacturedSources sources={data.ancestry.companySources} />
     <section><h3>Current restriction scope</h3><p>Quality hold checks conservatively include all purchased receipts actually consumed by the producer batch. This wider hold set is separate from the exact output attribution above.</p><p>{data.holdPolicy.directHold?.active ? `A direct company hold is active: ${data.holdPolicy.directHold.reason}` : 'No active direct company hold is recorded in this snapshot.'}</p><p>Producer-batch purchased receipts considered for hold checks: {data.holdPolicy.receiptIds.map(id => displayReference('receipts',id)).join(', ') || 'None'}</p><AuditDetails action="company.stock.read"><pre>{JSON.stringify({holdPolicy:data.holdPolicy,current:data.current},null,2)}</pre></AuditDetails></section>
     <h3 id="company-trace-downstream">Downstream use and affected candidates</h3><p>These are recorded candidates for review, not a completed recall or an automatic quality disposition. Process loss and abandoned reservations do not identify a new output.</p>
     {traceUseGroups.map(([key,title]) => <section key={key} data-trace-use-group={key}><h4>{title}</h4>{!data.uses[key].length ? <p>No records in this category.</p> : <ul className="pf-list">{data.uses[key].map((use,index) => <li key={`${use.reservationId}-${use.output?.outputUnitId || index}`}><JobLink id={use.consumer.executionId} /><span>Job: {operatorStatus(use.consumer.status)} · Reservation: {use.reservationStatus === 'RELEASED' ? 'Abandoned' : operatorStatus(use.reservationStatus)} · Selected component quantity {use.selectedQuantity}</span>{use.output && <><strong>Output serial {use.output.serial}</strong><span>Output: {operatorStatus(use.output.status)} · Quality: {use.output.qcDisposition ? operatorStatus(use.output.qcDisposition) : 'Not yet decided'}</span>{use.output.companyReceiptId && <Link to={`/portfolio/company-stock/receipts/${use.output.companyReceiptId}`}>Review resulting company stock {displayReference('receipts',use.output.companyReceiptId)}</Link>}</>}{key === 'losses' && <p>Recorded process loss quantity {use.quantity}. No output identity is implied.</p>}{key === 'consumedUnattributed' && <p>The component was consumed, but its output or loss attribution is not yet recorded.</p>}{key === 'abandoned' && <p>Historical reservation only. It does not establish consumption or an affected output.</p>}<AuditDetails action="company.stock.read"><pre>{JSON.stringify(use,null,2)}</pre></AuditDetails></li>)}</ul>}</section>)}

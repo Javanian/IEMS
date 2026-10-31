@@ -1,7 +1,19 @@
+import { readApprovedOrderRevision, purchaseHash } from '../../../packages/contracts/src/domains/commercial/purchase-orders.mjs';
+
 const scope = row => ({ tenantId: row.tenantId, plantId: row.plantId });
 const invalid = () => ({ cohort: 'INVALID', legacyEligible: false });
 const quantity = value => typeof value === 'string' && /^(0|[1-9][0-9]{0,17})(\.[0-9]{1,6})?$/.test(value)
   ? BigInt(value.split('.')[0]) * 1000000n + BigInt((value.split('.')[1] || '').padEnd(6, '0')) : null;
+
+export async function legacyReceiptPurchaseSource(db, order, lineIndex, revision, session) {
+  const approved = await readApprovedOrderRevision(db, scope(order), 'LEGACY', order, revision, session);
+  const line = approved.snapshot.lines?.[lineIndex], lineId = approved.lineIds?.[lineIndex];
+  if (!Number.isSafeInteger(lineIndex) || lineIndex < 0 || !line || !lineId) {
+    throw Object.assign(new Error('INVALID_LINE'), { status: 400, code: 'INVALID_LINE' });
+  }
+  return { line, purchaseSource: { schema: 'LEGACY_PURCHASE_RECEIPT_V2', purchaseOrderId: order._id,
+    documentRevision: approved.revision, lineId, lineHash: purchaseHash({ lineId, line }), contentHash: approved.contentHash } };
+}
 
 // Marker absence is not legacy authority: the independent origin and RECEIVE
 // evidence must agree with an actual scoped legacy purchase order.
@@ -26,7 +38,15 @@ export async function classifyReceiptOrigin(db, receipt, session) {
   if (receive.purchaseOrderId !== receipt.purchaseOrderId || receive.vendorId !== receipt.vendorId || receive.lineIndex !== receipt.lineIndex || receive.uom !== receipt.uom || receive.quantity !== receipt.quantity || receive.from !== null || receive.to !== 'QUARANTINE') return invalid();
   if (await db.collection('catalogPurchaseOrders').findOne({ ...filter, _id: receive.purchaseOrderId }, options)) return { cohort: 'CATALOG', legacyEligible: false };
   const order = await db.collection('purchaseOrders').findOne({ ...filter, _id: receipt.purchaseOrderId }, options);
-  const line = order?.snapshot?.lines?.[receipt.lineIndex];
+  let line;
+  try {
+    const source = await legacyReceiptPurchaseSource(db, order, receipt.lineIndex, receipt.purchaseSource?.documentRevision ?? 1, session);
+    line = source.line;
+    // Unmarked receipts retain revision-one semantics; new pins must agree with both immutable authorities.
+    if (Object.hasOwn(receipt, 'purchaseSource') || Object.hasOwn(receive, 'purchaseSource')) {
+      if (purchaseHash(receipt.purchaseSource) !== purchaseHash(source.purchaseSource) || purchaseHash(receive.purchaseSource) !== purchaseHash(source.purchaseSource)) return invalid();
+    }
+  } catch { return invalid(); }
   const amount = quantity(receipt.quantity), maximum = quantity(line?.quantity);
   if (!order || !['ISSUED', 'CONFIRMED'].includes(order.status) || order.vendorId !== receipt.vendorId || !Number.isSafeInteger(receipt.lineIndex) || receipt.lineIndex < 0 || !line || line.uom !== receipt.uom || amount === null || amount <= 0n || maximum === null || amount > maximum) return invalid();
   if (!await db.collection('vendors').findOne({ ...filter, _id: receipt.vendorId }, options)) return invalid();

@@ -1,3 +1,4 @@
+import { buildFulfillmentCompanyTrace } from './manufactured-dispatch.mjs';
 import { Buffer } from 'node:buffer';
 import { validateInternalExecution, reconcileInternalAttribution, executionInvalid } from './internal-execution-state.mjs';
 import { catalogStockContext } from './catalog-stock.mjs';
@@ -16,6 +17,7 @@ export async function initializeCompanyStockTrace(db) {
 }
 
 export async function buildCompanyUnitTrace(db, filter, root, companyUnitId, session, loadCompanyContext) {
+  if (root.use.reservations.some(row => row.authorityKind === 'FULFILLMENT_SHIPMENT' && row.companyUnitIds.includes(companyUnitId))) return buildFulfillmentCompanyTrace(db, filter, root, companyUnitId, session, () => { throw new Error('SHIPMENT_TRACE_DISPATCH_REQUIRED'); });
   const openingUnit = root.producer.companyUnits.find(unit => unit._id === companyUnitId), unit = root.use.units.find(unit => unit._id === companyUnitId);
   if (!openingUnit || !unit || openingUnit.companyReceiptId !== root.receipt._id) notFound();
   const executions = new Map(), companies = new Map(), rawReceipts = new Map(), outputIds = new Set(), useIds = new Set(), checkedExecutions = new Set();
@@ -50,21 +52,24 @@ export async function buildCompanyUnitTrace(db, filter, root, companyUnitId, ses
     if (reservation.originHash !== context.origin.contentHash) executionInvalid();
     return { receiptId: source.receiptId, quantity: source.quantity, uom: reservation.uom, materialLineId: reservation.materialLineId, consumptionId: reservation.consumptionId, consumptionHash: reservation.consumptionHash, originHash: reservation.originHash, ...(Object.hasOwn(source, 'serials') ? { serials: source.serials } : {}), ...(context.receipt.lotNumber ? { lotNumber: context.receipt.lotNumber, heatNumber: context.receipt.heatNumber } : {}) };
   }
-  async function ancestry(current, outputUnitId, allowCompany) {
+  async function ancestry(current, outputUnitId, path = new Set()) {
+    const key = `${current.head._id}:${outputUnitId}`;
+    if (path.has(key)) executionInvalid();
+    if (path.size >= companyTraceLimits.executions) limitExceeded();
+    const nextPath = new Set([...path, key]);
     const allocation = current.head.allocations.find(row => row.outputUnitId === outputUnitId); if (!allocation) executionInvalid();
     const purchasedSources = [], companySources = [];
     for (const source of allocation.sources) {
       if (source.sourceKind !== 'COMPANY_OUTPUT') purchasedSources.push(await rawSource(current, source));
       else {
-        if (!allowCompany) executionInvalid();
         const upstream = await company(source.companyReceiptId);
-        if (upstream.producer.head.schema !== 'INTERNAL_EXECUTION_V1' || upstream.sourcePolicy !== 'ONE_HOP_SOURCE') companyStockInvalid();
-        for (const upstreamId of source.companyUnitIds) { const actual = upstream.producer.companyUnits.find(unit => unit._id === upstreamId); if (!actual) companyStockInvalid(); const sources = await ancestry(upstream.producer, actual.outputUnitId, false); companySources.push({ companyReceiptId: upstream.receipt._id, companyUnitId: actual._id, outputUnitId: actual.outputUnitId, serial: actual.serial, quantity: '1', producerExecutionId: upstream.producer.head._id, provenanceHash: upstream.producer.head.attributionHash, purchasedSources: sources.purchasedSources }); }
+        if (!['ONE_HOP_SOURCE', 'MULTI_GENERATION_SOURCE'].includes(upstream.sourcePolicy)) companyStockInvalid();
+        for (const upstreamId of source.companyUnitIds) { const actual = upstream.producer.companyUnits.find(unit => unit._id === upstreamId); if (!actual) companyStockInvalid(); const sources = await ancestry(upstream.producer, actual.outputUnitId, nextPath); companySources.push({ companyReceiptId: upstream.receipt._id, companyUnitId: actual._id, outputUnitId: actual.outputUnitId, serial: actual.serial, quantity: '1', producerExecutionId: upstream.producer.head._id, provenanceHash: upstream.producer.head.attributionHash, purchasedSources: sources.purchasedSources, companySources: sources.companySources }); }
       }
     }
     return { basis: 'EXACT_OUTPUT_ATTRIBUTION', purchasedSources, companySources };
   }
-  const exactAncestry = await ancestry(root.producer, openingUnit.outputUnitId, root.producer.head.schema === 'INTERNAL_EXECUTION_V2');
+  const exactAncestry = await ancestry(root.producer, openingUnit.outputUnitId);
   const uses = { reserved: [], issued: [], consumedUnattributed: [], outputs: [], losses: [], abandoned: [] };
   const rows = await db.collection('companyMaterialReservations').find({ ...filter, companyReceiptId: root.receipt._id, companyUnitIds: companyUnitId }, { session }).hint('company_unit_trace_uses').sort({ _id: 1 }).limit(companyTraceLimits.useReservations + 1).toArray();
   if (rows.length > companyTraceLimits.useReservations) limitExceeded();
@@ -89,5 +94,9 @@ export async function buildCompanyUnitTrace(db, filter, root, companyUnitId, ses
     } else companyStockInvalid();
   }
   const head = root.producer.head, trace = { schema: 'COMPANY_UNIT_TRACE_V1', companyReceiptId: root.receipt._id, companyUnitId, outputUnitId: openingUnit.outputUnitId, serial: openingUnit.serial, sourcePolicy: root.sourcePolicy, itemSnapshot: head.sourceDemand.itemSnapshot, ownerLegalEntityId: root.receipt.ownerLegalEntityId, locationSnapshot: root.receipt.locationSnapshot, current: { stockVersion: root.use.version, unitVersion: unit.version, status: unit.status, eligible: !root.blockers.length && unit.status === 'AVAILABLE', hold: root.use.hold, blockers: root.blockers }, producer: { executionId: head._id, internalOrderId: head.internalOrderId, schema: head.schema, status: head.status, version: head.version, engineeringRevision: head.sourceDemand.engineering.currentRevision, provenanceHash: head.attributionHash, qc: head.qc }, ancestry: exactAncestry, holdPolicy: { basis: 'CONSERVATIVE_CONSUMED_BATCH', receiptIds: (root.receipt.consumedAncestryReceiptIds || root.receipt.consumedReceiptIds).slice().sort(), directHold: root.use.hold }, uses, completeness: { complete: true, oneGeneration: true, counts: { executions: executions.size, companyReceipts: companies.size, rawReceipts: rawReceipts.size, outputUnits: outputIds.size, useReservations: useIds.size } } };
+  if (root.sourcePolicy === 'MULTI_GENERATION_SOURCE') {
+    trace.schema = 'COMPANY_UNIT_TRACE_V2';
+    trace.completeness = { ...trace.completeness, oneGeneration: false, multiGeneration: true };
+  }
   return enforceCompanyTraceResponseLimit(trace);
 }

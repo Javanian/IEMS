@@ -8,6 +8,44 @@ import { requireEligibleReceipt, workOrderStockExceptions } from './stock-holds.
 import { initializeGenealogy, installGenealogy, genealogyActions, genealogyRoles } from './genealogy.mjs';
 import { custodyActions, custodyRoles, installManufacturingSerialCustody, reserveSerialCustody, consumeSerialCustody } from './serial-custody.mjs';
 import { initializeComponentInstallation, installationActions, installationRoles, installComponentInstallation } from './component-installation.mjs';
+import { requireCatalogInventoryItem } from './internal-production.mjs';
+import { stockHash, stockSemantic, stockUnits, stockDecimal } from './catalog-stock-values.mjs';
+
+export async function requireApprovedSalesOrderWorkOrderDemand(db, filter, workOrderId, expectedVersion, engineeringRevision, ownerLegalEntityId, session, fence = false) {
+  if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
+  const reject = code => { throw Object.assign(new Error(code), { status: 409, code }); };
+  const options = { session }, wo = await db.collection('manufacturingWorkOrders').findOne({ ...filter, _id: workOrderId }, options);
+  if (!wo) throw Object.assign(new Error('NOT_FOUND'), { status: 404, code: 'NOT_FOUND' });
+  if (wo.version !== expectedVersion || wo.status !== 'PLANNED') reject('CUSTOMER_DEMAND_CHANGED');
+  const plant = await db.collection('plants').findOne({ tenantId: filter.tenantId, _id: filter.plantId, active: true }, options);
+  if (!plant || plant.legalEntityId !== ownerLegalEntityId || !await db.collection('legalEntities').findOne({ tenantId: filter.tenantId, _id: ownerLegalEntityId, active: true }, options)) reject('CUSTOMER_DEMAND_OWNER_CONFLICT');
+  const so = await db.collection('salesOrders').findOne({ ...filter, _id: wo.salesOrderId }, options);
+  if (!so || so.status !== 'OPEN' || so.version !== wo.salesOrderVersion || so.accountId !== wo.accountId || !Number.isSafeInteger(wo.lineIndex) || wo.lineIndex < 0 || !so.snapshot?.lines?.[wo.lineIndex] || stockHash(so.snapshot.lines[wo.lineIndex]) !== stockHash(wo.sourceLine) || wo.uom !== wo.sourceLine.uom || stockUnits(wo.quantity) <= 0n || stockUnits(wo.quantity) > stockUnits(wo.sourceLine.quantity)) reject('CUSTOMER_DEMAND_CHANGED');
+  await requireUnboundSalesOrder(db, filter, so, session);
+  const binding = wo.materialDemandEngineering;
+  if (!binding) reject('MISSING_PURCHASED_MATERIAL_AUTHORITY');
+  const head = await db.collection('engineeringPackages').findOne({ ...filter, _id: binding.engineeringId }, options);
+  if (!head || head.status !== 'RELEASED' || head.version !== binding.engineeringVersion || head.currentRevision !== engineeringRevision || binding.revision !== engineeringRevision || head.salesOrderId !== wo.salesOrderId || head.salesOrderVersion !== so.version || head.lineIndex !== wo.lineIndex || head.uom !== wo.uom) reject('CUSTOMER_DEMAND_CHANGED');
+  const revision = await db.collection('engineeringRevisions').findOne({ ...filter, engineeringId: head._id, revision: engineeringRevision }, options);
+  const requirements = revision?.purchasedMaterials;
+  if (!requirements?.length || requirements.length > 20 || !revision.releaseSnapshot || revision.purchasedMaterialsHash !== binding.purchasedMaterialsHash || stockHash(requirements) !== binding.purchasedMaterialsHash || stockHash(revision.releaseSnapshot.purchasedMaterials) !== binding.purchasedMaterialsHash || revision.releaseSnapshot.purchasedMaterialsHash !== binding.purchasedMaterialsHash || new Set(requirements.map(row => row.lineId)).size !== requirements.length || new Set(requirements.map(row => row.itemId)).size !== requirements.length) reject('MISSING_PURCHASED_MATERIAL_AUTHORITY');
+  const materials = [];
+  for (const requirement of requirements) {
+    const item = await requireCatalogInventoryItem(db, filter, requirement.itemId, requirement.itemVersion, requirement.itemRevision, session, fence);
+    if (item.ownerLegalEntityId !== ownerLegalEntityId || requirement.uom !== item.content.uom || stockHash({ ...stockSemantic(item), authorityHash: item.authorityHash }) !== stockHash(requirement.itemSnapshot) || typeof requirement.lineId !== 'string') reject('CUSTOMER_DEMAND_CHANGED');
+    const product = stockUnits(wo.quantity) * stockUnits(requirement.quantityPerUnit);
+    if (product <= 0n || product % 1000000n) reject('INEXACT_MATERIAL_QUANTITY');
+    materials.push({ ...requirement, requiredQuantity: stockDecimal(product / 1000000n) });
+  }
+  if (fence) for (const [name, row, extra] of [['manufacturingWorkOrders', wo, { status: 'PLANNED' }], ['salesOrders', so, { status: 'OPEN' }], ['engineeringPackages', head, { status: 'RELEASED', currentRevision: engineeringRevision }]]) {
+    const changed = await db.collection(name).updateOne({ ...filter, _id: row._id, version: row.version, ...extra }, { $inc: { useFence: 1 } }, options);
+    if (changed.matchedCount !== 1) reject('VERSION_CONFLICT');
+  }
+  const demand = { _id: wo._id, ...filter, demandKind: 'SALES_ORDER_WORK_ORDER', version: wo.version, ownerLegalEntityId, salesOrderId: so._id,
+    salesOrderVersion: so.version, sourceLineHash: stockHash(wo.sourceLine), quantity: wo.quantity, uom: wo.uom,
+    engineering: { engineeringId: head._id, engineeringVersion: head.version, currentRevision: engineeringRevision, contentHash: binding.purchasedMaterialsHash, content: { materials } } };
+  return { ...demand, authorityHash: stockHash(demand) };
+}
 
 const verbs = ['read', 'plan', 'release', 'record', 'qc'];
 export const manufacturingActions = [...verbs.map(v => `manufacturing.${v}`), ...genealogyActions, ...custodyActions, ...installationActions];
@@ -63,7 +101,7 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
     const genealogyPath = /^\/work-orders\/[^/]+\/genealogy(?:\/|$)/.test(req.path) || req.path.startsWith('/genealogy/');
     const custodyPath = /^\/work-orders\/[^/]+\/serial-claims(?:\/|$)/.test(req.path);
     const installationPath = /^\/work-orders\/[^/]+\/installations(?:\/|$)/.test(req.path);
-    req.manufacturingAction = genealogyPath ? req.method === 'GET' ? 'genealogy.read' : ['allocations', 'losses'].includes(tail) ? 'genealogy.record' : tail === 'finalize' ? 'genealogy.finalize' : null : `manufacturing.${req.method === 'GET' ? 'read' : ['/work-orders', '/engineering'].includes(req.path) || (req.path.startsWith('/engineering/') && tail === 'revisions') ? 'plan' : ['release-engineering', 'revoke'].includes(tail) ? 'release' : tail === 'labor' ? 'record' : tail}`;
+    req.manufacturingAction = genealogyPath ? req.method === 'GET' ? 'genealogy.read' : ['allocations', 'losses'].includes(tail) ? 'genealogy.record' : tail === 'finalize' ? 'genealogy.finalize' : null : `manufacturing.${req.method === 'GET' ? 'read' : ['/work-orders', '/engineering'].includes(req.path) || tail === 'material-demand' || (req.path.startsWith('/engineering/') && tail === 'revisions') ? 'plan' : ['release-engineering', 'revoke'].includes(tail) ? 'release' : tail === 'labor' ? 'record' : tail}`;
     if (custodyPath) req.manufacturingAction = req.method === 'GET' ? 'custody.read' : req.method === 'POST' ? tail === 'abandon' ? 'custody.abandon' : tail === 'serial-claims' ? 'custody.claim' : null : null;
     if (installationPath) req.manufacturingAction = req.method === 'GET' ? 'installation.read' : req.method === 'POST' && ['record', 'losses', 'remove', 'finalize'].includes(tail) ? `installation.${tail === 'losses' ? 'record' : tail}` : null;
     if (!req.manufacturingAction) fail(404, 'NOT_FOUND');
@@ -102,6 +140,25 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
   installGenealogy(app, runtime, { tx, find, fail, fields, id });
   installManufacturingSerialCustody(app, runtime, { tx, find, fail, fields, id });
   installComponentInstallation(app, runtime, { tx, find, fail, fields, id });
+  app.post('/api/manufacturing/work-orders/:id/material-demand', async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey', 'engineeringId', 'engineeringVersion', 'revision']);
+    id(req.body.engineeringId);
+    const data = await tx(req, 'workOrder.materialDemandBound', async session => {
+      const wo = await find('manufacturingWorkOrders', req, req.params.id, session);
+      if (wo.version !== req.body.expectedVersion || wo.status !== 'PLANNED') fail(409, 'VERSION_CONFLICT');
+      const head = await find('engineeringPackages', req, req.body.engineeringId, session);
+      const revision = await c('engineeringRevisions').findOne({ ...req.filter, engineeringId: head._id, revision: req.body.revision }, { session });
+      if (!Number.isSafeInteger(req.body.engineeringVersion) || !Number.isSafeInteger(req.body.revision) || !revision?.purchasedMaterialsHash) fail(409, 'MISSING_PURCHASED_MATERIAL_AUTHORITY');
+      wo.materialDemandEngineering = { engineeringId: head._id, engineeringVersion: req.body.engineeringVersion, revision: req.body.revision, purchasedMaterialsHash: revision.purchasedMaterialsHash };
+      wo.version++; wo.updatedAt = new Date();
+      const changed = await c('manufacturingWorkOrders').replaceOne({ ...req.filter, _id: wo._id, version: req.body.expectedVersion }, wo, { session });
+      if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+      const plant = await c('plants').findOne({ tenantId: req.filter.tenantId, _id: req.filter.plantId, active: true }, { session });
+      await requireApprovedSalesOrderWorkOrderDemand(runtime.db, req.filter, wo._id, wo.version, req.body.revision, plant?.legalEntityId, session, true);
+      return wo;
+    });
+    res.json({ data });
+  });
   app.get('/api/manufacturing/work-orders', async (req, res) => {
     const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
     if (!Number.isInteger(limit) || limit < 1 || limit > 100 || (req.query.limit !== undefined && !/^[0-9]+$/.test(req.query.limit))) fail(400, 'INVALID_PAGINATION');

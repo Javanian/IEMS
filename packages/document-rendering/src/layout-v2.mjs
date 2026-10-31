@@ -3,7 +3,7 @@ import PDFDocument from 'pdfkit';
 export async function renderV2(snapshot) {
  const doc=new PDFDocument({size:'A4',margin:48,bufferPages:true,compress:true,info:{Title:`${snapshot.kind} ${snapshot.sourceId}`,Author:'IEMS',CreationDate:new Date('2000-01-01T00:00:00Z'),ModDate:new Date('2000-01-01T00:00:00Z')}});
  const chunks=[];const result=new Promise((resolve,reject)=>{doc.on('data',x=>chunks.push(x));doc.on('end',()=>resolve(Buffer.concat(chunks)));doc.on('error',reject);});
- const title=snapshot.kind==='purchaseOrder'?'PURCHASE ORDER':snapshot.kind.toUpperCase();
+ const title=({purchaseOrder:'PURCHASE ORDER',purchaseRequest:'PURCHASE REQUEST',catalogPurchaseOrder:'PURCHASE ORDER',catalogPurchaseRequest:'PURCHASE REQUEST'})[snapshot.kind]||snapshot.kind.toUpperCase();
  function header(){
   doc.font('Helvetica-Bold').fontSize(18).fillColor('#153449').text(title,48,48);
   doc.font('Helvetica').fontSize(10).fillColor('#111111').text(`Reference: ${snapshot.sourceId} / revision ${snapshot.sourceVersion}`,48,74,{width:499});
