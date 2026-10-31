@@ -2,15 +2,15 @@
   {
     "adapter": "shortage producer/claim",
     "path": "apps/portfolio-api/src/material-shortages.mjs",
-    "lastSourceCommit": "e97e7d7be5f0a960031f67d21bb28fd24b735740",
-    "blob": "48ea0ed3d1b5ed1e408c3d0a27f31c80b6251d3e",
+    "lastSourceCommit": "576a947d623ee12561d0a7819eb4bd3645021eba",
+    "blob": "75ac9cbb80a0fe8ec39ad33e85cdc82afdc53fa1",
     "acceptance": "NOT_RUN"
   },
   {
     "adapter": "customer WO shortage adapter",
     "path": "apps/portfolio-api/src/manufacturing.mjs",
-    "lastSourceCommit": "e97e7d7be5f0a960031f67d21bb28fd24b735740",
-    "blob": "6e52cc2d879fc140651bf0426f063b9ac578f7e6",
+    "lastSourceCommit": "576a947d623ee12561d0a7819eb4bd3645021eba",
+    "blob": "d9486406555e8de8bb1ea1eaebfd283222a790a8",
     "acceptance": "NOT_RUN"
   },
   {
@@ -30,43 +30,43 @@
   {
     "adapter": "historical document reader",
     "path": "apps/portfolio-api/src/documents.mjs",
-    "lastSourceCommit": "8abab18d360a3541a1d9e448ee85db264a8f4b7d",
-    "blob": "d22f96ebfc05d3aee22a87eb937765a0dde57517",
+    "lastSourceCommit": "576a947d623ee12561d0a7819eb4bd3645021eba",
+    "blob": "62d741e62a1e4048d372640d2d6df64973195603",
     "acceptance": "NOT_RUN"
   },
   {
     "adapter": "data v2 helper",
     "path": "packages/domain-events/snapshot-source.mjs",
-    "lastSourceCommit": "3e7ddc692253ed33d619ec45046787f8d8836010",
-    "blob": "b9c35d0e8bb17ba0e3458a359128b0c6aa86a820",
+    "lastSourceCommit": "414a4ea66ef09d083a4be16f9a46b6d6d95274a4",
+    "blob": "66af09a4750ce6a238e930f1abefe19363a64c11",
     "acceptance": "NOT_RUN"
   },
   {
     "adapter": "data bootstrap/reconciliation",
     "path": "apps/portfolio-api/src/reporting-source.mjs",
-    "lastSourceCommit": "3e7ddc692253ed33d619ec45046787f8d8836010",
-    "blob": "26966abafe7c9cf7357da86ab2bcc498a476543c",
+    "lastSourceCommit": "414a4ea66ef09d083a4be16f9a46b6d6d95274a4",
+    "blob": "e4845f6d50d89299d2913f257ffd736ffc805119",
     "acceptance": "NOT_RUN"
   },
   {
     "adapter": "commercial live order",
     "path": "apps/portfolio-api/src/commercial.mjs",
-    "lastSourceCommit": "2f87e23f4653a813498a29ea69748e4f4f07692a",
-    "blob": "2f29e76de646327e5f0a0f3df6c9cd8c52771f1b",
+    "lastSourceCommit": "576a947d623ee12561d0a7819eb4bd3645021eba",
+    "blob": "f9913b77ba3ccaa95f36ab6f3dba8115e75afb33",
     "acceptance": "NOT_RUN"
   },
   {
     "adapter": "fulfillment grouped settlement/shipment",
     "path": "apps/portfolio-api/src/fulfillment.mjs",
-    "lastSourceCommit": "7f7ed96996e0d6a6955a5d0db2b93116f5b3d090",
-    "blob": "512850d644f35f3cd7ce552a8e1dce25636796d8",
+    "lastSourceCommit": "576a947d623ee12561d0a7819eb4bd3645021eba",
+    "blob": "1cbc13dd67d007d1d2a58472f2231a7340590fe5",
     "acceptance": "NOT_RUN"
   },
   {
     "adapter": "purchased settlement/shipment",
     "path": "apps/portfolio-api/src/purchased-fulfillment.mjs",
-    "lastSourceCommit": "9bffc562fa1d24b4615ae0b5e437a0d9c4326041",
-    "blob": "cdd5aaa36986ae4ec01bc1ae4826babab44f6f4d",
+    "lastSourceCommit": "576a947d623ee12561d0a7819eb4bd3645021eba",
+    "blob": "df3cc09532560abfb062f702f0575847d39cbc56",
     "acceptance": "NOT_RUN"
   },
   {

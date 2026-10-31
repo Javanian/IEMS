@@ -264,7 +264,7 @@
     "ownerAgent": "3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a",
     "ownedFiles": "apps/portfolio-api/src/repair.mjs; new apps/portfolio-api/src/{quality,maintenance,repair-components}.mjs; apps/web/src/features/portfolio/{RepairWorkspace.jsx,repair.mjs}; new apps/web/src/features/portfolio/{QualityWorkspace,MaintenanceWorkspace}.jsx; packages/contracts/src/domains/engineering-repair/**",
     "source": "apps/portfolio-api/src/repair.mjs",
-    "gap": "Complete rejected scope, spare issue, removal/replacement/quarantine.",
+    "gap": "Complete rejected scope, spare issue, removal/replacement/quarantine. Canonical E02 mounted-API runner continuation assigned TPR-142; original implementation preserved.",
     "contract": "Manufacturing stock/graph -> custody, authorized scope/deposit/diagnosis/rejected scope, spare issue/removal/replacement/quarantine and warranty. Use predecessor stock/genealogy authority; extension adapter repair-components, no parallel ledger. Export QC hold/release, calibration/qualification and maintenance capacity gates for fulfillment transaction.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
@@ -415,7 +415,7 @@
     "contract": "Foundation transaction/outbox -> versioned envelope {eventId,schemaVersion,tenantId,plantId,aggregateId,aggregateVersion,type,occurredAt,payload}, decimal strings/UTC/stable IDs/delete tombstones, at-least-once delivery/consumer dedup. Raw manifests/checksums -> DuckDB/dbt/FastAPI reporting/Flink/Iceberg/PySpark/Airflow quality gates. Reporting PostgreSQL is isolated projection, not business authority. Publish READ-CONTRACT.md.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "32c78a979881063f0f939e6efb4a529438944fcc",
+    "integratedHandoff": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -436,7 +436,7 @@
     "contract": "Foundation transaction/outbox -> versioned envelope {eventId,schemaVersion,tenantId,plantId,aggregateId,aggregateVersion,type,occurredAt,payload}, decimal strings/UTC/stable IDs/delete tombstones, at-least-once delivery/consumer dedup. Raw manifests/checksums -> DuckDB/dbt/FastAPI reporting/Flink/Iceberg/PySpark/Airflow quality gates. Reporting PostgreSQL is isolated projection, not business authority. Publish READ-CONTRACT.md.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "32c78a979881063f0f939e6efb4a529438944fcc",
+    "integratedHandoff": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -457,7 +457,7 @@
     "contract": "Foundation transaction/outbox -> versioned envelope {eventId,schemaVersion,tenantId,plantId,aggregateId,aggregateVersion,type,occurredAt,payload}, decimal strings/UTC/stable IDs/delete tombstones, at-least-once delivery/consumer dedup. Raw manifests/checksums -> DuckDB/dbt/FastAPI reporting/Flink/Iceberg/PySpark/Airflow quality gates. Reporting PostgreSQL is isolated projection, not business authority. Publish READ-CONTRACT.md.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "32c78a979881063f0f939e6efb4a529438944fcc",
+    "integratedHandoff": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -478,7 +478,7 @@
     "contract": "Foundation transaction/outbox -> versioned envelope {eventId,schemaVersion,tenantId,plantId,aggregateId,aggregateVersion,type,occurredAt,payload}, decimal strings/UTC/stable IDs/delete tombstones, at-least-once delivery/consumer dedup. Raw manifests/checksums -> DuckDB/dbt/FastAPI reporting/Flink/Iceberg/PySpark/Airflow quality gates. Reporting PostgreSQL is isolated projection, not business authority. Publish READ-CONTRACT.md.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "32c78a979881063f0f939e6efb4a529438944fcc",
+    "integratedHandoff": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -499,7 +499,7 @@
     "contract": "Foundation transaction/outbox -> versioned envelope {eventId,schemaVersion,tenantId,plantId,aggregateId,aggregateVersion,type,occurredAt,payload}, decimal strings/UTC/stable IDs/delete tombstones, at-least-once delivery/consumer dedup. Raw manifests/checksums -> DuckDB/dbt/FastAPI reporting/Flink/Iceberg/PySpark/Airflow quality gates. Reporting PostgreSQL is isolated projection, not business authority. Publish READ-CONTRACT.md.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "32c78a979881063f0f939e6efb4a529438944fcc",
+    "integratedHandoff": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -520,7 +520,7 @@
     "contract": "Foundation transaction/outbox -> versioned envelope {eventId,schemaVersion,tenantId,plantId,aggregateId,aggregateVersion,type,occurredAt,payload}, decimal strings/UTC/stable IDs/delete tombstones, at-least-once delivery/consumer dedup. Raw manifests/checksums -> DuckDB/dbt/FastAPI reporting/Flink/Iceberg/PySpark/Airflow quality gates. Reporting PostgreSQL is isolated projection, not business authority. Publish READ-CONTRACT.md.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "32c78a979881063f0f939e6efb4a529438944fcc",
+    "integratedHandoff": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -541,7 +541,7 @@
     "contract": "Foundation transaction/outbox -> versioned envelope {eventId,schemaVersion,tenantId,plantId,aggregateId,aggregateVersion,type,occurredAt,payload}, decimal strings/UTC/stable IDs/delete tombstones, at-least-once delivery/consumer dedup. Raw manifests/checksums -> DuckDB/dbt/FastAPI reporting/Flink/Iceberg/PySpark/Airflow quality gates. Reporting PostgreSQL is isolated projection, not business authority. Publish READ-CONTRACT.md.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "32c78a979881063f0f939e6efb4a529438944fcc",
+    "integratedHandoff": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -688,7 +688,7 @@
     "contract": "Data/finance/platform/AI -> synthetic owned onboarding/migration rehearsal, backup/restore/runbooks, offline least-privilege AWS/Atlas/MSK/S3/Glue/Redshift config and tenant usage/entitlement/export/delete/restore. SaaS billing distinct from tenant invoices. Databricks optional; no spend/apply/real migration/user service stop. Separate local/simulated/external.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "03debf5e487749cacfea88f4b38e32b8ab154a11",
+    "integratedHandoff": "576a947d623ee12561d0a7819eb4bd3645021eba",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -709,7 +709,7 @@
     "contract": "Data/finance/platform/AI -> synthetic owned onboarding/migration rehearsal, backup/restore/runbooks, offline least-privilege AWS/Atlas/MSK/S3/Glue/Redshift config and tenant usage/entitlement/export/delete/restore. SaaS billing distinct from tenant invoices. Databricks optional; no spend/apply/real migration/user service stop. Separate local/simulated/external.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "03debf5e487749cacfea88f4b38e32b8ab154a11",
+    "integratedHandoff": "576a947d623ee12561d0a7819eb4bd3645021eba",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -730,7 +730,7 @@
     "contract": "Data/finance/platform/AI -> synthetic owned onboarding/migration rehearsal, backup/restore/runbooks, offline least-privilege AWS/Atlas/MSK/S3/Glue/Redshift config and tenant usage/entitlement/export/delete/restore. SaaS billing distinct from tenant invoices. Databricks optional; no spend/apply/real migration/user service stop. Separate local/simulated/external.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "03debf5e487749cacfea88f4b38e32b8ab154a11",
+    "integratedHandoff": "576a947d623ee12561d0a7819eb4bd3645021eba",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -751,7 +751,7 @@
     "contract": "Data/finance/platform/AI -> synthetic owned onboarding/migration rehearsal, backup/restore/runbooks, offline least-privilege AWS/Atlas/MSK/S3/Glue/Redshift config and tenant usage/entitlement/export/delete/restore. SaaS billing distinct from tenant invoices. Databricks optional; no spend/apply/real migration/user service stop. Separate local/simulated/external.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "03debf5e487749cacfea88f4b38e32b8ab154a11",
+    "integratedHandoff": "576a947d623ee12561d0a7819eb4bd3645021eba",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
@@ -789,12 +789,12 @@
     "ownerAgent": "95296377-c20c-45c1-9119-06b2089fea8e",
     "ownedFiles": "new ops/{pilot,recovery}/**; new infra/terraform/pilot/**; new infra/cloud/**; new packages/tenant-lifecycle/**; new apps/portfolio-api/src/tenant-lifecycle.mjs; new apps/web/src/features/portfolio/TenantLifecycleWorkspace.jsx; new .github/workflows/iems-cloud-offline.yml",
     "source": "new ops/{pilot,recovery}/**; new infra/terraform/pilot/**; new infra/cloud/**; new packages/tenant-lifecycle/**; new apps/portfolio-api/src/tenant-lifecycle.mjs; new apps/web/src/features/portfolio/TenantLifecycleWorkspace.jsx; new .github/workflows/iems-cloud-offline.yml",
-    "gap": "No complete new-platform vertical found in accepted tree inventory; implement roadmap contract; legacy tools are inputs, not completion evidence.",
+    "gap": "Core local existing-receipt coverage continuation assigned to TPR-148 v6; remaining nonreceipted local contracts must be inventoried. Whole feature not complete.",
     "contract": "Data/finance/platform/AI -> synthetic owned onboarding/migration rehearsal, backup/restore/runbooks, offline least-privilege AWS/Atlas/MSK/S3/Glue/Redshift config and tenant usage/entitlement/export/delete/restore. SaaS billing distinct from tenant invoices. Databricks optional; no spend/apply/real migration/user service stop. Separate local/simulated/external.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "03debf5e487749cacfea88f4b38e32b8ab154a11",
-    "implementationHandoff": "IMPLEMENTED_QA_PENDING",
+    "integratedHandoff": "576a947d623ee12561d0a7819eb4bd3645021eba",
+    "implementationHandoff": "PARTIAL_RECEIPTED_COMMANDS_V1_QA_PENDING",
     "acceptance": "NOT_RUN"
   },
   {
@@ -814,7 +814,7 @@
     "contract": "Data/finance/platform/AI -> synthetic owned onboarding/migration rehearsal, backup/restore/runbooks, offline least-privilege AWS/Atlas/MSK/S3/Glue/Redshift config and tenant usage/entitlement/export/delete/restore. SaaS billing distinct from tenant invoices. Databricks optional; no spend/apply/real migration/user service stop. Separate local/simulated/external.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "03debf5e487749cacfea88f4b38e32b8ab154a11",
+    "integratedHandoff": "576a947d623ee12561d0a7819eb4bd3645021eba",
     "implementationHandoff": "EXTERNAL_DEPENDENCY; optional Databricks remains PLANNED",
     "acceptance": "NOT_RUN"
   },
@@ -1003,7 +1003,7 @@
     "contract": "Foundation transaction/outbox -> versioned envelope {eventId,schemaVersion,tenantId,plantId,aggregateId,aggregateVersion,type,occurredAt,payload}, decimal strings/UTC/stable IDs/delete tombstones, at-least-once delivery/consumer dedup. Raw manifests/checksums -> DuckDB/dbt/FastAPI reporting/Flink/Iceberg/PySpark/Airflow quality gates. Reporting PostgreSQL is isolated projection, not business authority. Publish READ-CONTRACT.md.",
     "reviewer": "TPR-150 then TPR-152",
     "baseSha": "0ad4248af46adad2762763438efb27aaace932b4",
-    "integratedHandoff": "32c78a979881063f0f939e6efb4a529438944fcc",
+    "integratedHandoff": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
     "implementationHandoff": "IMPLEMENTED_QA_PENDING",
     "acceptance": "NOT_RUN"
   },

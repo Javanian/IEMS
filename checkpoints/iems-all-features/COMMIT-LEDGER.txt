@@ -171,3 +171,11 @@ b073dd3984793a98026c3d5851d1f4fe0dc17668|Merge commit 'c8f1fcfe153598ae3ac7436ed
 130746824150a8a9790789a3484c1b8b16a76e15|Merge commit 'a517790418d59488d0f8fb37ad81ad4a95cd2479' into program/iems-all-features-20261030
 d74fb5ffd4878f413caad9bfd50ba4982358bf1a|Merge commit 'ee687f3b041f86195d299fff13e9bd2550228e5b' into program/iems-all-features-20261030
 85a852384f57298c1759967c335fe45e2032edfe|Merge commit '03debf5e487749cacfea88f4b38e32b8ab154a11' into program/iems-all-features-20261030
+1027e6dab7ca70001181406113db19fc2bc005da|merge: incorporate fulfillment prerequisite for TPR-146 source parity
+c0fff1c2b6504d662256dd069e84d207ab51f78f|fix(PLAT-020): reconcile typed shipment and settlement bootstrap parity
+a6f76c7d1b81bde1375f48c203037ffdd411eece|feat(PLAT-040): assemble feature runtime mounts and honest integration evidence
+3b22b1679915f900a685d02689c9a04f0598f1de|Merge commit 'c0fff1c2b6504d662256dd069e84d207ab51f78f' into program/iems-all-features-20261030
+414a4ea66ef09d083a4be16f9a46b6d6d95274a4|fix(PLAT-020): authorize ordered snapshot delivery and sealed coverage replay
+f8706b26d2b40fe941e480685c1a94634bc88f00|feat(PLAT-021): bridge private synthetic snapshots to existing raw Parquet API
+55766c6a87e5b81a2b9f267a451b3c2cce2d242f|feat(PLAT-048): compose private reporting lifecycle and immutable local extraction
+576a947d623ee12561d0a7819eb4bd3645021eba|feat(PLAT-038): wire bounded receipt admission and registered tenant archive port
