@@ -4,6 +4,7 @@ import { requireUnboundSalesOrder } from './quote-catalog.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { businessNow } from './business-clock.mjs';
+import { validateRepairReturnShipment, repairDeliveryReferences } from './repair-return.mjs';
 
 export const deliveryActions = ['fulfillment.deliver'];
 export const deliveryRoles = { fulfillmentDelivery: ['fulfillment.read', 'fulfillment.deliver'] };
@@ -76,6 +77,8 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
   async function source(req, session) {
     const shipment = await c('fulfillmentShipments').findOne({ ...req.filter, _id: id(req.params.id) }, { session });
     if (!shipment) fail(404, 'NOT_FOUND');
+    if (shipment.sourceKind === 'CUSTOMER_ASSET_RETURN') return validateRepairReturnShipment(db, req.filter, shipment, session);
+    if (shipment.schema === 'REPAIR_RETURN_SHIPMENT_V1') invalid();
     const purchased = await validatePurchasedShipment(db, req.filter, shipment._id, session);
     if (purchased) return { shipment, serials: purchased.serials, sourceHash: hash(shipmentSemantic(shipment)) };
     if (shipment.status !== 'SHIPPED' || !positive(shipment.version) || !Array.isArray(shipment.sources) || !shipment.sources.length || shipment.stockMovementCount !== shipment.sources.length || new Set(shipment.sources.map(row => row.sourceId)).size !== shipment.sources.length) invalid();
@@ -101,9 +104,10 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
     return { shipment, serials: serials.sort(), sourceHash: await deliverySourceHash(db, req.filter, shipment, session) };
   }
   const state = (req, original, session) => readDeliveryState(db, req.filter, original, session);
-  const view = (original, current) => ({ shipmentId: original.shipment._id, shipmentVersion: original.shipment.version, shipmentReference: original.shipment.reference, salesOrderId: original.shipment.salesOrderId, accountId: original.shipment.accountId, shipmentStatus: original.shipment.status, sourceHash: original.sourceHash, version: current.head?.version || 1, status: current.head?.status || 'NOT_DELIVERED', shippedQuantity: decimal(units(original.shipment.quantity)), deliveredQuantity: current.head?.deliveredQuantity || '0', remainingQuantity: decimal(units(original.shipment.quantity) - units(current.head?.deliveredQuantity || '0')), uom: original.shipment.uom, unserializedQuantity: decimal(units(original.shipment.quantity) - BigInt(original.serials.length) * 1000000n), remainingUnserializedQuantity: decimal(units(original.shipment.quantity) - units(current.head?.deliveredQuantity || '0') - BigInt(original.serials.length - (current.head?.serials?.length || 0)) * 1000000n), serials: original.serials, deliveredSerials: current.head?.serials || [], remainingSerials: original.serials.filter(serial => !current.head?.serials.includes(serial)), confirmationCount: current.confirmations.length, canConfirm: current.head?.status !== 'DELIVERED' && current.confirmations.length < 100, confirmations: current.confirmations.map(row => without(row, ['tenantId', 'plantId'])), authorityHash: current.head?.authorityHash || null, evidenceMode: 'OPERATOR_RECORDED' });
+  const view = (original, current) => ({ ...repairDeliveryReferences(original, current), shipmentId: original.shipment._id, shipmentVersion: original.shipment.version, shipmentReference: original.shipment.reference, salesOrderId: original.shipment.salesOrderId, accountId: original.shipment.accountId, shipmentStatus: original.shipment.status, sourceHash: original.sourceHash, version: current.head?.version || 1, status: current.head?.status || 'NOT_DELIVERED', shippedQuantity: decimal(units(original.shipment.quantity)), deliveredQuantity: current.head?.deliveredQuantity || '0', remainingQuantity: decimal(units(original.shipment.quantity) - units(current.head?.deliveredQuantity || '0')), uom: original.shipment.uom, unserializedQuantity: decimal(units(original.shipment.quantity) - BigInt(original.serials.length) * 1000000n), remainingUnserializedQuantity: decimal(units(original.shipment.quantity) - units(current.head?.deliveredQuantity || '0') - BigInt(original.serials.length - (current.head?.serials?.length || 0)) * 1000000n), serials: original.serials, deliveredSerials: current.head?.serials || [], remainingSerials: original.serials.filter(serial => !current.head?.serials.includes(serial)), confirmationCount: current.confirmations.length, canConfirm: current.head?.status !== 'DELIVERED' && current.confirmations.length < 100, confirmations: current.confirmations.map(row => without(row, ['tenantId', 'plantId'])), authorityHash: current.head?.authorityHash || null, evidenceMode: 'OPERATOR_RECORDED' });
   const read = async effect => { const session = runtime.client.startSession(); try { return await session.withTransaction(() => effect(session), { readConcern: { level: 'snapshot' }, readPreference: 'primary' }); } finally { await session.endSession(); } };
   async function returns(req, original, delivered, session) {
+    if (original.shipment.sourceKind === 'CUSTOMER_ASSET_RETURN') fail(409, 'CUSTOMER_ASSET_RETURN_UNSUPPORTED');
     const rows = await c('fulfillmentReturns').find({ ...req.filter, shipmentId: original.shipment._id }, { session }).sort({ ordinal: 1 }).limit(101).toArray();
     if (rows.length > 100) invalid();
     let returned = 0n; const serials = [];
