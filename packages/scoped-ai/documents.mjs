@@ -1,5 +1,5 @@
 import { boundedTransaction, createCommandExecutor, contentHash } from '../tenant-foundation/commands.mjs';
-import { fail, uuid, scopeTarget } from './indexing.mjs';
+import { fail, uuid, scopeTarget, sourceShape } from './indexing.mjs';
 import { validateApprovedOrderReference } from './issued-documents.mjs';
 
 export const documentRoles = { aiDocumentAdmin: ['ai.document.manage', 'ai.document.read', 'ai.index', 'ai.retrieve'],
@@ -37,7 +37,28 @@ export function createAiDocuments({ client, db, foundation, saasAdmission, issue
     if(observation)await observationGrant(scope,grant);
     return { resourceId: row._id, revision: row.revision, aclRevision: row.aclRevision, title: row.title, chunks: row.chunks };
   };
-  const source=Object.freeze({readAuthorized:input=>readSource(input,false),readSnapshot:input=>readSource(input,true)});
+  const cleanupMetadata=async({scope,grant,resourceId,session},observation)=>{
+    if(!session?.inTransaction()||session.client!==client||db.client!==client||!uuid(resourceId))fail('SCOPE_DENIED',403);
+    if(scope?.tenantId!==grant?.tenantId||scope?.selectedPlantId!==grant?.plantId)fail('SCOPE_DENIED',403);
+    if(observation)await observationGrant(scope,grant);
+    else {const fresh=await foundation.authorizeInTransaction(scope,{tenantId:grant?.tenantId,plantId:grant?.plantId,action:'ai.index'},{session});if(['tenantId','plantId','legalEntityId','userId','membershipId','membershipVersion'].some(key=>grant?.[key]!==fresh[key]))fail('SCOPE_DENIED',403);}
+    const filter={...filterFor(grant),_id:resourceId,allowedUserIds:grant.userId},row=await documents.findOne(filter,{session});
+    if(!row)fail('AI_DOCUMENT_NOT_FOUND',404);
+    const value=sourceShape({resourceId:row._id,revision:row.revision,aclRevision:row.aclRevision,title:row.title,chunks:row.chunks});
+    if(typeof row.active!=='boolean'||!['MANUAL_TEXT','COMMERCIAL_APPROVED_REVISION'].includes(row.provenance)||row.contentHash!==contentHash({title:row.title,chunks:row.chunks}))fail('AI_DOCUMENT_CORRUPT',409);
+    let issued=null;
+    if(row.provenance==='COMMERCIAL_APPROVED_REVISION'){
+      if(!row.sourceReference)fail('AI_DOCUMENT_CORRUPT',409);const port=observation?'readCleanupSnapshot':'readCleanupMetadata';if(typeof issuedSource?.[port]!=='function')fail('AI_ISSUED_CLEANUP_SOURCE_UNAVAILABLE',503);
+      issued=await issuedSource[port]({scope,grant,reference:row.sourceReference,session});if(issued.contentHash!==row.contentHash||contentHash(issued.reference)!==contentHash(row.sourceReference))fail('AI_DOCUMENT_CHANGED',409);
+    }else if(row.sourceReference!==null)fail('AI_DOCUMENT_CORRUPT',409);
+    const projection={schema:'AI_CLEANUP_METADATA_V1',resourceId:row._id,revision:row.revision,aclRevision:row.aclRevision,tenantId:grant.tenantId,plantId:grant.plantId,legalEntityId:grant.legalEntityId,userId:grant.userId,membershipId:grant.membershipId,membershipVersion:grant.membershipVersion,
+      active:row.active,contentHash:row.contentHash,canonicalSourceHash:contentHash(value),provenance:row.provenance,sourceReference:row.sourceReference,currentSourceRevision:issued?.currentDocumentRevision??null};
+    if(observation)await observationGrant(scope,grant);
+    else if((await documents.updateOne({...filter,active:row.active,revision:row.revision,aclRevision:row.aclRevision},{$inc:{readFence:1}},{session})).matchedCount!==1)fail('AI_DOCUMENT_CHANGED',409);
+    return {...projection,cleanupMetadataHash:contentHash(projection)};
+  };
+  const source=Object.freeze({readAuthorized:input=>readSource(input,false),readSnapshot:input=>readSource(input,true),
+    readCleanupMetadata:input=>cleanupMetadata(input,false),readCleanupSnapshot:input=>cleanupMetadata(input,true)});
   return Object.freeze({ source,
     async initialize() {
       await commands.initialize();

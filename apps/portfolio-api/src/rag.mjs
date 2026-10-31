@@ -38,6 +38,11 @@ export function installRag(app, rag) {
     if (!rag.index) fail('AI_PROVIDER_UNAVAILABLE', 503);
     respond(res, await rag.index.revoke(req.scope, { ...body, plantId, resourceId }));
   });
+  app.get('/api/ai/documents/:id/index/cleanup', async (req, res) => {
+    const plantId = plant(req), resourceId = resource(req);
+    if (!rag.index) fail('AI_PROVIDER_UNAVAILABLE', 503);
+    respond(res, await rag.index.cleanupStatus(req.scope, { plantId, resourceId }));
+  });
   app.post('/api/ai/documents/:id/index/cleanup', async (req, res) => {
     const body = input(req, ['key', 'expectedRevision']);
     const plantId = plant(req), resourceId = resource(req);

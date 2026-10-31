@@ -15,13 +15,23 @@ export function createManagedIndexBoundary({ client, db, foundation, saasAdmissi
   const finalFilter = (grant, key) => ({ tenantId: grant.tenantId, plantId: grant.plantId, userId: grant.userId, action: 'ai.index', key });
   const indexFilter = (grant, resourceId) => ({ tenantId: grant.tenantId, plantId: grant.plantId, resourceId });
   const authorize = (scope, plantId, session) => foundation.authorizeInTransaction(scope, { tenantId: scope?.tenantId, plantId, action: 'ai.index' }, { session });
+  const cleanupVersion='CLEANUP_METADATA_V1';
+  const metadataKeys=['schema','resourceId','revision','aclRevision','tenantId','plantId','legalEntityId','userId','membershipId','membershipVersion','active','contentHash','canonicalSourceHash','provenance','sourceReference','currentSourceRevision','cleanupMetadataHash'].sort().join(',');
+  async function cleanupAuthority(scope,grant,resourceId,session,observation=false){
+    const port=observation?'readCleanupSnapshot':'readCleanupMetadata';if(typeof source[port]!=='function')fail('AI_CLEANUP_SOURCE_PORT_REQUIRED',503);const value=await source[port]({scope,grant,resourceId,session});
+    if(!value||Object.getPrototypeOf(value)!==Object.prototype||Object.keys(value).sort().join(',')!==metadataKeys||value.schema!=='AI_CLEANUP_METADATA_V1'||value.resourceId!==resourceId||['tenantId','plantId','legalEntityId','userId','membershipId','membershipVersion'].some(key=>value[key]!==grant[key])||!Number.isSafeInteger(value.revision)||value.revision<1||!Number.isSafeInteger(value.aclRevision)||value.aclRevision<1||typeof value.active!=='boolean'||!['MANUAL_TEXT','COMMERCIAL_APPROVED_REVISION'].includes(value.provenance)||![value.contentHash,value.canonicalSourceHash,value.cleanupMetadataHash].every(hash=>typeof hash==='string'&&/^[a-f0-9]{64}$/.test(hash)))fail('AI_CLEANUP_METADATA_INVALID');
+    const{cleanupMetadataHash,...projection}=value;if(contentHash(projection)!==cleanupMetadataHash)fail('AI_CLEANUP_METADATA_INVALID');return value;
+  }
+  const usesCleanupMetadata=command=>command.kind==='ai.index.cleanup'&&command.plan.cleanupPlanVersion===cleanupVersion;
+  const currentAuthority=(scope,grant,command,session,observation=false)=>usesCleanupMetadata(command)?cleanupAuthority(scope,grant,command.plan.resourceId,session,observation):observation?readSnapshot({scope,grant,resourceId:command.plan.resourceId,session}):readSource(source,grant,command.plan.resourceId,session,scope);
   const compareSource = (command, current) => {
     if (command.plan.providerId !== provider.id || command.plan.model !== provider.model || command.plan.dimensions !== provider.dimensions) fail('AI_INDEX_PROVIDER_CHANGED');
+    if(usesCleanupMetadata(command)){if(current.cleanupMetadataHash!==command.plan.cleanupMetadataHash)fail('AI_CLEANUP_SOURCE_CHANGED');return;}
     if (current.hash !== command.plan.sourceHash || current.revision !== command.plan.sourceRevision || current.aclRevision !== command.plan.aclRevision) fail('AI_SOURCE_CHANGED');
   };
   const origin = scope => ({ context: { scope }, authorize: async ({ command, session, observation }) => {
     const grant = await authorize(scope, command.plantId, session);
-    compareSource(command, await readSource(source, grant, command.plan.resourceId, session, scope));
+    compareSource(command, await currentAuthority(scope,grant,command,session));
     if (!observation) await saasAdmission?.authorize(scope, { plantId: command.plantId, session });
     return grant;
   } });
@@ -30,11 +40,18 @@ export function createManagedIndexBoundary({ client, db, foundation, saasAdmissi
     if (!row?.phaseResult?.receiptId || row.phaseResult.state !== 'COMPLETED') fail('AI_PHASE_DEPENDENCY_PENDING');
     return row.phaseResult;
   };
+  const indexProof=row=>contentHash(Object.fromEntries(['revision','generation','model','dimensions','active','points','retiredPoints','sourceHash','sourceRevision','aclRevision'].map(key=>[key,row[key]??null])));
+  async function cleanupIndex(command,session){
+    const row=await indexes.findOne(indexFilter(command,command.plan.resourceId),{session});
+    if(!row||row.revision!==command.plan.expectedRevision||row.generation!==command.plan.indexGeneration||usesCleanupMetadata(command)&&indexProof(row)!==command.plan.indexProofHash)fail('REVISION_CONFLICT');
+    if(row.active&&row.points.some(id=>command.plan.retiredPointIds.includes(id)))fail('AI_DELETE_PUBLISHED_POINT_DENIED');
+    return row;
+  }
   async function orphanProof(grant, current, index, old, attempt, session) {
     if (old.ownerNamespace !== 'AI_INDEX_ROOT_V1' || old.kind !== 'ai.index.rebuild' || old.ownerIdentityHash !== contentHash(old.owner.identity) ||
         old.owner.identity.userId !== grant.userId || old.actor.membershipId !== grant.membershipId || old.plan.providerId !== provider.id ||
         old.plan.resourceId !== current.resourceId || old.plantId !== grant.plantId || old.legalEntityId !== grant.legalEntityId ||
-        !(old.plan.expectedRevision < index.revision || current.revision > old.plan.sourceRevision && current.hash !== old.plan.sourceHash)) return null;
+        !(old.plan.expectedRevision < index.revision || current.revision > old.plan.sourceRevision && (current.hash??current.canonicalSourceHash)!==old.plan.sourceHash || current.currentSourceRevision&&current.sourceReference&&current.currentSourceRevision>current.sourceReference.documentRevision&&current.canonicalSourceHash===old.plan.sourceHash)) return null;
     const observed = await provider.observe(attempt, { session }); if (!observed) return null;
     const proof = verifiedLocalProviderObservation(observed, attempt);
     if (proof.result.state !== 'COMPLETED' || proof.result.operation !== 'UPSERT' || effectHash(proof.result.pointIds) !== effectHash(old.plan.pointIds) ||
@@ -43,6 +60,8 @@ export function createManagedIndexBoundary({ client, db, foundation, saasAdmissi
   }
   async function retiredSelection(grant, current, index, session) {
     const ids = [...new Set([...(index.retiredPoints ?? []), ...(!index.active ? index.points : [])])].slice(0, 100), orphanBindings = [];
+    if(ids.some(id=>typeof id!=='string'||!/^[a-f0-9-]{36}$/i.test(id))||index.active&&ids.some(id=>index.points.includes(id)))fail('AI_RETIRED_POINT_INVALID');
+    await provider.existingPointIds(ids,{tenantId:grant.tenantId,plantId:grant.plantId,resourceId:current.resourceId,session});
     if (ids.length < 100) {
       const previous = await controls.find({ tenantId: grant.tenantId, plantId: grant.plantId, legalEntityId: grant.legalEntityId,
         'actor.userId': grant.userId, kind: 'ai.index.rebuild', 'plan.resourceId': current.resourceId, 'plan.providerId': provider.id }, { session }).sort({ createdAt: 1, _id: 1 }).limit(100).toArray();
@@ -60,7 +79,7 @@ export function createManagedIndexBoundary({ client, db, foundation, saasAdmissi
   }
   async function sourceFor(command, scope) {
     return tx(async session => {
-      const grant = await authorize(scope, command.plantId, session), current = await readSource(source, grant, command.plan.resourceId, session, scope);
+      const grant = await authorize(scope, command.plantId, session), current = await currentAuthority(scope,grant,command,session);
       compareSource(command, current); return current;
     });
   }
@@ -97,22 +116,24 @@ export function createManagedIndexBoundary({ client, db, foundation, saasAdmissi
       adapterId: 'local.ai-index', providerId: provider.id, statusAction: 'ai.index',
       phases: () => operation === 'rebuild' ? ['EMBED', 'UPSERT'] : ['DELETE'],
       rebind: async ({ scope }) => origin(scope),
-      readStatus: async ({ scope, grant, command, session }) => { compareSource(command, await readSnapshot({ scope, grant, resourceId: command.plan.resourceId, session })); },
+      readStatus: async ({ scope, grant, command, session }) => { compareSource(command, await currentAuthority(scope,grant,command,session,true)); },
       observe: ({ attempt, session }) => provider.observe(attempt, { session }),
       stopProvider: input => provider.stopAndDrain(input), verifyProviderBarrier: input => provider.verifyBarrier(input),
       prepare: async ({ command, phase, session }) => {
         if (phase === 'UPSERT') await phaseReceipt(command, 'EMBED', session);
+        if(operation==='cleanup'&&usesCleanupMetadata(command))await cleanupIndex(command,session);
         return { providerId: provider.id, resourceId: command.plan.resourceId, sourceHash: command.plan.sourceHash,
           ...(phase === 'DELETE' ? { pointIds: command.plan.retiredPointIds } : { pointIds: command.plan.pointIds, chunksHash: command.plan.chunksHash, generation: command.plan.generation }) };
       },
       beforeInvoke: async ({ command, attempt, session }) => {
         if (attempt.phase === 'UPSERT') await phaseReceipt(command, 'EMBED', session);
+        if(operation==='cleanup'&&usesCleanupMetadata(command))await cleanupIndex(command,session);
         const row = await indexes.findOne(indexFilter(command, command.plan.resourceId), { session });
         if ((row?.revision ?? 0) !== command.plan.expectedRevision || (operation === 'cleanup' && row?.generation !== command.plan.indexGeneration)) fail('REVISION_CONFLICT');
         if (operation === 'cleanup') for (const binding of command.plan.orphanBindings ?? []) {
           const old = await controls.findOne({ _id: binding.commandId, tenantId: command.tenantId }, { session }), oldAttempt = await attempts.findOne({ _id: binding.attemptId, tenantId: command.tenantId, commandId: binding.commandId }, { session });
           if (!old || !oldAttempt) fail('AI_ORPHAN_PROOF_CHANGED');
-          const proof = await orphanProof({ ...command, userId: command.actor.userId, membershipId: command.actor.membershipId }, { resourceId: command.plan.resourceId, revision: command.plan.sourceRevision, hash: command.plan.sourceHash }, row, old, oldAttempt, session);
+          const proof = await orphanProof({ ...command, userId: command.actor.userId, membershipId: command.actor.membershipId }, usesCleanupMetadata(command)?command.plan.cleanupMetadata:{ resourceId: command.plan.resourceId, revision: command.plan.sourceRevision, hash: command.plan.sourceHash }, row, old, oldAttempt, session);
           if (!proof || proof.receiptId !== binding.receiptId || proof.proofHash !== binding.proofHash || binding.pointIds.some(id => !proof.pointIds.includes(id))) fail('AI_ORPHAN_PROOF_CHANGED');
         }
       },
@@ -139,6 +160,7 @@ export function createManagedIndexBoundary({ client, db, foundation, saasAdmissi
           return outcome;
         }
         const grant = await authorize(context.scope, command.plantId, session), input = { resourceId: command.plan.resourceId };
+        if(operation==='cleanup'&&usesCleanupMetadata(command))await cleanupIndex(command,session);
         const output = operation === 'rebuild'
           ? await publishRebuild({ session, grant, expectedRevision: command.plan.expectedRevision, scope: context.scope, input,
             snapshot: { source: { hash: command.plan.sourceHash } }, generation: command.plan.generation, points: command.plan.pointIds.map(id => ({ id })) })
@@ -155,7 +177,7 @@ export function createManagedIndexBoundary({ client, db, foundation, saasAdmissi
       const accepted = await tx(async session => {
         const grant = await authorize(scope, input.plantId, session), identity = identityFor(grant, input, kind), prior = await controls.findOne(rootFilter(identity), { session });
         if (prior && prior.payloadHash !== payloadHash) fail('IDEMPOTENCY_CONFLICT');
-        const current = await readSource(source, grant, input.resourceId, session, scope);
+        const metadata=operation==='cleanup'&&(!prior||prior.plan.cleanupPlanVersion===cleanupVersion),current=metadata?await cleanupAuthority(scope,grant,input.resourceId,session):await readSource(source, grant, input.resourceId, session, scope);
         let plan = prior?.plan;
         const final = await results.findOne(finalFilter(grant, input.key), { session });
         if (final) {
@@ -171,9 +193,9 @@ export function createManagedIndexBoundary({ client, db, foundation, saasAdmissi
           const descriptor = { action: 'ai.index', aggregateId: input.resourceId, key: input.key, expectedRevision: input.expectedRevision, input: finalInput };
           descriptor.inputHash = contentHash({ action: descriptor.action, aggregateId: descriptor.aggregateId, expectedRevision: descriptor.expectedRevision, input: finalInput });
           plan = { resourceId: input.resourceId, providerId: provider.id, model: provider.model, dimensions: provider.dimensions,
-            sourceHash: current.hash, sourceRevision: current.revision, aclRevision: current.aclRevision, expectedRevision: input.expectedRevision,
+            sourceHash: current.hash??current.canonicalSourceHash, sourceRevision: current.revision, aclRevision: current.aclRevision, expectedRevision: input.expectedRevision,
             finalDescriptor: descriptor, ...(operation === 'rebuild' ? { chunksHash: effectHash(current.chunks), generation: randomUUID(), pointIds: current.chunks.map(() => randomUUID()) }
-              : { indexGeneration: row.generation, ...await retiredSelection(grant, current, row, session) }) };
+              : {cleanupPlanVersion:cleanupVersion,cleanupMetadata:current,cleanupMetadataHash:current.cleanupMetadataHash,indexGeneration: row.generation,indexProofHash:indexProof(row), ...await retiredSelection(grant, current, row, session) }) };
         }
         const id = prior?._id ?? randomUUID(), command = await effects.accept({ session, id, grant, actor: { type: 'USER', userId: grant.userId, membershipId: grant.membershipId },
           owner: { namespace: 'AI_INDEX_ROOT_V1', identity, hashField: 'payloadHash', payloadHash }, kind, plan,
@@ -187,6 +209,11 @@ export function createManagedIndexBoundary({ client, db, foundation, saasAdmissi
         if (!final || final.commandControlId !== accepted.command._id) fail('AI_FINAL_RECEIPT_BINDING_REQUIRED');
         return final.response;
       });
+    },
+    async cleanupStatus(scope,input){
+      const target={tenantId:scope?.tenantId,plantId:input.plantId,action:'ai.index'},grant=await foundation.authorize(scope,target);
+      const result=await tx(async session=>{const metadata=await cleanupAuthority(scope,grant,input.resourceId,session,true),row=await indexes.findOne(indexFilter(grant,input.resourceId),{session});return{schema:'AI_INDEX_CLEANUP_STATUS_V1',resourceId:input.resourceId,revision:row?.revision??0,generation:row?.generation??null,model:embeddings.model,indexedModel:row?.model??null,dimensions:embeddings.dimensions,metadata,retiredPointCount:(row?.retiredPoints?.length??0)+(row&&!row.active?row.points.length:0),asOf:clock().toISOString()};});
+      if(effectHash(await foundation.authorize(scope,target))!==effectHash(grant))fail('SCOPE_DENIED',403);return result;
     },
     async status(scope, input) {
       const target = { tenantId: scope?.tenantId, plantId: input.plantId, action: 'ai.index' }, grant = await foundation.authorize(scope, target);

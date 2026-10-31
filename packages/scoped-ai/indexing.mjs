@@ -20,7 +20,7 @@ export async function boundedCall(effect, milliseconds = 10000) {
   } finally { clearTimeout(timer); }
 }
 
-function sourceShape(source) {
+export function sourceShape(source) {
   if (!source || !uuid(source.resourceId) || !positive(source.revision) || !positive(source.aclRevision) ||
       typeof source.title !== 'string' || !source.title.trim() || source.title.length > 240 ||
       !Array.isArray(source.chunks) || !source.chunks.length || source.chunks.length > 100 ||
@@ -155,6 +155,11 @@ export function createScopedIndex({ client, db, foundation, saasAdmission, sourc
         return { revision: expectedRevision + 1, data: { resourceId: input.resourceId, state: 'REVOKED' },
           events: [{ type: 'ai.index.revoked', version: 1, data: { resourceId: input.resourceId } }] };
       });
+    },
+    async cleanupStatus(scope, input) {
+      validateRequest(input);
+      if (!managed) fail('AI_EFFECT_ADAPTER_UNPROVEN', 503);
+      return managed.cleanupStatus(scope, input);
     },
     async cleanup(scope, input) {
       validateRequest(input);
