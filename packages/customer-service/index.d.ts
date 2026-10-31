@@ -136,7 +136,7 @@ export interface CustomerService {
   revokeBindingByOperator(scope: VerifiedScope, input: Op<{ bindingId: UUID; reason: string; expectedVersion: number; idempotencyKey: string }>): Promise<{ binding: BindingView; cancelledDeliveries: number }>;
   listBindingsPage(scope: VerifiedScope, input: Op<{ accountId?: UUID; status?: BindingStatus; limit?: number; cursor?: string }>): Promise<Page<BindingView>>;
   getOrderStatusForBinding(scope: VerifiedScope, input: Op<{ bindingId: UUID; orderNumber: string }>): Promise<Omit<OrderStatusView, 'sourceId' | 'sourceVersion' | 'kind' | 'milestones' | 'confirmedDates'> & { sourceId: string | null; sourceVersion: number | null; kind: OrderKind | null; milestones: OrderMilestone[]; confirmedDates: ConfirmedDates }>;
-  simulateInbound(scope: VerifiedScope, input: Op<{ bindingId: UUID; inboundKey: string; text: string }>): Promise<{ conversationId: UUID; bindingId: UUID; command: string; result: InboundResult }>;
+  simulateInbound(scope: VerifiedScope, input: Op<{ bindingId: UUID; inboundKey: string; text: string }>): Promise<{ conversationId: UUID; bindingId: UUID; command: string; result: InboundResult; readonly [customerServiceDisposition]?: {readonly enrolled: boolean} }>;
   getOutboundMessages(scope: VerifiedScope, input: Op<{ deliveryIds: UUID[] }>): Promise<ThreadMessage[]>;
   getMetrics(scope: VerifiedScope, input: Op<{ from: Date; to: Date }>): Promise<CustomerServiceMetrics>;
 }
@@ -144,7 +144,15 @@ export interface CustomerService {
 export declare function createCustomerService(options: {
   client: { startSession: (...args: any[]) => any };
   db: { collection: (...args: any[]) => any; command: (...args: any[]) => any; listCollections: (...args: any[]) => any; createCollection: (...args: any[]) => any };
-  foundation: Pick<TenantFoundation, 'authorize'>;
+  foundation: Pick<TenantFoundation, 'authorize'> & Partial<Pick<TenantFoundation, 'authorizeInTransaction'>>;
+  saasAdmission?: {
+    authorize(scope: VerifiedScope, options: {plantId: UUID; session: any}): Promise<unknown>;
+    unsupported(scope: VerifiedScope, options: {plantId: UUID; session: any}): Promise<unknown>;
+    unsupportedTenant(options: {tenantId: UUID; session: any}): Promise<unknown>;
+    effect(descriptor: CsReceiptAdmission): Promise<{state: string; context?: object}>;
+    createCustomerServicePort?: CustomerServicePortFactory;
+  };
+  createCustomerServicePort?: CustomerServicePortFactory;
   now?: () => Date;
   draftTtlMs?: number;
   ackTtlMs?: number;
@@ -159,3 +167,11 @@ export declare function createCustomerService(options: {
   partyDirectory?: PartyDirectory | null;
   firstResponseSlaMinutes?: number;
 }): CustomerService;
+
+export interface CsReceiptAdmission { session: any; namespace: 'cs_idempotency'; identity: {tenantId: UUID; scope: string; owner: string; key: string}; key: string; payloadHash: string; replayed: boolean; parent?: object; scope?: VerifiedScope; action?: string }
+export type CustomerServicePortFactory = (options: { resolvePrincipal(principal: CustomerPrincipal, options: {session: any}): Promise<unknown> }) => {
+  authorize(principal: CustomerPrincipal, options: {session: any}): Promise<unknown>;
+  effect(descriptor: CsReceiptAdmission & {principal: CustomerPrincipal}): Promise<{context?: object}>;
+};
+
+export declare const customerServiceDisposition: unique symbol;

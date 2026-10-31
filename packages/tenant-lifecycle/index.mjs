@@ -82,8 +82,8 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
         const row = await rows.findOne({tenantId:grant.tenantId},{session});
         return {schema:'SAAS_STATUS_V1',subscription:row ? clean(current(row)) : null,plans,
           admission:{profile:'RECEIPTED_COMMANDS_V1',fullEndpointCoverage:false,
-            supported:'Receipt-backed keyed CRM, legacy quotes/procurement, manufacturing, repair, internal production, inventory and stock holds, inquiries, shortages, catalog procurement/disposition, purchased fulfillment, delivery/returns, workforce, operations and selected quote, procurement, document, model and portal commands.',
-            unsupported:'Unkeyed enrolled CRM/legacy quote/procurement requests, customer service/automation, job ingress, AI indexing rebuild/cleanup and AI delivery dispatch/reconciliation.',
+            supported:'Receipt-backed keyed CRM, legacy quotes/procurement, manufacturing, repair, internal production, inventory and stock holds, inquiries, shortages, catalog procurement/disposition, purchased fulfillment, delivery/returns, workforce, operations and selected quote, procurement, document, model and portal commands; public job ingress and selected private customer-service receipts. Enrolled simulator inbound remains locally queued.',
+            unsupported:'Unkeyed enrolled CRM/legacy quote/procurement requests, nonreceipted customer-service drafts/replies/workers and automation operations, AI indexing rebuild/cleanup and AI delivery dispatch/reconciliation.',
             enrollmentBoundary:'Enrollment requires command-aware clients; older unkeyed forms may be unavailable. Unsupported business mutations are blocked. Existing automation engine history prevents enrollment until authoritative quiescence can be established.'},
           domainLifecycleConfigured:!!domainPort, billing:'SAAS_METERING_ONLY_NO_PAYMENT_COLLECTION',
           boundary:'Tenant invoices are separate. Delete is a reversible archive workflow, not certified erasure. Domain effects require a complete authoritative transactional port.'};
@@ -91,6 +91,7 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
     },
     subscribe(scope,input) { return mutate(scope,input,'saas.subscribe',['plan','admissionProfile'],async (row,{session,grant}) => {
       if(enrollmentGuard)await enrollmentGuard(input.admissionProfile);
+      if(enrollmentGuard && await db.collection('cs_outbox').findOne({tenantId:grant.tenantId,state:{$in:['SENDING','UNKNOWN']}},{session})) fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);
       if(enrollmentGuard && await db.collection('automation_engine_runs').findOne({tenantId:grant.tenantId},{session})) fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);
       if(enrollmentGuard && await db.collection('aiVendorDeliveryAttempts').findOne({tenantId:grant.tenantId},{session})) fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);
       if(enrollmentGuard) {

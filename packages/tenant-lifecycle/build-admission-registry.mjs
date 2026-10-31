@@ -1,3 +1,4 @@
+import { csReceiptPolicies } from './admission.mjs';
 import { localCommandPolicies } from './local-commands.mjs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -17,6 +18,7 @@ Object.assign(wrappers,JSON.parse(await readFile(new URL('./receipt-contracts-v6
 for(const [namespace,actions]of Object.entries(localCommandPolicies))wrappers[namespace]={filter:['tenantId','plantId','userId','action','key'],hash:'foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})',hashField:'inputHash',response:'exact original result snapshot',actions,hook:namespace==='crmCommandResults'?'apps/portfolio-api/src/app.mjs':namespace==='legacyQuoteCommandResults'?'apps/portfolio-api/src/commercial.mjs':'apps/portfolio-api/src/procurement.mjs',replay:'current actor/source scope, no new-effect CAS/state/expiry replay',meter:'ONE_COMMAND'};
 wrappers.repairKeys.replay='current scoped case; invoice-settle resolves scoped invoice.caseId; typed REPAIR_SERVICE_V1 invokes exported service source/quality/order/dispatch/POD/warranty validator; spare stock recheck retained';
 wrappers.deliveryKeys.replay='current persisted shipment and repair-return authority detector; typed/purchased/catalog source+state+historical event+view verification before original result; zero charge';
+wrappers.cs_idempotency={filter:['tenantId','scope','owner','key'],hash:'existing customer-service requestHash(request)',hashField:'requestHash',hook:'packages/customer-service/index.mjs idempotent/immutable AsyncLocalStorage context',principals:csReceiptPolicies,replay:'current actor/source/ticket/customer/conversation/binding/approval rechecks; customer WeakMap resolver; parent receipt inherits once',meter:'ONE_TOP_LEVEL_COMMAND'};
 wrappers.documentIssues={filter:['tenantId','legalEntityId','plantId','kind','sourceId','sourceVersion'],hash:'existing renderer snapshot.contentHash',hashField:'contentHash',hook:'renderer.issueInTransaction + documents.mjs caller transaction',replay:'current source permissions/snapshot plus existing artifact/READY integrity',meter:'ONE_COMMAND',response:'original public READY intent ID and renderer record mapping'};
 function classify(route) {
  const [method,path]=route.split(' ');
@@ -53,6 +55,8 @@ function classify(route) {
  if(path.startsWith('/api/crm/'))receipt='crmCommandResults';
  if(['/api/procurement/vendors','/api/procurement/requests','/api/procurement/requests/:id/approve','/api/procurement/orders/:id/issue','/api/procurement/orders/:id/vendor-confirmation'].includes(path))receipt='procurementCommandResults';
  if(path==='/api/platform/jobs')return {state:'RECEIPTED',receipt:'foundationCommandResults',meter:'ONE_COMMAND',note:'Dedicated job executor reauthorizes handler and request; caller-session rate/new enqueue only; worker retries nonbillable'};
+ if(['/api/cs/bindings','/api/cs/bindings/:id/revoke','/api/cs/tickets/:id/stage','/api/cs/tickets/:id/public-update','/api/cs/tickets/:id/internal-notes','/api/cs/conversations/:id/takeover','/api/cs/conversations/:id/mode','/api/cs/deliveries/:id/resolve'].includes(path))return {state:'RECEIPTED',receipt:'cs_idempotency',meter:'ONE_TOP_LEVEL_COMMAND'};
+ if(path==='/api/cs/simulator/inbound')return {state:'RECEIPTED',receipt:'cs_idempotency',meter:'ONE_TOP_LEVEL_COMMAND',note:'Current-session private disposition; enrolled response stays queued, no preview/worker; non-enrolled worker gates retained.'};
  if(path.startsWith('/api/cs/'))return {state:'LOCAL_COVERAGE_PENDING',meter:'NONE',note:'Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied.'};
  if(path.startsWith('/api/commercial/quotes'))return {state:'CONDITIONAL_RECEIPTED',receipt:['quoteCatalogKeys',...(path.endsWith('/convert')?['quoteConversions']:['legacyQuoteCommandResults'])],condition:'Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.',meter:'ONE_COMMAND'};
 
