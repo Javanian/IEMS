@@ -36,6 +36,7 @@ test('exact usage and quota enforce separate tenant budgets',()=>{
   assert.deepEqual(addUsage({apiCalls:'9007199254740993'},'apiCalls','1',{apiCalls:'9007199254740994'}),{apiCalls:'9007199254740994'});
   assert.throws(()=>addUsage({apiCalls:'9'},'apiCalls','2',{apiCalls:'10'}),{code:'SAAS_QUOTA_EXCEEDED'});
   assert.throws(()=>addUsage({apiCalls:'0'},'apiCalls',1,{apiCalls:'10'}),{code:'INVALID_METER'});
+  assert.throws(()=>addUsage({apiCalls:'0'},['apiCalls'],'1',{apiCalls:'10'}),{code:'INVALID_METER'});
 });
 test('subscription, meter, stale revision, replay and revoked replay',async()=>{
   const f=fixture();const sub=f.input(0,{plan:'pilot'});await f.api.subscribe(f.scope,sub);
@@ -74,4 +75,16 @@ test('source changes and absent domain adapter fail closed',async()=>{
 test('cross tenant scope is rejected and counters do not leak',async()=>{
   const f=fixture();await assert.rejects(f.api.subscribe({tenantId:randomUUID()},f.input(0,{plan:'pilot'})),{status:403});
   assert.equal(f.state().saasSubscriptions?.length??0,0);
+});
+test('transactional admission consumes quota and suspension denies further use',async()=>{
+  const f=fixture();await f.api.subscribe(f.scope,f.input(0,{plan:'pilot'}));
+  await assert.rejects(f.api.assertEntitled(f.scope,{plantId:f.grant.plantId,metric:'apiCalls'}),{code:'TRANSACTION_REQUIRED'});
+  const session={inTransaction:()=>true};
+  await f.api.assertEntitled(f.scope,{plantId:f.grant.plantId,session,metric:'apiCalls',amount:'10000'});
+  assert.equal(f.state().saasSubscriptions[0].usage.apiCalls,'10000');
+  await assert.rejects(f.api.assertEntitled(f.scope,{plantId:f.grant.plantId,session,metric:'apiCalls'}),{code:'SAAS_QUOTA_EXCEEDED'});
+  await f.api.suspend(f.scope,f.input(2));
+  await assert.rejects(f.api.assertEntitled(f.scope,{plantId:f.grant.plantId,session,metric:'exports'}),{code:'SAAS_INVALID_STATE'});
+  const other=fixture();await other.api.subscribe(other.scope,other.input(0,{plan:'pilot'}));
+  assert.equal((await other.api.status(other.scope,{plantId:other.grant.plantId})).subscription.usage.apiCalls,'0');
 });

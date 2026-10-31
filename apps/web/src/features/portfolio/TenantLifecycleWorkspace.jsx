@@ -30,7 +30,11 @@ export function TenantLifecycleWorkspace() {
       if(current!==generation.current)return;
       if(result.data.data.archiveId)setArchive(result.data.data);
       sessionStorage.removeItem(storageKey);setPending(null);lock.current=false;await load();
-    } catch(error){if(current===generation.current)setView(s=>({...s,busy:false,error}));}
+    } catch(error){if(current===generation.current){
+      const rejected=['INVALID_SAAS_PLAN','SAAS_REASON_REQUIRED','INVALID_METER','REVISION_CONFLICT','SAAS_QUOTA_EXCEEDED','PLAN_BELOW_USAGE','SAAS_INVALID_STATE','TENANT_DATA_PORT_UNAVAILABLE','TENANT_EXPORT_INCOMPLETE','TENANT_EXPORT_TOO_LARGE','ARCHIVE_NOT_CURRENT','ARCHIVE_INTEGRITY_INVALID','EXPORT_STALE'];
+      if(rejected.includes(error.code)){try{sessionStorage.removeItem(storageKey);setPending(null);}catch{/* Keep recovery pending if session storage is unavailable. */}}
+      setView(s=>({...s,busy:false,error}));
+    }}
     finally{if(current===generation.current)lock.current=false;}
   }
   function command(event,action) {

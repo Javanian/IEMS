@@ -17,7 +17,7 @@ const units = x => typeof x === 'string' && /^(0|[1-9]\d{0,23})$/.test(x);
 const clean = row => row ? { tenantId: row.tenantId, revision: row.revision, plan: row.plan, state: row.state,
   period: row.period, usage: row.usage, changedAt: row.changedAt, limits: plans[row.plan] } : null;
 export function addUsage(usage, metric, amount, limits) {
-  if (!Object.hasOwn(limits,metric) || !units(amount) || BigInt(amount) === 0n || !units(usage[metric])) fail('INVALID_METER');
+  if (typeof metric !== 'string' || !Object.hasOwn(limits,metric) || !units(amount) || BigInt(amount) === 0n || !units(usage[metric])) fail('INVALID_METER');
   const next = BigInt(usage[metric]) + BigInt(amount);
   if (next > BigInt(limits[metric])) fail('SAAS_QUOTA_EXCEEDED',429);
   return { ...usage, [metric]: next.toString() };
@@ -84,7 +84,7 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
     },
     subscribe(scope,input) { return mutate(scope,input,'saas.subscribe',['plan'],async row => {
       requireState(row,['UNSUBSCRIBED','ACTIVE','SUSPENDED']);
-      if (!Object.hasOwn(plans,input.plan)) fail('INVALID_SAAS_PLAN');
+      if (typeof input.plan !== 'string' || !Object.hasOwn(plans,input.plan)) fail('INVALID_SAAS_PLAN');
       if (Object.keys(row.usage).some(k => BigInt(row.usage[k]) > BigInt(plans[input.plan][k]))) fail('PLAN_BELOW_USAGE',409);
       row.plan = input.plan; if (row.state === 'UNSUBSCRIBED') row.state='ACTIVE';
     }); },
