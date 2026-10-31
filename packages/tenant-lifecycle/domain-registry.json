@@ -3429,7 +3429,7 @@
       ]
     },
     "apps/portfolio-api/src/delivery.mjs": {
-      "sha256": "ea911beb0c8ca05362e410fca92959a22baa020d4f3da3da3ab8f11423c8ea94",
+      "sha256": "ac6c9e63567df966e0b5ae2f58eb121c095a93a430b9e82494e1c14afd26910f",
       "fields": [
         "ACTIVE_CALLER_TRANSACTION_REQUIRED",
         "CUSTOMER_ASSET_RETURN",
