@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { startOwned, orderWithStock } from './support/owned-mongo.mjs';
 import { createOrderReader } from '../src/order-reader.mjs';
+import { allSnapshot } from './support/company-stock-readiness-owner-fixture.mjs';
 
 const ACCOUNT = 'synthetic-preview-account';
 test('authoritative order reader: CS status follows real SO/WO/QC/shipment state', async t => {
@@ -90,29 +91,38 @@ test('authoritative order reader: CS status follows real SO/WO/QC/shipment state
   });
 
   await t.test('reader failure, timeout and stale snapshot map to STATUS_UNAVAILABLE, never a guessed stage', async () => {
-    const real = runtime.orderReader;
+    const real = runtime.customerServiceOrderReader;
     try {
-      runtime.orderReader = { readCustomerOrder: async () => { throw new Error('synthetic outage'); } };
+      runtime.customerServiceOrderReader = { readCustomerOrder: async () => { throw new Error('synthetic outage'); } };
       assert.equal(await code(status()), 'STATUS_UNAVAILABLE');
-      runtime.orderReader = { readCustomerOrder: input => new Promise(r => setTimeout(() => r(real.readCustomerOrder(input)), 600)) };
+      runtime.customerServiceOrderReader = { readCustomerOrder: input => new Promise(r => setTimeout(() => r(real.readCustomerOrder(input)), 600)) };
       assert.equal(await code(status()), 'STATUS_UNAVAILABLE');
-      runtime.orderReader = { readCustomerOrder: async input => ({ ...(await real.readCustomerOrder(input)), asOf: new Date(Date.now() - 120000) }) };
+      runtime.customerServiceOrderReader = { readCustomerOrder: async input => ({ ...(await real.readCustomerOrder(input)), asOf: new Date(Date.now() - 120000) }) };
       assert.equal(await code(status()), 'STATUS_UNAVAILABLE');
-      const inbound = await cs.handleInboundCommand(own.principal, { inboundKey: randomUUID(), text: 'ORDER', command: { op: 'ORDER', orderNumber: so.orderNumber } });
-      assert.equal((await db.collection('cs_outbox').findOne({ _id: inbound.reply.deliveryId })).payload.template, 'status_unavailable');
-    } finally { runtime.orderReader = real; }
+      const input = { inboundKey: randomUUID(), text: 'ORDER', command: { op: 'ORDER', orderNumber: so.orderNumber } };
+      const before = await allSnapshot(h), deliveries = await db.collection('cs_outbox').countDocuments();
+      await assert.rejects(cs.handleInboundCommand(own.principal, input), { code: 'STATUS_UNAVAILABLE' });
+      assert.deepEqual(await allSnapshot(h), before, 'source revalidation failure must roll back all durable effects');
+      runtime.customerServiceOrderReader = real;
+      const inbound = await cs.handleInboundCommand(own.principal, input);
+      const reply = await db.collection('cs_outbox').findOne({ _id: inbound.reply.deliveryId });
+      assert.deepEqual([reply.payload.template, reply.payload.params.publicStage, reply.payload.params.source], ['order_status', 'SHIPPED', 'PORTFOLIO_API_OWNED']);
+      assert.equal(await db.collection('cs_outbox').countDocuments(), deliveries + 1);
+      assert.deepEqual(await cs.handleInboundCommand(own.principal, input), inbound);
+      assert.equal(await db.collection('cs_outbox').countDocuments(), deliveries + 1);
+    } finally { runtime.customerServiceOrderReader = real; }
     assert.equal((await status()).publicStage, 'SHIPPED');
   });
 
   await t.test('revoked binding is rejected before any read', async () => {
-    const real = runtime.orderReader;
+    const real = runtime.customerServiceOrderReader;
     let calls = 0;
-    runtime.orderReader = { readCustomerOrder: input => { calls++; return real.readCustomerOrder(input); } };
+    runtime.customerServiceOrderReader = { readCustomerOrder: input => { calls++; return real.readCustomerOrder(input); } };
     try {
       const restore = await setRoles(a, ['owner', 'csFixtureAdmin']);
       try { await cs.revokeBinding(await scopeOf(alpha), { plantId: a.plantId, bindingId: own.bindingId, expectedVersion: 1 }); } finally { await restore(); }
       assert.equal(await code(status()), 'DENIED');
       assert.equal(calls, 0);
-    } finally { runtime.orderReader = real; }
+    } finally { runtime.customerServiceOrderReader = real; }
   });
 });
