@@ -11,3 +11,13 @@ Results use `CS_INTENT_V1`, state `CLASSIFIED`, `DRAFT`, `FALLBACK`, or `ABSTAIN
 ## Evidence and limits
 
 Contract tests use in-memory authorization, RAG, and model doubles. They cover request bounds, denial after awaits, evidence absence/integrity, ignored-cancellation timeouts, no history input, single provider attempt, and citation-grounded output validation. Real provider, customer-data sharing, HTTP mounting, integrated UI, and model evaluation remain unverified and out of scope for this isolated service milestone.
+# HTTP and operator integration
+
+`apps/portfolio-api/src/cs-intent.mjs` exports `createIntentRuntime(runtime,options?)`
+and `installCustomerIntent(app,intent)`. Mount authenticated POST `/api/ai/cs-intent`
+with `{message}` only. Plant comes from opaque selected scope; query/identity/history
+fields are rejected. It reuses the existing `ai.retrieve` grant. AssistantWorkspace
+offers Customer request triage with deterministic/model labels and cited revisions.
+After a model call, evidence is retrieved again; removed or changed citations abstain
+instead of leaking the old summary. No provider is configured by default. Shared
+registration belongs to TPR-149; no outbound response or personal history is created.

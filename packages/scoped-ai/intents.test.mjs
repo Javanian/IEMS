@@ -6,6 +6,14 @@ import { createCustomerIntent } from './intents.mjs';
 const plantId = randomUUID(), resourceId = randomUUID();
 const citation = { resourceId, sourceRevision: 2, aclRevision: 3, indexRevision: 4, title: 'Returns policy',
   chunkIndex: 0, model: 'test', text: 'Approved returns are accepted within 30 days.', kind: 'DOCUMENT', trust: 'UNTRUSTED_SOURCE_CONTENT' };
+test('source revoked while model is running withholds generated text and citations', async () => {
+  let revoked = false;
+  const f = fixture({ retrieve: () => ({ schema: 'SCOPED_RETRIEVAL_V1', citations: revoked ? [] : [citation] }),
+    provider: () => { revoked = true; return { summary: 'Do not expose this stale proposal', citationIndexes: [0] }; } });
+  const result = await f.service.classify(f.scope, f.input);
+  assert.equal(result.state, 'ABSTAIN'); assert.equal(result.generated, false); assert.deepEqual(result.citations, []);
+  assert.equal(f.calls.retrieval.length, 2);
+});
 function fixture({ provider = null, citations = [citation], retrieve = null, authorize = null, timeoutMs = 20 } = {}) {
   const calls = { auth: 0, retrieval: [], provider: [] };
   const service = createCustomerIntent({ timeoutMs, foundation: { async authorize(scope, target) {

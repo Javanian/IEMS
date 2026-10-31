@@ -64,6 +64,22 @@ export function createCustomerIntent({ foundation, rag, provider = null, timeout
           !Array.isArray(draft.citationIndexes) || !draft.citationIndexes.length || draft.citationIndexes.length > 5 ||
           draft.citationIndexes.some(i => !Number.isSafeInteger(i) || i < 0 || i >= retrieval.citations.length) ||
           new Set(draft.citationIndexes).size !== draft.citationIndexes.length) fail('AI_MODEL_OUTPUT_INVALID', 502);
+      // A summary can outlive source access. Re-read evidence after the model call.
+      let current;
+      try { current = await boundedCall(() => rag.retrieve(scope, { plantId: input.plantId, query: input.message, limit: 5 }), timeoutMs); }
+      catch (error) {
+        if (![403, 404].includes(error.status) && !['AI_PROVIDER_TIMEOUT', 'AI_PROVIDER_UNAVAILABLE', 'AI_EMBEDDING_UNAVAILABLE'].includes(error.code)) throw error;
+        await authorize(scope, input.plantId);
+        return { schema: 'CS_INTENT_V1', intent, state: 'ABSTAIN', reason: 'EVIDENCE_CHANGED',
+          summary: 'Evidence is no longer available. Review the request manually.', citations: [], generated: false, historyStored: false };
+      }
+      const identities = new Set((current?.citations ?? []).map(c => `${c.resourceId}:${c.sourceRevision}:${c.aclRevision}:${c.indexRevision}:${c.chunkIndex}`));
+      if (draft.citationIndexes.some(i => {
+        const c = retrieval.citations[i];
+        return !identities.has(`${c.resourceId}:${c.sourceRevision}:${c.aclRevision}:${c.indexRevision}:${c.chunkIndex}`);
+      })) return { schema: 'CS_INTENT_V1', intent, state: 'ABSTAIN', reason: 'EVIDENCE_CHANGED',
+        summary: 'Evidence changed while preparing the draft. Review the request again.', citations: [], generated: false, historyStored: false };
+      await authorize(scope, input.plantId);
       return { schema: 'CS_INTENT_V1', intent, state: 'DRAFT', reason: 'CITED_MODEL_SUMMARY', summary: draft.summary,
         citations: draft.citationIndexes.map(i => retrieval.citations[i]), generated: true, historyStored: false };
     },

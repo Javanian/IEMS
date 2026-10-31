@@ -25,7 +25,7 @@ export function AssistantWorkspace() {
   async function ask(event) {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget));
-    const body = kind === 'ORDER' ? { kind, bindingId: values.bindingId.trim(), orderNumber: values.orderNumber.trim() } :
+    const body = kind === 'INTENT' ? { message: values.message.trim() } : kind === 'ORDER' ? { kind, bindingId: values.bindingId.trim(), orderNumber: values.orderNumber.trim() } :
       kind === 'DOCUMENTS' ? { kind, query: values.query.trim(), limit: 5 } :
         { kind, from: `${values.from}T00:00:00.000Z`, to: `${values.to}T00:00:00.000Z` };
     active.current?.abort();
@@ -33,7 +33,7 @@ export function AssistantWorkspace() {
     const current = ++generation.current;
     setState({ loading: true });
     try {
-      const result = await portfolioRequest('/api/ai/assistant', { body, signal: controller.signal });
+      const result = await portfolioRequest(kind === 'INTENT' ? '/api/ai/cs-intent' : '/api/ai/assistant', { body, signal: controller.signal });
       if (current === generation.current) setState({ data: result.data });
     } catch (error) {
       if (error.name !== 'AbortError' && current === generation.current) setState({ error });
@@ -44,7 +44,7 @@ export function AssistantWorkspace() {
     <header className="pf-page-header"><h1>Assistant workspace</h1><p>Check current orders and service metrics, or read versioned document excerpts in your selected plant.</p></header>
     <section className="pf-panel">
       <WorkspaceField as="select" label="Evidence source" value={kind} onChange={event => setKind(event.target.value)}>
-        <option value="ORDER">Live order status</option><option value="SERVICE_METRICS">Service metrics</option><option value="DOCUMENTS">Document retrieval</option>
+        <option value="ORDER">Live order status</option><option value="SERVICE_METRICS">Service metrics</option><option value="DOCUMENTS">Document retrieval</option><option value="INTENT">Customer request triage</option>
       </WorkspaceField>
       <form key={`${identity?.user?.id || ''}:${identity?.selectedPlantId || ''}:${kind}`} className="pf-form" onSubmit={ask} aria-label="Look up scoped evidence">
         {kind === 'ORDER' && <>
@@ -56,6 +56,7 @@ export function AssistantWorkspace() {
           <WorkspaceField name="to" type="date" label="To date (UTC, exclusive)" required hint="Choose a completed period of up to 31 days." />
         </>}
         {kind === 'DOCUMENTS' && <WorkspaceField name="query" as="textarea" label="Search documents" required maxLength={2000} hint="Excerpts are document evidence. Use live order status to check current progress." />}
+        {kind === 'INTENT' && <WorkspaceField name="message" as="textarea" label="Current customer request" required maxLength={2000} hint="Submit only this request. No conversation history is stored. Model summaries require human review and never send automatically." />}
         <button className="pf-primary" disabled={state.loading}>{state.loading ? 'Checking sources…' : 'Check evidence'}</button>
       </form>
     </section>
@@ -63,6 +64,10 @@ export function AssistantWorkspace() {
     {state.error && <WorkspaceState kind="error" title="Evidence unavailable"><p>{errorMessage(state.error)}</p></WorkspaceState>}
     {!state.loading && !state.error && !result && <WorkspaceState title="Choose a source"><p>Results include source revisions or observation times. No conversation history is saved.</p></WorkspaceState>}
     {result?.state === 'ABSTAIN' && <WorkspaceState title="No supported answer"><p>{reasons[result.reason] || 'The source could not support this lookup.'}</p></WorkspaceState>}
+    {result?.schema === 'CS_INTENT_V1' && <section className="pf-panel" aria-live="polite"><h2>{label(result.intent)} · {label(result.state)}</h2>
+      <p>{result.summary}</p><p>{result.generated ? 'Model proposal: verify the cited excerpts before responding.' : 'Deterministic triage; no model result is claimed.'}</p>
+      <ul className="pf-list">{result.citations.map((c, i) => <li key={`${c.resourceId}:${i}`}><h3>{c.title}</h3><p>{c.text}</p><p>Document revision {c.sourceRevision} · ACL {c.aclRevision} · index {c.indexRevision}</p></li>)}</ul>
+    </section>}
     {evidence && <section className="pf-panel" aria-live="polite" aria-labelledby="assistant-result-heading">
       <h2 id="assistant-result-heading">{result.state === 'DOCUMENT_EVIDENCE' ? 'Document excerpts' : 'Current source snapshot'}</h2>
       <p>Checked {when(result.asOf)}. Refresh this lookup before making a decision.</p>
