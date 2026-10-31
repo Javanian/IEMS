@@ -43,8 +43,9 @@ export async function readRepairOrders(db, filter, row, session) {
   if (!row.serviceOrders) fail(409, 'REPAIR_ORDERS_REQUIRED');
   const so = await db.collection('repairSalesOrders').findOne({ ...filter, _id: row.serviceOrders.salesOrderId }, { session });
   const wo = await db.collection('repairWorkOrders').findOne({ ...filter, _id: row.serviceOrders.workOrderId }, { session });
+  const plant = await db.collection('plants').findOne({ tenantId: filter.tenantId, _id: filter.plantId, active: true }, { session });
   for (const order of [so, wo]) {
-    if (!order || hash(immutable(order)) !== order.contentHash || order.caseId !== row._id || order.accountId !== row.ownerAccountId || order.assetId !== row.assetId || order.serial !== row.serial || order.scopeHash !== hash(row.scopes.at(-1)) || order.decisionHash !== hash(row.decision)) invalid();
+    if (!order || !plant || order.ownerLegalEntityId !== plant.legalEntityId || hash(immutable(order)) !== order.contentHash || order.caseId !== row._id || order.accountId !== row.ownerAccountId || order.assetId !== row.assetId || order.serial !== row.serial || order.scopeHash !== hash(row.scopes.at(-1)) || order.decisionHash !== hash(row.decision)) invalid();
     const revision = await db.collection('repairOrderRevisions').findOne({ ...filter, orderId: order._id, version: order.version }, { session });
     if (!revision || revision.contentHash !== order.contentHash || !isDeepStrictEqual(revision.snapshot, immutable(order))) invalid();
   }
@@ -63,8 +64,10 @@ export async function createRepairOrders(db, filter, row, actor, now, evidence, 
   active(session);
   if (row.serviceProfile !== 'REPAIR_SERVICE_V1' || row.serviceOrders || !['AUTHORIZED', 'REJECTED'].includes(row.status) || !row.decision) fail(409, 'REPAIR_ORDER_STATE_CONFLICT');
   const scope = row.scopes.at(-1), amounts = validateRepairSnapshot(scope.snapshot);
+  const plant = await db.collection('plants').findOne({ tenantId: filter.tenantId, _id: filter.plantId, active: true }, { session });
+  if (!plant?.legalEntityId) invalid();
   const salesOrderId = randomUUID(), workOrderId = randomUUID(), rejected = row.decision.decision === 'REJECT';
-  const common = { ...filter, version: 1, caseId: row._id, accountId: row.ownerAccountId, assetId: row.assetId, serial: row.serial, scopeRevision: scope.revision, quoteId: scope.quoteId, quoteRevision: scope.quoteRevision, scopeHash: hash(scope), decisionHash: hash(row.decision), snapshot: structuredClone(scope.snapshot), ...amounts, currency: row.currency, createdBy: actor, createdAt: now, evidence };
+  const common = { ...filter, ownerLegalEntityId: plant.legalEntityId, version: 1, caseId: row._id, accountId: row.ownerAccountId, assetId: row.assetId, serial: row.serial, scopeRevision: scope.revision, quoteId: scope.quoteId, quoteRevision: scope.quoteRevision, scopeHash: hash(scope), decisionHash: hash(row.decision), snapshot: structuredClone(scope.snapshot), ...amounts, currency: row.currency, createdBy: actor, createdAt: now, evidence };
   const so = { ...common, _id: salesOrderId, schema: 'REPAIR_SERVICE_SO_V1', orderType: 'REPAIR_SERVICE', workOrderId, status: rejected ? 'CANCELLED' : 'AUTHORIZED' };
   const wo = { ...common, _id: workOrderId, schema: 'REPAIR_SERVICE_WO_V1', workOrderType: 'REPAIR', salesOrderId, status: rejected ? 'CANCELLED' : 'AUTHORIZED', ...(rejected ? { cancelledBeforeRelease: true } : {}), activities: [] };
   await save(db, filter, 'repairSalesOrders', so, session);
@@ -83,4 +86,13 @@ export async function advanceRepairOrders(db, filter, row, action, actor, now, s
   wo.activities.push({ _id: randomUUID(), action, caseVersion: row.version + 1, actor, at: now, ...(action === 'test' ? { test: structuredClone(row.tests.at(-1)) } : action === 'rework' ? { rework: structuredClone(row.reworks.at(-1)) } : {}) });
   await save(db, filter, 'repairWorkOrders', wo, session, previous);
   row.serviceOrders.workOrderHash = wo.contentHash;
+}
+
+export async function fulfillRepairSalesOrder(db, filter, row, so, now, session) {
+  active(session);
+  if (row.decision.decision !== 'ACCEPT' || so.status !== 'AUTHORIZED') invalid();
+  const previous = so.version;
+  so.status = 'FULFILLED'; so.version++; so.fulfilledAt = now;
+  await save(db, filter, 'repairSalesOrders', so, session, previous);
+  row.serviceOrders.salesOrderHash = so.contentHash;
 }

@@ -5,6 +5,7 @@ import { initializeRepairStock, repairSpareCommand, saveRepairStockAuthority, va
 import { businessNow } from './business-clock.mjs';
 import { stockHash as repairHash } from './catalog-stock-values.mjs';
 import { initializeRepairOrders, validateRepairSnapshot, diagnosticRepairSnapshot, createRepairOrders, readRepairOrders, advanceRepairOrders } from './repair-orders.mjs';
+import { initializeRepairReturns, dispatchRepairAsset, issuePodWarranty } from './repair-return.mjs';
 import { initializeQuality, installQuality, qualityActions, qualityRoles, requireQualityGates } from './quality.mjs';
 import { initializeMaintenance, installMaintenance, maintenanceActions, maintenanceRoles } from './maintenance.mjs';
 
@@ -17,6 +18,7 @@ repairRoles.repairSpareAuthorize.push('master.read');
 export const repairNumberFor = ({ tenantId, plantId }, caseId) => `RP-${createHash('sha256').update(`repair:${tenantId}:${plantId}:${caseId}`).digest('hex').slice(0, 16).toUpperCase()}`;
 export async function initializeRepair(db) {
   await initializeRepairOrders(db);
+  await initializeRepairReturns(db);
   await initializeQuality(db);
   await initializeRepairComponents(db);
   await initializeRepairStock(db);
@@ -82,7 +84,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     if (new Set(rows.map(v => v.component)).size !== rows.length) fail(400, 'INVALID_DISPOSITIONS'); return rows;
   };
   for (const action of verbs.filter(v => !['read', 'intake', 'settle'].includes(v))) app.post(`/api/repair/cases/:id/${action}`, async (req, res) => {
-    const allowed = { orders: ['evidence'], 'diagnostic-authorize': ['feeCap', 'evidence'], teardown: ['findings', 'evidence'], scope: ['quoteId', 'revision', 'depositRequired', 'evidence'], decide: ['decision', 'revision', 'diagnosticFee', 'evidence'], deposit: ['amount', 'currency', 'reference'], start: [], execute: ['dispositions', 'evidence'], test: ['result', 'evidence'], 'test-plan': ['equipmentId', 'operation', 'evidence'], rework: ['evidence'], qc: ['evidence'], hold: ['active', 'evidence'], return: ['evidence'], bill: [], warranty: ['days', 'terms', 'evidence'], 'warranty-claim': ['condition', 'evidence'], 'warranty-void': ['evidence'], 'component-remove': ['component', 'serial', 'condition', 'evidence'], 'component-dispose': ['componentId', 'disposition', 'evidence'], 'spare-authorize': ['component','sourceKind','itemId','itemVersion','itemRevision','quantity','uom','evidence'], 'spare-reserve': ['materialLineId','sourceId','expectedStockVersion','expectedReceiptVersion','quantity','serials','units','evidence'], 'spare-release': ['materialLineId','reservationId','expectedReservationVersion','expectedStockVersion','expectedReceiptVersion','evidence'], 'spare-issue': ['materialLineId','reservationId','expectedReservationVersion','expectedStockVersion','expectedReceiptVersion','evidence'], 'spare-install': ['materialLineId','reservationId','expectedReservationVersion','expectedStockVersion','expectedReceiptVersion','removedComponentId','evidence'] }[action];
+    const allowed = { orders: ['evidence'], 'diagnostic-authorize': ['feeCap', 'evidence'], teardown: ['findings', 'evidence'], scope: ['quoteId', 'revision', 'depositRequired', 'evidence'], decide: ['decision', 'revision', 'diagnosticFee', 'evidence'], deposit: ['amount', 'currency', 'reference'], start: [], execute: ['dispositions', 'evidence'], test: ['result', 'evidence'], 'test-plan': ['equipmentId', 'operation', 'evidence'], rework: ['evidence'], qc: ['evidence'], hold: ['active', 'evidence'], return: ['shipmentMode', 'carrier', 'reference', 'packaging', 'uom', 'evidence'], bill: [], warranty: ['profile', 'days', 'repairWorkOrderId', 'invoiceId', 'shipmentId', 'confirmationId', 'coverageMonths', 'operatingHoursLimit', 'terms', 'evidence'], 'warranty-claim': ['condition', 'operatingHours', 'evidence'], 'warranty-void': ['evidence'], 'component-remove': ['component', 'serial', 'condition', 'evidence'], 'component-dispose': ['componentId', 'disposition', 'evidence'], 'spare-authorize': ['component','sourceKind','itemId','itemVersion','itemRevision','quantity','uom','evidence'], 'spare-reserve': ['materialLineId','sourceId','expectedStockVersion','expectedReceiptVersion','quantity','serials','units','evidence'], 'spare-release': ['materialLineId','reservationId','expectedReservationVersion','expectedStockVersion','expectedReceiptVersion','evidence'], 'spare-issue': ['materialLineId','reservationId','expectedReservationVersion','expectedStockVersion','expectedReceiptVersion','evidence'], 'spare-install': ['materialLineId','reservationId','expectedReservationVersion','expectedStockVersion','expectedReceiptVersion','removedComponentId','evidence'] }[action];
     fields(req.body, ['expectedVersion', 'idempotencyKey', ...allowed]);
     const b = req.body;
     if (!Number.isSafeInteger(b.expectedVersion) || b.expectedVersion < 1) fail(400, 'INVALID_VERSION');
@@ -193,24 +195,36 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
         row.finalInvoiceId = invoice._id;
       } else if (action === 'return') {
         requireState('READY_FOR_RETURN', 'REJECTED'); if (row.holdActive) fail(409, 'QC_BLOCKED');
+        if (row.serviceProfile === 'REPAIR_SERVICE_V1') await dispatchRepairAsset(runtime.db, req.filter, row, b, req.scope.userId, businessNow(runtime), session);
+        else {
+          if (b.shipmentMode !== undefined) fail(409, 'REPAIR_PROFILE_REQUIRED');
         row.returnedAt = businessNow(runtime);
         row.custodyState = row.status === 'REJECTED' ? 'RETURNED_UNREPAIRED_TO_CUSTOMER' : 'RETURNED_TO_CUSTOMER'; row.custody.push(record(row.custodyState)); row.status = 'RETURNED';
+        }
       } else if (['component-remove', 'component-dispose'].includes(action)) {
         if (action === 'component-dispose') id(b.componentId);
         await recordComponentCustody(runtime.db, req.filter, row, action, b, req.scope.userId, session, businessNow(runtime));
       } else if (action === 'warranty') {
         requireState('RETURNED');
+        if (row.serviceProfile === 'REPAIR_SERVICE_V1') {
+          if (b.profile !== 'POD_CALENDAR_MONTHS_V1' || b.days !== undefined) fail(400, 'INVALID_WARRANTY_PROFILE');
+          for (const key of ['repairWorkOrderId', 'invoiceId', 'shipmentId', 'confirmationId']) id(b[key]);
+          row.warranty = await issuePodWarranty(runtime.db, req.filter, row, b, req.scope.userId, businessNow(runtime), session);
+        } else {
+        if (b.profile !== undefined) fail(400, 'INVALID_WARRANTY_PROFILE');
         if (row.decision?.decision !== 'ACCEPT' || !row.qc || row.holdActive || row.warranty || !row.returnedAt) fail(409, 'WARRANTY_CONFLICT');
         if (!Number.isSafeInteger(b.days) || b.days < 1 || b.days > 3650) fail(400, 'INVALID_WARRANTY_PERIOD');
         const startsAt = new Date(row.returnedAt), expiresAt = new Date(startsAt.getTime() + b.days * 86400000);
         if (expiresAt <= businessNow(runtime)) fail(409, 'WARRANTY_EXPIRED');
         row.warranty = { ...record('WARRANTY_ISSUED'), _id: randomUUID(), status: 'ACTIVE', startsAt, expiresAt, days: b.days, terms: text(b.terms), scopeRevision: row.decision.revision, serial: row.serial, accountId: row.ownerAccountId };
+        }
       } else if (action === 'warranty-void') {
         requireState('RETURNED'); if (row.warranty?.status !== 'ACTIVE') fail(409, 'WARRANTY_CONFLICT');
         row.warranty = { ...row.warranty, status: 'VOID', voided: record('WARRANTY_VOIDED') };
       } else if (action === 'warranty-claim') {
         requireState('RETURNED');
         const now = businessNow(runtime), warranty = row.warranty;
+        if (warranty?.profile === 'POD_CALENDAR_MONTHS_V1' && b.operatingHours !== undefined && (!Number.isSafeInteger(b.operatingHours) || b.operatingHours < 0 || b.operatingHours >= warranty.operatingHoursLimit)) fail(409, 'WARRANTY_HOURS_EXCEEDED');
         if (row.holdActive || warranty?.status !== 'ACTIVE' || new Date(warranty.startsAt) > now || new Date(warranty.expiresAt) <= now) fail(409, 'WARRANTY_UNAVAILABLE');
         if ((row.warrantyClaims?.length || 0) >= 100) fail(409, 'WARRANTY_HISTORY_LIMIT');
         const caseId = randomUUID(), condition = text(b.condition);
@@ -252,7 +266,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     });
     res.json({ data });
   });
-  for (const [resource, collection] of [['cases', 'repairCases'], ['invoices', 'repairInvoices'], ['deposits', 'repairDeposits']]) {
+  for (const [resource, collection] of [['cases', 'repairCases'], ['invoices', 'repairInvoices'], ['deposits', 'repairDeposits'], ['sales-orders', 'repairSalesOrders'], ['work-orders', 'repairWorkOrders']]) {
   app.get(`/api/repair/${resource}/:id`, async (req, res) => res.json({ data: await find(collection, req, req.params.id) }));
   app.get(`/api/repair/${resource}`, async (req, res) => {
     const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
