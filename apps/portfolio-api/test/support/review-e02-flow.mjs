@@ -58,7 +58,7 @@ export async function runE02Flow(h, { setClock, onCheckpoint = async () => {} } 
   flow.account = await request('/crm/accounts', { name: 'PT Kaltim Prima Coal — canonical synthetic E02' }, 201);
   flow.manifest.identities[f.customer_party_id] = flow.account._id;
   at(f.repair_case.custody_events[0].timestamp);
-  flow.case = await request('/repair/cases', command({ accountId: flow.account._id, serial: f.customer_asset.serial_no, condition: f.repair_case.customer_reported_fault, currency: f.quotation.currency }), 201);
+  flow.case = await request('/repair/cases', command({ accountId: flow.account._id, serial: f.customer_asset.serial_no, condition: f.repair_case.customer_reported_fault, currency: f.quotation.currency, serviceProfile: 'REPAIR_SERVICE_V1' }), 201);
   flow.manifest.identities[f.customer_asset.id] = { caseId: flow.case._id, serial: flow.case.serial, ownership: 'CUSTOMER_OWNED_NON_INVENTORY' };
   flow.manifest.identities[f.repair_case.id] = flow.case._id;
   await checkpoint('intake/custody');
