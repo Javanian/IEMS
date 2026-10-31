@@ -9,11 +9,12 @@ export function validateApprovedOrderReference(reference) {
 }
 export function createApprovedOrderDocumentSource(runtime) {
   const authority = createVendorDraftAuthority(runtime);
-  return Object.freeze({ async readAuthorized({ scope, grant, reference, session }) {
+  const observationGrant=async(scope,grant)=>{const fresh=await runtime.foundation.authorize(scope,{tenantId:grant?.tenantId,plantId:grant?.plantId,action:'ai.vendor.source.read'});if(['tenantId','plantId','legalEntityId','userId','membershipId','membershipVersion'].some(key=>grant?.[key]!==fresh[key]))fail('SCOPE_DENIED',403);return fresh;};
+  const read=async({scope,grant,reference,session},observation)=>{
     validateApprovedOrderReference(reference);
-    if (!session?.inTransaction()) fail('SCOPE_DENIED', 403);
+    if (!session?.inTransaction()) fail('SCOPE_DENIED', 403);if(observation&&session.client!==runtime.client)fail('SCOPE_DENIED',403);
     // A copied per-user document ACL never replaces current business-source authority.
-    if (scope) await runtime.foundation.authorizeInTransaction(scope, scopeTarget(scope, grant.plantId, 'ai.vendor.source.read'), { session });
+    if(scope){if(observation)await observationGrant(scope,grant);else await runtime.foundation.authorizeInTransaction(scope,scopeTarget(scope,grant.plantId,'ai.vendor.source.read'),{session});}
     else {
       // Retrieval only supplies a verified grant; resolve its live membership policy through the host's opaque scope binding.
       fail('AI_ISSUED_SOURCE_SCOPE_REQUIRED', 403);
@@ -26,6 +27,6 @@ export function createApprovedOrderDocumentSource(runtime) {
     const text = [title, `Approved source hash: ${sourceHash}`, 'This is document evidence, not current fulfillment or delivery status.',
       ...source.lines.map(line => JSON.stringify(line)),
       ...['currency', 'taxPolicy', 'roundingPolicy', 'subtotal', 'tax', 'total'].filter(k => Object.hasOwn(source, k)).map(k => `${k}: ${source[k]}`)].join('\n');
-    return { title, text };
-  } });
+    if(observation)await observationGrant(scope,grant);return {title,text};
+  };return Object.freeze({readAuthorized:input=>read(input,false),readSnapshot:input=>read(input,true)});
 }

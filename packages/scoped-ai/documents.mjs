@@ -18,22 +18,26 @@ export function createAiDocuments({ client, db, foundation, saasAdmission, issue
   const commands = createCommandExecutor({ client, db, admission: saasAdmission?.effect, foundation });
   const target = (scope, plantId, action, session) => foundation.authorizeInTransaction(scope, scopeTarget(scope, plantId, action), { session });
   const filterFor = grant => ({ tenantId: grant.tenantId, plantId: grant.plantId, legalEntityId: grant.legalEntityId });
-  const source = Object.freeze({ async readAuthorized({ scope, grant, resourceId, session }) {
+  const observationGrant=async(scope,grant)=>{const fresh=await foundation.authorize(scope,{tenantId:grant?.tenantId,plantId:grant?.plantId,action:'ai.index'});if(['tenantId','plantId','legalEntityId','userId','membershipId','membershipVersion'].some(key=>grant?.[key]!==fresh[key]))fail('SCOPE_DENIED',403);return fresh;};
+  const readSource=async({scope,grant,resourceId,session},observation)=>{
     if (!session?.inTransaction() || !uuid(resourceId) || !uuid(grant?.userId)) fail('SCOPE_DENIED', 403);
+    if(observation){if(session.client!==client||db.client!==client)fail('SCOPE_DENIED',403);await observationGrant(scope,grant);}
     const filter = { ...filterFor(grant), _id: resourceId, active: true, allowedUserIds: grant.userId };
     const row = await documents.findOne(filter, { session });
     if (!row) fail('AI_DOCUMENT_NOT_FOUND', 404);
     if (row.sourceReference) {
       if (!issuedSource) fail('AI_ISSUED_SOURCE_UNAVAILABLE', 503);
-      const original = await issuedSource.readAuthorized({ scope, grant, reference: row.sourceReference, session });
+      if(observation&&typeof issuedSource.readSnapshot!=='function')fail('AI_ISSUED_SOURCE_OBSERVATION_UNAVAILABLE',503);const original=observation?await issuedSource.readSnapshot({scope,grant,reference:row.sourceReference,session}):await issuedSource.readAuthorized({scope,grant,reference:row.sourceReference,session});
       if (contentHash({ title: original.title, chunks: textChunks(original.text) }) !== row.contentHash) fail('AI_DOCUMENT_CHANGED', 409);
     }
     if (row.contentHash !== contentHash({ title: row.title, chunks: row.chunks })) fail('AI_DOCUMENT_CORRUPT', 409);
-    const write = await documents.updateOne({ ...filter, revision: row.revision, aclRevision: row.aclRevision },
+    if(!observation){const write = await documents.updateOne({ ...filter, revision: row.revision, aclRevision: row.aclRevision },
       { $inc: { readFence: 1 } }, { session });
-    if (write.matchedCount !== 1) fail('AI_DOCUMENT_CHANGED', 409);
+    if (write.matchedCount !== 1) fail('AI_DOCUMENT_CHANGED', 409);}
+    if(observation)await observationGrant(scope,grant);
     return { resourceId: row._id, revision: row.revision, aclRevision: row.aclRevision, title: row.title, chunks: row.chunks };
-  } });
+  };
+  const source=Object.freeze({readAuthorized:input=>readSource(input,false),readSnapshot:input=>readSource(input,true)});
   return Object.freeze({ source,
     async initialize() {
       await commands.initialize();
