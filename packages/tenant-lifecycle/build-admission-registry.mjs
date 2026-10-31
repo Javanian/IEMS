@@ -24,8 +24,12 @@ wrappers.documentIssues={filter:['tenantId','legalEntityId','plantId','kind','so
 function classify(route) {
  const [method,path]=route.split(' ');
  if(path.startsWith('/api/session/'))return {state:'AUTH_RECOVERY',meter:'NONE'};
+ if(path==='/api/saas/quiesce')return {state:'CONTROL_PLANE',meter:'NONE',note:'Current tenant-wide saas.suspend closes the durable epoch then performs verified adapter drain; no business publication or root charge.'};
+ if(path.startsWith('/api/saas/effects/'))return {state:method==='GET'?'READ':'PRIVATE_PARENT_CONTINUATION',meter:'NONE',note:'Registered kind rebinds current original actor/source; private persisted parent/attempt/fence; continue or observe never creates a new root.'};
  if(path.startsWith('/api/saas/'))return {state:'CONTROL_PLANE',meter:'SEPARATE_ADMIN_RECEIPT'};
  if(path==='/api/cs/automation/sla-breaches'||path==='/api/cs/automation/recheck')return {state:'READ',meter:'NONE',note:'Bounded eligibility observation; no task scheduling or business writes.'};
+ if(path==='/api/cs/automation/run/:workflowId')return {state:'CONDITIONAL_RECEIPTED',receipt:'automation_audit_logs',meter:'ONE_COMMAND',condition:'Managed engine LOCAL_SIMULATED adapter and real current human/service session; AUTOMATION_ENGINE_RUN keeps existing tenant/key digest and immutable accepted result; legacy engine remains separate-effect gated.'};
+ if(path==='/api/cs/automation/engine-error')return {state:'PRIVATE_PARENT_OBSERVATION',receipt:'automation_audit_logs',meter:'NONE',condition:'AUTOMATION_ENGINE_ERROR exact run/workflow/execution/error hash, actual correlated service session and already-begun registered attempt; never stop proof.'};
  if(method==='GET')return {state:'READ',meter:'NONE'};
  let receipt;
  if(path.startsWith('/api/manufacturing/'))receipt='manufacturingKeys';
@@ -72,6 +76,7 @@ const registry={schema:'SAAS_ADMISSION_REGISTRY_V1',profile:'RECEIPTED_COMMANDS_
   unit:'command-count',storageBytes:'Cumulative explicitly admitted bytes; not measured disk occupancy or invoice billing',wrappers,
   constructors:paths.filter(path=>/foundation-runtime|portals|customer-service\/index|scoped-ai\/(documents|indexing|models|vendor-drafts)/.test(path)),
   system:'Private reporting relay, authorization/source/read fences, internal job retries and init/index creation are not independent billable user commands. Public job ingress owns one foundation receipt with same-session rate consumption.',
-  externalEnrollment:'Any automation_engine_runs history blocks enrollment until authoritative quiescence/reconciliation is designed; an engine HTTP ACK does not prove effects stopped.',sources,routes:actual.map(route=>({route,...classify(route)}))};
+  externalEnrollment:'Legacy/unmanaged engine/vendor history and CS SENDING/UNKNOWN remain denied. Fresh managed LOCAL_SIMULATED history requires current owner/source authority and verified closed-epoch high-water/complete-attempt barrier; ACK, timeout and missing promises never prove stopped.',
+  separateEffects:{schema:'SEPARATE_EFFECTS_V1',collections:{saasEffectCommands:['tenantId','ownerNamespace','ownerIdentityHash'],saasEffectAttempts:['tenantId','commandId','phase','ordinal'],saasEffectEvents:['tenantId','commandId','version'],saasEffectBarriers:['tenantId','adapterId','instanceEpoch','stopEpoch']},disposition:'RETAIN_PRIVATE_OR_TECHNICAL',kinds:{'automation.engine':{owner:'automation_audit_logs',action:'AUTOMATION_ENGINE_RUN',phase:'EFFECT',meter:'ONE_ROOT_COMMAND',child:'AUTOMATION_ENGINE_ERROR_NONBILLABLE'},'cs.local-preview':{owner:'cs_idempotency',phase:'EXACT_DELIVERY_ID',meter:'INHERITS_ORIGINAL_ROOT',worker:'PRIVATE_FACTORY_CAPABILITY_ONLY'}},adapterModes:['LOCAL_SIMULATED_OWNED_MARKER_DATABASE_ONLY'],pending:['automation full recovery','AI rebuild/cleanup/vendor phases','caller status UI'],providerEvidence:'NOT_RUN'},sources,routes:actual.map(route=>({route,...classify(route)}))};
 await writeFile(new URL('./admission-registry.json',import.meta.url),JSON.stringify(registry,null,2)+'\n');
 console.log(`${registry.routes.length} actual routes, ${Object.keys(sources).length} source pins; full endpoint coverage false`);
