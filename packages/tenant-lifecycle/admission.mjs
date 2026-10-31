@@ -17,6 +17,7 @@ export const admissionReceipts = Object.freeze(Object.fromEntries([
   ['automation_audit_logs','payloadHash'], ['cs_idempotency','requestHash'], ['documentIssues','contentHash'], ['crmCommandResults','inputHash'], ['legacyQuoteCommandResults','inputHash'], ['procurementCommandResults','inputHash'],
 ].map(([collection,hashField]) => [collection,Object.freeze({collection,hashField})])));
 export const csReceiptPolicies=Object.freeze({
+ 'complaint.start':{customer:true},'complaint.update':{customer:true},'conversation.bot_reply':{customer:true},'conversation.operator_reply':{permission:'cs.reply',owner:'user'},
  'inbound.command':{customer:true},'complaint.confirm':{customer:true},'ticket.customer_comment':{customer:true},'conversation.handoff_request':{customer:true},
  'ticket.transition':{permission:'cs.ticket.write',owner:'user'},'ticket.public_update':{permission:'cs.ticket.write',owner:'user'},'ticket.internal_note':{permission:'cs.note.internal',owner:'user'},
  'conversation.takeover':{permission:'cs.conversation.handoff',owner:'user'},'conversation.mode':{permission:'cs.conversation.handoff',owner:'user'},

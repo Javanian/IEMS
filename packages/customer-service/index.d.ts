@@ -108,7 +108,7 @@ export interface CustomerService {
   resolveCustomerPrincipal(input: { tenantId: UUID; channelAccountId: string; providerContactId: string }): Promise<CustomerPrincipal>;
   getOrderStatusForCustomer(principal: CustomerPrincipal, input: { orderNumber: string }): Promise<OrderStatusView>;
   startComplaintDraft(principal: CustomerPrincipal, input: { requestKey: string }): Promise<DraftView>;
-  updateComplaintDraft(principal: CustomerPrincipal, input: { draftId: UUID; expectedVersion: number; action: DraftAction }): Promise<DraftView>;
+  updateComplaintDraft(principal: CustomerPrincipal, input: { draftId: UUID; expectedVersion: number; commandKey?: string; action: DraftAction }): Promise<DraftView>;
   confirmComplaint(principal: CustomerPrincipal, input: { draftId: UUID; expectedVersion: number; inboundKey: string }): Promise<TicketReceipt>;
   getTicketForCustomer(principal: CustomerPrincipal, input: { ticketNumber: string }): Promise<CustomerTicketView>;
   addCustomerComment(principal: CustomerPrincipal, input: { ticketNumber: string; inboundKey: string; text: string }): Promise<{ eventId: UUID }>;

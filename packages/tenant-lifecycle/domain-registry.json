@@ -11842,7 +11842,7 @@
       ]
     },
     "packages/customer-service/index.mjs": {
-      "sha256": "ad3255ff1219711e29138f3af3eb135c97cf7da61d7ea40461ad54dda2629e13",
+      "sha256": "926f3dfa3aa294c0773b807a8b48e2da759f38e750ac4342c243ce37cd6a63b0",
       "fields": [
         "ABANDON",
         "ACCEPTED",
@@ -11891,6 +11891,7 @@
         "FIXTURE",
         "GENERAL_INQUIRY",
         "HANDOFF_ACK",
+        "HISTORICAL_RESULT_RECEIPT_REQUIRED",
         "HUMAN",
         "HUMAN_ACTIVE",
         "HUMAN_PENDING",
@@ -12010,6 +12011,7 @@
         "bindingVersion",
         "body",
         "boolean",
+        "bot_reply",
         "boundary",
         "call",
         "cancelReason",
@@ -12281,6 +12283,7 @@
         "sourceId",
         "sourceVersion",
         "stage",
+        "start",
         "startComplaintDraft",
         "startSession",
         "startsWith",

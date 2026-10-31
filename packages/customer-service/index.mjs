@@ -24,7 +24,7 @@ const TICKET_TRANSITIONS = Object.freeze({
 });
 const DRAFT_BACK = Object.freeze({ CATEGORY: 'ORDER_SELECTION', DESCRIPTION: 'CATEGORY', PREVIEW: 'DESCRIPTION' });
 const OPEN_DRAFT = ['ORDER_SELECTION', 'CATEGORY', 'DESCRIPTION', 'PREVIEW'];
-const STATUS = { DENIED: 403, NOT_FOUND: 404, INVALID_INPUT: 400, INVALID_TRANSITION: 409, VERSION_CONFLICT: 409, IDEMPOTENCY_CONFLICT: 409, DRAFT_EXPIRED: 410, STALE_FENCE: 409, STATUS_UNAVAILABLE: 503, VALIDATION: 400, BINDING_REVOKED: 409, BINDING_CONFLICT: 409, IDEMPOTENCY_KEY_REUSED: 409, SYNTHETIC_ADDRESS_REQUIRED: 422 };
+const STATUS = { DENIED: 403, NOT_FOUND: 404, INVALID_INPUT: 400, INVALID_TRANSITION: 409, VERSION_CONFLICT: 409, IDEMPOTENCY_CONFLICT: 409, DRAFT_EXPIRED: 410, STALE_FENCE: 409, STATUS_UNAVAILABLE: 503, VALIDATION: 400, BINDING_REVOKED: 409, BINDING_CONFLICT: 409, IDEMPOTENCY_KEY_REUSED: 409, HISTORICAL_RESULT_RECEIPT_REQUIRED:409, SYNTHETIC_ADDRESS_REQUIRED: 422 };
 export const BINDING_CHANNELS = Object.freeze(['SIMULATED']);
 export const SIMULATED_CHANNEL_ACCOUNT = 'SIMULATED';
 export const SYNTHETIC_ADDRESS = /^\+62000\d{6,9}$/;
@@ -138,7 +138,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     await recheckReceiptSources(session,context,scope,request,found?.result);
     const descriptor={session,namespace:'cs_idempotency',identity,key:k,payloadHash:hash,replayed:Boolean(found),parent:context.admission};
     let admitted;
-    if(['inbound.command','complaint.confirm','ticket.customer_comment','conversation.handoff_request'].includes(scope)) {
+    if(['inbound.command','complaint.confirm','ticket.customer_comment','conversation.handoff_request','complaint.start','complaint.update','conversation.bot_reply'].includes(scope)) {
       if(!context.principal)fail('DENIED');
       if(customerPort)admitted=await customerPort.effect({...descriptor,principal:context.principal});else await missingPort(tenantId,session);
     } else {
@@ -154,6 +154,14 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     });
   }
 
+  async function immutableRoot(session,descriptor,compute,historical) {
+    if(descriptor.principal&&transactionContext.getStore()?.admission)return compute();
+    if(descriptor.key===undefined){await unreceiptedCustomer(session,await loadCustomerContext(descriptor.principal,session));return compute();}
+    key(descriptor.key);
+    const prior=await c('cs_idempotency').findOne({tenantId:descriptor.tenantId,scope:descriptor.scope,owner:descriptor.owner,key:descriptor.key},{session});
+    if(!prior&&historical){const result=await historical();if(result){if(await c('saasSubscriptions').findOne({tenantId:descriptor.tenantId},{session}))fail('HISTORICAL_RESULT_RECEIPT_REQUIRED');if(!descriptor.principal)await recheckReceiptSources(session,transactionContext.getStore(),descriptor.scope,descriptor.request,result);return result;}}
+    return idempotent(session,descriptor,compute);
+  }
   async function operator(scope, plantId, action) {
     const session = transactionContext.getStore()?.session;
     return session ? foundation.authorizeInTransaction(scope, { plantId: uuid(plantId), action }, { session }) : foundation.authorize(scope, { plantId: uuid(plantId), action });
@@ -163,7 +171,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
       const grant=await operator(scope,plantId,action),context=transactionContext.getStore();
       if(saasAdmission) {
         if(['cs.ticket.read','cs.binding.read'].includes(action))await saasAdmission.authorize(scope,{plantId,session});
-        else if(['cs.ticket.write','cs.note.internal','cs.conversation.handoff','cs.binding.manage','cs.delivery.review','cs.simulator.use'].includes(action))await saasAdmission.authorize(scope,{plantId,session});
+        else if(['cs.ticket.write','cs.note.internal','cs.conversation.handoff','cs.binding.manage','cs.delivery.review','cs.simulator.use','cs.reply'].includes(action))await saasAdmission.authorize(scope,{plantId,session});
         else await saasAdmission.unsupported(scope,{plantId,session});
       }else await missingPort(grant.tenantId,session);
       return transactionContext.run(Object.freeze({...context,actor:Object.freeze({scope,grant,action}),onAdmission:onAdmission??context.onAdmission}),()=>fn(session,grant));
@@ -219,6 +227,15 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     }
     if(namespace.startsWith('ticket.')&&request.ticketId)await ticket({_id:request.ticketId});
     if(namespace==='ticket.customer_comment')await ticket({ticketNumber:request.ticketNumber});
+    if(['complaint.start','complaint.update'].includes(namespace)) {
+      if(!binding)fail('DENIED');const draftId=namespace==='complaint.update'?request.draftId:result?.draftId;
+      if(draftId){const draft=await loadOwnDraft(session,binding,draftId);if(draft.orderNumber)await ownSnapshot(session,binding,draft.orderNumber);}
+    }
+    if(namespace==='conversation.bot_reply') {
+      if(!binding)fail('DENIED');const conv=await c('cs_conversations').findOne({...scoped,bindingId:binding._id},{session});
+      if(result&&(!conv||(result.state==='SUPPRESSED'?conv.mode!==result.mode:conv.mode!=='BOT_ACTIVE')))fail('DENIED');
+      if(result?.deliveryId){const d=await c('cs_outbox').findOne({...scoped,_id:result.deliveryId,bindingId:binding._id,conversationId:conv._id},{session});if(!d||d.payloadHash!==requestHash(request))fail('DENIED');}
+    }
     if(namespace==='complaint.confirm') {if(!binding)fail('DENIED');const draft=await loadOwnDraft(session,binding,request.draftId);if(draft.orderNumber)await ownSnapshot(session,binding,draft.orderNumber);}
     if(namespace==='inbound.command') {
       if(!binding)fail('DENIED');const cmd=request.command;
@@ -230,6 +247,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     }
     if(namespace.startsWith('conversation.')&&request.conversationId) {
       const conv=await c('cs_conversations').findOneAndUpdate({...scoped,_id:request.conversationId},{$inc:{admissionSourceFence:1}},{session,returnDocument:'after'});if(!conv)fail('NOT_FOUND');
+      if(namespace==='conversation.operator_reply'&&(conv.mode!=='HUMAN_ACTIVE'||conv.assigneeId!==g.userId))fail('DENIED');
       if(namespace==='conversation.mode'&&conv.assigneeId&&conv.assigneeId!==g.userId)fail('DENIED');
       if(!await c('cs_contact_bindings').findOne({...scoped,_id:conv.bindingId,customerId:conv.customerId,status:'ACTIVE',...unexpired()},{session}))fail('DENIED');
     }
@@ -494,22 +512,25 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
       key(requestKey);
       return tx(async session => {
         const b = await customerContext(principal, session);
-        await unreceiptedCustomer(session,b);
+        return immutableRoot(session,{tenantId:b.tenantId,scope:'complaint.start',owner:b._id,key:requestKey,request:{},principal},async()=>{
         const existing = await c('cs_complaint_drafts').findOne({ tenantId: b.tenantId, bindingId: b._id, requestKey }, { session });
         if (existing) return draftView(existing);
         const at = now();
         const d = { _id: randomUUID(), tenantId: b.tenantId, plantId: b.plantId, customerId: b.customerId, bindingId: b._id, requestKey, stage: 'ORDER_SELECTION', version: 1, orderNumber: null, category: null, description: null, createdAt: at, updatedAt: at, expiresAt: new Date(at.getTime() + draftTtlMs) };
         await c('cs_complaint_drafts').insertOne(d, { session });
         return draftView(d);
+        },async()=>{const d=await c('cs_complaint_drafts').findOne({tenantId:b.tenantId,bindingId:b._id,requestKey},{session});return d?draftView(d):null;});
       });
     },
 
-    async updateComplaintDraft(principal, { draftId, expectedVersion, action }) {
+    async updateComplaintDraft(principal, { draftId, expectedVersion, action, commandKey }) {
       version(expectedVersion);
       if (!action || typeof action.type !== 'string') fail('INVALID_INPUT');
+      const types={SELECT_ORDER:()=>({type:action.type,orderNumber:orderNo(action.orderNumber)}),GENERAL_INQUIRY:()=>({type:action.type}),SELECT_CATEGORY:()=>({type:action.type,category:oneOf(action.category,COMPLAINT_CATEGORIES)}),DESCRIBE:()=>({type:action.type,text:text(action.text)}),BACK:()=>({type:action.type}),CANCEL:()=>({type:action.type})};
+      if(!types[action.type])fail('INVALID_INPUT');action=types[action.type]();
       return tx(async session => {
         const b = await customerContext(principal, session);
-        await unreceiptedCustomer(session,b);
+        return immutableRoot(session,{tenantId:b.tenantId,scope:'complaint.update',owner:b._id,key:commandKey,request:{draftId,expectedVersion,action},principal},async()=>{
         const d = await loadOwnDraft(session, b, draftId);
         if (d.version !== expectedVersion) fail('VERSION_CONFLICT');
         if (!OPEN_DRAFT.includes(d.stage)) fail('INVALID_TRANSITION');
@@ -527,6 +548,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
         }
         const res = await c('cs_complaint_drafts').findOneAndUpdate({ _id: d._id, version: d.version }, { $set: { ...set, updatedAt: now() }, $inc: { version: 1 } }, { session, returnDocument: 'after' });
         return res ? draftView(res) : fail('VERSION_CONFLICT');
+        });
       });
     },
 
@@ -719,13 +741,14 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
       if (!params || typeof params !== 'object' || Array.isArray(params) || Object.keys(params).length > 10 || !Object.values(params).every(v => typeof v === 'string' && v.length <= 200)) fail('INVALID_INPUT');
       return tx(async session => {
         const b = await customerContext(principal, session);
-        await unreceiptedCustomer(session,b);
+        return immutableRoot(session,{tenantId:b.tenantId,scope:'conversation.bot_reply',owner:b._id,key:inboundKey,request:{template,params},principal},async()=>{
         const conv = await conversationFor(session, b);
         const existing = await c('cs_outbox').findOne({ tenantId: b.tenantId, actionKey: `bot-reply:${b._id}:${inboundKey}` }, { session });
         if (existing) return existing.payloadHash === requestHash({ template, params }) ? { deliveryId: existing._id, state: existing.state } : fail('IDEMPOTENCY_CONFLICT');
         if (conv.mode !== 'BOT_ACTIVE') return { deliveryId: null, state: 'SUPPRESSED', mode: conv.mode };
         const row = await enqueue(session, conv, b, { kind: 'BOT_REPLY', origin: 'BOT', actionKey: `bot-reply:${b._id}:${inboundKey}`, payload: { template, params }, ttlMs: botReplyTtlMs });
         return { deliveryId: row._id, state: row.state };
+        },async()=>{const d=await c('cs_outbox').findOne({tenantId:b.tenantId,actionKey:`bot-reply:${b._id}:${inboundKey}`},{session});if(d&&d.payloadHash!==requestHash({template,params}))fail('IDEMPOTENCY_CONFLICT');return d?{deliveryId:d._id,state:d.state}:null;});
       });
     },
 
@@ -793,7 +816,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     async operatorReply(scope, { plantId, conversationId, text: body, commandKey }) {
       const g = await operator(scope, plantId, 'cs.reply');
       uuid(conversationId); const t0 = text(body, 2000); key(commandKey);
-      return operatorTx(scope, plantId, 'cs.reply', async (session, g) => {
+      return operatorTx(scope, plantId, 'cs.reply', async (session, g) => immutableRoot(session,{tenantId:g.tenantId,scope:'conversation.operator_reply',owner:g.userId,key:commandKey,request:{conversationId,text:t0}},async()=>{
         const conv = await c('cs_conversations').findOne({ _id: conversationId, tenantId: g.tenantId, plantId: g.plantId }, { session });
         if (!conv) fail('NOT_FOUND');
         const actionKey = `operator-reply:${g.userId}:${commandKey}`;
@@ -805,7 +828,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
         const row = await enqueue(session, conv, b, { kind: 'OPERATOR_REPLY', origin: 'OPERATOR', actionKey, payload: { template: 'operator_text', text: t0 }, ttlMs: ackTtlMs, actorUserId: g.userId, ticketId: conv.activeTicketId ?? null });
         await audit(session, g.tenantId, 'conversation.operator_reply', conv._id, { type: 'OPERATOR', userId: g.userId });
         return { deliveryId: row._id, state: row.state };
-      });
+      },async()=>{const d=await c('cs_outbox').findOne({tenantId:g.tenantId,actionKey:`operator-reply:${g.userId}:${commandKey}`},{session});if(d&&(d.payloadHash!==requestHash({template:'operator_text',text:t0})||d.conversationId!==conversationId))fail('IDEMPOTENCY_CONFLICT');return d?{deliveryId:d._id,state:d.state}:null;}));
     },
 
     // ---- Wave 4f: trusted operator onboarding of synthetic bindings (cs.binding.*) ----
