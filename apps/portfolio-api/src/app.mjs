@@ -3,6 +3,7 @@ import { randomUUID, randomBytes, scrypt as scryptCallback, timingSafeEqual, cre
 import { promisify } from 'node:util';
 import { createTenantFoundation, resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { initializeFoundationRuntime } from './foundation-runtime.mjs';
+import { createLocalCommandReceipts, initializeLocalCommandReceipt, localCommandTransaction, checkLocalCommandKeys } from '../../../packages/tenant-lifecycle/local-commands.mjs';
 import { installCommercial, initializeCommercial, roleActions } from './commercial.mjs';
 import { opportunityView } from './crm.mjs';
 import { installProcurement, initializeProcurement, procurementRoles, procurementActions } from './procurement.mjs';
@@ -64,6 +65,7 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await bindBusinessClock(runtime, businessClock, ownedRunMarker);
   const foundation = createTenantFoundation({ client, db, roleActions });
   await foundation.initialize();
+  await initializeLocalCommandReceipt(db,'crmCommandResults');
   await initializeCommercial(db);
   await initializeProcurement(db);
   await initializeWarehouse(db);
@@ -85,6 +87,7 @@ export async function initialize({ client, db, customerService = {}, businessClo
   const { createMongoTenantDataPort } = await import('../../../packages/tenant-lifecycle/domain-port.mjs');
   const { createSaasAdmission, admissionProfile } = await import('../../../packages/tenant-lifecycle/admission.mjs');
   runtime.saasAdmission = createSaasAdmission({ ...runtime, coverage: integrations.tenantLifecycle?.admissionCoverage ?? admissionProfile });
+  runtime.localCommands = createLocalCommandReceipts(runtime);
   runtime.commands = await initializeFoundationRuntime(runtime);
   await initializeReportingSnapshots(db);
   runtime.platform = await initializePlatformRuntime(runtime, { ...integrations.platform, roleActions });
@@ -277,14 +280,21 @@ function installCrm(app, runtime) {
   const transaction = async (req, kind, effect) => {
     const session = runtime.client.startSession();
     try {
-      return await session.withTransaction(async () => {
+      return await localCommandTransaction(session,async () => {
         await guard(runtime, req, session);
-        await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
-        const result = await effect(session);
+        return runtime.localCommands.run({scope:req.scope,session,namespace:'crmCommandResults',action:kind,resourceId:req.params.id?id(req.params.id):null,body:req.body,
+          authorizeSources:async previous=>{
+            if(kind==='contact.created') { await find('accounts',req,req.params.id,session); if(previous) await find('contacts',req,previous._id,session); }
+            if(kind==='opportunity.created') { await find('accounts',req,req.body.accountId,session); if(previous) await find('opportunities',req,previous._id,session); }
+            if(kind==='opportunity.stage') { const current=await find('opportunities',req,req.params.id,session); await find('accounts',req,current.accountId,session); }
+            if(kind==='account.created'&&previous) await find('accounts',req,previous._id,session);
+          }},async admit=>{
+        const result = await effect(session,admit);
         const event = { ...req.filter, userId: req.scope.userId, kind, subjectId: result._id, version: result.version, occurredAt: businessNow(runtime) };
         await c(runtime, 'crmAudit').insertOne({ _id: randomUUID(), ...event }, { session });
         await c(runtime, 'crmOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
         return result;
+        });
       }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
     } finally { await session.endSession(); }
   };
@@ -301,47 +311,48 @@ function installCrm(app, runtime) {
   app.get('/api/crm/accounts', (req, res) => list('accounts', req, res));
   app.get('/api/crm/accounts/:id', async (req, res) => res.json({ data: await find('accounts', req, req.params.id) }));
   app.post('/api/crm/accounts', async (req, res) => {
-    fields(req.body, ['name']); const name = text(req.body.name);
-    const data = await transaction(req, 'account.created', async session => {
-      const row = { ...base(req), name }; await c(runtime, 'accounts').insertOne(row, { session }); return row;
+    checkLocalCommandKeys(req.body); fields(req.body, ['name','commandKey']); const name = text(req.body.name);
+    const data = await transaction(req, 'account.created', async (session,admit) => {
+      const row = { ...base(req), name }; await admit(); await c(runtime, 'accounts').insertOne(row, { session }); return row;
     }); res.status(201).json({ data });
   });
   app.get('/api/crm/accounts/:id/contacts', async (req, res) => { await find('accounts', req, req.params.id); await list('contacts', req, res, { accountId: req.params.id }); });
   app.post('/api/crm/accounts/:id/contacts', async (req, res) => {
-    fields(req.body, ['name', 'email', 'accountId']);
+    checkLocalCommandKeys(req.body); fields(req.body, ['name', 'email', 'accountId','commandKey']);
     if (req.body.accountId !== undefined && req.body.accountId !== req.params.id) fail(400, 'ACCOUNT_CONFLICT');
     const name = text(req.body.name), email = text(req.body.email, 254);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'INVALID_EMAIL');
-    const data = await transaction(req, 'contact.created', async session => {
+    const data = await transaction(req, 'contact.created', async (session,admit) => {
       await find('accounts', req, req.params.id, session);
       const row = { ...base(req), accountId: req.params.id, name, email };
-      await c(runtime, 'contacts').insertOne(row, { session }); return row;
+      await admit(); await c(runtime, 'contacts').insertOne(row, { session }); return row;
     }); res.status(201).json({ data });
   });
   app.get('/api/crm/opportunities', (req, res) => list('opportunities', req, res));
   app.get('/api/crm/opportunities/:id', async (req, res) => res.json({ data: opportunityView(await find('opportunities', req, req.params.id), businessNow(runtime)) }));
   app.post('/api/crm/opportunities', async (req, res) => {
-    fields(req.body, ['accountId', 'ownerId', 'amount', 'currency', 'name']);
+    checkLocalCommandKeys(req.body); fields(req.body, ['accountId', 'ownerId', 'amount', 'currency', 'name','commandKey']);
     const accountId = id(req.body.accountId), amount = money(req.body.amount, req.body.currency);
     if (req.body.ownerId !== undefined && req.body.ownerId !== req.scope.userId) fail(403, 'OWNER_DENIED');
-    const data = await transaction(req, 'opportunity.created', async session => {
+    const data = await transaction(req, 'opportunity.created', async (session,admit) => {
       await find('accounts', req, accountId, session);
       const now = businessNow(runtime);
       const row = { ...base(req), createdAt: now, updatedAt: now, accountId, amount, currency: req.body.currency, stage: 'NEW', history: [{ stage: 'NEW', version: 1, reason: 'Created', userId: req.scope.userId, at: now }] };
       if (req.body.name !== undefined) row.name = text(req.body.name);
-      await c(runtime, 'opportunities').insertOne(row, { session }); return row;
+      await admit(); await c(runtime, 'opportunities').insertOne(row, { session }); return row;
     }); res.status(201).json({ data });
   });
   app.post('/api/crm/opportunities/:id/stage', async (req, res) => {
-    fields(req.body, ['expectedVersion', 'stage', 'reason']);
+    checkLocalCommandKeys(req.body); fields(req.body, ['expectedVersion', 'stage', 'reason','commandKey']);
     const { expectedVersion, stage } = req.body; const reason = text(req.body.reason, 1000);
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 || !stages.includes(stage)) fail(400, 'INVALID_STAGE');
-    const data = await transaction(req, 'opportunity.stage', async session => {
+    const data = await transaction(req, 'opportunity.stage', async (session,admit) => {
       const current = await find('opportunities', req, req.params.id, session);
       await find('accounts', req, current.accountId, session);
       if (current.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (current.stage === stage || ['WON', 'LOST'].includes(current.stage)) fail(409, 'STAGE_CONFLICT');
       const updatedAt = businessNow(runtime);
+      await admit();
       const row = await c(runtime, 'opportunities').findOneAndUpdate({ ...req.filter, _id: current._id, version: expectedVersion }, { $set: { stage, updatedAt }, $inc: { version: 1 }, $push: { history: { stage, version: expectedVersion + 1, reason, at: updatedAt, userId: req.scope.userId } } }, { session, returnDocument: 'after' });
       if (!row) fail(409, 'VERSION_CONFLICT'); return row;
     }); res.json({ data });

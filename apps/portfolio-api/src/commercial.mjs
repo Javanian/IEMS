@@ -1,3 +1,4 @@
+import { initializeLocalCommandReceipt, localCommandTransaction, checkLocalCommandKeys, localCommandPolicies } from '../../../packages/tenant-lifecycle/local-commands.mjs';
 import { randomUUID, createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { installInquiries, initializeInquiries } from './inquiries.mjs';
@@ -13,6 +14,7 @@ const scales = { USD: 2, EUR: 2, GBP: 2, IDR: 2, JPY: 0, KWD: 3 };
 // Public customer-facing order number: stable, unique per tenant+plant (unique index), never the raw UUID.
 export const orderNumberFor = ({ tenantId, plantId }, orderId) => `SO-${createHash('sha256').update(`${tenantId}:${plantId}:${orderId}`).digest('hex').slice(0, 16).toUpperCase()}`;
 export async function initializeCommercial(db) {
+  await initializeLocalCommandReceipt(db,'legacyQuoteCommandResults');
   await initializeInquiries(db);
   await initializeQuoteCatalog(db);
   await db.collection('salesOrders').createIndex({ tenantId: 1, plantId: 1, quoteId: 1 }, { unique: true });
@@ -62,20 +64,29 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
     const row = await c('quotes').findOne({ ...req.filter, _id: id(key) }, { session });
     if (!row) fail(404, 'NOT_FOUND'); return row;
   };
-  const tx = async (req, kind, effect) => {
-    const session = runtime.client.startSession();
-    try { return await session.withTransaction(async () => {
-      await guard(runtime, req, session, req.commercialAction);
-      const receipted=kind==='quote.created'?Object.hasOwn(req.body,'schema'):req.body.idempotencyKey!==undefined;
-      if(!receipted) await runtime.saasAdmission.unsupported(req.scope,{plantId:req.scope.selectedPlantId,session});
-      const result = await effect(session);
-      if (!result.replay) {
-        const event = { ...req.filter, userId: req.scope.userId, kind, subjectId: result._id, version: result.version, occurredAt: new Date() };
-        await c('commercialAudit').insertOne({ _id: randomUUID(), ...event }, { session });
-        if (kind !== 'quote.converted') await c('commercialOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
-      }
-      return result;
-    }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' }); }
+  const tx = async (req,kind,effect) => {
+    const session=runtime.client.startSession();
+    try { return await localCommandTransaction(session,async()=>{
+      await guard(runtime,req,session,req.commercialAction);
+      const current=req.params.id?await find(req,req.params.id,session):null;
+      const typed=kind==='quote.created'?Object.hasOwn(req.body,'schema'):current?await validateCatalogQuote(runtime.db,req.filter,current,session):false;
+      const local=!typed && Object.hasOwn(localCommandPolicies.legacyQuoteCommandResults,kind);
+      checkLocalCommandKeys(req.body,{allowed:local});
+      if(local&&req.body.idempotencyKey!==undefined) fail(400,'QUOTE_COHORT_CONFLICT');
+      const perform=async(admit=async()=>{})=>{
+        const result=await effect(session,admit);
+        if(!result.replay) { const event={...req.filter,userId:req.scope.userId,kind,subjectId:result._id,version:result.version,occurredAt:new Date()};
+          await c('commercialAudit').insertOne({_id:randomUUID(),...event},{session});
+          if(kind!=='quote.converted') await c('commercialOutbox').insertOne({_id:randomUUID(),...event,state:'PENDING'},{session}); }
+        return result;
+      };
+      if(local) return runtime.localCommands.run({scope:req.scope,session,namespace:'legacyQuoteCommandResults',action:kind,resourceId:req.params.id?id(req.params.id):null,body:req.body,
+        authorizeSources:async previous=>{ const quote=current??(previous?await find(req,previous._id,session):null),accountId=req.body.accountId??quote?.accountId;
+          if(accountId&&!await c('accounts').findOne({...req.filter,_id:accountId},{session})) fail(404,'NOT_FOUND');
+          const opportunityId=req.body.opportunityId??quote?.opportunityId;
+          if(opportunityId) { await guard(runtime,req,session,'crm.write'); if(!await c('opportunities').findOne({...req.filter,_id:opportunityId},{session})) fail(404,'NOT_FOUND'); } }},perform);
+      return perform();
+    },{readConcern:{level:'snapshot'},writeConcern:{w:'majority'},readPreference:'primary'}); }
     finally { await session.endSession(); }
   };
   installQuoteCatalogOptions(app, runtime, { id, fail });
@@ -109,13 +120,14 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
   app.get('/api/commercial/quotes/:id', async (req, res) => res.json({ data: await read(async session => catalogQuoteView(runtime.db, req.filter, await find(req, req.params.id, session), session)) }));
   app.post('/api/commercial/quotes', async (req, res) => {
     const typed = Object.hasOwn(req.body, 'schema');
-    fields(req.body, ['accountId', 'opportunityId', 'expectedOpportunityVersion', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy', ...(typed ? ['schema', 'idempotencyKey'] : [])]);
+    checkLocalCommandKeys(req.body,{allowed:!typed});
+    fields(req.body, ['accountId', 'opportunityId', 'expectedOpportunityVersion', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy', ...(typed ? ['schema', 'idempotencyKey'] : ['commandKey'])]);
     if ((req.body.opportunityId === undefined) !== (req.body.expectedOpportunityVersion === undefined) || req.body.opportunityId !== undefined && (!Number.isSafeInteger(req.body.expectedOpportunityVersion) || req.body.expectedOpportunityVersion < 1)) fail(400, 'INVALID_OPPORTUNITY_VERSION');
     if (Array.isArray(req.body.lines) && req.body.lines.some(line => line?.provenance !== undefined)) fail(422, 'SOURCE_TAMPER');
     const accountId = id(req.body.accountId), input = typed ? typedQuoteInput(req.body) : null;
     const key = typed ? quoteCatalogKey(req.body.idempotencyKey) : null;
     const payloadHash = typed ? quoteCatalogPayloadHash({ kind: 'create', body: req.body }) : null;
-    const data = await tx(req, 'quote.created', async session => {
+    const data = await tx(req, 'quote.created', async (session,admit) => {
       if (typed) {
         const prior = await quoteCatalogReplay(runtime.db, req.filter, key, payloadHash, session);
         if(prior) { await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'quoteCatalogKeys',key:key,action:req.commercialAction,payloadHash,replayed:true}); return prior; }
@@ -135,6 +147,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
         if (!['QUALIFIED', 'QUOTING'].includes(opportunity.stage)) fail(409, 'STAGE_CONFLICT');
         const now = businessNow(runtime), version = opportunity.version + 1;
         const update = { $set: { stage: 'QUOTING', updatedAt: now }, $inc: { version: 1 }, $push: { quoteIds: row._id, ...(opportunity.stage !== 'QUOTING' ? { history: { stage: 'QUOTING', version, reason: 'Quote created', userId: req.scope.userId, at: now } } : {}) } };
+        await admit();
         const changed = await c('opportunities').updateOne({ ...req.filter, _id: opportunity._id, version: opportunity.version }, update, { session });
         if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
         row.opportunityId = opportunity._id; row.opportunityVersion = version;
@@ -143,20 +156,21 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
         await c('crmOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
       }
       if (typed) await saveCatalogQuote(runtime.db, req.filter, row, session, { key, kind: 'create', payloadHash });
-      await c('quotes').insertOne(row, { session });
+      await admit(); await c('quotes').insertOne(row, { session });
       return typed ? catalogQuoteView(runtime.db, req.filter, row, session) : row;
     });
     const { replay, ...record } = data;
     res.status(201).json({ data: record });
   });
   for (const operation of ['revisions', 'approve', 'accept', 'convert']) app.post(`/api/commercial/quotes/:id/${operation}`, async (req, res) => {
-    fields(req.body, operation === 'revisions' ? ['expectedVersion', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy', 'accountId', 'schema', 'idempotencyKey'] : operation === 'convert' ? ['expectedVersion', 'revision', 'idempotencyKey'] : ['expectedVersion', 'revision', 'idempotencyKey']);
+    checkLocalCommandKeys(req.body,{allowed:operation!=='convert'});
+    fields(req.body, operation === 'revisions' ? ['expectedVersion', 'expiresAt', 'lines', 'taxPolicy', 'roundingPolicy', 'accountId', 'schema', 'idempotencyKey','commandKey'] : operation === 'convert' ? ['expectedVersion', 'revision', 'idempotencyKey'] : ['expectedVersion', 'revision', 'idempotencyKey','commandKey']);
     const { expectedVersion, revision, idempotencyKey } = req.body;
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1 || (operation !== 'revisions' && (!Number.isSafeInteger(revision) || revision < 1))) fail(400, 'INVALID_VERSION');
     if (operation === 'convert') quoteCatalogKey(idempotencyKey);
     const typedHash = quoteCatalogPayloadHash({ kind: operation, quoteId: req.params.id, body: req.body });
     const payloadHash = createHash('sha256').update(JSON.stringify({ quoteId: req.params.id, expectedVersion, revision })).digest('hex');
-    const data = await tx(req, operation === 'convert' ? 'quote.converted' : `quote.${operation}`, async session => {
+    const data = await tx(req, operation === 'convert' ? 'quote.converted' : `quote.${operation}`, async (session,admit) => {
       if (idempotencyKey !== undefined) {
         const prior = await quoteCatalogReplay(runtime.db, req.filter, quoteCatalogKey(idempotencyKey), typedHash, session);
         if(prior) { await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'quoteCatalogKeys',key:idempotencyKey,action:req.commercialAction,payloadHash:typedHash,replayed:true}); return prior; }
@@ -231,6 +245,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
       }
       row.version++; row.updatedAt = new Date();
       if (typed) await saveCatalogQuote(runtime.db, req.filter, row, session, { key: idempotencyKey, kind: operation, payloadHash: typedHash });
+      await admit();
       const changed = await c('quotes').replaceOne({ ...req.filter, _id: row._id, version: expectedVersion }, row, { session });
       if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
       return typed ? catalogQuoteView(runtime.db, req.filter, row, session) : row;

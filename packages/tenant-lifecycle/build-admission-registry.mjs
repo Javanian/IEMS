@@ -1,3 +1,4 @@
+import { localCommandPolicies } from './local-commands.mjs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url));
@@ -13,11 +14,12 @@ const wrappers={
 };
 for(const prefix of ['quality','maintenance','operations']) wrappers[`${prefix}Keys`]={filter:['tenantId','plantId','key'],hash:'existing stockHash({action,params,body}); operations retains original actor-to-key contentHash',hook:'apps/portfolio-api/src/quality.mjs',replay:'current host/helper source authorization',nested:'one scopedModule receipt including voice; no independently charged child'};
 Object.assign(wrappers,JSON.parse(await readFile(new URL('./receipt-contracts-v6.json',import.meta.url),'utf8')));
+for(const [namespace,actions]of Object.entries(localCommandPolicies))wrappers[namespace]={filter:['tenantId','plantId','userId','action','key'],hash:'foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})',hashField:'inputHash',response:'exact original result snapshot',actions,hook:namespace==='crmCommandResults'?'apps/portfolio-api/src/app.mjs':namespace==='legacyQuoteCommandResults'?'apps/portfolio-api/src/commercial.mjs':'apps/portfolio-api/src/procurement.mjs',replay:'current actor/source scope, no new-effect CAS/state/expiry replay',meter:'ONE_COMMAND'};
 function classify(route) {
  const [method,path]=route.split(' ');
  if(path.startsWith('/api/session/'))return {state:'AUTH_RECOVERY',meter:'NONE'};
  if(path.startsWith('/api/saas/'))return {state:'CONTROL_PLANE',meter:'SEPARATE_ADMIN_RECEIPT'};
- if(path==='/api/cs/automation/sla-breaches')return {state:'UNSUPPORTED',meter:'NONE',note:'GET schedules automation tasks in the existing transaction; rejects enrolled tenants.'};
+ if(path==='/api/cs/automation/sla-breaches')return {state:'LOCAL_COVERAGE_PENDING',meter:'NONE',note:'GET schedules automation tasks in the existing transaction; rejects enrolled tenants.'};
  if(method==='GET')return {state:'READ',meter:'NONE'};
  let receipt;
  if(path.startsWith('/api/manufacturing/'))receipt='manufacturingKeys';
@@ -44,7 +46,10 @@ function classify(route) {
   if(path.endsWith('/vendor-promise'))receipt='procurementPromiseKeys';
   if(path.endsWith('/convert')&&!path.includes('/material-shortages/'))receipt='procurementConversions';
  }
- if(path.startsWith('/api/commercial/quotes'))return {state:'CONDITIONAL_RECEIPTED',receipt:['quoteCatalogKeys',...(path.endsWith('/convert')?['quoteConversions']:[])],condition:'Typed CATALOG_QUOTE_V1 with existing key; legacy convert uses its original receipt. Nonreceipted legacy create/change remains UNSUPPORTED.',meter:'ONE_COMMAND'};
+ if(path.startsWith('/api/crm/'))receipt='crmCommandResults';
+ if(['/api/procurement/vendors','/api/procurement/requests','/api/procurement/requests/:id/approve','/api/procurement/orders/:id/issue','/api/procurement/orders/:id/vendor-confirmation'].includes(path))receipt='procurementCommandResults';
+ if(path.startsWith('/api/cs/')||path==='/api/platform/jobs')return {state:'LOCAL_COVERAGE_PENDING',meter:'NONE',note:'Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied.'};
+ if(path.startsWith('/api/commercial/quotes'))return {state:'CONDITIONAL_RECEIPTED',receipt:['quoteCatalogKeys',...(path.endsWith('/convert')?['quoteConversions']:['legacyQuoteCommandResults'])],condition:'Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.',meter:'ONE_COMMAND'};
 
  if(path.startsWith('/api/portals/')||['/api/ai/documents/:id','/api/ai/documents/:id/publish','/api/ai/documents/:id/revoke','/api/ai/documents/:id/index/revoke','/api/ai/models/select'].includes(path)||/^\/api\/ai\/vendor-drafts\/[^/]+\/(create|preview|approve|revoke|intent)$/.test(path))receipt='foundationCommandResults';
  if(['/api/ai/retrieve','/api/ai/predictions','/api/ai/cs-intent','/api/ai/assistant'].includes(path))return {state:'ADVISORY_READ',meter:'NONE',note:'No business write; source/authorization fences retained. Provider availability/cost separately gated.'};

@@ -350,6 +350,70 @@
       "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
       "meter": "ONE_COMMAND",
       "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "crmCommandResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "key"
+      ],
+      "hash": "foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})",
+      "hashField": "inputHash",
+      "response": "exact original result snapshot",
+      "actions": {
+        "account.created": "crm.write",
+        "contact.created": "crm.write",
+        "opportunity.created": "crm.write",
+        "opportunity.stage": "crm.write"
+      },
+      "hook": "apps/portfolio-api/src/app.mjs",
+      "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
+      "meter": "ONE_COMMAND"
+    },
+    "legacyQuoteCommandResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "key"
+      ],
+      "hash": "foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})",
+      "hashField": "inputHash",
+      "response": "exact original result snapshot",
+      "actions": {
+        "quote.created": "quote.write",
+        "quote.revisions": "quote.write",
+        "quote.approve": "quote.approve",
+        "quote.accept": "quote.accept"
+      },
+      "hook": "apps/portfolio-api/src/commercial.mjs",
+      "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
+      "meter": "ONE_COMMAND"
+    },
+    "procurementCommandResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "key"
+      ],
+      "hash": "foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})",
+      "hashField": "inputHash",
+      "response": "exact original result snapshot",
+      "actions": {
+        "vendor.created": "procurement.write",
+        "purchaseRequest.created": "procurement.write",
+        "purchaseRequest.approve": "procurement.approve",
+        "purchaseOrder.issue": "procurement.issue",
+        "purchaseOrder.vendor-confirmation": "procurement.confirm"
+      },
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
+      "meter": "ONE_COMMAND"
     }
   },
   "constructors": [
@@ -365,7 +429,7 @@
   "externalEnrollment": "Any automation_engine_runs history blocks enrollment until authoritative quiescence/reconciliation is designed; an engine HTTP ACK does not prove effects stopped.",
   "sources": {
     "apps/portfolio-api/src/analytics.mjs": "321a9a29dc738b64cac746d7b4123f9cfcaece1c1af643c7b159aac53b007833",
-    "apps/portfolio-api/src/app.mjs": "0bbc2ebee9c685087d3036522f340cd5c9141524ca3ced9a33c225a29a43f60e",
+    "apps/portfolio-api/src/app.mjs": "2cb5a1b7be11702e8a8f6263a5a7d3523eabb308b8372e30ae8ba6e1cbc1bdc8",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
     "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
     "apps/portfolio-api/src/automation.mjs": "cc99bcaef8bbbab846a36ea8edaa5e785e0373b86f9cb1c33077b021ff9f7fc5",
@@ -378,7 +442,7 @@
     "apps/portfolio-api/src/catalog-stock-use-state.mjs": "01551ffca55baca6cb71d0b5a61f42c4bb5e17727aef7dae6745a45486b82882",
     "apps/portfolio-api/src/catalog-stock-values.mjs": "0c0a3b57fba41de58d6ed01ae3a704e4c0b86e203e1f48a87893eb3152a3d3af",
     "apps/portfolio-api/src/catalog-stock.mjs": "537e6db06cda3aea617f650f55fe793d2ccd7eee3b90d46764021082a06340a2",
-    "apps/portfolio-api/src/commercial.mjs": "3b22df531fa25554cd098551a1edb780889cde8a25d4133d62fbbf49c2eef642",
+    "apps/portfolio-api/src/commercial.mjs": "3116ed921aea6d42809142ea571ba6cf6b66bfa9335227feeda2c0421aec442a",
     "apps/portfolio-api/src/company-stock-capacity.mjs": "74a9ae580adbc8bec6a4fe4b19d721fec2568d91816d06ac30f4cee7bf462dcd",
     "apps/portfolio-api/src/company-stock-state.mjs": "096ccadc741a4d82e678e9dca22f38047b30262e8ee74a3db5af936548167d90",
     "apps/portfolio-api/src/company-stock-trace.mjs": "ca7f00e6aecc16b66c530cc374c6a2a09fda13d1f6377baf32198a4574766f16",
@@ -413,7 +477,7 @@
     "apps/portfolio-api/src/portals.mjs": "1ad40ed75e6c4ae24755d54ebdbfd50121b9b2d2f36ad5464b0ae78ad85f52d6",
     "apps/portfolio-api/src/predictions.mjs": "b37f4349817be74824c96cc4487508528694feedd49cb4e36f82da883ce0b40e",
     "apps/portfolio-api/src/procurement-commitments.mjs": "e933db2f068fad2c010566b0465ce43fc73f22121116e975c45a7e6d7dbbece3",
-    "apps/portfolio-api/src/procurement.mjs": "b18732f48b64994daf55ca31670c6496c5c0bb2de46fdb89a877dbd611a04be3",
+    "apps/portfolio-api/src/procurement.mjs": "a717d4fa99cb54c20bae01b8c27a8a1274514ad13222b2032e395efa256162f8",
     "apps/portfolio-api/src/purchased-billing-state.mjs": "be5bf4143a7a8bac0e6223e3b20c8207512cbff6d1d15224b1a40b746a58e839",
     "apps/portfolio-api/src/purchased-financial.mjs": "5c6937431ea286e66717677235fef3befef7976f953513d089ee93bc8d80a740",
     "apps/portfolio-api/src/purchased-fulfillment.mjs": "d4a77d7c6ba12ebfa332991f58e29e5cceffe5cd53bf4b16f4122071f4cae75c",
@@ -465,8 +529,9 @@
     "packages/durable-jobs/index.mjs": "ddc174521d4d74bf674fca23c939a9a63634fb969ad5256f58df00e54878a943",
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "43c28983915b21465ad9f5761ac1930afe95e33d05ac1c5870e2e2840e5c5bdc",
-    "packages/tenant-lifecycle/admission.mjs": "a9fae22a6d043d21ede6d648e4010c4ec13d742bb66f174fc605cc76effb47a2",
-    "packages/tenant-lifecycle/index.mjs": "c2c3954fe4788d9ffa75151f1188edaa69387dbe1ca71e6b8e1d46caaec38de1",
+    "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
+    "packages/tenant-lifecycle/admission.mjs": "e34a002d666efe38bd543c2e4b3822e50ba999b11bb75658c288fe3b2ceb8958",
+    "packages/tenant-lifecycle/index.mjs": "c69a5cc061f8d77d0a2be3f5a135745cb89f8462139839304db4ea762ae929c3",
     "packages/tenant-lifecycle/domain-port.mjs": "360ebbd148166a92367387a7c2a276d5ca5f22e259a20c450f642d0c817d5fbe",
     "packages/tenant-lifecycle/admission-registry.mjs": "7ef6a1ce3fe0f93e9f564ca5740b0eb7ef93cb1c4df86f0bd6acfc7b5b4fa601"
   },
@@ -758,7 +823,7 @@
     },
     {
       "route": "GET /api/cs/automation/sla-breaches",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
       "note": "GET schedules automation tasks in the existing transaction; rejects enrolled tenants."
     },
@@ -1580,27 +1645,30 @@
       "route": "POST /api/commercial/quotes",
       "state": "CONDITIONAL_RECEIPTED",
       "receipt": [
-        "quoteCatalogKeys"
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
       ],
-      "condition": "Typed CATALOG_QUOTE_V1 with existing key; legacy convert uses its original receipt. Nonreceipted legacy create/change remains UNSUPPORTED.",
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
       "meter": "ONE_COMMAND"
     },
     {
       "route": "POST /api/commercial/quotes/:id/accept",
       "state": "CONDITIONAL_RECEIPTED",
       "receipt": [
-        "quoteCatalogKeys"
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
       ],
-      "condition": "Typed CATALOG_QUOTE_V1 with existing key; legacy convert uses its original receipt. Nonreceipted legacy create/change remains UNSUPPORTED.",
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
       "meter": "ONE_COMMAND"
     },
     {
       "route": "POST /api/commercial/quotes/:id/approve",
       "state": "CONDITIONAL_RECEIPTED",
       "receipt": [
-        "quoteCatalogKeys"
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
       ],
-      "condition": "Typed CATALOG_QUOTE_V1 with existing key; legacy convert uses its original receipt. Nonreceipted legacy create/change remains UNSUPPORTED.",
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
       "meter": "ONE_COMMAND"
     },
     {
@@ -1610,16 +1678,17 @@
         "quoteCatalogKeys",
         "quoteConversions"
       ],
-      "condition": "Typed CATALOG_QUOTE_V1 with existing key; legacy convert uses its original receipt. Nonreceipted legacy create/change remains UNSUPPORTED.",
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
       "meter": "ONE_COMMAND"
     },
     {
       "route": "POST /api/commercial/quotes/:id/revisions",
       "state": "CONDITIONAL_RECEIPTED",
       "receipt": [
-        "quoteCatalogKeys"
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
       ],
-      "condition": "Typed CATALOG_QUOTE_V1 with existing key; legacy convert uses its original receipt. Nonreceipted legacy create/change remains UNSUPPORTED.",
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
       "meter": "ONE_COMMAND"
     },
     {
@@ -1638,195 +1707,199 @@
     },
     {
       "route": "POST /api/crm/accounts",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/crm/accounts/:id/contacts",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/crm/opportunities",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/crm/opportunities/:id/stage",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/cs/automation/deliveries/:id/review",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/digest/dispatch",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/digest/record",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/engine-error",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/escalate",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/pause",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/recheck",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/reconcile",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/resolution-draft",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/approve",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/cancel",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/dispatch",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/reject",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/run/:workflowId",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/service-credentials",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/service-credentials/:id/revoke",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/whatsapp-handoff",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/bindings",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/bindings/:id/revoke",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/conversations/:id/mode",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/conversations/:id/reply",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/conversations/:id/takeover",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/deliveries/:id/resolve",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/simulator/dispatch",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/simulator/inbound",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/tickets/:id/internal-notes",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/tickets/:id/public-update",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/tickets/:id/stage",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/deliveries/shipments/:id/confirmations",
@@ -2291,9 +2364,9 @@
     },
     {
       "route": "POST /api/platform/jobs",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/portals/grants",
@@ -2353,15 +2426,17 @@
     },
     {
       "route": "POST /api/procurement/orders/:id/issue",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/orders/:id/vendor-confirmation",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/orders/:id/vendor-promise",
@@ -2372,15 +2447,17 @@
     },
     {
       "route": "POST /api/procurement/requests",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/requests/:id/approve",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/requests/:id/convert",
@@ -2412,9 +2489,10 @@
     },
     {
       "route": "POST /api/procurement/vendors",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/purchased-fulfillment/orders/:id/reservations",

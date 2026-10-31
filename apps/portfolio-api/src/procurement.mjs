@@ -1,3 +1,4 @@
+import { initializeLocalCommandReceipt, localCommandTransaction, checkLocalCommandKeys, localCommandPolicies } from '../../../packages/tenant-lifecycle/local-commands.mjs';
 import { randomUUID, createHash } from 'node:crypto';
 import { saveCatalogOptionProjection } from './catalog-option-index.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
@@ -7,6 +8,7 @@ import { initializePurchaseOrderRevisions, purchaseOrderLineIds, applyOrderAmend
 export const procurementRoles = Object.fromEntries(['read', 'write', 'approve', 'convert', 'issue', 'confirm'].map(action => [`procurement${action[0].toUpperCase()}${action.slice(1)}`, [...new Set(['procurement.read', `procurement.${action}`])]]));
 export const procurementActions = ['read', 'write', 'approve', 'convert', 'issue', 'confirm'].map(a => `procurement.${a}`);
 export async function initializeProcurement(db) {
+  await initializeLocalCommandReceipt(db,'procurementCommandResults');
   await initializePurchaseOrderRevisions(db);
   await initializeMaterialShortages(db);
   await db.collection('purchaseOrders').createIndex({ tenantId: 1, plantId: 1, requestId: 1 }, { unique: true });
@@ -53,20 +55,25 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
     if (row && collection === 'purchaseOrders') row.lineIds = purchaseOrderLineIds(row);
     if (!row) fail(404, 'NOT_FOUND'); return row;
   };
-  const tx = async (req, kind, effect) => {
-    const session = runtime.client.startSession();
-    try { return await session.withTransaction(async () => {
-      await guard(runtime, req, session, req.procurementAction);
-      const receipted=kind.startsWith('purchaseOrder.amendment.')||['purchaseRequest.rfq','purchaseRequest.rfq-response','purchaseOrder.vendor-promise','purchaseRequest.convert'].includes(kind);
-      if(!receipted) await runtime.saasAdmission.unsupported(req.scope,{plantId:req.scope.selectedPlantId,session});
-      const result = await effect(session);
-      if (!result.replay) {
-        const event = { ...req.filter, kind, subjectId: result._id, version: result.version, userId: req.scope.userId, occurredAt: new Date() };
-        await c('procurementAudit').insertOne({ _id: randomUUID(), ...event }, { session });
-        await c('procurementOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
-      }
-      return result;
-    }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' }); }
+  const tx = async (req,kind,effect) => {
+    const session=runtime.client.startSession();
+    try { return await localCommandTransaction(session,async()=>{
+      await guard(runtime,req,session,req.procurementAction);
+      const local=Object.hasOwn(localCommandPolicies.procurementCommandResults,kind);
+      checkLocalCommandKeys(req.body,{allowed:local});
+      if(!local && !kind.startsWith('purchaseOrder.amendment.')&&!['purchaseRequest.rfq','purchaseRequest.rfq-response','purchaseOrder.vendor-promise','purchaseRequest.convert'].includes(kind)) await runtime.saasAdmission.unsupported(req.scope,{plantId:req.scope.selectedPlantId,session});
+      const perform=async(admit=async()=>{})=>{
+        const result=await effect(session,admit);
+        if(!result.replay) { const event={...req.filter,kind,subjectId:result._id,version:result.version,userId:req.scope.userId,occurredAt:new Date()};
+          await c('procurementAudit').insertOne({_id:randomUUID(),...event},{session});
+          await c('procurementOutbox').insertOne({_id:randomUUID(),...event,state:'PENDING'},{session}); }
+        return result;
+      };
+      if(local) return runtime.localCommands.run({scope:req.scope,session,namespace:'procurementCommandResults',action:kind,resourceId:req.params.id?id(req.params.id):null,body:req.body,
+        authorizeSources:async previous=>{ if(kind==='vendor.created') { if(previous) await find('vendors',req,previous._id,session); }
+          else { const collection=kind.startsWith('purchaseRequest.')?'purchaseRequests':'purchaseOrders'; const current=req.params.id?await find(collection,req,req.params.id,session):previous?await find(collection,req,previous._id,session):null; await find('vendors',req,current?.vendorId??req.body.vendorId,session); } }},perform);
+      return perform();
+    },{readConcern:{level:'snapshot'},writeConcern:{w:'majority'},readPreference:'primary'}); }
     finally { await session.endSession(); }
   };
   const base = req => ({ _id: randomUUID(), ...req.filter, version: 1, createdAt: new Date(), createdBy: req.scope.userId });
@@ -121,18 +128,18 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
     app.get(`/api/procurement/${path}/:id`, async (req, res) => res.json({ data: await find(collection, req, req.params.id) }));
   }
   app.post('/api/procurement/vendors', async (req, res) => {
-    fields(req.body, ['name']);
+    checkLocalCommandKeys(req.body); fields(req.body, ['name','commandKey']);
     if (typeof req.body.name !== 'string' || !req.body.name.trim() || req.body.name.length > 200) fail(400, 'INVALID_TEXT');
-    const data = await tx(req, 'vendor.created', async session => { const row = { ...base(req), name: req.body.name.trim() }; await c('vendors').insertOne(row, { session }); await saveCatalogOptionProjection(runtime.db, 'vendors', row, session); return row; });
+    const data = await tx(req, 'vendor.created', async (session,admit) => { const row = { ...base(req), name: req.body.name.trim() }; await admit(); await c('vendors').insertOne(row, { session }); await saveCatalogOptionProjection(runtime.db, 'vendors', row, session); return row; });
     res.status(201).json({ data });
   });
   app.post('/api/procurement/requests', async (req, res) => {
-    fields(req.body, ['vendorId', 'lines', 'taxPolicy', 'roundingPolicy']);
+    checkLocalCommandKeys(req.body); fields(req.body, ['vendorId', 'lines', 'taxPolicy', 'roundingPolicy','commandKey']);
     const vendorId = id(req.body.vendorId), content = snapshot(req.body);
-    const data = await tx(req, 'purchaseRequest.created', async session => {
+    const data = await tx(req, 'purchaseRequest.created', async (session,admit) => {
       await find('vendors', req, vendorId, session);
       const row = { ...base(req), vendorId, snapshot: content, status: 'DRAFT', lineIds: content.lines.map(() => randomUUID()) };
-      await c('purchaseRequests').insertOne(row, { session }); return row;
+      await admit(); await c('purchaseRequests').insertOne(row, { session }); return row;
     }); res.status(201).json({ data });
   });
   for (const operation of ['rfq', 'rfq-response']) app.post(`/api/procurement/requests/:id/${operation}`, async (req, res) => {
@@ -211,13 +218,14 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
   for (const operation of ['approve', 'convert', 'issue', 'vendor-confirmation']) {
     const requestOperation = ['approve', 'convert'].includes(operation), collection = requestOperation ? 'purchaseRequests' : 'purchaseOrders';
     app.post(`/api/procurement/${requestOperation ? 'requests' : 'orders'}/:id/${operation}`, async (req, res) => {
-      fields(req.body, ['expectedVersion', ...(operation === 'convert' ? ['idempotencyKey'] : operation === 'vendor-confirmation' ? ['vendorId', 'reference'] : [])]);
+      checkLocalCommandKeys(req.body,{allowed:operation!=='convert'});
+      fields(req.body, ['expectedVersion', ...(operation === 'convert' ? ['idempotencyKey'] : operation === 'vendor-confirmation' ? ['vendorId', 'reference','commandKey'] : ['commandKey'])]);
       const { expectedVersion, idempotencyKey } = req.body;
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) fail(400, 'INVALID_VERSION');
       if (operation === 'convert' && (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(idempotencyKey))) fail(400, 'INVALID_IDEMPOTENCY_KEY');
       if (operation === 'vendor-confirmation' && (typeof req.body.reference !== 'string' || !req.body.reference.trim() || req.body.reference.length > 200)) fail(400, 'INVALID_REFERENCE');
       const payloadHash = createHash('sha256').update(JSON.stringify({ requestId: req.params.id, expectedVersion })).digest('hex');
-      const data = await tx(req, `purchase${requestOperation ? 'Request' : 'Order'}.${operation}`, async session => {
+      const data = await tx(req, `purchase${requestOperation ? 'Request' : 'Order'}.${operation}`, async (session,admit) => {
         const row = await find(collection, req, req.params.id, session);
         if (operation === 'convert') {
           const prior = await c('procurementConversions').findOne({ ...req.filter, key: idempotencyKey }, { session });
@@ -236,12 +244,13 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
           await c('procurementConversions').insertOne({ _id: randomUUID(), ...req.filter, key: idempotencyKey, payloadHash, requestId: row._id, orderId: order._id }, { session });
           row.status = 'CONVERTED'; row.orderId = order._id;
         }
-        if (operation === 'issue') { row.status = 'ISSUED'; row.issuedAt = new Date(); row.issuedBy = req.scope.userId; row.documentRevision = 1; await archiveInitialOrderRevision(runtime.db, req.filter, 'LEGACY', row, session); }
+        if (operation === 'issue') { row.status = 'ISSUED'; row.issuedAt = new Date(); row.issuedBy = req.scope.userId; row.documentRevision = 1; await admit(); await archiveInitialOrderRevision(runtime.db, req.filter, 'LEGACY', row, session); }
         if (operation === 'vendor-confirmation') {
           if (id(req.body.vendorId) !== row.vendorId) fail(409, 'VENDOR_CONFLICT');
           row.status = 'CONFIRMED'; row.confirmation = { vendorId: row.vendorId, reference: req.body.reference.trim(), recordedAt: new Date(), recordedBy: req.scope.userId, source: 'OPERATOR_RECORDED' };
         }
         row.version++; row.updatedAt = new Date();
+        await admit();
         const result = await c(collection).replaceOne({ ...req.filter, _id: row._id, version: expectedVersion }, row, { session });
         if (!result.matchedCount) fail(409, 'VERSION_CONFLICT'); return order || row;
       });
