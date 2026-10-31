@@ -64,7 +64,7 @@ export async function runTraceHeadingBrowserRegression({ evidenceDirectory, brow
     const original = spawnSync('git', ['show', `${baselineRef}:apps/web/src/features/portfolio/CompanyStockTraceUi.jsx`], { cwd: root, encoding: 'utf8' });
     assert.equal(original.status, 0, original.stderr); baselineSource = original.stdout;
   }
-  const originalCwd = process.cwd(), initialGuard = resourceGuard(true), records = [], exceptions = [], pending = new Map();
+  const originalCwd = process.cwd(), initialGuard = resourceGuard(true), records = [], exceptions = [], diagnostics = [], pending = new Map();
   let active, vite, browser, ws, targetId, sessionId, sequence = 0, origin, profile, failure, version;
   const binary = browserBinary || process.env.TRACE_HEADING_BROWSER_BINARY || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : 'google-chrome');
   async function cdp(method, params = {}, session = sessionId) {
@@ -125,10 +125,13 @@ export async function runTraceHeadingBrowserRegression({ evidenceDirectory, brow
     }
     assert.ok(endpoint, 'Owned heading browser endpoint unavailable');
     ws = new WebSocket(endpoint); await once(ws, 'open');
-    ws.addEventListener('message', event => { const message = JSON.parse(event.data); if (message.id) { const request = pending.get(message.id); if (request) { pending.delete(message.id); message.error ? request.reject(message.error) : request.resolve(message.result); } } else if (message.method === 'Runtime.exceptionThrown') exceptions.push(message.params.exceptionDetails.text); });
+    ws.addEventListener('message', event => { const message = JSON.parse(event.data); if (message.id) { const request = pending.get(message.id); if (request) { pending.delete(message.id); message.error ? request.reject(message.error) : request.resolve(message.result); } } else {
+      if (message.method === 'Runtime.exceptionThrown') exceptions.push(message.params.exceptionDetails);
+      if (['Runtime.consoleAPICalled', 'Log.entryAdded', 'Network.loadingFailed'].includes(message.method) || (message.method === 'Network.responseReceived' && message.params.response.status >= 400)) diagnostics.push({ method: message.method, params: message.params });
+    } });
     targetId = (await cdp('Target.createTarget', { url: 'about:blank' }, null)).targetId;
     sessionId = (await cdp('Target.attachToTarget', { targetId, flatten: true }, null)).sessionId;
-    await cdp('Runtime.enable'); await cdp('Page.enable'); version = await cdp('Browser.getVersion', {}, null);
+    await cdp('Runtime.enable'); await cdp('Page.enable'); await cdp('Network.enable'); await cdp('Log.enable'); version = await cdp('Browser.getVersion', {}, null);
     await observeTransport(diagnostic,'heading-browser-ready',{browserPid:browser.pid,targetId,sessionId,origin});
     for (active of cases) {
       resourceGuard(true); const record = { ...active, startedAt: new Date().toISOString(), targetId, sessionId }; records.push(record);
@@ -156,7 +159,9 @@ export async function runTraceHeadingBrowserRegression({ evidenceDirectory, brow
         record.state = 'PASS'; record.completedAt = new Date().toISOString();
         if (active.width === 360 && /^(historical-push|long)-/.test(active.name)) await capture(active.name);
       } catch (error) {
-        record.state = 'FAIL'; record.error = String(error); record.geometry = await evaluate(geometryExpression).catch(() => null); await capture(`failure-${active.name}`).catch(() => {}); throw error;
+        record.state = 'FAIL'; record.error = String(error); record.geometry = await evaluate(geometryExpression).catch(() => null);
+        await writeFile(join(evidence, `failure-${active.name}.html`), await evaluate('document.documentElement.outerHTML').catch(() => 'DOM_UNAVAILABLE'));
+        await capture(`failure-${active.name}`).catch(() => {}); throw error;
       }
     }
     assert.deepEqual(exceptions, [], 'No unexpected production-component exception');
@@ -179,6 +184,7 @@ export async function runTraceHeadingBrowserRegression({ evidenceDirectory, brow
     for (const request of pending.values()) clearTimeout(request.timeout);
     await observeTransport(diagnostic,'heading-after-close',{browserExitCode:browser?.exitCode,browserSignalCode:browser?.signalCode,origin,serverClosed:!vite?.httpServer?.listening,profileRemoved});
     const summary = { mockedHttpApi: true, productionComponent: 'CompanyStockTrace', baselineRef, planned: cases.length, passed: records.filter(record => record.state === 'PASS').length, failed: records.filter(record => record.state === 'FAIL').length, notRun: cases.length - records.length, version, initialGuard, records, exceptions, error: failure ? String(failure) : null, cleanupErrors, resources: { browserPid: browser?.pid, browserExitCode: browser?.exitCode, browserSignalCode: browser?.signalCode, browserClosed: browserClosed(), origin, serverClosed: !vite?.httpServer?.listening, profileRemoved, applicationApiOrDatabaseStarted: false } };
+    await writeFile(join(evidence, 'trace-heading-diagnostics.json'), JSON.stringify({ exceptions, diagnostics }, null, 2) + '\n');
     await writeFile(join(evidence, 'trace-heading-regression.json'), JSON.stringify(summary, null, 2) + '\n');
     console.log('TRACE_HEADING_REGRESSION ' + JSON.stringify({ passed: summary.passed, failed: summary.failed, notRun: summary.notRun, mockedHttpApi: true, baselineRef, evidence, resources: summary.resources }));
   }
