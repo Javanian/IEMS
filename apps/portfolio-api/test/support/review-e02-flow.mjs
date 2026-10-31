@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { companyOwnerFixture, companyCommand } from './company-stock-owner-fixture.mjs';
+import { stockHash as evidenceHash } from '../../src/catalog-stock-values.mjs';
 
 const require = createRequire(import.meta.url);
 export const e02Fixture = require('../../../../packages/domain-test-fixtures/src/scenarios/e02RepairCustomerAsset.js').e02RepairFixture;
@@ -220,6 +221,7 @@ export async function runE02Flow(h, { setClock, onCheckpoint = async () => {} } 
   }
   flow.manifest.identities[f.final_qc_release.certificate_no] = { caseId: flow.case._id, eventId: flow.case.history.find(value => value.action === 'qc')._id, testRun: flow.case.qc.testRun };
   flow.manifest.identities[f.diagnostic_authorization.id] = { caseId: flow.case._id, eventId: flow.case.history.find(value => value.action === 'diagnostic-authorize')._id };
+  flow.manifest.identities[f.scope_authorization.id] = { caseId: flow.case._id, eventId: flow.case.history.find(value => value.action === 'decide')._id, quoteId: flow.quote._id, quoteRevision: 2 };
   flow.manifest.identities[f.repair_work_order.material_issues[0].movement_id] = { reservationId: flow.manifest.materials[0].claim.reservationId, receiptId: flow.sources.receipts[0]._id };
   flow.manifest.identities[f.final_invoice.final_payment.id] = flow.invoice.payments[0]._id;
   flow.manifest.identities[f.final_invoice.deposit_application.id] = { invoiceId: flow.invoice._id, depositIds: flow.invoice.depositIds };
@@ -249,6 +251,8 @@ export async function runE02Flow(h, { setClock, onCheckpoint = async () => {} } 
   rejection.manifest.completed.push('cancelled-before-release service WO', 'actual diagnostic1200+VAT132 invoice and1332 settlement', 'actual unrepaired dispatch and POD');
   rejection.manifest.notApplicable = ['accepted deposit/final invoice', 'replacement/rework/QC', 'warranty'];
   rejection.manifest.identities[r.diagnostic_payment.id] = rejection.invoice.payments[0]._id;
+  rejection.manifest.authorityHashes = { serviceWorkOrder: rejection.serviceWorkOrder.contentHash, serviceSalesOrder: rejectedCase.serviceOrders.salesOrderHash, shipment: rejection.delivery.sourceHash, pod: rejection.delivery.confirmations[0].contentHash };
+  rejection.manifest.diagnosticInvoiceProof = { invoiceId: rejection.invoice._id, version: rejection.invoice.version, status: rejection.invoice.status, netAmount: rejection.invoice.netAmount, taxAmount: rejection.invoice.taxAmount, total: rejection.invoice.total, remaining: rejection.invoice.remaining, evidenceSnapshotSHA256: evidenceHash(rejection.invoice.snapshot), hashKind: 'EVIDENCE_SNAPSHOT_NOT_A_NEW_LEDGER', cancellationStatus: rejection.serviceWorkOrder.status, cancelledBeforeRelease: rejection.serviceWorkOrder.cancelledBeforeRelease };
   rejection.manifest.atomicDiagnosticInvoice = 'Rejection creates the diagnostic invoice atomically with the May14 decision. Original May16 issue date is a fixture reference, not a separately persisted later issue transition.';
   flow.rejection = rejection;
   flow.manifest.notRun = []; flow.manifest.status = 'COMPLETE';
