@@ -327,7 +327,7 @@
       ]
     },
     "apps/portfolio-api/src/automation.mjs": {
-      "sha256": "8db69b7f43101f2cebbbcaa16ccdb948e20046377ecf3a93195eadcaf2b50c37",
+      "sha256": "79d40500bccbd6d8fa16fab8e7bd1c46c00a0dac72e9f063913875d8d1c30645",
       "fields": [
         "ABANDON",
         "ACCEPTED",
@@ -819,6 +819,7 @@
         "push",
         "query",
         "read",
+        "readStatus",
         "reason",
         "rebind",
         "receipt",
@@ -12010,7 +12011,7 @@
       ]
     },
     "packages/customer-service/index.mjs": {
-      "sha256": "eb2fa929de59dd0d10347ac0b6e0bfe864e93f7f0477f828e9036cb8a0a579d4",
+      "sha256": "2743a4b272283cf84157011496569eaefea3ea42af1721d7eda31a32aad58406",
       "fields": [
         "ABANDON",
         "ACCEPTED",
@@ -12157,6 +12158,7 @@
         "ack",
         "action",
         "actionKey",
+        "actionKeyHash",
         "active",
         "activeDraftId",
         "activeTicketId",
@@ -12434,6 +12436,7 @@
         "progress",
         "projection",
         "promisedShipDate",
+        "proofs",
         "providerContactId",
         "providerMessageId",
         "publicStage",
@@ -12445,11 +12448,13 @@
         "readConcern",
         "readCustomerOrder",
         "readPreference",
+        "readStatus",
         "reason",
         "rebind",
         "receipt",
         "receiptScope",
         "recipient",
+        "recipientHash",
         "recordDeliveryResult",
         "registerKind",
         "released",
@@ -15289,7 +15294,7 @@
       ]
     },
     "packages/tenant-lifecycle/effects.mjs": {
-      "sha256": "e877480420a5394afb8fb4395d09705d7e0f481ba674d73bee250795db646436",
+      "sha256": "252d6d19a651e1082956ad733e45724bbef505bda65d7bc734984f8ecaf8cd57",
       "fields": [
         "ACCEPTED",
         "AI_INDEX_ROOT_V1",
@@ -15331,7 +15336,9 @@
         "EFFECT_PUBLICATION_DENIED",
         "EFFECT_QUIESCENCE_PENDING",
         "EFFECT_RECONCILIATION_REQUIRED",
+        "EFFECT_SCOPE_CHANGED",
         "EFFECT_SETTLEMENT_STATE",
+        "EFFECT_STATUS_READ_PORT_REQUIRED",
         "EFFECT_STOP_NOT_CLOSED",
         "EFFECT_TRANSACTION_REQUIRED",
         "EFFECT_VERSION_CONFLICT",
@@ -15372,7 +15379,6 @@
         "attemptId",
         "authorize",
         "authorizeChild",
-        "authorizeInTransaction",
         "automation",
         "beforeInvoke",
         "beforeProviderBegin",
@@ -15473,6 +15479,7 @@
         "publish",
         "push",
         "read",
+        "readStatus",
         "reason",
         "rebind",
         "reconciled",
@@ -15492,6 +15499,7 @@
         "safe",
         "schemaVersion",
         "scope",
+        "selectedPlantId",
         "set",
         "settle",
         "some",
