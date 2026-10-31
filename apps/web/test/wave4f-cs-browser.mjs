@@ -235,7 +235,7 @@ export async function csOnboardingJourney(ctx) {
   await post('manufacturing/work-orders', { salesOrderId: manufactureOnly._id, expectedVersion: manufactureOnly.version, lineIndex: 0, uom: 'EA', quantities: ['1'], idempotencyKey: key() });
   const work = await db.collection('manufacturingWorkOrders').findOne({ salesOrderId: manufactureOnly._id });
   assert.ok(work);
-  await post(`manufacturing/work-orders/${work._id}/release`, { expectedVersion: work.version, routing: { operations: [{ code: 'BUILD', instruction: 'Synthetic manufacture-only inquiry fixture' }], materials: [{ receiptId: material._id, quantityPerUnit: '1', uom: 'EA' }] }, idempotencyKey: key() });
+  await post(`manufacturing/work-orders/${work._id}/release`, { expectedVersion: work.version, operations: [{ code: 'BUILD', instruction: 'Synthetic manufacture-only inquiry fixture' }], materials: [{ receiptId: material._id, quantityPerUnit: '1', uom: 'EA' }], idempotencyKey: key() });
   assert.equal((await db.collection('manufacturingWorkOrders').findOne({ _id: work._id })).status, 'RELEASED');
   assert.equal(await db.collection('warehouseReservations').countDocuments({ salesOrderId: manufactureOnly._id }), 0);
   const only = await send(`IEMS ORDER ${manufactureOnly.orderNumber}`);
