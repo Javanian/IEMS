@@ -86,6 +86,14 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await verifyAdmissionSources();
   const { createMongoTenantDataPort } = await import('../../../packages/tenant-lifecycle/domain-port.mjs');
   const { createSaasAdmission, admissionProfile } = await import('../../../packages/tenant-lifecycle/admission.mjs');
+  const { createSeparateEffects } = await import('../../../packages/tenant-lifecycle/effects.mjs');
+  const { createControlledLocalAdapter } = await import('../../../packages/tenant-lifecycle/local-effects-adapter.mjs');
+  runtime.separateEffects=createSeparateEffects({...runtime,admission:descriptor=>runtime.saasAdmission.effect(descriptor)});
+  await runtime.separateEffects.initialize();
+  if(integrations.effects){
+    if(integrations.effects.mode!=='LOCAL_SIMULATED'||!/^portfolio_(owned|test)_/.test(db.databaseName)||!await db.collection('ownedRun').findOne({}))fail(503,'EFFECT_LOCAL_OWNED_DATABASE_REQUIRED');
+    for(const id of ['local.engine','local.cs','local.ai-index','local.vendor'])runtime.separateEffects.registerAdapter(createControlledLocalAdapter({...runtime,id,fault:integrations.effects.adapterFault}));
+  }
   runtime.saasAdmission = createSaasAdmission({ ...runtime, coverage: integrations.tenantLifecycle?.admissionCoverage ?? admissionProfile });
   runtime.localCommands = createLocalCommandReceipts(runtime);
   runtime.commands = await initializeFoundationRuntime(runtime);
@@ -223,7 +231,7 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   installCustomerIntent(app, runtime.intent);
   installVendorDrafts(app, runtime.vendorDrafts);
   installPredictions(app, runtime.predictions);
-  installTenantLifecycle(app, runtime.tenantLifecycle);
+  installTenantLifecycle(app, runtime.tenantLifecycle, runtime.separateEffects);
   runtime.saasAdmission.validateHost(app);
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } }));
   app.use((error, req, res, next) => {
