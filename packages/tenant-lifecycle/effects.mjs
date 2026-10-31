@@ -1,0 +1,90 @@
+import{effectHash,effectTransaction}from'./effect-primitives.mjs';
+import{isControlledLocalAdapter}from'./local-effects-adapter.mjs';
+import {randomUUID} from 'node:crypto';
+import {contentHash,CommandError} from '../tenant-foundation/commands.mjs';
+const fail=(code,status=409)=>{throw new CommandError(code,status);};
+const copy=value=>JSON.parse(JSON.stringify(value));
+export{effectHash,effectTransaction}from'./effect-primitives.mjs';
+function safe(value){const text=JSON.stringify(value);if(text.length>2000000)fail('EFFECT_EVIDENCE_TOO_LARGE',413);function walk(v){if(v&&typeof v==='object')for(const[k,x]of Object.entries(v)){if(/^(token|tokenHash|secret|password|authorization|body|text|prompt|chunks|messageBody)$/i.test(k))fail('PRIVATE_EFFECT_EVIDENCE',400);walk(x);}}walk(value);return copy(value);}
+export function createSeparateEffects({client,db,foundation,admission,clock=()=>new Date(),fault=async()=>{}}){
+ const commands=db.collection('saasEffectCommands'),attempts=db.collection('saasEffectAttempts'),events=db.collection('saasEffectEvents'),barriers=db.collection('saasEffectBarriers');
+ const kinds=new Map(),origins=new Map(),adapters=new Map(),capabilities=new WeakMap();
+ const tx=fn=>effectTransaction(client,fn);
+ function sessionRequired(session){if(!session?.inTransaction()||session.client!==client||db.client!==client)fail('EFFECT_TRANSACTION_REQUIRED',500);}
+ async function tenantFence(tenantId,session,{dispatch=false}={}){
+  sessionRequired(session);const row=await db.collection('tenants').findOneAndUpdate({_id:tenantId,active:true,...(dispatch?{saasEffectDispatchOpen:{$ne:false}}:{})},{$inc:{saasEffectFence:1}},{session,returnDocument:'after'});if(!row)fail(dispatch?'EFFECT_DISPATCH_STOPPED':'SCOPE_DENIED',403);return row;
+ }
+ async function ownerValid(command,session){
+  if(command.owner.namespace==='AI_INDEX_ROOT_V1')return;
+  const receipt=await db.collection(command.owner.namespace).findOne(command.owner.identity,{session});
+  if(!receipt||receipt[command.owner.hashField]!==command.owner.payloadHash)fail('EFFECT_OWNER_RECEIPT_MISSING_OR_CONFLICT');
+  if(command.owner.resultHash){let result=receipt;for(const part of command.owner.resultPath.split('.'))result=result?.[part];if(effectHash(result)!==command.owner.resultHash)fail('EFFECT_OWNER_RESULT_CHANGED');}
+ }
+ function originProof(command,value){const grant=value?.grant??value;if(!grant||['tenantId','plantId','legalEntityId'].some(k=>grant[k]!==command[k])||(command.actor.type==='USER'&&(grant.userId!==command.actor.userId||grant.membershipId!==command.actor.membershipId))||(command.actor.type==='CUSTOMER'&&(value?.bindingId!==command.actor.bindingId||value?.customerId!==command.actor.customerId)))fail('EFFECT_ORIGINAL_ACTOR_CHANGED',403);return grant;}
+ async function authorize(command,session,{observation=false}={}){
+  await ownerValid(command,session);const origin=origins.get(command._id),kind=kinds.get(command.kind);if(!origin||!kind)fail('EFFECT_ORIGIN_REAUTH_REQUIRED',403);
+  if(!observation){const tenant=await tenantFence(command.tenantId,session,{dispatch:true});if((tenant.saasEffectEpoch??0)!==command.epoch)fail('EFFECT_EPOCH_CHANGED');}
+  return originProof(command,await origin.authorize({command,session,observation}));
+ }
+ async function event(command,session,kind,proof={}){
+  const version=command.version+1;const changed=await commands.updateOne({_id:command._id,tenantId:command.tenantId,version:command.version},{$set:{version,updatedAt:clock().toISOString()}},{session});if(changed.matchedCount!==1)fail('EFFECT_VERSION_CONFLICT');command.version=version;
+  await events.insertOne({_id:randomUUID(),schemaVersion:1,tenantId:command.tenantId,commandId:command._id,version,kind,proof:safe(proof),occurredAt:clock().toISOString()},{session});
+ }
+ function capability(command,attempt){const value=Object.freeze({});capabilities.set(value,Object.freeze({commandId:command._id,tenantId:command.tenantId,attemptId:attempt._id,phase:attempt.phase,fence:attempt.fence,adapterId:attempt.adapterId,instanceEpoch:attempt.instanceEpoch}));return value;}
+ async function validateCapability(value,session){const ref=capabilities.get(value);if(!ref)fail('EFFECT_WORKER_CAPABILITY_REQUIRED',403);const attempt=await attempts.findOne({_id:ref.attemptId,tenantId:ref.tenantId,commandId:ref.commandId,phase:ref.phase,fence:ref.fence,adapterId:ref.adapterId,instanceEpoch:ref.instanceEpoch},{session});const command=await commands.findOne({_id:ref.commandId,tenantId:ref.tenantId},{session});if(!attempt||!command)fail('EFFECT_CAPABILITY_STALE',403);await ownerValid(command,session);return {command,attempt,ref};}
+ const api={
+  async initialize(){await commands.createIndex({tenantId:1,ownerNamespace:1,ownerIdentityHash:1},{unique:true});await attempts.createIndex({tenantId:1,commandId:1,phase:1,ordinal:1},{unique:true});await events.createIndex({tenantId:1,commandId:1,version:1},{unique:true});await barriers.createIndex({tenantId:1,adapterId:1,instanceEpoch:1,stopEpoch:1},{unique:true});},
+  registerAdapter(adapter){if(!isControlledLocalAdapter(adapter)||!adapter||!['LOCAL_SIMULATED','LOOPBACK_SYNTHETIC'].includes(adapter.mode)||!['invoke','observe','stopAndDrain','verifyBarrier'].every(k=>typeof adapter[k]==='function')||typeof adapter.id!=='string'||typeof adapter.instanceEpoch!=='string')fail('EFFECT_ADAPTER_UNPROVEN',503);if(adapters.has(adapter.id)&&adapters.get(adapter.id)!==adapter)fail('EFFECT_ADAPTER_DUPLICATE',500);adapters.set(adapter.id,adapter);},
+  registerKind(kind,handler){if(kinds.has(kind)||!handler||!adapters.has(handler.adapterId)||typeof handler.invoke!=='function'||typeof handler.publish!=='function')fail('EFFECT_KIND_CONFIGURATION',500);kinds.set(kind,Object.freeze({...handler}));},
+  bind(commandId,origin){if(typeof origin?.authorize!=='function')fail('EFFECT_ORIGIN_REQUIRED',403);origins.set(commandId,Object.freeze({...origin}));},
+  async accept({session,id=randomUUID(),grant,actor,owner,kind,plan,accepted,origin}){
+   sessionRequired(session);if(!kinds.has(kind)||typeof origin?.authorize!=='function'||!owner?.identity||!owner.namespace||!owner.hashField||typeof owner.payloadHash!=='string'||!grant?.tenantId||!grant.plantId||!grant.legalEntityId)fail('EFFECT_DESCRIPTOR_REQUIRED',400);
+   safe({actor,owner,plan,accepted});const identityHash=contentHash(owner.identity),filter={tenantId:grant.tenantId,ownerNamespace:owner.namespace,ownerIdentityHash:identityHash};
+   const prior=await commands.findOne(filter,{session});if(prior){if(prior.owner.payloadHash!==owner.payloadHash||prior.kind!==kind||effectHash(prior.actor)!==effectHash(actor))fail('IDEMPOTENCY_CONFLICT');await ownerValid(prior,session);origins.set(prior._id,Object.freeze({...origin}));originProof(prior,await origin.authorize({command:prior,session,observation:true}));return prior;}
+   if(owner.namespace!=='AI_INDEX_ROOT_V1'&&await db.collection(owner.namespace).findOne(owner.identity,{session}))fail('HISTORICAL_EFFECT_BINDING_REQUIRED');
+   const tenant=await tenantFence(grant.tenantId,session,{dispatch:true}),command={_id:id,schemaVersion:1,...filter,plantId:grant.plantId,legalEntityId:grant.legalEntityId,actor:safe(actor),owner:safe(owner),kind,plan:safe(plan),acceptedResult:safe(accepted),epoch:tenant.saasEffectEpoch??0,state:'ACCEPTED',version:1,createdAt:clock().toISOString(),updatedAt:clock().toISOString()};
+   originProof(command,await origin.authorize({command,session,observation:false}));await commands.insertOne(command,{session});await events.insertOne({_id:randomUUID(),schemaVersion:1,tenantId:command.tenantId,commandId:id,version:1,kind:'ACCEPTED',proof:{ownerIdentityHash:identityHash,ownerPayloadHash:owner.payloadHash,planHash:effectHash(plan)},occurredAt:clock().toISOString()},{session});origins.set(id,Object.freeze({...origin}));return command;
+  },
+  async claim(commandId,phase='EFFECT'){
+   const result=await tx(async session=>{
+    const command=await commands.findOne({_id:commandId},{session});if(!command)fail('EFFECT_NOT_FOUND',404);if(!['ACCEPTED','RUNNING','UNKNOWN','PUBLICATION_DENIED'].includes(command.state))fail('EFFECT_NOT_CLAIMABLE');await authorize(command,session);
+    const kind=kinds.get(command.kind),adapter=adapters.get(kind.adapterId);if(!adapter)fail('EFFECT_ADAPTER_UNPROVEN',503);
+    const prior=await attempts.findOne({tenantId:command.tenantId,commandId,phase},{session,sort:{ordinal:-1}});
+    if(prior){if(['CLAIMED','INVOKING','UNKNOWN','OBSERVED'].includes(prior.state))return {command,attempt:prior,claimed:prior.state==='CLAIMED'&&prior.instanceEpoch===adapter.instanceEpoch,reconciled:true};if(prior.state==='SETTLED')return {command,attempt:prior,claimed:false};if(prior.state!=='NOT_PERFORMED')fail('EFFECT_RECONCILIATION_REQUIRED');}
+    const input=await kind.prepare?.({command,session,phase})??{};safe(input);const ordinal=(prior?.ordinal??0)+1,attempt={_id:randomUUID(),schemaVersion:1,tenantId:command.tenantId,plantId:command.plantId,legalEntityId:command.legalEntityId,commandId,phase,ordinal,adapterId:adapter.id,instanceEpoch:adapter.instanceEpoch,epoch:command.epoch,providerKey:contentHash({tenantId:command.tenantId,commandId,phase,ordinal}),input:safe(input),inputHash:effectHash(input),state:'CLAIMED',version:1,fence:(prior?.fence??0)+1,leaseOwner:adapter.instanceEpoch,leaseUntil:new Date(clock().getTime()+30000).toISOString(),createdAt:clock().toISOString()};
+    await attempts.insertOne(attempt,{session});await commands.updateOne({_id:commandId,version:command.version},{$set:{state:'RUNNING'}},{session});await event(command,session,'CLAIMED',{attemptId:attempt._id,phase,ordinal,fence:attempt.fence,adapterId:adapter.id,instanceEpoch:adapter.instanceEpoch,inputHash:attempt.inputHash});return {command,attempt,claimed:true};
+   });
+   await fault('afterClaimCommit',result);return {...result,capability:capability(result.command,result.attempt)};
+  },
+  async invoke(value){
+   const proof=await tx(async session=>{const {command,attempt}=await validateCapability(value,session);await authorize(command,session);const changed=await attempts.updateOne({_id:attempt._id,state:'CLAIMED',fence:attempt.fence},{$set:{state:'INVOKING'},$inc:{version:1}},{session});if(changed.matchedCount!==1)fail('EFFECT_CLAIM_NOT_EXCLUSIVE');await event(command,session,'INVOKING',{attemptId:attempt._id,fence:attempt.fence});return {command,attempt};});
+   const adapter=adapters.get(proof.attempt.adapterId),kind=kinds.get(proof.command.kind);if(adapter.instanceEpoch!==proof.attempt.instanceEpoch)fail('EFFECT_ADAPTER_EPOCH_CHANGED');
+   try{const result=await adapter.invoke(proof.attempt,()=>kind.invoke({...proof,capability:value}));await fault('afterInvoke',proof);return result;}
+   catch(error){await tx(async session=>{const {command,attempt}=await validateCapability(value,session);await attempts.updateOne({_id:attempt._id,fence:attempt.fence,state:{$nin:['SETTLED','NOT_PERFORMED']}},{$set:{state:'UNKNOWN',errorCode:typeof error.code==='string'?error.code:'EFFECT_OUTCOME_UNKNOWN'},$inc:{version:1}},{session});await event(command,session,'UNKNOWN',{attemptId:attempt._id,fence:attempt.fence});await commands.updateOne({_id:command._id},{$set:{state:'UNKNOWN'}},{session});});throw error;}
+  },
+  async settle(value){return tx(async session=>{
+    const {command,attempt}=await validateCapability(value,session),adapter=adapters.get(attempt.adapterId);const observed=await adapter.observe(attempt,{session});if(!observed||observed.state!=='TERMINAL')fail('EFFECT_OUTCOME_UNKNOWN');
+    if(attempt.state==='SETTLED'){if(attempt.observationHash!==observed.proofHash)fail('EFFECT_CALLBACK_CONFLICT');return attempt.phaseResult;}
+    if(!['INVOKING','UNKNOWN','OBSERVED'].includes(attempt.state))fail('EFFECT_SETTLEMENT_STATE');
+    await tenantFence(command.tenantId,session);await attempts.updateOne({_id:attempt._id,fence:attempt.fence},{$set:{state:'OBSERVED',observationHash:observed.proofHash,observedOutcome:safe(observed.result)},$inc:{version:1}},{session});
+    let denied=null;try{await authorize(command,session);}catch(error){denied=error.code??'EFFECT_PUBLICATION_DENIED';}
+    if(denied){await commands.updateOne({_id:command._id},{$set:{state:'PUBLICATION_DENIED'}},{session});await event(command,session,'PUBLICATION_DENIED',{attemptId:attempt._id,observationHash:observed.proofHash,reason:denied});return {state:'PUBLICATION_DENIED',reason:denied,observationHash:observed.proofHash};}
+    const result=safe(await kinds.get(command.kind).publish({command,attempt,observation:observed,session,capability:value}));
+    await attempts.updateOne({_id:attempt._id,fence:attempt.fence},{$set:{state:'SETTLED',phaseResult:result,leaseOwner:null,leaseUntil:null},$inc:{version:1}},{session});await commands.updateOne({_id:command._id},{$set:{state:'COMPLETED'}},{session});await event(command,session,'SETTLED',{attemptId:attempt._id,observationHash:observed.proofHash,resultHash:effectHash(result)});return result;
+   });},
+  async run(commandId,phase='EFFECT'){const claim=await api.claim(commandId,phase);if(claim.claimed)await api.invoke(claim.capability);return api.settle(claim.capability);},
+  async worker(value,{session,publish=false}={}){sessionRequired(session);const proof=await validateCapability(value,session);await authorize(proof.command,session,{observation:!publish});return proof;},
+  async status(scope,commandId){return tx(async session=>{const command=await commands.findOne({_id:commandId,tenantId:scope?.tenantId},{session});if(!command)fail('EFFECT_NOT_FOUND',404);await foundation.authorizeInTransaction(scope,{tenantId:command.tenantId,plantId:command.plantId,action:kinds.get(command.kind)?.statusAction??(command.kind.startsWith('ai.')?'ai.index':'cs.automation.read')},{session});return {commandId,state:command.state,version:command.version,acceptedResult:command.acceptedResult,phases:(await attempts.find({tenantId:command.tenantId,commandId},{session}).sort({ordinal:1}).toArray()).map(x=>({attemptId:x._id,phase:x.phase,ordinal:x.ordinal,state:x.state,fence:x.fence,adapterId:x.adapterId,instanceEpoch:x.instanceEpoch,observationHash:x.observationHash??null,phaseResult:x.phaseResult??null}))};});},
+  async closeInSession({tenantId,session}){
+   const tenant=await tenantFence(tenantId,session),epoch=tenant.saasEffectEpoch??0,stopEpoch=epoch+1;
+   await db.collection('tenants').updateOne({_id:tenantId},{$set:{saasEffectDispatchOpen:false,saasEffectEpoch:stopEpoch}},{session});
+   for(const command of await commands.find({tenantId,state:{$in:['ACCEPTED','RUNNING','UNKNOWN','PUBLICATION_DENIED']}},{session}).toArray()){await event(command,session,'STOP_REQUESTED',{stopEpoch});if(command.state==='ACCEPTED')await commands.updateOne({_id:command._id},{$set:{state:'STOPPED'}},{session});}
+   return {tenantId,stopEpoch,closedEpoch:epoch};
+  },
+  async stopAndDrain(tenantId){const tenant=await db.collection('tenants').findOne({_id:tenantId,active:true});if(!tenant||tenant.saasEffectDispatchOpen!==false)fail('EFFECT_STOP_NOT_CLOSED');const proofs=[];for(const adapter of adapters.values())proofs.push(await adapter.stopAndDrain({tenantId,stopEpoch:tenant.saasEffectEpoch}));return {state:proofs.every(x=>x.state==='QUIESCENT')?'QUIESCENT':'PENDING',proofs};},
+  async assertQuiescent({tenantId,session}){await tenantFence(tenantId,session);const tenant=await db.collection('tenants').findOne({_id:tenantId},{session});if(tenant.saasEffectDispatchOpen!==false){if(await attempts.findOne({tenantId},{session}))fail('EFFECT_QUIESCENCE_PENDING');return;}for(const adapter of adapters.values()){if(!await adapter.verifyBarrier({tenantId,stopEpoch:tenant.saasEffectEpoch,session}))fail('EFFECT_QUIESCENCE_PENDING');}},
+  async openInSession({tenantId,session}){await api.assertQuiescent({tenantId,session});await db.collection('tenants').updateOne({_id:tenantId,active:true},{$set:{saasEffectDispatchOpen:true}},{session});},
+  async managed(ownerNamespace,identity,{session}){return commands.findOne({tenantId:identity.tenantId,ownerNamespace,ownerIdentityHash:contentHash(identity)},{session});},
+ };
+ return Object.freeze(api);
+}
