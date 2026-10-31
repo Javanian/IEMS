@@ -28,9 +28,26 @@ function readerFixture({ work = [], shipments = [], lines = [{ quantity: '2', uo
 }
 
 test('manufacture source uses caller transaction, current statuses and domain revision', async () => {
-  const result = await readerFixture({ work: [{ status: 'QC_COMPLETED' }, { status: 'PLANNED' }] }).read();
-  assert.equal(result.publicStage, 'PLANNING'); assert.equal(result.sourceVersion, 4);
+  const result = await readerFixture({ work: [{ status: 'QC_COMPLETED', version: 4 }, { status: 'PLANNED', version: 1 }] }).read();
+  assert.equal(result.publicStage, 'PLANNING'); assert.equal(result.sourceVersion, 9);
   assert.equal(result.kind, 'MANUFACTURE'); assert.deepEqual(result.confirmedDates, {});
+});
+test('aggregate revision advances for WO transitions and shipment creation and is stable on replay', async () => {
+  const work = [{ status: 'PLANNED', version: 1 }], shipments = [];
+  const f = readerFixture({ work, shipments });
+  const first = await f.read();
+  assert.equal((await f.read()).sourceVersion, first.sourceVersion);
+  work[0] = { status: 'QC_COMPLETED', version: 5 };
+  const ready = await f.read();
+  assert.equal(ready.publicStage, 'READY_TO_SHIP');
+  assert.ok(ready.sourceVersion > first.sourceVersion);
+  shipments.push({ _id: randomUUID(), lineIndex: 0, quantity: '1', uom: 'EA', status: 'SHIPPED', shippedAt: new Date() });
+  const partial = await f.read();
+  assert.equal(partial.publicStage, 'PARTIALLY_SHIPPED');
+  assert.ok(partial.sourceVersion > ready.sourceVersion);
+  assert.equal((await f.read()).sourceVersion, partial.sourceVersion);
+  work[0].version = Number.MAX_SAFE_INTEGER;
+  await assert.rejects(f.read(), /STATUS_UNAVAILABLE/);
 });
 test('shipment quantities are compared per line and UOM, never added across units', async () => {
   const lines = [{ quantity: '2', uom: 'EA' }, { quantity: '10', uom: 'KG' }];
@@ -49,7 +66,12 @@ test('repair projects public milestones without private diagnostics or dates', a
 test('manufacture and repair fixtures persist only public detail and require transactional authority', async () => {
   const scope = ids(), session = { withTransaction: fn => fn(), endSession: async () => {} }, rows = [];
   const service = createCustomerService({ client: { startSession: () => session }, db: { collection: name => ({
-    findOne: async (query, options) => { assert.equal(options.session, session); return { _id: scope.customerId }; },
+    findOne: async (query, options) => { assert.equal(options.session, session); return name === 'saasSubscriptions' ? null : { _id: scope.customerId }; },
+    updateOne: async (query, update, options) => {
+      assert.equal(name, 'tenants'); assert.equal(query._id, scope.tenantId);
+      assert.deepEqual(update, { $inc: { saasEnrollmentFence: 1 } }); assert.equal(options.session, session);
+      return { matchedCount: 1 };
+    },
     insertOne: async (row, options) => { assert.equal(options.session, session); if (name === 'cs_order_snapshots') rows.push(row); },
   }) }, foundation: { authorize: async () => scope, authorizeInTransaction: async () => scope } });
   for (const fixture of serviceOrderFixtures(scope)) await service.registerSyntheticOrderSnapshot({}, fixture);

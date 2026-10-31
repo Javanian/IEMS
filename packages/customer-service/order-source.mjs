@@ -20,7 +20,10 @@ async function manufactureOrder(db, scope, customerId, orderNumber, opts) {
   const shipments = await db.collection('fulfillmentShipments').find({ ...scope, accountId: customerId, salesOrderId: so._id }, opts).sort({ _id: 1 }).limit(501).toArray();
   if (workOrders.length > 500 || shipments.length > 500 || !uuid.test(so._id ?? '') || !Number.isSafeInteger(so.version) || so.version < 1) invalid();
   if (!Array.isArray(so.snapshot?.lines) || !so.snapshot.lines.length || so.snapshot.lines.some(l => !quantity(l.quantity) || units(l.quantity) <= 0n || typeof l.uom !== 'string' || !l.uom)) invalid();
-  if (workOrders.some(w => !['PLANNED', 'RELEASED', 'IN_PROGRESS', 'QUARANTINED', 'QC_COMPLETED'].includes(w.status))) invalid();
+  if (workOrders.some(w => !['PLANNED', 'RELEASED', 'IN_PROGRESS', 'QUARANTINED', 'QC_COMPLETED'].includes(w.status) || !Number.isSafeInteger(w.version) || w.version < 1)) invalid();
+  // WO revisions and immutable shipment creation advance this aggregate without changing stock authority.
+  const sourceVersion = so.version + workOrders.reduce((n, w) => n + w.version, 0) + shipments.length;
+  if (!Number.isSafeInteger(sourceVersion)) invalid();
   for (const s of shipments) {
     const line = so.snapshot.lines[s.lineIndex];
     if (!uuid.test(s._id ?? '') || !(s.shippedAt instanceof Date) || !Number.isFinite(s.shippedAt.getTime()) || !Number.isSafeInteger(s.lineIndex) || s.lineIndex < 0 || !line || s.uom !== line.uom || s.status !== 'SHIPPED' || !quantity(s.quantity) || units(s.quantity) <= 0n) invalid();
@@ -48,7 +51,7 @@ async function manufactureOrder(db, scope, customerId, orderNumber, opts) {
     // The sales order stores no promised ship date, so none is confirmed.
     confirmedDates: {},
     sourceId: createHash('sha256').update(`${scope.tenantId}:${scope.plantId}:${so._id}`).digest('hex'),
-    sourceVersion: so.version,
+    sourceVersion,
   };
 }
 
