@@ -4,6 +4,17 @@ import { randomUUID } from 'node:crypto';
 import { createQdrantAdapter } from './qdrant.mjs';
 
 const config = { baseUrl: 'http://127.0.0.1:6333', collection: 'iems_test', dimensions: 2 };
+test('point cleanup uses explicit IDs on the configured collection and requires completed acknowledgement', async () => {
+  const ids = [randomUUID()]; let completed = false;
+  const adapter = createQdrantAdapter({ ...config, async fetchImpl(url, options) {
+    assert.equal(url.href, 'http://127.0.0.1:6333/collections/iems_test/points/delete?wait=true&ordering=strong');
+    assert.equal(options.method, 'POST'); assert.deepEqual(JSON.parse(options.body), { points: ids });
+    return Response.json({ status: 'ok', result: { status: completed ? 'completed' : 'acknowledged' } });
+  } });
+  await assert.rejects(adapter.deletePoints(ids), { code: 'AI_QDRANT_WRITE_UNCONFIRMED' });
+  completed = true; await adapter.deletePoints(ids);
+  await assert.rejects(adapter.deletePoints(['not-a-uuid']), { code: 'AI_QDRANT_POINTS_INVALID' });
+});
 test('Qdrant query pins tenant, plant, model and endpoint, and refuses redirects', async () => {
   const tenantId = randomUUID(), plantId = randomUUID();
   const adapter = createQdrantAdapter({ ...config, apiKey: 'fixture-only', fetchImpl: async (url, options) => {

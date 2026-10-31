@@ -69,6 +69,7 @@ export function createScopedIndex({ client, db, foundation, source, vectors, emb
           revision: row?.revision ?? 0, sourceRevision: current.revision, aclRevision: current.aclRevision,
           indexedSourceRevision: row?.sourceRevision ?? null, model: embeddings.model,
           indexedModel: row?.model ?? null, state, nextAction: state === 'CURRENT' ? 'NONE' : 'REBUILD',
+          retiredPointCount: (row?.retiredPoints?.length ?? 0) + (row && !row.active ? row.points.length : 0),
           asOf: clock().toISOString() };
       });
     },
@@ -97,9 +98,11 @@ export function createScopedIndex({ client, db, foundation, source, vectors, emb
         const previous = await indexes.findOne(filter, { session });
         if ((previous?.revision ?? 0) !== expectedRevision) fail('REVISION_CONFLICT', 409);
         const revision = expectedRevision + 1;
+        const retiredPoints = [...new Set([...(previous?.retiredPoints ?? []), ...(previous?.points ?? [])])];
+        if (retiredPoints.length > 1000) fail('AI_INDEX_CLEANUP_REQUIRED', 409);
         const row = { ...filter, revision, generation, model: embeddings.model, dimensions: embeddings.dimensions,
           sourceRevision: currentSource.revision, aclRevision: currentSource.aclRevision,
-          sourceHash: currentSource.hash, active: true, indexedAt: clock(), points: points.map(p => p.id) };
+          sourceHash: currentSource.hash, active: true, indexedAt: clock(), points: points.map(p => p.id), retiredPoints };
         if (previous) {
           const write = await indexes.replaceOne({ ...filter, revision: expectedRevision }, { _id: previous._id, ...row }, { session });
           if (write.matchedCount !== 1) fail('REVISION_CONFLICT', 409);
@@ -118,6 +121,34 @@ export function createScopedIndex({ client, db, foundation, source, vectors, emb
         if (write.matchedCount !== 1) fail('REVISION_CONFLICT', 409);
         return { revision: expectedRevision + 1, data: { resourceId: input.resourceId, state: 'REVOKED' },
           events: [{ type: 'ai.index.revoked', version: 1, data: { resourceId: input.resourceId } }] };
+      });
+    },
+    async cleanup(scope, input) {
+      validateRequest(input);
+      if (!vectors.deletePoints) fail('AI_INDEX_CLEANUP_UNAVAILABLE', 503);
+      if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 1 || typeof input.key !== 'string') fail('AI_INVALID_COMMAND');
+      const retired = await boundedTransaction(client, async session => {
+        const grant = await authorize(scope, input.plantId, 'ai.index', session);
+        const row = await indexes.findOne({ tenantId: grant.tenantId, plantId: grant.plantId, resourceId: input.resourceId }, { session });
+        // A newer revision may be our own committed cleanup; receipt lookup below reconciles the same key.
+        if (!row || row.revision !== input.expectedRevision) return [];
+        return [...new Set([...(row.retiredPoints ?? []), ...(!row.active ? row.points : [])])].slice(0, 100);
+      });
+      // Exact retired IDs are never reused. A lost delete acknowledgement can safely repeat the same IDs.
+      if (retired.length) await boundedCall(signal => vectors.deletePoints(retired, { signal }));
+      return commands.execute(scope, { ...scopeTarget(scope, input.plantId, 'ai.index'), key: input.key,
+        aggregateId: input.resourceId, expectedRevision: input.expectedRevision, input: { operation: 'CLEANUP' } },
+      async ({ session, grant, expectedRevision }) => {
+        const filter = { tenantId: grant.tenantId, plantId: grant.plantId, resourceId: input.resourceId, revision: expectedRevision };
+        const row = await indexes.findOne(filter, { session });
+        if (!row || row.active && row.points.some(id => retired.includes(id))) fail('REVISION_CONFLICT', 409);
+        const retiredPoints = (row.retiredPoints ?? []).filter(id => !retired.includes(id));
+        const points = row.active ? row.points : row.points.filter(id => !retired.includes(id));
+        const write = await indexes.updateOne(filter, { $set: { retiredPoints, points }, $inc: { revision: 1 } }, { session });
+        if (write.matchedCount !== 1) fail('REVISION_CONFLICT', 409);
+        return { revision: expectedRevision + 1, data: { resourceId: input.resourceId, removed: retired.length,
+          remaining: retiredPoints.length + (!row.active ? points.length : 0) },
+          events: [{ type: 'ai.index.cleaned', version: 1, data: { resourceId: input.resourceId, removed: retired.length } }] };
       });
     },
     async retrieve(scope, { plantId, query, limit = 5 }) {

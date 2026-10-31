@@ -25,6 +25,11 @@ export function createQdrantAdapter({ baseUrl, collection, dimensions, apiKey, f
     return value.result;
   });
   return Object.freeze({
+    async deletePoints(points, { signal } = {}) {
+      if (!Array.isArray(points) || !points.length || points.length > 100 || !points.every(uuid) || new Set(points).size !== points.length) fail('AI_QDRANT_POINTS_INVALID');
+      const result = await request('POST', 'points/delete?wait=true&ordering=strong', { points }, signal);
+      if (result?.status !== 'completed') fail('AI_QDRANT_WRITE_UNCONFIRMED', 503);
+    },
     async upsert(points, { signal } = {}) {
       if (!Array.isArray(points) || !points.length || points.length > 100) fail('AI_QDRANT_POINTS_INVALID');
       for (const point of points) {

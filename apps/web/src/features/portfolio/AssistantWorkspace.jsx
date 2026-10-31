@@ -151,7 +151,9 @@ function DocumentControls() {
       <button disabled={state.busy || !!pending} onClick={() => action('revoke', selected.revision)}>Revoke document access</button>
       <button disabled={state.busy || !!pending} onClick={() => { setSelected(null); setState(s => ({ ...s, index: null })); }}>Compose another document</button></>}
     {selected && state.index && <><p>{state.index.state} · source revision {state.index.sourceRevision} · index revision {state.index.revision} · model {state.index.model}. Next: {state.index.nextAction}.</p>
+      <p>Tracked retired points: {state.index.retiredPointCount}. Cleanup removes at most 100 old points per action.</p>
       <button disabled={state.busy || !!pending} onClick={() => action('rebuild', state.index.revision)}>Rebuild current source with configured model</button>
+      <button disabled={state.busy || !!pending || !state.index.retiredPointCount} onClick={() => action('index/cleanup', state.index.revision)}>Clean tracked retired points</button>
       <button disabled={state.busy || !!pending || state.index.revision === 0} onClick={() => action('index/revoke', state.index.revision)}>Deactivate index generation</button></>}
     <details><summary>{selected ? 'Replace text or ACL with a new revision' : 'Publish a document'}</summary>
       <WorkspaceField as="select" label="Ingestion source" value={mode} onChange={e => setMode(e.target.value)}><option value="MANUAL">Manual plain text</option><option value="ISSUED">Approved purchase order</option></WorkspaceField>
