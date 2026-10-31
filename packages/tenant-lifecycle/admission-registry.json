@@ -513,7 +513,7 @@
     "apps/portfolio-api/src/repair-return.mjs": "b0cd75dc63b8ab40453fe626b6d09a6bad9389f9ec3f4fe59831ba5ce0d7c021",
     "apps/portfolio-api/src/repair-stock.mjs": "28c58dfb3878a790f03d38dc265d6e1ad0e2d35afc85a985dc2d60efb97eb75d",
     "apps/portfolio-api/src/repair.mjs": "68bf83976f85d2a193774569e7735678c68886f0d136bcb046ad4afb80e79257",
-    "apps/portfolio-api/src/reporting-source.mjs": "4e4d834f2fed11f11cefcfd11544dec583a8b7548f6100c253d44fddf7343e90",
+    "apps/portfolio-api/src/reporting-source.mjs": "0d9c65f4df034c0417d7d39e887a07cb1120a05fe8f58351a7865ad867e88e33",
     "apps/portfolio-api/src/serial-custody.mjs": "0ca09720c49e011e9bec55124304cae418250a95fec896f758316cea28aaba87",
     "apps/portfolio-api/src/stock-holds.mjs": "fe0179862ca3a39ba65635e326e2340d8212e5ad3aa73a1a3c753e339d4cdd42",
     "apps/portfolio-api/src/vendor-drafts.mjs": "dafa76e24ab6c39f3e370458aecebbd711c2f430d5fafd82db4b78922059a29f",

@@ -6,6 +6,8 @@ import { validatePurchasedShipment, validatePurchasedPayment, depositState } fro
 import { stockHash, stockHashless } from './catalog-stock-values.mjs';
 import { shipmentSemantic } from './purchased-stock-proof.mjs';
 import { validateEvent } from '../../../packages/domain-events/index.mjs';
+import { validateRepairReturnShipment, recheckRepairServiceSources } from './repair-return.mjs';
+import { readRepairOrders } from './repair-orders.mjs';
 
 const json = value => JSON.parse(JSON.stringify(value));
 const scoped = (row, grant) => {
@@ -29,12 +31,47 @@ export function orderSnapshot(row, grant) {
 export function createReportingSource({ db, client, foundation, authorizeResource }) {
   if (typeof authorizeResource !== 'function') throw new Error('EXPLICIT_SOURCE_RESOURCE_AUTHORIZER_REQUIRED');
   async function authorized(scope, session, collection, row) {
-    const action = collection === 'salesOrders' ? 'quote.read' : 'fulfillment.read';
+    const action = collection === 'salesOrders' ? 'quote.read' : collection.startsWith('repair') ? 'repair.read' : 'fulfillment.read';
     const grant = await foundation.authorizeInTransaction(scope, { tenantId: scope.tenantId, plantId: scope.selectedPlantId ?? scope.plantId, action }, { session });
     scoped(row, grant);
-    if (row.revoked === true || row.active === false || (Object.hasOwn(row, 'allowedUserIds') && (!Array.isArray(row.allowedUserIds) || !row.allowedUserIds.includes(grant.userId)))) throw new Error('SOURCE_RESOURCE_REVOKED');
+    if (row.revoked === true || row.active === false || row.deleted === true || (Object.hasOwn(row, 'allowedUserIds') && (!Array.isArray(row.allowedUserIds) || !row.allowedUserIds.includes(grant.userId)))) throw new Error('SOURCE_RESOURCE_REVOKED');
     if (await authorizeResource({ scope, grant, collection, resource: row, session }) === false) throw new Error('SOURCE_RESOURCE_DENIED');
     return grant;
+  }
+  const repairShipment = row => row.sourceKind === 'CUSTOMER_ASSET_RETURN' || row.schema === 'REPAIR_RETURN_SHIPMENT_V1';
+  async function unsupportedRepair(scope, shipment, session) {
+    const grant = await authorized(scope, session, 'fulfillmentShipments', shipment);
+    const filter = { tenantId: grant.tenantId, plantId: grant.plantId };
+    if (!uuid.test(shipment._id) || !uuid.test(shipment.caseId) || !uuid.test(shipment.authorityId)) throw new Error('REPAIR_RETURN_SOURCE_INVALID');
+    const row = await db.collection('repairCases').findOne({ ...filter, _id: shipment.caseId }, { session });
+    await authorized(scope, session, 'repairCases', row);
+    const authority = await db.collection('repairReturnAuthorities').findOne({ ...filter, _id: shipment.authorityId }, { session });
+    await authorized(scope, session, 'repairReturnAuthorities', authority);
+    const original = await validateRepairReturnShipment(db, filter, shipment, session);
+    const { so, wo } = await readRepairOrders(db, filter, row, session);
+    await authorized(scope, session, 'repairSalesOrders', so);
+    await authorized(scope, session, 'repairWorkOrders', wo);
+    const receipts = await db.collection('repairKeys').find({ ...filter, 'result._id': row._id, 'result.version': authority.binding.caseVersion, 'result.returnDispatch.shipmentId': shipment._id }, { session }).limit(2).toArray();
+    const receipt = receipts[0];
+    if (receipts.length !== 1 || !uuid.test(receipt._id) || !/^[a-f0-9]{64}$/.test(receipt.payloadHash) || receipt.result.serviceProfile !== 'REPAIR_SERVICE_V1' || receipt.result.status !== 'RETURNED' || contentHash(json(receipt.result.returnDispatch)) !== contentHash(json(row.returnDispatch))) throw new Error('REPAIR_RETURN_RECEIPT_MISSING_OR_CONFLICT');
+    await authorized(scope, session, 'repairKeys', receipt);
+    await authorized(scope, session, 'repairCases', receipt.result);
+    const audit = await db.collection('repairAudit').find({ ...filter, kind: 'repair.return', subjectId: row._id, subjectVersion: receipt.result.version }, { session }).limit(2).toArray();
+    if (audit.length !== 1) throw new Error('REPAIR_RETURN_RECEIPT_MISSING_OR_CONFLICT');
+    await authorized(scope, session, 'repairAudit', audit[0]);
+    const delivery = await db.collection('deliveryHeads').findOne({ ...filter, _id: shipment._id }, { session });
+    if (delivery) await authorized(scope, session, 'deliveryHeads', delivery);
+    const confirmations = await db.collection('deliveryConfirmations').find({ ...filter, shipmentId: shipment._id }, { session }).limit(101).toArray();
+    for (const confirmation of confirmations) await authorized(scope, session, 'deliveryConfirmations', confirmation);
+    if (row.warranty) {
+      const invoice = await db.collection('repairInvoices').findOne({ ...filter, _id: row.warranty.invoiceId }, { session });
+      await authorized(scope, session, 'repairInvoices', invoice);
+    }
+    await recheckRepairServiceSources(db, filter, row, session);
+    return { collection: 'fulfillmentShipments', id: shipment._id, kind: shipment.sourceKind, schema: shipment.schema, version: shipment.version, hash: original.sourceHash,
+      receiptCollection: 'repairKeys', receiptId: receipt._id, receiptHash: contentHash(json(receipt)), eventIds: [audit[0]._id],
+      authorityId: authority._id, authorityHash: authority.contentHash, caseId: row._id, repairSalesOrderId: so._id, repairWorkOrderId: wo._id,
+      sourceOccurredAt: new Date(shipment.shippedAt).toISOString(), reason: 'VALIDATED_REPAIR_RETURN_NO_REGISTERED_REPORTING_V2_TARGET' };
   }
   async function order(scope, row, session, observedAt) {
     const grant = await authorized(scope, session, 'salesOrders', row);
@@ -166,6 +203,11 @@ export function createReportingSource({ db, client, foundation, authorizeResourc
         if (!manifest || manifest.coverage !== 'INCOMPLETE' || manifest.trustedZero !== false || !Array.isArray(manifest.snapshotHeads)) throw new Error('SUPPORTED_IMMUTABLE_COVERAGE_REQUIRED');
         const { hash, ...body } = manifest;
         if (hash !== contentHash(body) || manifest.snapshotHeads.length > limit) throw new Error('COVERAGE_HASH_OR_BOUND_CONFLICT');
+        if (manifest.unsupported.length > limit) throw new Error('COVERAGE_HASH_OR_BOUND_CONFLICT');
+        for (const entry of manifest.unsupported.filter(entry => entry.kind === 'CUSTOMER_ASSET_RETURN')) {
+          const shipment = await db.collection('fulfillmentShipments').findOne({ ...filter, _id: entry.id }, { session });
+          if (!shipment || contentHash(await unsupportedRepair(scope, shipment, session)) !== contentHash(entry)) throw new Error('UNSUPPORTED_SOURCE_AUTHORITY_CHANGED');
+        }
         const events = [];
         for (const head of manifest.snapshotHeads) {
           const rows = await db.collection('reportingSnapshotOutbox').find({ ...filter, aggregateId: head.aggregateId, aggregateVersion: { $lte: head.aggregateVersion } }, { session }).sort({ aggregateVersion: 1 }).limit(limit + 1).toArray();
@@ -195,12 +237,13 @@ export function createReportingSource({ db, client, foundation, authorizeResourc
         const authority = {};
         for (const collection of ['fulfillmentShipments', 'fulfillmentPayments', 'fulfillmentInvoices']) authority[collection] = await db.collection(collection).find(filter, { session }).sort({ _id: 1 }).limit(limit + 1).toArray();
         if (orders.length + receipts.length + Object.values(authority).reduce((sum, rows) => sum + rows.length, 0) > limit) throw new Error('SCOPE_EXCEEDS_BOUNDED_COMPLETE_SCAN');
+        const observedAt = new Date().toISOString(), envelopes = [], unsupported = [];
         for (const [collection, rows] of Object.entries(authority)) for (const row of rows) {
           await authorized(scope, session, collection, row);
+          if (collection === 'fulfillmentShipments' && repairShipment(row)) { unsupported.push(await unsupportedRepair(scope, row, session)); continue; }
           if (collection === 'fulfillmentShipments' && row.schema === 'PURCHASED_SHIPMENT_V1') continue;
           if (receipts.filter(receipt => receipt.result?._id === row._id).length !== 1) throw new Error('SOURCE_AUTHORITY_RECEIPT_MISSING');
         }
-        const observedAt = new Date().toISOString(), envelopes = [], unsupported = [];
         for (const row of orders) envelopes.push(await order(scope, row, session, observedAt));
         for (const row of receipts) envelopes.push(...await fulfillment(scope, row, session, observedAt, unsupported));
         for (const row of authority.fulfillmentShipments.filter(row => row.schema === 'PURCHASED_SHIPMENT_V1')) envelopes.push(...await fulfillment(scope, row, session, observedAt, unsupported, true));
@@ -234,7 +277,8 @@ export function createReportingSource({ db, client, foundation, authorizeResourc
         for (const row of rows.slice(0, limit)) {
           if (collection === 'salesOrders') envelopes.push(await order(scope, row, session, observedAt));
           else if (collection === 'fulfillmentShipments') {
-            if (row.schema === 'PURCHASED_SHIPMENT_V1') envelopes.push(...await fulfillment(scope, row, session, observedAt, unsupported, true));
+            if (repairShipment(row)) unsupported.push(await unsupportedRepair(scope, row, session));
+            else if (row.schema === 'PURCHASED_SHIPMENT_V1') envelopes.push(...await fulfillment(scope, row, session, observedAt, unsupported, true));
             else {
               await authorized(scope, session, collection, row);
               const keys = await db.collection('fulfillmentKeys').find({ ...filter, 'result._id': row._id }, { session }).limit(2).toArray();

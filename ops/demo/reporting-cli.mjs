@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { createTenantFoundation } from '../../packages/tenant-foundation/index.mjs';
 import { roleActions } from '../../apps/portfolio-api/src/commercial.mjs';
 import { fulfillmentRoles, fulfillmentActions } from '../../apps/portfolio-api/src/fulfillment.mjs';
+import { repairRoles } from '../../apps/portfolio-api/src/repair.mjs';
 import { uuid } from '../../packages/domain-events/source-bindings.mjs';
 import { createReportingRuntime } from './reporting-runtime.mjs';
 
@@ -49,12 +50,12 @@ export async function runReportingCli(input, { command = 'reconcile', runId } = 
   try {
     await client.connect();
     const db = client.db(config.databaseName);
-    const policy = Object.fromEntries(Object.entries({ ...roleActions, ...fulfillmentRoles }).map(([role, actions]) => [role, [...new Set([...actions, ...(role === 'owner' ? fulfillmentActions : [])])].filter(a => ['quote.read', 'fulfillment.read'].includes(a))]));
+    const policy = Object.fromEntries(Object.entries({ ...roleActions, ...fulfillmentRoles, ...repairRoles }).map(([role, actions]) => [role, [...new Set([...actions, ...(role === 'owner' ? [...fulfillmentActions, 'repair.read'] : [])])].filter(a => ['quote.read', 'fulfillment.read', 'repair.read'].includes(a))]));
     const foundation = createTenantFoundation({ client, db, roleActions: policy });
     runtime = await createReportingRuntime({ db, client, foundation, root: config.root, marker: config.marker, rawSink: config.python ? parquetSink(config) : undefined,
       getScope: () => foundation.authenticate(config.token),
       authorizeResource: ({ collection, grant, resource, session }) => {
-        if (!session?.inTransaction() || !['salesOrders', 'fulfillmentKeys', 'fulfillmentShipments', 'fulfillmentPayments', 'fulfillmentInvoices', 'fulfillmentDepositAllocations', 'fulfillmentCreditNotes'].includes(collection) || resource.tenantId !== grant.tenantId || resource.plantId !== grant.plantId || [resource.legalEntityId, resource.ownerLegalEntityId].some(id => id && id !== grant.legalEntityId)) throw new Error('SOURCE_RESOURCE_DENIED');
+        if (!session?.inTransaction() || !['salesOrders', 'fulfillmentKeys', 'fulfillmentShipments', 'fulfillmentPayments', 'fulfillmentInvoices', 'fulfillmentDepositAllocations', 'fulfillmentCreditNotes', 'repairCases', 'repairReturnAuthorities', 'repairSalesOrders', 'repairWorkOrders', 'repairKeys', 'repairAudit', 'repairInvoices', 'deliveryHeads', 'deliveryConfirmations'].includes(collection) || resource.tenantId !== grant.tenantId || resource.plantId !== grant.plantId || [resource.legalEntityId, resource.ownerLegalEntityId].some(id => id && id !== grant.legalEntityId)) throw new Error('SOURCE_RESOURCE_DENIED');
       }
     });
     let result;
