@@ -73,12 +73,29 @@ export async function recheckRepairServiceSources(db, filter, row, session) {
   if (row.serviceProfile !== 'REPAIR_SERVICE_V1') return;
   await requireQualityGates(db, filter, [{ resourceType: 'REPAIR_CASE', resourceId: row._id }], session);
   if (row.serviceOrders) await readRepairOrders(db, filter, row, session);
+  if (row.warranty?.profile === 'POD_CALENDAR_MONTHS_V1') await validatePodWarranty(db, filter, row, session);
   if (row.returnDispatch) {
     const shipment = await db.collection('fulfillmentShipments').findOne({ ...filter, _id: row.returnDispatch.shipmentId }, { session });
     if (!shipment) invalid();
     const original = await validateRepairReturnShipment(db, filter, shipment, session);
     await readDeliveryState(db, filter, original, session);
   }
+}
+
+export async function validatePodWarranty(db, filter, row, session) {
+  active(session);
+  const warranty = row.warranty;
+  if (warranty?.profile !== 'POD_CALENDAR_MONTHS_V1' || !warranty.sources || row.decision?.decision !== 'ACCEPT' || warranty.serial !== row.serial || warranty.assetId !== row.assetId || warranty.accountId !== row.ownerAccountId || warranty.repairWorkOrderId !== row.serviceOrders?.workOrderId || warranty.invoiceId !== row.finalInvoiceId || warranty.shipmentId !== row.returnDispatch?.shipmentId) fail(409, 'WARRANTY_SOURCE_CONFLICT');
+  const { wo } = await readRepairOrders(db, filter, row, session), sources = warranty.sources;
+  const invoice = await db.collection('repairInvoices').findOne({ ...filter, _id: warranty.invoiceId, caseId: row._id, kind: 'FINAL' }, { session });
+  if (!invoice || sources.workOrderHash !== wo.contentHash || sources.invoiceHash !== hash(sources.invoiceSnapshot) || sources.invoiceSnapshot._id !== invoice._id || hash(sources.invoiceSnapshot.snapshot) !== hash(invoice.snapshot) || invoice.accountId !== row.ownerAccountId || invoice.repairWorkOrderId !== wo._id || invoice.total !== sources.invoiceSnapshot.total) fail(409, 'WARRANTY_SOURCE_CONFLICT');
+  const shipment = await db.collection('fulfillmentShipments').findOne({ ...filter, _id: warranty.shipmentId }, { session });
+  if (!shipment) invalid();
+  const original = await validateRepairReturnShipment(db, filter, shipment, session), delivery = await readDeliveryState(db, filter, original, session), confirmation = delivery.confirmations.find(value => value._id === warranty.confirmationId);
+  if (!confirmation || delivery.head?.status !== 'DELIVERED' || sources.shipmentHash !== original.sourceHash || sources.confirmationHash !== confirmation.contentHash || hash(sources.confirmation) !== hash(confirmation) || new Date(warranty.startsAt).getTime() !== Date.parse(confirmation.deliveredAt) || new Date(warranty.expiresAt).getTime() !== warrantyCalendarExpiry(confirmation.deliveredAt, warranty.coverageMonths).getTime()) fail(409, 'WARRANTY_SOURCE_CONFLICT');
+  const fenced = await db.collection('repairInvoices').updateOne({ ...filter, _id: invoice._id, version: invoice.version }, { $inc: { warrantyUseFence: 1 } }, { session });
+  if (!fenced.matchedCount) fail(409, 'VERSION_CONFLICT');
+  return warranty;
 }
 
 export async function issuePodWarranty(db, filter, row, body, actor, now, session) {

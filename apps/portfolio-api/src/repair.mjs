@@ -5,7 +5,7 @@ import { initializeRepairStock, repairSpareCommand, saveRepairStockAuthority, va
 import { businessNow } from './business-clock.mjs';
 import { stockHash as repairHash } from './catalog-stock-values.mjs';
 import { initializeRepairOrders, validateRepairSnapshot, diagnosticRepairSnapshot, createRepairOrders, readRepairOrders, advanceRepairOrders } from './repair-orders.mjs';
-import { initializeRepairReturns, dispatchRepairAsset, issuePodWarranty } from './repair-return.mjs';
+import { initializeRepairReturns, dispatchRepairAsset, issuePodWarranty, validatePodWarranty } from './repair-return.mjs';
 import { initializeQuality, installQuality, qualityActions, qualityRoles, requireQualityGates } from './quality.mjs';
 import { initializeMaintenance, installMaintenance, maintenanceActions, maintenanceRoles } from './maintenance.mjs';
 
@@ -224,6 +224,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
       } else if (action === 'warranty-claim') {
         requireState('RETURNED');
         const now = businessNow(runtime), warranty = row.warranty;
+        if (warranty?.profile === 'POD_CALENDAR_MONTHS_V1') await validatePodWarranty(runtime.db, req.filter, row, session);
         if (warranty?.profile === 'POD_CALENDAR_MONTHS_V1' && b.operatingHours !== undefined && (!Number.isSafeInteger(b.operatingHours) || b.operatingHours < 0 || b.operatingHours >= warranty.operatingHoursLimit)) fail(409, 'WARRANTY_HOURS_EXCEEDED');
         if (row.holdActive || warranty?.status !== 'ACTIVE' || new Date(warranty.startsAt) > now || new Date(warranty.expiresAt) <= now) fail(409, 'WARRANTY_UNAVAILABLE');
         if ((row.warrantyClaims?.length || 0) >= 100) fail(409, 'WARRANTY_HISTORY_LIMIT');
