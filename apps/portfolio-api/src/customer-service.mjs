@@ -22,7 +22,7 @@ export async function initializeCustomerService(runtime, options = {}) {
     const contact = await runtime.db.collection('contacts').findOne({ tenantId, plantId, _id: contactId, accountId }, { session });
     return contact ? { accountLabel: account.name } : null;
   } };
-  const shared = { client: runtime.client, db: runtime.db, ...options, saasAdmission:runtime.saasAdmission, createCustomerServicePort:runtime.saasAdmission.createCustomerServicePort, partyDirectory, orderReader: options.allowSyntheticOrders ? undefined : { readCustomerOrder: (input, options) => runtime.customerServiceOrderReader.readCustomerOrder(input, options) }, foundation: { authorize: (...args) => runtime.foundation.authorize(...args), authorizeInTransaction: (...args) => runtime.foundation.authorizeInTransaction(...args) } };
+  const shared = { client: runtime.client, db: runtime.db, ...options, separateEffects:runtime.separateEffects, saasAdmission:runtime.saasAdmission, createCustomerServicePort:runtime.saasAdmission.createCustomerServicePort, partyDirectory, orderReader: options.allowSyntheticOrders ? undefined : { readCustomerOrder: (input, options) => runtime.customerServiceOrderReader.readCustomerOrder(input, options) }, foundation: { authorize: (...args) => runtime.foundation.authorize(...args), authorizeInTransaction: (...args) => runtime.foundation.authorizeInTransaction(...args) } };
   const service = createCustomerService({ ...shared, previewDispatcher: false });
   // Reader and foundation are late-bound so rotations are honoured by the package.
   await service.initialize();
@@ -120,6 +120,7 @@ export function installCustomerService(app, runtime, { fail, id, fields }) {
   const drainPreviews = async (tenantId, deliveryIds) => {
     const preview = runtime.customerServicePreview, done = [];
     for (let i = 0; i < 25; i++) {
+      if(runtime.separateEffects?.supports('cs.local-preview')){const managed=await runtime.db.collection('cs_outbox').find({tenantId,channelAccountId:SIMULATED_CHANNEL_ACCOUNT,state:'QUEUED',controlCommandId:{$type:'string'},...(deliveryIds?{_id:{$in:deliveryIds}}:{})}).sort({seq:1}).limit(1).next();if(managed){const result=await runtime.separateEffects.run(managed.controlCommandId,managed._id);if(result.state!=='PREVIEWED')break;done.push(managed._id);continue;}}
       const claim = await preview.claimNextDelivery({ tenantId, channelAccountId: SIMULATED_CHANNEL_ACCOUNT, leaseOwner: 'portfolio-api.simulator', deliveryIds });
       if (!claim) break;
       await preview.recordDeliveryResult({ tenantId, deliveryId: claim.deliveryId, fence: claim.fence, outcome: 'PREVIEWED', error: 'PREVIEW_ONLY_NO_PROVIDER' });
@@ -138,7 +139,7 @@ export function installCustomerService(app, runtime, { fail, id, fields }) {
     if(!disposition.enrolled) {
       before=ids.length?await cs().getOutboundMessages(req.scope,{plantId:plantId(req),deliveryIds:ids}):[];
       try{previewed=await drainPreviews(req.scope.tenantId,ids);}
-      catch(error){if(error.code!=='SAAS_ADMISSION_UNSUPPORTED_EFFECT')throw error;interrupted=true;}
+      catch(error){if(!['SAAS_ADMISSION_UNSUPPORTED_EFFECT','EFFECT_DISPATCH_STOPPED','EFFECT_EPOCH_CHANGED'].includes(error.code))throw error;interrupted=true;}
     }
     const messages=ids.length?await cs().getOutboundMessages(req.scope,{plantId:plantId(req),deliveryIds:ids}):[];
     if(interrupted)previewed=messages.filter(m=>m.state==='PREVIEWED'&&before.find(old=>old.messageId===m.messageId)?.state!=='PREVIEWED').map(m=>m.messageId);

@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
 import { summarizeServiceMetrics } from './service-metrics.mjs';
+import { effectHash } from '../tenant-lifecycle/effects.mjs';
 
 export const customerServiceDisposition=Symbol('customer-service-current-admission');
 export const SYNTHETIC_ORDER_SOURCE = 'SYNTHETIC_FIXTURE_SNAPSHOT';
@@ -103,7 +104,7 @@ export function parseInboundText(raw) {
   return { op: 'UNKNOWN_COMMAND' };
 }
 
-export function createCustomerService({ client, db, foundation, saasAdmission, createCustomerServicePort = saasAdmission?.createCustomerServicePort, now = () => new Date(), draftTtlMs = 24 * HOUR, ackTtlMs = 24 * HOUR, botReplyTtlMs = 15 * 60000, maxSendAttempts = 3, orderReader, orderReaderTimeoutMs = 2000, orderMaxStaleMs = 60000, allowSyntheticOrders = false, previewDispatcher = false, faultInjector = async () => {}, partyDirectory = null, firstResponseSlaMinutes = 240 }) {
+export function createCustomerService({ client, db, foundation, saasAdmission, separateEffects = null, createCustomerServicePort = saasAdmission?.createCustomerServicePort, now = () => new Date(), draftTtlMs = 24 * HOUR, ackTtlMs = 24 * HOUR, botReplyTtlMs = 15 * 60000, maxSendAttempts = 3, orderReader, orderReaderTimeoutMs = 2000, orderMaxStaleMs = 60000, allowSyntheticOrders = false, previewDispatcher = false, faultInjector = async () => {}, partyDirectory = null, firstResponseSlaMinutes = 240 }) {
   if (!client || !db || !foundation) throw new TypeError('client, db and foundation are required');
   const c = name => db.collection(name);
   const principals = new WeakMap();
@@ -148,8 +149,10 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     if(admitted&&!['LEGACY_UNENROLLED','ADMITTED','REPLAY','INHERITED'].includes(admitted.state))fail('DENIED');
     if(!context.admission)context.onAdmission?.(Object.freeze({enrolled:admitted?admitted.state!=='LEGACY_UNENROLLED':false}));
     if(found)return found.result;
-    return transactionContext.run(Object.freeze({...context,admission:admitted?.context??context.admission??Object.freeze({legacy:true})}),async()=>{
+    const deliveries=context.deliveries??[],topLevel=!context.deliveries;
+    return transactionContext.run(Object.freeze({...context,deliveries,admission:admitted?.context??context.admission??Object.freeze({legacy:true})}),async()=>{
       const result=await compute();
+      if(topLevel&&deliveries.length&&separateEffects?.supports('cs.local-preview')){await manageDeliveries(session,context,{identity,payloadHash:hash,request,result},deliveries);await faultInjector('managedIntent');}
       await c('cs_idempotency').insertOne({_id:randomUUID(),...identity,requestHash:hash,result,at:now()},{session});return result;
     });
   }
@@ -208,6 +211,43 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     if(transactionContext.getStore()?.admission)return;
     if(saasAdmission)await saasAdmission.unsupportedTenant({tenantId:binding.tenantId,session});else await missingPort(binding.tenantId,session);
   }
+  const sourceReferences=request=>Object.fromEntries(Object.entries(request).filter(([name])=>['draftId','ticketId','ticketNumber','conversationId','expectedVersion','toStage','assigneeId','orderNumber'].includes(name)));
+  async function managedOriginContext(scope,command,session){
+    const plan=command.plan,actor=command.actor;let binding=null,principal=null;
+    const grant=await foundation.authorizeInTransaction(scope,{plantId:command.plantId,action:plan.permission},{session});
+    if(plan.initiator&&(grant.userId!==plan.initiator.userId||grant.membershipId!==plan.initiator.membershipId))fail('DENIED');
+    if(actor.type==='CUSTOMER'){binding=await c('cs_contact_bindings').findOne({_id:actor.bindingId,tenantId:command.tenantId,plantId:command.plantId,customerId:actor.customerId,version:actor.bindingVersion,status:'ACTIVE',...unexpired()},{session});if(!binding)fail('DENIED');principal=registerPrincipal(binding);}
+    let request={...plan.sourceRefs};const first=await c('cs_outbox').findOne({_id:plan.deliveryIds[0],tenantId:command.tenantId,controlCommandId:command._id},{session});if(!first)fail('NOT_FOUND');
+    if(plan.receiptScope==='inbound.command'){const inbound=await c('cs_inbound').findOne({tenantId:command.tenantId,bindingId:actor.bindingId,inboundKey:command.owner.identity.key},{session});if(!inbound)fail('DENIED');request={text:inbound.text,command:parseInboundText(inbound.text)};}
+    if(plan.receiptScope==='conversation.operator_reply')request={conversationId:first.conversationId,text:first.payload.text};
+    if(plan.receiptScope==='conversation.bot_reply')request={template:first.payload.template,params:first.payload.params};
+    if(['inbound.command','conversation.operator_reply','conversation.bot_reply'].includes(plan.receiptScope)&&requestHash(request)!==command.owner.payloadHash)fail('DENIED');
+    return {actor:{scope,grant,action:plan.permission},binding,principal,request};
+  }
+  function deliveryOrigin(context,request){return {authorize:async({command,session,observation})=>{
+    let grant=context.actor?await foundation.authorizeInTransaction(context.actor.scope,{plantId:command.plantId,action:context.actor.action},{session}):null,binding=context.principal?await loadCustomerContext(context.principal,session):null;
+    if(!observation){if(binding){if(!customerPort)fail('DENIED');await customerPort.authorize(context.principal,{session});}else if(saasAdmission)await saasAdmission.authorize(context.actor.scope,{plantId:command.plantId,session});else await missingPort(command.tenantId,session);}
+    const receipt=await c('cs_idempotency').findOne(command.owner.identity,{session});await recheckReceiptSources(session,{...context,binding,actor:context.actor?{...context.actor,grant}:null},command.plan.receiptScope,request,receipt?.result);
+    for(const deliveryId of command.plan.deliveryIds){
+      const d=await c('cs_outbox').findOne({_id:deliveryId,tenantId:command.tenantId,plantId:command.plantId},{session});if(!d||d.controlCommandId&&d.controlCommandId!==command._id||d.expiresAt<=now())fail('DENIED');
+      const sourcePayload=d.actionKey.startsWith('inbound:')?d.payload:Object.fromEntries(Object.entries(d.payload).filter(([k])=>k!=='templateVersion'));if(d.payloadHash!==requestHash(sourcePayload))fail('DENIED');
+      const b=await c('cs_contact_bindings').findOneAndUpdate({_id:d.bindingId,tenantId:command.tenantId,plantId:command.plantId,version:d.bindingVersion,status:'ACTIVE',...unexpired()},{$inc:{commandFence:1}},{session,returnDocument:'after'}),conv=await c('cs_conversations').findOneAndUpdate({_id:d.conversationId,tenantId:command.tenantId,plantId:command.plantId},{$inc:{admissionSourceFence:1}},{session,returnDocument:'after'});
+      if(!b||!conv||b._id!==conv.bindingId||b.customerId!==conv.customerId||binding&&binding._id!==b._id||['PAUSED','CLOSED'].includes(conv.mode)||d.origin==='BOT'&&(conv.mode!=='BOT_ACTIVE'||conv.modeEpoch!==d.modeEpoch)||d.origin==='OPERATOR'&&(conv.mode!=='HUMAN_ACTIVE'||conv.assigneeId!==d.actorUserId))fail('DENIED');
+      if(d.ticketId){const ticket=await c('cs_tickets').findOne({_id:d.ticketId,tenantId:command.tenantId,plantId:command.plantId,customerId:b.customerId,bindingId:b._id},{session});if(!ticket)fail('DENIED');if(ticket.orderNumber)await ownSnapshot(session,b,ticket.orderNumber);}
+      if(d.payload.params?.orderNumber)await ownSnapshot(session,b,d.payload.params.orderNumber);
+      if(!grant){const plant=await c('plants').findOneAndUpdate({_id:b.plantId,tenantId:b.tenantId,active:true},{$inc:{authorizationFence:1}},{session,returnDocument:'after'});if(!plant)fail('DENIED');const entity=await c('legalEntities').findOneAndUpdate({_id:plant.legalEntityId,tenantId:b.tenantId,active:true},{$inc:{authorizationFence:1}},{session,returnDocument:'after'});if(!entity)fail('DENIED');grant={tenantId:b.tenantId,plantId:b.plantId,legalEntityId:plant.legalEntityId};}
+    }
+    return binding?{grant,bindingId:binding._id,customerId:binding.customerId}:grant;
+  }};}
+  async function manageDeliveries(session,context,descriptor,deliveryIds){
+    const binding=context.binding,operatorGrant=context.actor?.grant,plantId=binding?.plantId??operatorGrant?.plantId,tenantId=descriptor.identity.tenantId,plant=await c('plants').findOne({_id:plantId,tenantId,active:true},{session});if(!plant)fail('DENIED');
+    const grant=operatorGrant??{tenantId,plantId,legalEntityId:plant.legalEntityId},actor=binding?{type:'CUSTOMER',bindingId:binding._id,bindingVersion:binding.version,customerId:binding.customerId}:{type:'USER',userId:grant.userId,membershipId:grant.membershipId};
+    const plan={deliveryIds:[...deliveryIds],receiptScope:descriptor.identity.scope,sourceRefs:sourceReferences(descriptor.request),permission:context.actor?.action??'cs.simulator.use',initiator:context.actor?{userId:operatorGrant.userId,membershipId:operatorGrant.membershipId}:null};
+    const command=await separateEffects.accept({session,grant,actor,owner:{namespace:'cs_idempotency',identity:descriptor.identity,hashField:'requestHash',payloadHash:descriptor.payloadHash,resultPath:'result',resultHash:effectHash(descriptor.result)},kind:'cs.local-preview',plan,accepted:{state:'ACCEPTED',deliveryIds:[...deliveryIds]},origin:deliveryOrigin(context,descriptor.request)});
+    await c('cs_outbox').updateMany({tenantId,_id:{$in:deliveryIds}},{$set:{controlCommandId:command._id}},{session});
+  }
+  async function deliveryTransaction(session,fn){if(!session)return tx(fn);if(!session.inTransaction()||session.client!==client)fail('DENIED');return transactionContext.run(Object.freeze({session}),()=>fn(session));}
+  async function workerProof(workerCapability,session,publish){if(!separateEffects||!workerCapability)fail('DENIED');const proof=await separateEffects.worker(workerCapability,{session,publish});if(proof.command.kind!=='cs.local-preview'||!proof.command.plan.deliveryIds.includes(proof.attempt.phase))fail('DENIED');return proof;}
   async function recheckReceiptSources(session,context,namespace,request,result) {
     const binding=context.binding,g=context.actor?.grant,tenantId=binding?.tenantId??g?.tenantId,plantId=binding?.plantId??g?.plantId;
     const scoped={tenantId,plantId};
@@ -302,6 +342,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
       createdAt: at, updatedAt: at, expiresAt: new Date(at.getTime() + ttlMs), history: [{ state: 'QUEUED', at }]
     };
     await c('cs_outbox').insertOne(row, { session });
+    transactionContext.getStore()?.deliveries?.push(row._id);
     return row;
   }
   // Only QUEUED rows are cancelled; SENDING rows may already be at the provider and are reported, not retracted.
@@ -342,6 +383,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     source: m.payload?.source ? { kind: m.payload.source.kind, id: m.payload.source.id, sourceVersion: m.payload.source.sourceVersion, asOf: m.payload.source.asOf } : null,
     deliveryState: m.state, ...(m.payload?.order ? { order: m.payload.order } : {}), ...(m.cancelReason ? { cancelReason: m.cancelReason } : {}),
     previewedAt: m.previewedAt ?? null, sentAt: m.sentAt ?? null,
+    ...(m.controlCommandId?{effect:{commandId:m.controlCommandId,phase:m._id,mode:'LOCAL_SIMULATED'}}:{}),
   });
   const bindingView = b => ({
     bindingId: b._id, accountId: b.accountId ?? b.customerId, contactId: b.contactId ?? null, channel: b.channel ?? 'FIXTURE', address: b.channel === 'SIMULATED' ? b.address : null,
@@ -1002,15 +1044,15 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     },
 
     // Trusted dispatcher port. Marks SENDING durably before the caller performs any remote call.
-    async claimNextDelivery({ tenantId, channelAccountId, leaseOwner, leaseMs = 30000, deliveryIds }) {
+    async claimNextDelivery({ tenantId, channelAccountId, leaseOwner, leaseMs = 30000, deliveryIds, workerCapability, session:callerSession }) {
       uuid(tenantId); key(channelAccountId); key(leaseOwner);
       if (!Number.isSafeInteger(leaseMs) || leaseMs < 1000 || leaseMs > 600000) fail('INVALID_INPUT');
       if (previewDispatcher && channelAccountId !== SIMULATED_CHANNEL_ACCOUNT) fail('DENIED');
       if (deliveryIds !== undefined && (!Array.isArray(deliveryIds) || deliveryIds.length > 100 || !deliveryIds.every(x => typeof x === 'string' && UUID_RE.test(x)))) fail('INVALID_INPUT');
-      return tx(async session => {
-        await saasAdmission?.unsupportedTenant({tenantId,session});
+      return deliveryTransaction(callerSession,async session => {
+        if(workerCapability){const proof=await workerProof(workerCapability,session,true);if(proof.command.tenantId!==tenantId||channelAccountId!==SIMULATED_CHANNEL_ACCOUNT||deliveryIds?.length!==1||deliveryIds[0]!==proof.attempt.phase||leaseOwner!==proof.attempt._id)fail('DENIED');}else await saasAdmission?.unsupportedTenant({tenantId,session});
         const at = now();
-        const candidates = await c('cs_outbox').find({ tenantId, channelAccountId, state: 'QUEUED', nextAttemptAt: { $lte: at }, ...(deliveryIds === undefined ? {} : { _id: { $in: deliveryIds } }) }, { session }).sort({ seq: 1 }).limit(20).toArray();
+        const candidates = await c('cs_outbox').find({ tenantId, channelAccountId, state: 'QUEUED', nextAttemptAt: { $lte: at }, ...(deliveryIds === undefined ? {} : { _id: { $in: deliveryIds } }),...(!workerCapability?{controlCommandId:{$exists:false}}:{}) }, { session }).sort({ seq: 1 }).limit(20).toArray();
         const blocked = new Set();
         for (const d of candidates) {
           if (blocked.has(d.conversationId)) continue;
@@ -1039,15 +1081,16 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     },
 
     // outcome: SENT (provider accepted, id required), NOT_SENT (provably never submitted), SUBMIT_UNCERTAIN (timeout/crash after submit -> UNKNOWN).
-    async recordDeliveryResult({ tenantId, deliveryId, fence, outcome, providerMessageId = null, error = null }) {
+    async recordDeliveryResult({ tenantId, deliveryId, fence, outcome, providerMessageId = null, error = null,workerCapability,session:callerSession }) {
       uuid(tenantId); uuid(deliveryId); version(fence); oneOf(outcome, ['PREVIEWED', 'SENT', 'NOT_SENT', 'SUBMIT_UNCERTAIN']);
       if (outcome === 'PREVIEWED' && !previewDispatcher) fail('DENIED');
       if (previewDispatcher && outcome === 'SENT') fail('DENIED');
       if (outcome === 'SENT') key(providerMessageId);
-      return tx(async session => {
-        await saasAdmission?.unsupportedTenant({tenantId,session});
+      return deliveryTransaction(callerSession,async session => {
+        if(workerCapability){const proof=await workerProof(workerCapability,session,true),observed=proof.attempt.observedOutcome;if(proof.command.tenantId!==tenantId||proof.attempt.phase!==deliveryId||proof.attempt.input?.fence!==fence||outcome!=='PREVIEWED'||observed?.outcome!=='PREVIEWED'||observed.deliveryId!==deliveryId||observed.fence!==fence||observed.payloadHash!==proof.attempt.input.payloadHash)fail('DENIED');if(proof.attempt.state==='SETTLED')return proof.attempt.phaseResult;}else await saasAdmission?.unsupportedTenant({tenantId,session});
         const d = await c('cs_outbox').findOne({ _id: deliveryId, tenantId }, { session });
         if (!d) fail('NOT_FOUND');
+        if(d.controlCommandId&&!workerCapability)fail('DENIED');
         if (previewDispatcher && d.channelAccountId !== SIMULATED_CHANNEL_ACCOUNT) fail('DENIED');
         if (d.state !== 'SENDING' || d.fence !== fence) fail('STALE_FENCE');
         // A local preview has not reached any provider, so a binding revoked/expired after the claim is honoured here.
@@ -1066,12 +1109,12 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     },
 
     // Expired SENDING leases become UNKNOWN for manual review; they are never requeued automatically.
-    async reconcileExpiredSending({ tenantId }) {
+    async reconcileExpiredSending({ tenantId,workerCapability,session:callerSession }) {
       uuid(tenantId);
-      return tx(async session => {
-        await saasAdmission?.unsupportedTenant({tenantId,session});
+      return deliveryTransaction(callerSession,async session => {
+        const proof=workerCapability?await workerProof(workerCapability,session,false):null;if(proof&&proof.command.tenantId!==tenantId)fail('DENIED');if(!proof)await saasAdmission?.unsupportedTenant({tenantId,session});
         const at = now();
-        const rows = await c('cs_outbox').find({ tenantId, state: 'SENDING', leaseUntil: { $lte: at } }, { session, projection: { _id: 1 } }).toArray();
+        const rows = await c('cs_outbox').find({ tenantId, state: 'SENDING', leaseUntil: { $lte: at },...(proof?{_id:proof.attempt.phase,controlCommandId:proof.command._id}:{controlCommandId:{$exists:false}}) }, { session, projection: { _id: 1 } }).toArray();
         if (rows.length) await c('cs_outbox').updateMany({ _id: { $in: rows.map(r => r._id) }, state: 'SENDING' }, { $set: { state: 'UNKNOWN', lastError: 'LEASE_EXPIRED', leaseOwner: null, leaseUntil: null, updatedAt: at }, $push: { history: { state: 'UNKNOWN', reason: 'LEASE_EXPIRED', at } } }, { session });
         return { unknownDeliveryIds: rows.map(r => r._id) };
       });
@@ -1097,5 +1140,17 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
       }));
     }
   };
+  if(previewDispatcher&&separateEffects?.hasAdapter('local.cs')&&!separateEffects.supports('cs.local-preview'))separateEffects.registerKind('cs.local-preview',{
+    adapterId:'local.cs',statusAction:'cs.ticket.read',phases:command=>command.plan.deliveryIds,
+    beforeInvoke:async({command,attempt,session})=>{const row=await c('cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId,controlCommandId:command._id,fence:attempt.input.fence,payloadHash:attempt.input.payloadHash,...(attempt.input.alreadyPreviewed?{state:'PREVIEWED'}:{state:'SENDING',leaseOwner:attempt._id,leaseUntil:{$gt:now()}})},{session});if(!row)fail('STALE_FENCE');},
+    rebind:async({scope,command,session})=>{const context=await managedOriginContext(scope,command,session);return deliveryOrigin(context,context.request);},
+    prepare:async({command,attempt,phase,capability,session})=>{
+      const prior=await c('cs_outbox').findOne({_id:phase,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id},{session});if(!prior)fail('NOT_FOUND');
+      if(prior.state==='PREVIEWED')return {deliveryId:phase,fence:prior.fence,payloadHash:prior.payloadHash,alreadyPreviewed:true};
+      const claimed=await api.claimNextDelivery({tenantId:command.tenantId,channelAccountId:SIMULATED_CHANNEL_ACCOUNT,leaseOwner:attempt._id,deliveryIds:[phase],workerCapability:capability,session});if(!claimed)fail('INVALID_TRANSITION');return {deliveryId:phase,fence:claimed.fence,payloadHash:claimed.payloadHash,alreadyPreviewed:false};
+    },
+    invoke:async({attempt})=>{await faultInjector('managedPreview');return {deliveryId:attempt.input.deliveryId,fence:attempt.input.fence,payloadHash:attempt.input.payloadHash,outcome:'PREVIEWED'};},
+    publish:async({command,attempt,observation,capability,session})=>{if(attempt.input.alreadyPreviewed){const row=await c('cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId,controlCommandId:command._id,state:'PREVIEWED',fence:attempt.input.fence,payloadHash:attempt.input.payloadHash},{session});if(!row)fail('STALE_FENCE');return {deliveryId:row._id,state:'PREVIEWED'};}return api.recordDeliveryResult({tenantId:command.tenantId,deliveryId:attempt.phase,fence:attempt.input.fence,outcome:observation.result.outcome,workerCapability:capability,session});}
+  });
   return Object.freeze(api);
 }
