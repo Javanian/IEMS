@@ -124,43 +124,48 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     return draft;
   };
   const approvedHash = draft => digest({ ticketId: draft.ticketId, ticketVersion: draft.expectedTicketVersion, recipient: draft.recipient, channel: draft.channel, content: draft.proposedResolution, tenantId: draft.tenantId, plantId: draft.plantId, bindingId: draft.bindingId, bindingVersion: draft.bindingVersion, customerId: draft.customerId, recipientPolicy: draft.recipientPolicy, expiresAt: new Date(draft.expiresAt).toISOString() });
-  const sourceBinding = async (req, ticket, session, expectedBindingVersion) => {
+  const sourceBinding = async (req, ticket, session, expectedBindingVersion,readOnly=false) => {
     const filter = { ...scope(req), _id: ticket.bindingId, customerId: ticket.customerId, synthetic: true, channelAccountId: 'SIMULATED', status: 'ACTIVE', ...(expectedBindingVersion === undefined ? {} : { version: expectedBindingVersion }), $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] };
-    const binding = await c(runtime, 'cs_contact_bindings').findOneAndUpdate(filter, { $inc: { automationFence: 1 } }, { session, returnDocument: 'after' });
+    const binding = readOnly?await c(runtime,'cs_contact_bindings').findOne(filter,{session}):await c(runtime, 'cs_contact_bindings').findOneAndUpdate(filter, { $inc: { automationFence: 1 } }, { session, returnDocument: 'after' });
     if (!binding) fail(409, 'SOURCE_BINDING_INELIGIBLE', 'An active synthetic binding matching the ticket customer is required');
     return binding;
   };
-  const checkSource = async (req, draft, session, fence = false) => {
+  const checkSource = async (req, draft, session, fence = false,readOnly=false) => {
     if (new Date(draft.expiresAt) <= new Date()) fail(409, 'APPROVAL_EXPIRED');
     if (approvedHash(draft) !== draft.approvalHash) fail(409, 'APPROVAL_CONTENT_CHANGED');
     const filter = { ...scope(req), _id: draft.ticketId, stage: 'RESOLVED', version: draft.expectedTicketVersion };
-    const ticket = fence ? await c(runtime, 'cs_tickets').findOneAndUpdate(filter, { $inc: { automationFence: 1 } }, { session, returnDocument: 'after' }) : await c(runtime, 'cs_tickets').findOne(filter, { session });
+    const ticket = fence&&!readOnly ? await c(runtime, 'cs_tickets').findOneAndUpdate(filter, { $inc: { automationFence: 1 } }, { session, returnDocument: 'after' }) : await c(runtime, 'cs_tickets').findOne(filter, { session });
     if (!ticket) fail(409, 'STALE_DRAFT', 'Ticket must remain resolved at the approved source version');
     if (ticket.bindingId !== draft.bindingId || ticket.customerId !== draft.customerId) fail(409, 'SOURCE_BINDING_CHANGED');
-    await sourceBinding(req, ticket, session, draft.bindingVersion);
+    await sourceBinding(req, ticket, session, draft.bindingVersion,readOnly);
     if (draft.status !== 'PENDING_APPROVAL') {
-      const approvingMembership = await c(runtime, 'memberships').findOneAndUpdate({ _id: draft.approvedMembershipId, tenantId: draft.tenantId, userId: draft.approvedBy, active: true, version: draft.approvedMembershipVersion }, { $inc: { automationApprovalFence: 1 } }, { session, returnDocument: 'after' });
-      const approvingUser = await c(runtime, 'users').findOneAndUpdate({ _id: draft.approvedBy, active: true }, { $inc: { automationApprovalFence: 1 } }, { session, returnDocument: 'after' });
+      const memberFilter={_id:draft.approvedMembershipId,tenantId:draft.tenantId,userId:draft.approvedBy,active:true,version:draft.approvedMembershipVersion};const approvingMembership=readOnly?await c(runtime,'memberships').findOne(memberFilter,{session}):await c(runtime,'memberships').findOneAndUpdate(memberFilter,{$inc:{automationApprovalFence:1}},{session,returnDocument:'after'});
+      const approvingUser=readOnly?await c(runtime,'users').findOne({_id:draft.approvedBy,active:true},{session}):await c(runtime,'users').findOneAndUpdate({_id:draft.approvedBy,active:true},{$inc:{automationApprovalFence:1}},{session,returnDocument:'after'});
       if (!approvingMembership || !approvingUser) fail(409, 'APPROVER_AUTHORITY_CHANGED');
     }
     return ticket;
   };
+  async function validateDeliverySource(request,command,session,readOnly=false){
+    const plan=command.plan,receipt=await c(runtime,'automation_audit_logs').findOne(command.owner.identity,{session});if(receipt&&(receipt.plantId!==command.plantId||receipt.action!==plan.action||receipt.targetEntity?.id!==plan.entityId)||digest(plan.payload)!==command.owner.payloadHash)fail(409,'IDEMPOTENCY_CONFLICT');
+    if(!readOnly)await recheckOperationSources(request,session,plan.action,plan.entityId,plan.payload,command.acceptedResult);
+    for(const deliveryId of plan.deliveryIds){await recheckDelivery(request,session,deliveryId,{},readOnly);const delivery=await c(runtime,'cs_outbox').findOne({...scope(request),_id:deliveryId,origin:'AUTOMATION'},{session}),proof=plan.proofs[deliveryId];if(!proof||proof.contentHash!==delivery.contentHash||proof.payloadHash!==delivery.payloadHash||proof.recipientHash!==hashText(delivery.recipient)||proof.messageId!==delivery.messageId||delivery.controlCommandId&&delivery.controlCommandId!==command._id)fail(409,'DELIVERY_RECEIPT_SOURCE_CHANGED');
+      if(delivery.draftId){const draft=await getDraft(request,delivery.draftId,session);if(plan.action!=='RESOLUTION_DISPATCH_INTENT'||plan.entityId!==draft._id||plan.payload.draftId!==draft._id||command.acceptedResult.draftId!==draft._id||!['APPROVED','FAILED','DISPATCHED','QUEUED','UNKNOWN'].includes(draft.status)||draft.approvalHash!==proof.approvalHash||delivery.ticketId!==draft.ticketId||delivery.bindingId!==draft.bindingId||delivery.recipient!==draft.recipient||delivery.body!==draft.proposedResolution||delivery.kind!==(draft.channel==='EMAIL'?'RESOLUTION':'RESOLUTION_PREVIEW'))fail(409,'APPROVAL_CONTENT_CHANGED');await checkSource(request,draft,session,!readOnly,readOnly);}
+      else if(plan.action!=='DIGEST_DISPATCH_INTENT'||delivery.kind!=='DIGEST'||delivery.recipient!=='reports@iems.local'||delivery.actionKey!==plan.entityId)fail(409,'SOURCE_BINDING_CHANGED');
+    }
+  }
   const deliveryOrigin=(actorScope,plan)=>({context:{scope:actorScope},authorize:async({command,session,observation})=>{
-    const request={scope:actorScope},grant=await auth(request,'cs.automation.execute',session);if(!observation){await runtime.saasAdmission.authorize(actorScope,{plantId:grant.plantId,session});if((await c(runtime,'automation_settings').findOne({_id:`${grant.tenantId}:${grant.plantId}`},{session}))?.paused)fail(409,'AUTOMATION_PAUSED');}
-    const receipt=await c(runtime,'automation_audit_logs').findOne(command.owner.identity,{session});if(receipt&&(receipt.plantId!==grant.plantId||receipt.action!==plan.action||receipt.targetEntity?.id!==plan.entityId))fail(409,'IDEMPOTENCY_CONFLICT');await recheckOperationSources(request,session,plan.action,plan.entityId,plan.payload,command.acceptedResult);
-    for(const deliveryId of plan.deliveryIds){await recheckDelivery(request,session,deliveryId,{});const delivery=await c(runtime,'cs_outbox').findOne({...scope(request),_id:deliveryId,origin:'AUTOMATION'},{session}),proof=plan.proofs[deliveryId];if(!proof||proof.contentHash!==delivery.contentHash||proof.payloadHash!==delivery.payloadHash||proof.recipientHash!==hashText(delivery.recipient)||proof.messageId!==delivery.messageId||delivery.controlCommandId&&delivery.controlCommandId!==command._id)fail(409,'DELIVERY_RECEIPT_SOURCE_CHANGED');if(delivery.draftId){const draft=await getDraft(request,delivery.draftId,session);if(draft.approvalHash!==proof.approvalHash)fail(409,'APPROVAL_CONTENT_CHANGED');await checkSource(request,draft,session,true);}else if(delivery.kind!=='DIGEST'||delivery.recipient!=='reports@iems.local')fail(409,'SOURCE_BINDING_CHANGED');}
-    return grant;
+    const request={scope:actorScope},grant=await auth(request,'cs.automation.execute',session);if(!observation){await runtime.saasAdmission.authorize(actorScope,{plantId:grant.plantId,session});if((await c(runtime,'automation_settings').findOne({_id:`${grant.tenantId}:${grant.plantId}`},{session}))?.paused)fail(409,'AUTOMATION_PAUSED');}await validateDeliverySource(request,command,session);return grant;
   }});
   async function managedDeliveryIntent(req,session,{action,entityId,payload,idem,result}){
     const candidate=intentCandidates.get(session);if(candidate?.transaction!==session.serverSession?.txnNumber?.toString()||!candidate.ids.has(result.deliveryId))fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');const grant=await auth(req,'cs.automation.execute',session),identity={tenantId:grant.tenantId,idempotencyKey:idem},delivery=await c(runtime,'cs_outbox').findOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION'},{session});if(!delivery)fail(409,'DELIVERY_RECEIPT_SOURCE_CHANGED');const approvalHash=delivery.draftId?(await getDraft(req,delivery.draftId,session)).approvalHash:null,plan={action,entityId,payload,deliveryIds:[result.deliveryId],proofs:{[result.deliveryId]:{contentHash:delivery.contentHash,payloadHash:delivery.payloadHash,recipientHash:hashText(delivery.recipient),messageId:delivery.messageId,approvalHash}}},command=await effects.accept({session,grant,actor:{type:'USER',userId:grant.userId,membershipId:grant.membershipId},owner:{namespace:'automation_audit_logs',identity,hashField:'payloadHash',payloadHash:digest(payload),resultPath:'result',resultHash:effectHash(result)},kind:'automation.local-delivery',plan,accepted:result,origin:deliveryOrigin(req.scope,plan)});
     const changed=await c(runtime,'cs_outbox').updateOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION',controlCommandId:{$exists:false}},{$set:{controlCommandId:command._id}},{session});if(changed.matchedCount!==1)fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');
   }
   const deliveryView = row => ({ deliveryId: row._id, draftId: row.draftId, ticketId: row.ticketId, kind: row.kind, recipient: row.recipient, subject: row.subject, body: row.body, state: row.state, deliveryState: row.deliveryState || row.state, receiptStatus: row.receiptStatus || null, sinkMessageId: row.providerMessageId || null, lastError: row.lastError || null, leaseUntil: row.leaseUntil, attempt: row.attempt, createdAt: row.createdAt, updatedAt: row.updatedAt,...(row.controlCommandId?{effect:{commandId:row.controlCommandId,phase:row._id,mode:'LOCAL_SIMULATED'}}:{}) });
-  async function recoveryDelivery(req,session,deliveryId){
-    await recheckDelivery(req,session,deliveryId,{});const d=await c(runtime,'cs_outbox').findOne({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{session});
+  async function recoveryDelivery(req,session,deliveryId,readOnly=false){
+    await recheckDelivery(req,session,deliveryId,{},readOnly);const d=await c(runtime,'cs_outbox').findOne({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{session});
     if(!d.controlCommandId)fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');const command=await c(runtime,'saasEffectCommands').findOne({_id:d.controlCommandId,...scope(req),kind:'automation.local-delivery',ownerNamespace:'automation_audit_logs'},{session});if(!command||!command.plan.deliveryIds.includes(d._id))fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');
     const receipt=await c(runtime,'automation_audit_logs').findOne(command.owner.identity,{session});if(!receipt||receipt.plantId!==req.scope.selectedPlantId||receipt.action!==command.plan.action||receipt.targetEntity?.id!==command.plan.entityId||receipt.payloadHash!==command.owner.payloadHash||effectHash(receipt.result)!==command.owner.resultHash||receipt.result.deliveryId!==d._id)fail(409,'EFFECT_OWNER_RECEIPT_MISSING_OR_CONFLICT');
-    if(d.draftId)await checkSource(req,await getDraft(req,d.draftId,session),session,true);else if(d.kind!=='DIGEST'||d.recipient!=='reports@iems.local')fail(409,'SOURCE_BINDING_CHANGED');
+    if(d.draftId)await checkSource(req,await getDraft(req,d.draftId,session),session,!readOnly,readOnly);else if(d.kind!=='DIGEST'||d.recipient!=='reports@iems.local')fail(409,'SOURCE_BINDING_CHANGED');
     return {deliveryId:d._id,commandId:command._id,contentHash:d.contentHash,payloadHash:d.payloadHash,recipientHash:hashText(d.recipient)};
   }
   const recoveryOrigin=(actorScope,plan)=>({context:{scope:actorScope},authorize:async({session,observation})=>{
@@ -314,8 +319,8 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     const member=await c(runtime,'memberships').findOne({_id:row.membershipId,userId:row.userId,tenantId:req.scope.tenantId,active:true},{session});const user=await c(runtime,'users').findOne({_id:row.userId,active:true},{session});
     if(!member||!user||!member.plantIds.includes(req.scope.selectedPlantId)||!member.roles.some(r=>r.role==='automationService'))fail(403,'SOURCE_AUTHORITY_CHANGED');return row;
   };
-  const recheckDelivery=async(req,session,deliveryId,expected)=>{
-    const d=await c(runtime,'cs_outbox').findOneAndUpdate({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{$inc:{automationFence:1}},{session,returnDocument:'after'});
+  const recheckDelivery=async(req,session,deliveryId,expected,readOnly=false)=>{
+    const d=readOnly?await c(runtime,'cs_outbox').findOne({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{session}):await c(runtime,'cs_outbox').findOneAndUpdate({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{$inc:{automationFence:1}},{session,returnDocument:'after'});
     if(!d||Object.entries(expected).some(([k,v])=>d[k]!==v)||d.contentHash!==hashText(d.body.trim())||d.payloadHash!==digest({to:d.recipient,subject:d.subject,body:d.kind==='DIGEST'&&d.summary?.previewCount===0?d.body+'\n':d.body}))fail(409,'DELIVERY_RECEIPT_SOURCE_CHANGED');
   };
   const observationFingerprint=d=>digest({id:d._id,state:d.state,fence:d.fence,attempt:d.attempt,leaseUntil:d.leaseUntil?new Date(d.leaseUntil).toISOString():null,updatedAt:d.updatedAt?new Date(d.updatedAt).toISOString():null,contentHash:d.contentHash,payloadHash:d.payloadHash,recipient:d.recipient,draftId:d.draftId});
@@ -594,10 +599,10 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     });
     res.json({ data: out });
   });
-  const engineSources=async(userScope,payload,session)=>{
+  const engineSources=async(userScope,payload,session,readOnly=false)=>{
     const request={scope:userScope},proof={};
-    if(payload.ticketId){const ticket=await c(runtime,'cs_tickets').findOneAndUpdate({...scope(request),_id:payload.ticketId},{$inc:{automationFence:1}},{session,returnDocument:'after'});if(!ticket)fail(404,'NOT_FOUND');const binding=await sourceBinding(request,ticket,session);proof.ticket={id:ticket._id,version:ticket.version,bindingId:binding._id,bindingVersion:binding.version};}
-    if(payload.draftId){const draft=await getDraft(request,payload.draftId,session);if(!draft.approvedBy||!draft.approvalHash)fail(409,'APPROVAL_REQUIRED');await checkSource(request,draft,session,true);proof.draft={id:draft._id,approvalHash:draft.approvalHash,sourceVersion:draft.expectedTicketVersion};}
+    if(payload.ticketId){const ticket=readOnly?await c(runtime,'cs_tickets').findOne({...scope(request),_id:payload.ticketId},{session}):await c(runtime,'cs_tickets').findOneAndUpdate({...scope(request),_id:payload.ticketId},{$inc:{automationFence:1}},{session,returnDocument:'after'});if(!ticket)fail(404,'NOT_FOUND');const binding=await sourceBinding(request,ticket,session,undefined,readOnly);proof.ticket={id:ticket._id,version:ticket.version,bindingId:binding._id,bindingVersion:binding.version};}
+    if(payload.draftId){const draft=await getDraft(request,payload.draftId,session);if(!draft.approvedBy||!draft.approvalHash)fail(409,'APPROVAL_REQUIRED');await checkSource(request,draft,session,!readOnly,readOnly);proof.draft={id:draft._id,approvalHash:draft.approvalHash,sourceVersion:draft.expectedTicketVersion};}
     return digest(proof);
   };
   const engineOrigin=(userScope,plan)=>({authorize:async({session,observation})=>{
@@ -613,14 +618,14 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     return grant;
   }});
   if(effects?.hasAdapter('local.engine')&&!effects.supports('automation.engine'))effects.registerKind('automation.engine',{
-    adapterId:'local.engine',statusAction:'cs.automation.read',rebind:async({scope:actorScope,command})=>engineOrigin(actorScope,command.plan),
+    adapterId:'local.engine',statusAction:'cs.automation.read',readStatus:async({scope:actorScope,command,session})=>{const plan=command.plan;if(await engineSources(actorScope,plan.payload,session,true)!==plan.sourceHash)fail(409,'ENGINE_SOURCE_CHANGED');const configured=cfg().serviceToken||process.env.IEMS_AUTOMATION_SERVICE_TOKEN;if(!configured)fail(503,'ENGINE_SERVICE_NOT_CONFIGURED');let serviceScope;try{serviceScope=await runtime.foundation.authenticate(configured);}catch{fail(403,'ENGINE_SERVICE_CREDENTIAL_EXPIRED');}const grant=await runtime.foundation.authorize(serviceScope,{tenantId:command.tenantId,plantId:command.plantId,action:'cs.automation.execute'}),service=await c(runtime,'sessions').findOne({_id:plan.serviceSessionId,tenantId:command.tenantId,userId:grant.userId,membershipId:grant.membershipId,tokenHash:hashText(configured),automationService:true,revoked:false,expiresAt:{$gt:new Date()}},{session});if(!service||serviceScope.selectedPlantId!==command.plantId||grant.legalEntityId!==command.legalEntityId)fail(403,'ENGINE_SCOPE_DENIED');if(!await c(runtime,'automation_engine_runs').findOne({_id:plan.runId,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,workflowId:plan.workflowId,executionId:plan.executionId},{session}))fail(409,'ENGINE_RUN_SOURCE_CHANGED');},rebind:async({scope:actorScope,command})=>engineOrigin(actorScope,command.plan),
     childEvents:['ENGINE_ERROR_OBSERVED'],authorizeChild:async({scope:serviceScope,command,attempt,session})=>{const grant=await runtime.foundation.authorizeInTransaction(serviceScope,{tenantId:command.tenantId,plantId:command.plantId,action:'cs.automation.execute'},{session});const service=await c(runtime,'sessions').findOne({_id:command.plan.serviceSessionId,tenantId:command.tenantId,userId:grant.userId,membershipId:grant.membershipId,automationService:true,revoked:false,expiresAt:{$gt:new Date()}},{session});if(!service||attempt.input.executionId!==command.plan.executionId)fail(403,'ENGINE_ERROR_UNCORRELATED');return grant;},
     prepare:async({command})=>({runId:command.plan.runId,executionId:command.plan.executionId,sourceHash:command.plan.sourceHash}),
     invoke:async({command,attempt})=>{const configured=runtime.integrations.effects.engine;if(configured?.execute)await configured.execute({runId:command.plan.runId,executionId:command.plan.executionId,workflowId:command.plan.workflowId,payload:command.plan.payload,providerKey:attempt.providerKey});else await new Promise(resolve=>setImmediate(resolve));return {runId:command.plan.runId,executionId:command.plan.executionId,outcome:'COMPLETED_LOCAL'};},
     publish:async({command,observation,session})=>{const result={runId:command.plan.runId,executionId:command.plan.executionId,state:'COMPLETED_LOCAL'};const changed=await c(runtime,'automation_engine_runs').updateOne({_id:command.plan.runId,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,state:'ACCEPTED'},{$set:{...result,providerReceiptHash:observation.proofHash,observedAt:new Date(),completedAt:new Date()}},{session});if(changed.matchedCount!==1)fail(409,'ENGINE_RUN_SOURCE_CHANGED');return result;}
   });
   if(effects?.hasAdapter('local.cs')&&!effects.supports('automation.local-delivery'))effects.registerKind('automation.local-delivery',{
-    adapterId:'local.cs',statusAction:'cs.automation.read',phases:command=>command.plan.deliveryIds,rebind:async({scope:actorScope,command})=>deliveryOrigin(actorScope,command.plan),
+    adapterId:'local.cs',statusAction:'cs.automation.read',readStatus:async({scope:actorScope,command,session})=>validateDeliverySource({scope:actorScope},command,session,true),phases:command=>command.plan.deliveryIds,rebind:async({scope:actorScope,command})=>deliveryOrigin(actorScope,command.plan),
     prepare:async({command,attempt,phase,session,context})=>{
       const request={scope:context.scope},d=await c(runtime,'cs_outbox').findOne({_id:phase,tenantId:command.tenantId,plantId:command.plantId,origin:'AUTOMATION',controlCommandId:command._id},{session});if(!d)fail(404,'NOT_FOUND');
       if(d.state==='PREVIEWED')return {deliveryId:d._id,fence:d.fence,contentHash:d.contentHash,payloadHash:d.payloadHash,alreadyPreviewed:true};if(d.state!=='QUEUED'||d.nextAttemptAt>new Date()||d.attempt>=3)fail(409,'DELIVERY_RECONCILIATION_REQUIRED');
@@ -634,7 +639,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     }
   });
   if(effects?.hasAdapter('local.engine')&&!effects.supports('automation.recovery'))effects.registerKind('automation.recovery',{
-    adapterId:'local.engine',statusAction:'cs.automation.read',rebind:async({scope:actorScope,command})=>recoveryOrigin(actorScope,command.plan),
+    adapterId:'local.engine',statusAction:'cs.automation.read',readStatus:async({scope:actorScope,command,session})=>{const request={scope:actorScope};for(const proof of command.plan.deliveries)if(effectHash(await recoveryDelivery(request,session,proof.deliveryId,true))!==effectHash(proof))fail(409,'RECOVERY_SOURCE_CHANGED');for(const selected of command.plan.drafts){const draft=await getDraft(request,selected.draftId,session);if(!['APPROVED','DISPATCHED','QUEUED','UNKNOWN','FAILED'].includes(draft.status)||draft.approvalHash!==selected.approvalHash)fail(409,'RECOVERY_SOURCE_CHANGED');await checkSource(request,draft,session,false,true);}},rebind:async({scope:actorScope,command})=>recoveryOrigin(actorScope,command.plan),
     allowsChild:async({parent,child,phase})=>child.kind==='automation.local-delivery'&&child.plan.deliveryIds.includes(phase)&&(parent.plan.deliveries.some(x=>x.commandId===child._id&&x.deliveryId===phase)||parent.plan.drafts.some(x=>x.draftId===child.plan.entityId&&x.receiptKey===child.owner.identity.idempotencyKey)),
     prepare:async({command})=>({deliveryIds:command.plan.deliveries.map(x=>x.deliveryId),draftIds:command.plan.drafts.map(x=>x.draftId)}),
     invoke:async({command,capability,context})=>{

@@ -33,8 +33,8 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
   function shape(input, keys) {
     if (!input || Object.getPrototypeOf(input) !== Object.prototype || Object.keys(input).some(k => !keys.includes(k)) || !uuid(input.plantId)) fail('INVALID_SAAS_REQUEST');
   }
-  async function tenantGrant(scope, plantId, action, session) {
-    const grant = await foundation.authorizeInTransaction(scope,{ tenantId: scope?.tenantId, plantId, action },{session});
+  async function tenantGrant(scope, plantId, action, session, readOnly=false) {
+    const grant = readOnly?await foundation.authorize(scope,{tenantId:scope?.tenantId,plantId,action}):await foundation.authorizeInTransaction(scope,{ tenantId: scope?.tenantId, plantId, action },{session});
     const member = await db.collection('memberships').findOne({ _id: grant.membershipId, tenantId: grant.tenantId, active:true, version:grant.membershipVersion },{session});
     if (!member?.tenantWide || !member.roles?.some(g => g.tenantWide && lifecycleRoles[g.role]?.includes(action))) fail('TENANT_WIDE_SAAS_GRANT_REQUIRED',403);
     return grant;
@@ -84,8 +84,8 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
     },
     async status(scope,input) {
       shape(input,['plantId']);
-      return boundedTransaction(client,async session => {
-        const grant = await tenantGrant(scope,input.plantId,'saas.read',session);
+      const result=await boundedTransaction(client,async session => {
+        const grant = await tenantGrant(scope,input.plantId,'saas.read',session,true);
         const row = await rows.findOne({tenantId:grant.tenantId},{session});
         return {schema:'SAAS_STATUS_V1',subscription:row ? clean(current(row)) : null,plans,quiescence:separateEffects?await separateEffects.quiescence({tenantId:grant.tenantId,session}):{state:'UNCONFIGURED'},
           admission:{profile:'RECEIPTED_COMMANDS_V1',fullEndpointCoverage:false,
@@ -94,7 +94,7 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
             enrollmentBoundary:'Enrollment requires command-aware clients; older unkeyed forms may be unavailable. Unsupported business mutations are blocked. Existing automation engine history prevents enrollment until authoritative quiescence can be established.'},
           domainLifecycleConfigured:!!domainPort, billing:'SAAS_METERING_ONLY_NO_PAYMENT_COLLECTION',
           boundary:'Tenant invoices are separate. Delete is a reversible archive workflow, not certified erasure. Domain effects require a complete authoritative transactional port.'};
-      });
+      });await tenantGrant(scope,input.plantId,'saas.read',undefined,true);return result;
     },
     subscribe(scope,input) { return mutate(scope,input,'saas.subscribe',['plan','admissionProfile'],async (row,{session,grant}) => {
       if(enrollmentGuard)await enrollmentGuard(input.admissionProfile);
