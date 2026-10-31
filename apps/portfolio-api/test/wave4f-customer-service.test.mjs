@@ -242,22 +242,22 @@ test('wave4f CS binding onboarding, simulator, authoritative manufacture/repair 
   });
 
   await t.test('reader timeout, stale authorization and cross-plant scope fail closed', async () => {
-    const real = runtime.orderReader;
+    const real = runtime.customerServiceOrderReader;
     try {
-      runtime.orderReader = { readCustomerOrder: input => new Promise(r => setTimeout(() => r(real.readCustomerOrder(input)), 600)) };
+      runtime.customerServiceOrderReader = { readCustomerOrder: input => new Promise(r => setTimeout(() => r(real.readCustomerOrder(input)), 600)) };
       const slow = await get(`/cs/bindings/${primary.bindingId}/order-status?orderNumber=${f.so.orderNumber}`);
       assert.deepEqual([slow.status, slow.error.code], [503, 'STATUS_UNAVAILABLE']);
       const reply = await okSimulate(primary.bindingId, 'IEMS MENU');
       assert.ok(reply.suppressed || reply.reply, 'conversation exists');
-    } finally { runtime.orderReader = real; }
+    } finally { runtime.customerServiceOrderReader = real; }
     // A fresh binding (bot active) shows the unavailable reply in the channel during reader timeout.
     const fresh = (await okPost('/cs/bindings', bindingBody(), 201)).binding;
     try {
-      runtime.orderReader = { readCustomerOrder: input => new Promise(r => setTimeout(() => r(real.readCustomerOrder(input)), 600)) };
+      runtime.customerServiceOrderReader = { readCustomerOrder: input => new Promise(r => setTimeout(() => r(real.readCustomerOrder(input)), 600)) };
       const timed = await okSimulate(fresh.bindingId, `IEMS ORDER ${f.so.orderNumber}`);
       assert.deepEqual([timed.error, timed.reply.template.id, timed.reply.deliveryState], ['STATUS_UNAVAILABLE', 'status_unavailable', 'PREVIEWED']);
       assert.equal(timed.reply.body, 'IEMS preview: status cannot be confirmed right now. Send IEMS HUMAN for a team member.');
-    } finally { runtime.orderReader = real; }
+    } finally { runtime.customerServiceOrderReader = real; }
     // Authorization revoked between the pre-check and the transaction is enforced in-transaction.
     const member = await db.collection('memberships').findOne({ _id: a.membershipId });
     const foundation = runtime.foundation;

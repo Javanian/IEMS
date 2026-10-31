@@ -366,7 +366,12 @@ try {
   await warehouseJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers });
   if (process.env.PORTFOLIO_SKIP_CS !== '1') await orderInquiry({db,runtime,headers,expected:'ACCEPTED'});
   await manufacturingJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers });
-  if (process.env.PORTFOLIO_SKIP_CS !== '1') await orderInquiry({db,runtime,headers,expected:'READY_TO_SHIP'});
+  if (process.env.PORTFOLIO_SKIP_CS !== '1') {
+    const partialWork = await db.collection('manufacturingWorkOrders').find({}).toArray();
+    assert.equal(partialWork.filter(w => w.status === 'QC_COMPLETED' && w.qc.acceptedQuantity === '0.6').length, 1);
+    assert.equal(partialWork.filter(w => w.status === 'PLANNED' && w.quantity === '0.5').length, 1);
+    await orderInquiry({db,runtime,headers,expected:'PLANNING'});
+  }
   await fulfillmentJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers, network });
   if (process.env.PORTFOLIO_SKIP_CS !== '1') await serviceJourney({ db, runtime, call, wait, click, fill, evaluate, screenshot, check, headers });
   if (process.env.PORTFOLIO_PAGINATION === '1') await paginationJourney({ db, runtime, call, wait, click, fill, evaluate, screenshot, check, headers });
