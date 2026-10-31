@@ -30,6 +30,7 @@ export interface SeparateEffects {
  run(commandId:string,phase?:string):Promise<unknown>;
  runChild(parentCapability:EffectWorkerCapability,commandId:string,phase:string,options?:{observeOnly?:boolean}):Promise<unknown>;
  observe(commandId:string,phase?:string):Promise<unknown>;
+ continueChild(scope:VerifiedScope,parentId:string,commandId:string,phase:string):Promise<unknown>;
  rebind(scope:VerifiedScope,commandId:string):Promise<unknown>;
  status(scope:VerifiedScope,commandId:string):Promise<unknown>;
  childCapability(scope:VerifiedScope,commandId:string,phase:string,input:{session:ClientSession}):Promise<EffectWorkerCapability>;
