@@ -24,7 +24,7 @@ Default loopback URLs:
 
 | Component | Address |
 | --- | --- |
-| IEMS UI | http://127.0.0.1:5187/portfolio/service/automation |
+| IEMS UI | http://127.0.0.1:5187/portfolio/automation |
 | IEMS API | http://127.0.0.1:4319 |
 | n8n editor | http://127.0.0.1:5687 |
 | SMTP capture | 127.0.0.1:2527 |

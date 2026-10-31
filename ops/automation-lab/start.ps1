@@ -11,7 +11,7 @@ if (Test-Path -LiteralPath $statusPath) {
   $state = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
   $existing = Get-CimInstance Win32_Process -Filter "ProcessId=$($state.supervisorPid)" -ErrorAction SilentlyContinue
   if ($existing -and $existing.CommandLine.Contains($runtimeScript)) {
-    if ($state.ready) { Write-Output "Owned lab already ready: $($state.webBase)/portfolio/service/automation"; exit 0 }
+    if ($state.ready) { Write-Output "Owned lab already ready: $($state.webBase)/portfolio/automation"; exit 0 }
     throw "Owned supervisor is already running, phase $($state.phase). Inspect status/logs; do not launch a duplicate."
   }
 }
@@ -40,7 +40,7 @@ while ((Get-Date) -lt $deadline) {
   if ($process.HasExited) { throw "Lab startup exited. Inspect $LabRoot\logs\supervisor.*.log" }
   if (Test-Path -LiteralPath $statusPath) {
     try { $state = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json } catch { Start-Sleep -Milliseconds 500; continue }
-    if ($state.supervisorPid -eq $process.Id -and $state.ready) { Write-Output "Ready: $($state.webBase)/portfolio/service/automation"; Write-Output "n8n: $($state.n8nBase). Private synthetic sign-in: $LabRoot\config.json"; exit 0 }
+    if ($state.supervisorPid -eq $process.Id -and $state.ready) { Write-Output "Ready: $($state.webBase)/portfolio/automation"; Write-Output "n8n: $($state.n8nBase). Private synthetic sign-in: $LabRoot\config.json"; exit 0 }
     if ($state.supervisorPid -eq $process.Id -and $state.phase -eq 'failed') { throw $state.error }
   }
   Start-Sleep -Seconds 1
