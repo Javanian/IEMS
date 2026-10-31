@@ -202,3 +202,21 @@ daf1324a15a13f86b3138bd0b651b9edeeb950f9|test(PLAT-013): include rejection cance
 e7f44360d4b7883c1319f0c9d39bd8cab4ff3be7|docs(PLAT-013): hand off verified E02 runtime manifests and digest-only pins
 1ba4d57f356bf3baa2c15b3290e931fdcf9f35cd|merge(TPR-149): preserve E02 domain runner and SaaS receipt handoffs
 c7eb54163c2bd29bbc6590597a21105a41c963d4|feat(PLAT-019): assemble linked owned E01 E02 and private reporting demo
+434a6bc08bf3664123e92dcd4a725036b1519a7f|docs(PLAT-040): record linked E01 E02 evidence and concrete integration blockers
+4eb3982b87b1ac43cfc82b6a0713b88bf37d4354|fix(PLAT-020): validate typed repair returns as unsupported reporting sources
+147a7917d468854fca4d1b75988bd338c5172e9f|fix(PLAT-020): refresh exact v12 reporting source inventory
+16573e3a4c5aec009065732f18639e4a83cf1070|feat(PLAT-038): admit job ingress with caller-session rate consumption
+51d276d707489ec0b1b5adcc233330e8a3f297c4|feat(PLAT-038): retain explicit UI command attempts across uncertain results
+b6c768f84ba7552c9080987dbc77ccc393569233|feat(PLAT-038): admit private CS receipts and queue enrolled simulator results
+4bc80c363237083d85caefe1d2d6b578d21bfb7f|feat(PLAT-038): admit local automation receipts and atomically schedule escalation
+f6b6afb950708c5ae007b3014b63b851a6764e62|docs(PLAT-038): publish v12-v13 handoff and remaining local contracts
+bf75471159dc7c691e27dd42592620a48764f2e9|feat(PLAT-038): preserve immutable results for four CS command roots
+49c4fc08a7078106829cf1f0275310602ae65344|feat(PLAT-038): receipt automation administration and one-time credential recovery
+a5085eeb70fba93f80607ac4d7ec0d81c0fa7730|feat(PLAT-038): preview scoped simulated messages in one caller transaction
+d00884a3eb6327963143dfb12e03cd3201044ae4|feat(PLAT-038): reconcile bounded local receipt observations atomically
+36de7ed6c8b6f266296c85b46a57140640aee571|fix(PLAT-038): validate live replay and preview sources with strict credential bounds
+0f811f795db272c4dcd55b4fcf8b03c0c087b472|feat(PLAT-038): retain service attempts and recover lost one-time credentials
+6adac5bf8601383f5d8bcc9820c1f31cbf954d91|docs(PLAT-038): publish v14 handoff and verified secret-free evidence contract
+7dcdc904b98b51ec9ac07cbf5e6a5e6bb4b7bcc5|merge(TPR-149): adopt validated repair reporting coexistence
+5167f297b2b52954e177782f0a504618d2ab7f7c|merge(TPR-149): integrate local admission callers and v14 service contracts
+fb27134cafed7c335cb7856687383993bdc01912|fix(PLAT-019): launch web from app cwd and verify compiled portfolio CSS

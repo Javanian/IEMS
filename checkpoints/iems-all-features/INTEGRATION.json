@@ -1,13 +1,12 @@
 {
   "independentQA": "NOT_RUN",
-  "mergedHead": "c7eb54163c2bd29bbc6590597a21105a41c963d4",
-  "status": "INTEGRATION_IN_PROGRESS",
+  "mergedHead": "fb27134cafed7c335cb7856687383993bdc01912",
+  "status": "LOCAL_DEMO_VERIFIED_FINAL_QA_WITHHELD",
   "base": "0ad4248af46adad2762763438efb27aaace932b4",
   "schema": "IEMS_INTEGRATION_V1",
   "unresolved": [
-    "TPR-146 typed repair shipment reporting coexistence SOURCE_AUTHORITY_RECEIPT_MISSING",
-    "TPR-153 exact remaining SaaS caller/private CS/job allocation; implementation owner148 after contract",
-    "linked reporting and web launcher completion smoke; immutable QA handoff"
+    "TPR-153 exact remaining engine/private worker/AI separate-effect admission and quiescence allocation; v14 whole PLAT-038 incomplete",
+    "implementation handoff for remaining local coverage before immutable final QA candidate"
   ],
   "publication": "LOCAL_ONLY",
   "integratedHandoffs": {
@@ -20,19 +19,20 @@
     "TPR-143": "7f7ed96996e0d6a6955a5d0db2b93116f5b3d090",
     "TPR-144": "c8f1fcfe153598ae3ac7436ed2f5718918c50b43",
     "TPR-145": "a517790418d59488d0f8fb37ad81ad4a95cd2479",
-    "TPR-146": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
+    "TPR-146": "147a7917d468854fca4d1b75988bd338c5172e9f",
     "TPR-147": "ee687f3b041f86195d299fff13e9bd2550228e5b",
-    "TPR-148": "55e6c34299373037bfff44cb8ad09a47d1e86ac0"
+    "TPR-148": "6adac5bf8601383f5d8bcc9820c1f31cbf954d91"
   },
   "checks": {
-    "apiSyntax": "PASS exit0 on1ba4d57 source; assembly-api-check.log",
-    "webBuild": "PASS exit0 on1ba4d57 source; bundle warning retained",
-    "sourcePins": "PASS direct source/schema/admission verifiers on1ba4d57",
-    "linkedE01": "PASS actual mounted owned HTTP+Mongo in linked-smoke-20261031T031624359Z.log",
-    "linkedE02": "PASS accepted/rejected actual mounted owned HTTP+Mongo in same linked smoke",
-    "linkedReporting": "FAIL SOURCE_AUTHORITY_RECEIPT_MISSING; whole linked smoke exit1",
-    "linkedWeb": "NOT_RUN because reporting failed",
+    "apiSyntax": "PASS exit0 on5167f29; v14-api-check.log",
+    "webBuild": "PASS exit0 on5167f29; v14-web-build.log; bundle warning retained",
+    "sourcePins": "PASS direct verifiers on5167f29 andfb27134",
+    "linkedE01": "PASS actual mounted owned HTTP/Mongo onfb27134",
+    "linkedE02": "PASS accepted/rejected actual mounted owned HTTP/Mongo onfb27134",
+    "linkedReporting": "PASS5 registered snapshots,2 validated unsupported repair returns; INCOMPLETE/trustedZero=false",
+    "linkedWeb": "PASS_HTML_CSS_AND_AUTHENTICATED_PROXY onfb27134; browser NOT_RUN",
     "cleanup": "PASS_MARKER_VERIFIED",
+    "warnings": "dependency scan canceled during close; Mongo ECONNRESET retained; earlier root-cwd CSS failure corrected",
     "independentQA": "NOT_RUN"
   }
 }

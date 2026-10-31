@@ -1,0 +1,126 @@
+{
+  "schema": "IEMS_RUNTIME_COVERAGE_V1",
+  "reviewedSource": "5167f297b2b52954e177782f0a504618d2ab7f7c",
+  "routes": 400,
+  "receiptNamespaces": 32,
+  "fullEndpointCoverage": false,
+  "states": {
+    "RECEIPTED": 195,
+    "CONTROL_PLANE": 9,
+    "ADVISORY_READ": 4,
+    "REJECTED_COMMAND": 2,
+    "LOCAL_COVERAGE_PENDING": 2,
+    "READ": 175,
+    "UNSUPPORTED": 4,
+    "CONDITIONAL_RECEIPTED": 6,
+    "AUTH_RECOVERY": 3
+  },
+  "pending": [
+    {
+      "route": "POST /api/ai/documents/:id/index/cleanup",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/ai/documents/:id/rebuild",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/dispatch",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/reconcile",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/commercial/quotes",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/accept",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/approve",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/convert",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "quoteConversions"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/revisions",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/automation/digest/record",
+      "state": "REJECTED_COMMAND",
+      "meter": "NONE",
+      "note": "Always rejects caller delivery receipts/alternate handoff; no business effect."
+    },
+    {
+      "route": "POST /api/cs/automation/engine-error",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/reconcile",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "condition": "Explicit bounded LOCAL_OBSERVE_V1 only; legacy/full recovery and all workers remain unsupported enrolled."
+    },
+    {
+      "route": "POST /api/cs/automation/run/:workflowId",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/whatsapp-handoff",
+      "state": "REJECTED_COMMAND",
+      "meter": "NONE",
+      "note": "Always rejects caller delivery receipts/alternate handoff; no business effect."
+    }
+  ],
+  "independentQA": "NOT_RUN"
+}
