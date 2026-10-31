@@ -5,7 +5,7 @@ This closes implementation, not independent acceptance or production readiness.
 Workspace: `D:/Project AI/GITHUB/IEMS-worktrees/iems-all-20261030-ai`.
 Branch: `program/iems-all-20261030-ai`. Local only; remote/CI UNKNOWN.
 The preserved candidate was `24a597df874e6a83952ee1c1ae441dfe93b51d42`.
-Final executable candidate: `66c0e7fa08d324095cec0534a0687851c320800c`.
+Final executable candidate: `cb609d0` (full SHA recorded in Paperclip/checkpoint).
 The subsequent documentation commit changes only this handoff.
 
 | ID | Implemented supported behavior | Boundary / downstream work |
@@ -29,7 +29,7 @@ No duplicate cherry-pick, integration branch write or prerequisite replay this r
 | PLAT-044 | `bf8c9af0a17648d67b49dededc61440bf348f258`, `79d26a514fa56b4745fa864a1242efe4edee6985`, `d52a868f7fc3e8923882fe78dfa674761e1249dc` |
 | PLAT-027 | `dc429394aef2bc3af6fe625be056b9cd3de39044`, `de1534eeaf9cf0f1617dde3f9e491d71438db763` |
 | PLAT-028 | `a1c007ad020f2f345f8778ce7907c77282dbba50` |
-| PLAT-029 | `0cbe32753fbdae058a58d6bb86f9bafa86c64d25`, `81ebc15ad722e2d7a4aae31b23abd1b2d236dfec`, `66c0e7fa08d324095cec0534a0687851c320800c` |
+| PLAT-029 | `0cbe32753fbdae058a58d6bb86f9bafa86c64d25`, `81ebc15ad722e2d7a4aae31b23abd1b2d236dfec`, `66c0e7fa08d324095cec0534a0687851c320800c`, `cb609d0` |
 | PLAT-031 | `24a597df874e6a83952ee1c1ae441dfe93b51d42`, `df7e8be9bece71d58d7b72ab5ac2f56c688a71c1` |
 | PLAT-055 | `ef3a1ef6169c134108e15894247be6b63c504192`, `d079b4ed864b6415bc79777f05b4e60265f179e3` |
 
@@ -77,6 +77,12 @@ doubles and the real foundation executor; they are not independent full QA.
   New UI exports await shared mounting, so separate JSX transforms cover them.
 - PASS: final diff/staged whitespace and owned file review. No runtime artifact or
   secret added. Earlier doc trailing-blank check failure was fixed before handoff.
+- PASS at `cb609d0`: 22 targeted vendor/source/issued-document/document tests,
+  0 failed/skipped, source syntax exit0. Contract review removed the AI workflow's
+  PO-header write; source reads rely on the same foundation plant fence written
+  by existing procurement mutation guards. No PO/financial record is written by AI.
+  Updated test explicitly rejects a PO write. This supersedes earlier header-fence
+  wording in milestone history; no actual database operation was executed.
 - NOT_RUN: actual Mongo transactions/index initialization/restart/concurrency,
   Qdrant service, mounted authenticated HTTP, browser/visual/accessibility at all
   sizes, actual authorized embedding/LLM/MLflow, complete regression/stress/security
