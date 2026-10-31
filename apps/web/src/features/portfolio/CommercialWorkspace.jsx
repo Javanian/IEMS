@@ -5,8 +5,8 @@ import { OrderStockExceptions } from './HoldsWorkspace.jsx';
 import { DocumentIssue } from './DocumentIssue.jsx';
 import { MonetarySummary } from './MonetarySummary.jsx';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { portfolioRequest as request } from './client.mjs';
-import { Failure, Resource, useResource,IdentityContext } from './PortfolioWorkspace.jsx';
+import { portfolioRequest as request, useStableCommand } from './client.mjs';
+import { Failure, Resource, useResource,IdentityContext,MutationForm,CommandAttemptState } from './PortfolioWorkspace.jsx';
 import { quoteContent, conversionAttempt } from './commercial.mjs';
 import { sourcedQuoteContent } from './inquiry.mjs';
 import { InquiryCommand } from './InquiryWorkspace.jsx';
@@ -15,12 +15,12 @@ import { CatalogBinding,CatalogEntitlement,CatalogQuoteDetail,NewCatalogQuote } 
 
 function SourcedContentForm({ quote, onSaved }) {
   const revision = quote.revisions.at(-1);
-  return <InquiryCommand title="Save commercial revision" permission="quote.write" action={`/api/commercial/quotes/${quote._id}/revisions`} build={(v, k) => ({ ...sourcedQuoteContent(v, revision), expectedVersion: quote.version })} onSaved={onSaved}>
+  return <MutationForm keyed commandSlot={`quote:content:${quote._id}`} title="Save commercial revision" submitLabel="Save commercial revision" save={(v,send)=>send(`/api/commercial/quotes/${quote._id}/revisions`,{body:{...sourcedQuoteContent(v,revision),expectedVersion:quote.version}})} onSaved={onSaved}>
     <p>Inquiry source fields are frozen. Only prices, currency, expiry and tax policy can change here. Drawing metadata is not a BOM.</p>
     <Input label="Expires at (UTC ISO)" name="expiresAt" defaultValue={revision.expiresAt} />
     <label className="pf-field">Tax policy<select name="taxPolicy" defaultValue={revision.taxPolicy || 'NO_TAX'}><option value="NO_TAX">No tax</option><option value="FIXTURE_VAT_11_V1">Fixture VAT 11% (scenario only)</option></select></label>
     {revision.lines.map((line, i) => <fieldset key={line.provenance.inquiryLineId}><legend>{line.provenance.itemCode}: {line.description}</legend><p>{line.quantity} {line.uom} · Drawing {line.provenance.drawingNumber} revision {line.provenance.drawingRevision}</p><div className="pf-fields"><Input label="Unit price (fixed scale)" name={`unitPrice${i}`} inputMode="decimal" defaultValue={line.unitPrice} required /><label className="pf-field">Currency<select name={`currency${i}`} defaultValue={line.currency}>{['USD','EUR','GBP','IDR','JPY','KWD'].map(c => <option key={c}>{c}</option>)}</select></label></div></fieldset>)}
-  </InquiryCommand>;
+  </MutationForm>;
 }
 
 function Input({ label, ...props }) { return <label className="pf-field">{label}<input {...props} /></label>; }
@@ -32,24 +32,14 @@ function ContentForm({ quote, opportunity, onSaved }) {
   const [count, setCount] = useState(latest?.lines.length || 1), [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const lock = useRef(false), pending = useRef(null);
   useEffect(() => () => pending.current?.abort(), []);
-  return <form className="pf-panel pf-form" onSubmit={async event => {
-    event.preventDefault(); if (lock.current) return;
-    const values = Object.fromEntries(new FormData(event.currentTarget)); lock.current = true; setBusy(true); setError(null);
-    const controller = new AbortController(); pending.current = controller;
-    try {
-      const body = quoteContent(values, count);
-      const result = await request(quote ? `/api/commercial/quotes/${quote._id}/revisions` : '/api/commercial/quotes', { body: quote ? { ...body, expectedVersion: quote.version } : { ...body, accountId: opportunity?.accountId || values.accountId, ...(opportunity ? { opportunityId: opportunity._id, expectedOpportunityVersion: opportunity.version } : {}) }, signal: controller.signal });
-      if (!controller.signal.aborted) onSaved(result.data);
-    } catch (err) { if (!controller.signal.aborted) setError(err); } finally { if (!controller.signal.aborted) { lock.current = false; pending.current = null; setBusy(false); } }
-  }}><h2>{quote ? 'New revision' : 'Quote content'}</h2>{!quote && <Input label="Account ID" name="accountId" required readOnly={Boolean(opportunity)} defaultValue={opportunity?.accountId} />}
+  return <MutationForm keyed commandSlot={`quote:content:${quote?._id??opportunity?._id??'new'}`} title={quote?'New revision':'Quote content'} submitLabel={quote?'Save revision':'Save quote'} onSaved={onSaved} save={(values,send)=>{const body=quoteContent(values,count);return send(quote?`/api/commercial/quotes/${quote._id}/revisions`:'/api/commercial/quotes',{body:quote?{...body,expectedVersion:quote.version}:{...body,accountId:opportunity?.accountId||values.accountId,...(opportunity?{opportunityId:opportunity._id,expectedOpportunityVersion:opportunity.version}:{})}});}}>{!quote && <Input label="Account ID" name="accountId" required readOnly={Boolean(opportunity)} defaultValue={opportunity?.accountId} />}
     {opportunity && <p>Source opportunity: {opportunity.name || opportunity._id}, version {opportunity.version}. Refresh this page after an uncertain result to review the opportunity's linked quotes before submitting again.</p>}
     <Input label="Expires at (UTC ISO)" name="expiresAt" required defaultValue={latest?.expiresAt} placeholder="YYYY-MM-DDTHH:mm:ss.sssZ" />
     <label className="pf-field">Tax policy<select name="taxPolicy" defaultValue={latest?.taxPolicy || 'NO_TAX'} disabled={busy}><option value="NO_TAX">No tax</option><option value="FIXTURE_VAT_11_V1">Fixture VAT 11% (scenario only)</option></select></label>
     <p>Original decimal strings are retained. All lines must share one currency. LINE_HALF_UP and the selected policy are applied by the server. Fixture VAT is not a statutory rate or tax advice. No FX is implied.</p>
     {Array.from({ length: count }, (_, i) => <fieldset key={i}><legend>Line {i + 1}</legend><div className="pf-fields"><Input label="Description" name={`description${i}`} defaultValue={latest?.lines[i]?.description} required maxLength={200} /><Input label="Quantity (exact decimal)" name={`quantity${i}`} defaultValue={latest?.lines[i]?.quantity} inputMode="decimal" required /><Input label="UOM" name={`uom${i}`} defaultValue={latest?.lines[i]?.uom} pattern="[A-Z][A-Z0-9_]{0,15}" required /><Input label="Unit price (fixed scale)" name={`unitPrice${i}`} defaultValue={latest?.lines[i]?.unitPrice} inputMode="decimal" required /><label className="pf-field">Currency<select name={`currency${i}`} defaultValue={latest?.lines[i]?.currency || 'USD'}>{['USD','EUR','GBP','IDR','JPY','KWD'].map(c => <option key={c}>{c}</option>)}</select></label></div></fieldset>)}
     <div className="pf-actions"><button type="button" disabled={count >= 100 || busy} onClick={() => setCount(n => n + 1)}>Add line</button>{count > 1 && <button type="button" disabled={busy} onClick={() => setCount(n => n - 1)}>Remove last line</button>}</div>
-    <Failure error={error} mutation retry={quote ? onSaved : undefined} /><button className="pf-primary" disabled={busy || error?.status === 409}>{busy ? 'Saving...' : quote ? 'Save revision' : 'Save quote'}</button>
-  </form>;
+  </MutationForm>;
 }
 export function Quotes() {
   const location = useLocation(), cursor = new URLSearchParams(location.search).get('cursor');
@@ -77,7 +67,7 @@ export function OpportunityCommercialPanel({ opportunity }) {
 export function Quote() {
   const { id } = useParams(), resource = useResource(`/api/commercial/quotes/${id}`);
   const [error, setError] = useState(null), [busy, setBusy] = useState(false), [order, setOrder] = useState(null);
-  const attempt = useRef(null), lock = useRef(false), pending = useRef(null);
+  const attempt = useRef(null), lock = useRef(false), pending = useRef(null),command=useStableCommand(`quote:transition:${id}`,useContext(IdentityContext));
   useEffect(() => () => pending.current?.abort(), []);
   const refresh = () => { setError(null); attempt.current = null; resource.reload(); };
   async function transition(action, quote) {
@@ -86,14 +76,14 @@ export function Quote() {
     try {
       if (action === 'convert' && !attempt.current) attempt.current = conversionAttempt(quote, crypto.randomUUID());
       const body = action === 'convert' ? attempt.current : { expectedVersion: quote.version, revision: quote.revisions.at(-1).number };
-      const result = await request(`/api/commercial/quotes/${id}/${action}`, { body, signal: controller.signal });
+      const result = await (action==='convert'?request:command.send)(`/api/commercial/quotes/${id}/${action}`, { body, signal: controller.signal });
       if (controller.signal.aborted) return;
       if (action === 'convert') setOrder(result.data);
       resource.reload();
     } catch (err) { if (!controller.signal.aborted) setError(err); } finally { if (!controller.signal.aborted) { lock.current = false; pending.current = null; setBusy(false); } }
   }
   if(!resource.loading&&!resource.error&&resource.data?.schema==='CATALOG_QUOTE_V1')return <><Link to="/portfolio/quotes">Back to quotes</Link><CatalogQuoteDetail quote={resource.data} refresh={resource.reload} Lines={Lines} /></>;
-  return <><Link to="/portfolio/quotes">Back to quotes</Link><Resource resource={resource}>{({ data:q }) => <><h1>Quote</h1><p className="pf-reference">{displayReference("quotes",q)}</p><AuditDetails action="quote.read"><p className="pf-id">Quote ID: {q._id} · Version {q.version}</p></AuditDetails><section className="pf-panel"><p>Status: {operatorStatus(q.status)}</p><p className="pf-next-action">Next: {({DRAFT:"Review and approve this quotation revision.",APPROVED:"Record the customer acceptance decision.",ACCEPTED:"Convert the accepted quotation to a sales order.",CONVERTED:"Open the sales order to plan production."})[q.status] || "Review quotation history."}</p><div>Customer: <CustomerName id={q.accountId} /></div><p>Revision: {q.revisions.at(-1).number}</p><Link to={`/portfolio/accounts/${q.accountId}`}>Open related account</Link>{q.opportunityId && <Link to={`/portfolio/opportunities/${q.opportunityId}`}>Open source opportunity</Link>}<button type="button" onClick={refresh}>Refresh record</button><Failure error={error} mutation retry={refresh} /><div className="pf-actions">{[['DRAFT','approve','Approve revision'],['APPROVED','accept','Record acceptance'],['ACCEPTED','convert','Convert to sales order']].filter(([state]) => q.status === state).map(([, action, label]) => <button key={action} className="pf-primary" disabled={busy || error?.status === 409} onClick={() => transition(action,q)}>{busy ? 'Saving...' : label}</button>)}{attempt.current && error && error.status !== 409 && <button disabled={busy} onClick={() => transition('convert',q)}>Retry same conversion</button>}</div><p>Acceptance records the authenticated internal decision, not an external signature.</p></section>
+  return <><Link to="/portfolio/quotes">Back to quotes</Link><Resource resource={resource}>{({ data:q }) => <><h1>Quote</h1><p className="pf-reference">{displayReference("quotes",q)}</p><AuditDetails action="quote.read"><p className="pf-id">Quote ID: {q._id} · Version {q.version}</p></AuditDetails><section className="pf-panel"><p>Status: {operatorStatus(q.status)}</p><p className="pf-next-action">Next: {({DRAFT:"Review and approve this quotation revision.",APPROVED:"Record the customer acceptance decision.",ACCEPTED:"Convert the accepted quotation to a sales order.",CONVERTED:"Open the sales order to plan production."})[q.status] || "Review quotation history."}</p><div>Customer: <CustomerName id={q.accountId} /></div><p>Revision: {q.revisions.at(-1).number}</p><Link to={`/portfolio/accounts/${q.accountId}`}>Open related account</Link>{q.opportunityId && <Link to={`/portfolio/opportunities/${q.opportunityId}`}>Open source opportunity</Link>}<button type="button" onClick={refresh}>Refresh record</button><CommandAttemptState command={command} onSaved={resource.reload} onError={setError}/><Failure error={error} mutation retry={refresh} /><div className="pf-actions">{[['DRAFT','approve','Approve revision'],['APPROVED','accept','Record acceptance'],['ACCEPTED','convert','Convert to sales order']].filter(([state]) => q.status === state).map(([, action, label]) => <button key={action} className="pf-primary" disabled={busy || command.pending || error?.status === 409} onClick={() => transition(action,q)}>{busy ? 'Saving...' : label}</button>)}{attempt.current && error && error.status !== 409 && <button disabled={busy} onClick={() => transition('convert',q)}>Retry same conversion</button>}</div><p>Acceptance records the authenticated internal decision, not an external signature.</p></section>
     <div className="pf-columns"><section className="pf-panel"><h2>Revision history</h2>{q.revisions.map(rev => <section key={rev.number}><h3>Revision {rev.number}</h3><p>Expires: {rev.expiresAt}</p><Lines snapshot={rev} /></section>)}</section><section className="pf-panel"><h2>Approval history</h2>{!q.approvals?.length ? <p>No revisions approved yet.</p> : q.approvals.map((a,i) => <div key={i}><p>Revision {a.revision} approved at {new Date(a.approvedAt).toLocaleString("en-US")}</p><AuditDetails action="quote.read"><p className="pf-id">Approved by {a.approvedBy}</p></AuditDetails></div>)}{q.acceptedRevision && <p>Accepted revision: {q.acceptedRevision}</p>}</section></div>
     {q.approvals?.map(a => <DocumentIssue key={`${q._id}:${a.revision}`} kind="quote" sourceId={q._id} sourceVersion={a.revision} />)}
     {q.status !== 'CONVERTED' && (q.revisions.at(-1).lines.some(line => line.provenance?.inquiryId) ? <SourcedContentForm key={q.version} quote={q} onSaved={refresh} /> : <ContentForm key={q.version} quote={q} onSaved={refresh} />)}
