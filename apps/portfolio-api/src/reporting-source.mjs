@@ -5,6 +5,7 @@ import { addDecimals, decimal, uuid } from '../../../packages/domain-events/sour
 import { validatePurchasedShipment, validatePurchasedPayment, depositState } from './purchased-financial.mjs';
 import { stockHash, stockHashless } from './catalog-stock-values.mjs';
 import { shipmentSemantic } from './purchased-stock-proof.mjs';
+import { validateEvent } from '../../../packages/domain-events/index.mjs';
 
 const json = value => JSON.parse(JSON.stringify(value));
 const scoped = (row, grant) => {
@@ -31,7 +32,8 @@ export function createReportingSource({ db, client, foundation, authorizeResourc
     const action = collection === 'salesOrders' ? 'quote.read' : 'fulfillment.read';
     const grant = await foundation.authorizeInTransaction(scope, { tenantId: scope.tenantId, plantId: scope.selectedPlantId ?? scope.plantId, action }, { session });
     scoped(row, grant);
-    await authorizeResource({ scope, grant, collection, resource: row, session });
+    if (row.revoked === true || row.active === false || (Object.hasOwn(row, 'allowedUserIds') && (!Array.isArray(row.allowedUserIds) || !row.allowedUserIds.includes(grant.userId)))) throw new Error('SOURCE_RESOURCE_REVOKED');
+    if (await authorizeResource({ scope, grant, collection, resource: row, session }) === false) throw new Error('SOURCE_RESOURCE_DENIED');
     return grant;
   }
   async function order(scope, row, session, observedAt) {
@@ -129,7 +131,55 @@ export function createReportingSource({ db, client, foundation, authorizeResourc
     for (const t of targets) envelopes.push(await appendReportingSnapshot({ db, session, grant, source, ...t, fullSnapshot: { ...t.data, baseline: true, observedAt }, occurredAt: observedAt }));
     return envelopes;
   }
+  async function authorizeSnapshot(scope, input, session) {
+    const e = validateEvent(input), s = e.payload.source;
+    if (e.schemaVersion !== 2 || e.tenantId !== scope.tenantId || e.plantId !== (scope.selectedPlantId ?? scope.plantId)) throw new Error('SOURCE_SCOPE_DENIED');
+    const filter = { tenantId: e.tenantId, plantId: e.plantId };
+    const stored = await db.collection('reportingSnapshotOutbox').findOne({ ...filter, _id: e.eventId }, { session });
+    if (!stored || contentHash(stored.envelope) !== contentHash(e)) throw new Error('IMMUTABLE_REPORTING_EVIDENCE_MISSING');
+    if (stored.envelopeHash !== contentHash(e)) throw new Error('IMMUTABLE_REPORTING_EVIDENCE_CORRUPT_OR_UNSEALED');
+    let mapped;
+    if (s.collection === 'salesOrders') {
+      const row = await db.collection('salesOrders').findOne({ ...filter, _id: s.id }, { session });
+      mapped = [await order(scope, row, session, e.occurredAt)];
+    } else if (s.collection === 'fulfillmentKeys') {
+      const rows = await db.collection('fulfillmentKeys').find({ ...filter, 'result._id': s.id }, { session }).limit(2).toArray();
+      if (rows.length !== 1) throw new Error('IMMUTABLE_RESULT_MISSING');
+      mapped = await fulfillment(scope, rows[0], session, e.occurredAt);
+    } else if (s.collection === 'fulfillmentShipments') {
+      const row = await db.collection('fulfillmentShipments').findOne({ ...filter, _id: s.id }, { session });
+      if (!row || row.schema !== 'PURCHASED_SHIPMENT_V1') throw new Error('UNREGISTERED_SHIPMENT_SCHEMA');
+      mapped = await fulfillment(scope, row, session, e.occurredAt, [], true);
+    } else throw new Error('UNREGISTERED_DELIVERY_SOURCE');
+    if (!mapped.some(value => contentHash(value) === contentHash(e))) throw new Error('SOURCE_SNAPSHOT_REPLAY_CONFLICT');
+    return e;
+  }
   return {
+    authorizeSnapshot: ({ scope, event, session }) => session ? authorizeSnapshot(scope, event, session) : boundedTransaction(client, activeSession => authorizeSnapshot(scope, event, activeSession)),
+    async extractCoverage({ scope, runId, limit = 1000 }) {
+      if (!uuid.test(runId) || !Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error('BOUNDED_COVERAGE_EXPORT_REQUIRED');
+      return boundedTransaction(client, async session => {
+        const grant = await foundation.authorizeInTransaction(scope, { tenantId: scope.tenantId, plantId: scope.selectedPlantId ?? scope.plantId, action: 'fulfillment.read' }, { session });
+        await foundation.authorizeInTransaction(scope, { tenantId: grant.tenantId, plantId: grant.plantId, action: 'quote.read' }, { session });
+        const filter = { tenantId: grant.tenantId, plantId: grant.plantId };
+        const manifest = await db.collection('reportingSourceCoverage').findOne({ ...filter, legalEntityId: grant.legalEntityId, runId }, { session });
+        if (!manifest || manifest.coverage !== 'INCOMPLETE' || manifest.trustedZero !== false || !Array.isArray(manifest.snapshotHeads)) throw new Error('SUPPORTED_IMMUTABLE_COVERAGE_REQUIRED');
+        const { hash, ...body } = manifest;
+        if (hash !== contentHash(body) || manifest.snapshotHeads.length > limit) throw new Error('COVERAGE_HASH_OR_BOUND_CONFLICT');
+        const events = [];
+        for (const head of manifest.snapshotHeads) {
+          const rows = await db.collection('reportingSnapshotOutbox').find({ ...filter, aggregateId: head.aggregateId, aggregateVersion: { $lte: head.aggregateVersion } }, { session }).sort({ aggregateVersion: 1 }).limit(limit + 1).toArray();
+          if (rows.length !== head.aggregateVersion || events.length + rows.length > limit) throw new Error('COVERAGE_REPLAY_GAP_OR_BOUND');
+          for (const row of rows) events.push(await authorizeSnapshot(scope, row.envelope, session));
+          const last = rows.at(-1)?.envelope;
+          if (!last || last.eventId !== head.eventId || contentHash(last) !== head.hash) throw new Error('COVERAGE_HEAD_CONFLICT');
+        }
+        events.sort((a, b) => Number(a.payload.resourceType !== 'order') - Number(b.payload.resourceType !== 'order') || a.aggregateId.localeCompare(b.aggregateId) || a.aggregateVersion - b.aggregateVersion);
+        const ids = new Set(events.map(e => e.aggregateId));
+        if (events.some(e => e.payload.resourceType !== 'order' && !ids.has(e.payload.orderId))) throw new Error('COVERAGE_PARENT_MISSING');
+        return { manifest, events };
+      });
+    },
     async initialize() {
       await db.collection('reportingPaymentIdentities').createIndex({ tenantId: 1, plantId: 1, paymentId: 1, orderId: 1 }, { unique: true });
       await db.collection('reportingSourceCoverage').createIndex({ tenantId: 1, plantId: 1, runId: 1 }, { unique: true });
