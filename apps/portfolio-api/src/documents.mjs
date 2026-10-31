@@ -12,16 +12,37 @@ export const documentActions = ['document.read', 'document.issue'];
 export const documentRoles = { documentReader: ['document.read'], documentIssuer: documentActions };
 const kinds = { quote: ['quotes', 'quote.read'], purchaseRequest: ['purchaseRequests', 'procurement.read'], purchaseOrder: ['purchaseOrders', 'procurement.read'], catalogPurchaseRequest: ['catalogPurchaseRequests', 'catalog.read'], catalogPurchaseOrder: ['catalogPurchaseOrders', 'catalog.read'], invoice: ['fulfillmentInvoices', 'fulfillment.read'], repairInvoice: ['repairInvoices', 'repair.read'], shipment: ['fulfillmentShipments', 'fulfillment.read'] };
 const options = { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' };
+function validReceipt(intent,record) {
+  return intent.rendererId===record._id && isDeepStrictEqual(intent.record,{...record,_id:intent._id})
+    && isDeepStrictEqual(intent.snapshot,record.snapshot)
+    && record.kind===(intent.kind==='repairInvoice'?'invoice':intent.kind)
+    && record.sourceId===intent.sourceId && record.sourceVersion===intent.sourceVersion
+    && ['tenantId','plantId','legalEntityId'].every(k=>intent[k]===record[k]);
+}
 export async function initializeDocuments(runtime) {
   await runtime.db.collection('documentIntents').createIndex({ tenantId: 1, legalEntityId: 1, plantId: 1, kind: 1, sourceId: 1, sourceVersion: 1 }, { unique: true });
-  return createIssuer({ client: runtime.client, db: runtime.db });
+  const issuer=await createIssuer({client:runtime.client,db:runtime.db});
+  return {...issuer,async validateTenantHistory({tenantId,session}) {
+    const intents=await runtime.db.collection('documentIntents').find({tenantId},{session}).limit(1001).toArray();
+    const issues=await runtime.db.collection('documentIssues').find({tenantId},{session}).limit(1001).toArray();
+    const artifacts=await runtime.db.collection('documentArtifacts').find({tenantId},{session}).limit(1001).toArray();
+    const ids=new Set();
+    if(intents.length>1000 || intents.length!==issues.length || intents.length!==artifacts.length) throw new Error('DOCUMENT_HISTORY_RECONCILIATION_REQUIRED');
+    for(const intent of intents) {
+      if(intent.state!=='READY' || ids.has(intent.rendererId)) throw new Error('DOCUMENT_HISTORY_RECONCILIATION_REQUIRED');
+      ids.add(intent.rendererId);
+      const stored=await issuer.read(intent,intent.rendererId,{session});
+      if(!stored || !validReceipt(intent,stored.record)) throw new Error('DOCUMENT_HISTORY_RECONCILIATION_REQUIRED');
+    }
+    if(issues.some(row=>!ids.has(row._id)) || artifacts.some(row=>!ids.has(row._id))) throw new Error('DOCUMENT_HISTORY_RECONCILIATION_REQUIRED');
+  }};
 }
 export function installDocuments(app, runtime, { fail, guard, id }) {
   const c = name => runtime.db.collection(name);
-  const tx = async (req, actions, effect) => {
+  const tx = async (req, actions, effect, {issuing=false}={}) => {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
-      for (const action of actions) await guard(runtime, req, session, action); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+      for (const action of actions) await guard(runtime, req, session, action); if (req.method !== 'GET' && !issuing) await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
       const plant = await c('plants').findOne({ _id: req.filter.plantId, tenantId: req.filter.tenantId }, { session });
       const scope = { ...req.filter, legalEntityId: plant.legalEntityId };
       return effect(session, scope);
@@ -34,8 +55,8 @@ export function installDocuments(app, runtime, { fail, guard, id }) {
     if (!['quote', 'purchaseOrder', 'catalogPurchaseOrder', 'catalogPurchaseRequest'].includes(kind) && sourceVersion !== 1) fail(400, 'INVALID_VERSION');
     return { kind, sourceId, sourceVersion };
   };
-  const snapshot = async (req, scope, key, session) => {
-    const row = await c(kinds[key.kind][0]).findOneAndUpdate({ ...req.filter, _id: key.sourceId }, { $inc: { documentFence: 1 } }, { session, returnDocument: 'after' });
+  const snapshot = async (req, scope, key, session, {readOnly=false}={}) => {
+    const row = readOnly ? await c(kinds[key.kind][0]).findOne({...req.filter,_id:key.sourceId},{session}) : await c(kinds[key.kind][0]).findOneAndUpdate({ ...req.filter, _id: key.sourceId }, { $inc: { documentFence: 1 } }, { session, returnDocument: 'after' });
     if (!row) fail(404, 'NOT_FOUND');
     await validatePurchasedDocumentSource(runtime.db, req.filter, key.kind, row, session);
     let source;
@@ -75,15 +96,7 @@ export function installDocuments(app, runtime, { fail, guard, id }) {
     try { return await effect(); }
     catch (error) { if (error.message === 'ISSUE_CONFLICT') fail(409, 'ISSUE_CONFLICT'); throw error; }
   };
-  const checkedReceipt = (intent, record) => {
-    const expected = { ...record, _id: intent._id };
-    if (intent.rendererId !== record._id || !isDeepStrictEqual(intent.record, expected)
-      || !isDeepStrictEqual(intent.snapshot, record.snapshot)
-      || record.kind !== (intent.kind === 'repairInvoice' ? 'invoice' : intent.kind)
-      || record.sourceId !== intent.sourceId || record.sourceVersion !== intent.sourceVersion
-      || ['tenantId', 'plantId', 'legalEntityId'].some(k => intent[k] !== record[k])) fail(500, 'ARTIFACT_INTEGRITY');
-    return expected;
-  };
+  const checkedReceipt=(intent,record)=>{if(!validReceipt(intent,record)) fail(500,'ARTIFACT_INTEGRITY'); return {...record,_id:intent._id};};
   app.use('/api/documents', async (req, res, next) => {
     req.filter = resolveScopeAliases({ body: { tenantId: req.scope.tenantId, plantId: req.scope.selectedPlantId, ...req.body }, query: req.query, headers: req.headers });
     if (req.filter.plantId !== req.scope.selectedPlantId) fail(403, 'SCOPE_DENIED');
@@ -97,41 +110,38 @@ export function installDocuments(app, runtime, { fail, guard, id }) {
   app.post('/api/documents/issues', async (req, res) => {
     if (!req.body || Object.keys(req.body).some(k => !['kind', 'sourceId', 'sourceVersion'].includes(k))) fail(400, 'UNKNOWN_FIELD');
     const key = input(req.body.kind, req.body.sourceId, req.body.sourceVersion), actions = ['document.issue', kinds[key.kind][1]];
-    let intent;
-    for (let attempt = 0; ; attempt++) {
+    const preparation=await tx(req,actions,async(session,scope)=>({scope,content:await snapshot(req,scope,key,session,{readOnly:true})}),{issuing:true});
+    const prepared=await runtime.documents.prepare(preparation.scope,preparation.content);
+    let data;
+    for(let attempt=0;;attempt++) {
       try {
-        intent = await tx(req, actions, async (session, scope) => {
-          const content = await snapshot(req, scope, key, session);
-          const prior = await c('documentIntents').findOne({ ...scope, ...key }, { session });
-          if (prior) {
-            if (prior.snapshot.contentHash !== content.contentHash) fail(409, 'ISSUE_CONFLICT');
-            return prior;
-          }
-          const row = { _id: randomUUID(), ...scope, ...key, state: 'PREPARED', snapshot: content, preparedBy: req.scope.userId, membershipId: req.scope.membershipId, membershipVersion: req.scope.membershipVersion, preparedAt: new Date() };
-          await c('documentIntents').insertOne(row, { session }); return row;
-        }); break;
-      } catch (error) { if (error.code === 11000 && attempt < 5) continue; throw error; }
+        data=await tx(req,actions,async(session,scope)=>{
+          const content=await snapshot(req,scope,key,session);
+          if(content.contentHash!==preparation.content.contentHash || !isDeepStrictEqual(scope,preparation.scope)) fail(409,'ISSUE_CONFLICT');
+          const current=await c('documentIntents').findOne({...scope,...key},{session});
+          if(current && current.state!=='READY') fail(409,'DOCUMENT_HISTORY_RECONCILIATION_REQUIRED');
+          if(current && current.snapshot.contentHash!==content.contentHash) fail(409,'ISSUE_CONFLICT');
+          const record=await mapped(()=>runtime.documents.issueInTransaction({scope,snapshot:content,prepared,session,admission:async descriptor=>{
+            if(descriptor.replayed!==Boolean(current)) fail(409,'DOCUMENT_HISTORY_RECONCILIATION_REQUIRED');
+            await runtime.saasAdmission.effect({...descriptor,scope:req.scope,session,action:'document.issue'});
+          }}));
+          if(current) return checkedReceipt(current,record);
+          const intentId=randomUUID(),now=new Date(),published={...record,_id:intentId};
+          await c('documentIntents').insertOne({_id:intentId,...scope,...key,state:'READY',snapshot:content,preparedBy:req.scope.userId,membershipId:req.scope.membershipId,membershipVersion:req.scope.membershipVersion,preparedAt:now,finalizedAt:now,rendererId:record._id,record:published},{session});
+          const event={...scope,kind:'document.issued',subjectId:intentId,sourceId:key.sourceId,sourceVersion:key.sourceVersion,contentHash:record.contentHash,pdfHash:record.pdfHash,userId:req.scope.userId,occurredAt:now};
+          await c('documentAudit').insertOne({_id:intentId,...event},{session});
+          await c('documentOutbox').insertOne({_id:intentId,...event,state:'PENDING'},{session});
+          return published;
+        },{issuing:true}); break;
+      } catch(error) { if(error.code===11000 && attempt<5) continue; throw error; }
     }
-    // The renderer commits independently; READY publication is the API visibility boundary.
-    const record = await mapped(() => runtime.documents.issue({ tenantId: intent.tenantId, legalEntityId: intent.legalEntityId, plantId: intent.plantId }, intent.snapshot));
-    const data = await tx(req, actions, async (session, scope) => {
-      const current = await c('documentIntents').findOne({ ...scope, _id: intent._id }, { session });
-      if (!current) fail(404, 'NOT_FOUND');
-      if (current.state === 'READY') return checkedReceipt(current, record);
-      const published = { ...record, _id: intent._id };
-      await c('documentIntents').updateOne({ _id: intent._id, ...scope, state: 'PREPARED' }, { $set: { state: 'READY', rendererId: record._id, record: published, finalizedAt: new Date() } }, { session });
-      const event = { ...scope, kind: 'document.issued', subjectId: intent._id, sourceId: key.sourceId, sourceVersion: key.sourceVersion, contentHash: record.contentHash, pdfHash: record.pdfHash, userId: req.scope.userId, occurredAt: new Date() };
-      await c('documentAudit').insertOne({ _id: intent._id, ...event }, { session });
-      await c('documentOutbox').insertOne({ _id: intent._id, ...event, state: 'PENDING' }, { session });
-      return published;
-    });
     res.json({ data });
   });
   const read = async req => tx(req, ['document.read'], async (session, scope) => {
     const intent = await c('documentIntents').findOne({ ...scope, _id: id(req.params.id), state: 'READY' }, { session });
     if (!intent) fail(404, 'NOT_FOUND');
     await guard(runtime, req, session, kinds[intent.kind][1]); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
-    const stored = await runtime.documents.read(scope, intent.rendererId);
+    const stored = await runtime.documents.read(scope, intent.rendererId,{session});
     if (!stored) fail(500, 'ARTIFACT_INTEGRITY');
     return { record: checkedReceipt(intent, stored.record), pdf: stored.pdf };
   });

@@ -24,7 +24,7 @@ export function addUsage(usage, metric, amount, limits) {
 }
 
 // Domain export/delete/restore stays unavailable until an authoritative complete-scope port is wired.
-export function createTenantLifecycle({ client, db, foundation, domainPort = null, enrollmentGuard = null, saasAdmission, clock = () => new Date() }) {
+export function createTenantLifecycle({ client, db, foundation, domainPort = null, enrollmentGuard = null, documentPort = null, saasAdmission, clock = () => new Date() }) {
   const rows = db.collection('saasSubscriptions'), archives = db.collection('saasLifecycleArchives');
   const administrativeAdmission = saasAdmission?.controlPlane ?? (async descriptor => {
     if(descriptor.namespace!=='foundationCommandResults' || !lifecycleRoles.saasOperator.includes(descriptor.action)) fail('SAAS_CONTROL_PLANE_COMMAND_INVALID',500);
@@ -83,7 +83,7 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
         return {schema:'SAAS_STATUS_V1',subscription:row ? clean(current(row)) : null,plans,
           admission:{profile:'RECEIPTED_COMMANDS_V1',fullEndpointCoverage:false,
             supported:'Receipt-backed keyed CRM, legacy quotes/procurement, manufacturing, repair, internal production, inventory and stock holds, inquiries, shortages, catalog procurement/disposition, purchased fulfillment, delivery/returns, workforce, operations and selected quote, procurement, document, model and portal commands.',
-            unsupported:'Unkeyed enrolled CRM/legacy quote/procurement requests, document issue publication, customer service/automation, job ingress, AI indexing rebuild/cleanup and AI delivery dispatch/reconciliation.',
+            unsupported:'Unkeyed enrolled CRM/legacy quote/procurement requests, customer service/automation, job ingress, AI indexing rebuild/cleanup and AI delivery dispatch/reconciliation.',
             enrollmentBoundary:'Enrollment requires command-aware clients; older unkeyed forms may be unavailable. Unsupported business mutations are blocked. Existing automation engine history prevents enrollment until authoritative quiescence can be established.'},
           domainLifecycleConfigured:!!domainPort, billing:'SAAS_METERING_ONLY_NO_PAYMENT_COLLECTION',
           boundary:'Tenant invoices are separate. Delete is a reversible archive workflow, not certified erasure. Domain effects require a complete authoritative transactional port.'};
@@ -92,7 +92,14 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
     subscribe(scope,input) { return mutate(scope,input,'saas.subscribe',['plan','admissionProfile'],async (row,{session,grant}) => {
       if(enrollmentGuard)await enrollmentGuard(input.admissionProfile);
       if(enrollmentGuard && await db.collection('automation_engine_runs').findOne({tenantId:grant.tenantId},{session})) fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);
-      if(enrollmentGuard && (await db.collection('documentIntents').findOne({tenantId:grant.tenantId},{session}) || await db.collection('aiVendorDeliveryAttempts').findOne({tenantId:grant.tenantId},{session}))) fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);
+      if(enrollmentGuard && await db.collection('aiVendorDeliveryAttempts').findOne({tenantId:grant.tenantId},{session})) fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);
+      if(enrollmentGuard) {
+        try {
+          if(!documentPort?.validateTenantHistory) {
+            for(const name of ['documentIntents','documentIssues','documentArtifacts']) if(await db.collection(name).findOne({tenantId:grant.tenantId},{session})) fail('DOCUMENT_HISTORY_RECONCILIATION_REQUIRED',409);
+          } else await documentPort.validateTenantHistory({tenantId:grant.tenantId,session});
+        } catch(error) { if(error.code) throw error; fail('DOCUMENT_HISTORY_RECONCILIATION_REQUIRED',409); }
+      }
       requireState(row,['UNSUBSCRIBED','ACTIVE','SUSPENDED']);
       if (typeof input.plan !== 'string' || !Object.hasOwn(plans,input.plan)) fail('INVALID_SAAS_PLAN');
       if (Object.keys(row.usage).some(k => BigInt(row.usage[k]) > BigInt(plans[input.plan][k]))) fail('PLAN_BELOW_USAGE',409);

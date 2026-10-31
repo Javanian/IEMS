@@ -414,6 +414,22 @@
       "hook": "apps/portfolio-api/src/procurement.mjs",
       "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
       "meter": "ONE_COMMAND"
+    },
+    "documentIssues": {
+      "filter": [
+        "tenantId",
+        "legalEntityId",
+        "plantId",
+        "kind",
+        "sourceId",
+        "sourceVersion"
+      ],
+      "hash": "existing renderer snapshot.contentHash",
+      "hashField": "contentHash",
+      "hook": "renderer.issueInTransaction + documents.mjs caller transaction",
+      "replay": "current source permissions/snapshot plus existing artifact/READY integrity",
+      "meter": "ONE_COMMAND",
+      "response": "original public READY intent ID and renderer record mapping"
     }
   },
   "constructors": [
@@ -429,7 +445,7 @@
   "externalEnrollment": "Any automation_engine_runs history blocks enrollment until authoritative quiescence/reconciliation is designed; an engine HTTP ACK does not prove effects stopped.",
   "sources": {
     "apps/portfolio-api/src/analytics.mjs": "321a9a29dc738b64cac746d7b4123f9cfcaece1c1af643c7b159aac53b007833",
-    "apps/portfolio-api/src/app.mjs": "2cb5a1b7be11702e8a8f6263a5a7d3523eabb308b8372e30ae8ba6e1cbc1bdc8",
+    "apps/portfolio-api/src/app.mjs": "4cf21acce04e1de8ca283334e7cfe19eb75958f910ad4e27abac9f5c77badddb",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
     "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
     "apps/portfolio-api/src/automation.mjs": "cc99bcaef8bbbab846a36ea8edaa5e785e0373b86f9cb1c33077b021ff9f7fc5",
@@ -454,7 +470,7 @@
     "apps/portfolio-api/src/customer-service.mjs": "4044ab34ce59a64b38d6a48859b788eed5158209d45b7aacd19043402ece86ea",
     "apps/portfolio-api/src/delivery.mjs": "688bdaea7892c831117aa10a01cb917fd90c11b246821d18208c64fa8cb6156d",
     "apps/portfolio-api/src/descendant-freeze.mjs": "ff470bb795c5667f871b239a2ecb86191294cdd2eff30b4f07ecec5626a6f0a7",
-    "apps/portfolio-api/src/documents.mjs": "95f1c5665f05af4ca3f4f9945866fc37a5bb6b4bd722348bac73cd3798307da0",
+    "apps/portfolio-api/src/documents.mjs": "b21fd75da76bf8688204161bab07ad52e5d08dc52cbe30452a99a6a9036e666f",
     "apps/portfolio-api/src/engineering.mjs": "bb9d9b6f87405dfd8c59fd1a9bced4c4163e1597e79fe4689b83791238e027b1",
     "apps/portfolio-api/src/fixture-tax.mjs": "bf5aaf8a1acfb9d5b5f5b50743584fe81a683d8eae886579aee220b7d2c16d1d",
     "apps/portfolio-api/src/foundation-connection.mjs": "4ffcb2944caa009497b35f49a68b77d7d681499fe479fb841f350fc4ec849bd8",
@@ -519,7 +535,7 @@
     "packages/domain-events/index.mjs": "5d7ff3466006e1846aa6062f2f9a85e8d56d9745332bfe731f875d3b8f83ad5c",
     "packages/domain-events/snapshot-source.mjs": "2f7d436cf26ff032380d1370557f30cb3c9986bd3b892f43b44b59b35b8f7dfd",
     "packages/domain-events/source-bindings.mjs": "ffe4c0ac645697765a0dccf1418ebb7a498987024e3c31f4d7d658f75c992f16",
-    "packages/document-rendering/src/index.mjs": "db999751488f024a560a76fe8c23164d6da66e121d3c5a61b18a2da38ef78e1e",
+    "packages/document-rendering/src/index.mjs": "0234008355edfbd31ab1c82da7cb3d182f352155ec9bc43d0a9b09272f570484",
     "packages/document-rendering/src/layout-v2.mjs": "e98de60e265be5dcd733408825fe5e767180f824fe23e169a66d35ebd6badb1a",
     "packages/document-rendering/src/layout-v3.mjs": "0e0e91a3144a4228a3d508d6fca17c3bc4ded113b0f64857b0034220778ebbd1",
     "packages/document-rendering/src/vat.mjs": "e93a8befa29812a3f3f578e555183859e5b4509812e89053b4df261f31b45d4e",
@@ -530,8 +546,8 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "43c28983915b21465ad9f5761ac1930afe95e33d05ac1c5870e2e2840e5c5bdc",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/admission.mjs": "e34a002d666efe38bd543c2e4b3822e50ba999b11bb75658c288fe3b2ceb8958",
-    "packages/tenant-lifecycle/index.mjs": "c69a5cc061f8d77d0a2be3f5a135745cb89f8462139839304db4ea762ae929c3",
+    "packages/tenant-lifecycle/admission.mjs": "c86001a8fdec87454bcd1a4e77f76d801fe5d6993b4fdf2b4931785b0c372879",
+    "packages/tenant-lifecycle/index.mjs": "5d6ee25d2175b489332a9236efdc23fa8b2bffa7561e2eabed04422c911401c4",
     "packages/tenant-lifecycle/domain-port.mjs": "360ebbd148166a92367387a7c2a276d5ca5f22e259a20c450f642d0c817d5fbe",
     "packages/tenant-lifecycle/admission-registry.mjs": "7ef6a1ce3fe0f93e9f564ca5740b0eb7ef93cb1c4df86f0bd6acfc7b5b4fa601"
   },
@@ -1917,9 +1933,10 @@
     },
     {
       "route": "POST /api/documents/issues",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "documentIssues",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/fulfillment/deposits",

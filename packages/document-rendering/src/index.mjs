@@ -134,30 +134,52 @@ export async function createIssuer({ client, db }) {
     if (createHash('sha256').update(pdf).digest('hex') !== record.pdfHash) fail('ARTIFACT_INTEGRITY');
     return { record, pdf };
   }
-  return {
-    async issue(scope, snapshot) {
+  const preparedBindings = new WeakMap();
+  const sessionRequired = session => {
+    if (!session?.inTransaction() || session.client !== client || db.client !== client) fail('CALLER_SESSION_REQUIRED');
+  };
+  const issuer = {
+    async prepare(scope, snapshot) {
       verify(snapshot);
       if (scopeKeys.some(k=>scope[k] !== snapshot.scope[k])) fail('SCOPE_MISMATCH');
-      const key = filter(scope,snapshot), pdf = await renderPdf(snapshot), pdfHash = createHash('sha256').update(pdf).digest('hex');
-      for (let attempt=0; attempt<8; attempt++) {
-        const session = client.startSession();
-        try {
-          return await session.withTransaction(async () => {
-            const existing = await records.findOne(key,{session});
-            if (existing) { await validated(existing, scope, session); if (existing.contentHash !== snapshot.contentHash) fail('ISSUE_CONFLICT'); return existing; }
-            const record = { _id: randomUUID(), ...key, contentHash: snapshot.contentHash, pdfHash, template: snapshot.template, issuedAt: new Date(), snapshot };
-            await artifacts.insertOne({ _id: record._id, ...checkedScope(scope), pdf },{session});
-            await records.insertOne(record,{session});
-            return record;
-          },{ readConcern:{level:'snapshot'}, writeConcern:{w:'majority'}, readPreference:'primary' });
-        } catch(error) { if (error.code !== 11000 || attempt === 7) throw error; }
+      const pdf = await renderPdf(snapshot), pdfHash = createHash('sha256').update(pdf).digest('hex');
+      const prepared = Object.freeze({ contentHash:snapshot.contentHash, pdfHash, pdf });
+      preparedBindings.set(prepared,canonical({scope:checkedScope(scope),snapshot,pdfHash}));
+      return prepared;
+    },
+    async issueInTransaction({scope,snapshot,prepared,session,admission}) {
+      sessionRequired(session);
+      verify(snapshot);
+      if (scopeKeys.some(k=>scope[k] !== snapshot.scope[k])) fail('SCOPE_MISMATCH');
+      if (!prepared || preparedBindings.get(prepared) !== canonical({scope:checkedScope(scope),snapshot,pdfHash:prepared.pdfHash}) || createHash('sha256').update(prepared.pdf).digest('hex') !== prepared.pdfHash) fail('PREPARED_ISSUE_INTEGRITY');
+      const key = filter(scope,snapshot), stableSnapshot=freeze(JSON.parse(canonical(snapshot))), pdf=Buffer.from(prepared.pdf);
+      const existing = await records.findOne(key,{session});
+      if (existing) { await validated(existing,scope,session); if(existing.contentHash !== snapshot.contentHash) fail('ISSUE_CONFLICT'); }
+      if (admission) await admission({namespace:'documentIssues',identity:key,payloadHash:snapshot.contentHash,replayed:Boolean(existing)});
+      else {
+        await db.collection('tenants').updateOne({_id:scope.tenantId},{$inc:{saasEnrollmentFence:1}},{session});
+        if(await db.collection('saasSubscriptions').findOne({tenantId:scope.tenantId},{session})) fail('DOCUMENT_ADMISSION_REQUIRED');
+      }
+      if(existing) return existing;
+      const record = { _id:randomUUID(), ...key, contentHash:snapshot.contentHash, pdfHash:prepared.pdfHash, template:stableSnapshot.template, issuedAt:new Date(), snapshot:stableSnapshot };
+      await artifacts.insertOne({_id:record._id,...checkedScope(scope),pdf},{session});
+      await records.insertOne(record,{session});
+      return record;
+    },
+    async issue(scope,snapshot) {
+      const prepared = await issuer.prepare(scope,snapshot);
+      for(let attempt=0;attempt<8;attempt++) {
+        const session=client.startSession();
+        try { return await session.withTransaction(()=>issuer.issueInTransaction({scope,snapshot,prepared,session}),{readConcern:{level:'snapshot'},writeConcern:{w:'majority'},readPreference:'primary'}); }
+        catch(error) { if(error.code!==11000 || attempt===7) throw error; }
         finally { await session.endSession(); }
       }
     },
-    async read(scope, issueId) {
-      const key = { _id: text(issueId,100), ...checkedScope(scope) };
-      const record = await records.findOne(key); if (!record) return null;
-      return validated(record, scope);
+    async read(scope,issueId,{session}={}) {
+      if(session) sessionRequired(session);
+      const record=await records.findOne({_id:text(issueId,100),...checkedScope(scope)},{session});
+      return record ? validated(record,scope,session) : null;
     }
   };
+  return issuer;
 }

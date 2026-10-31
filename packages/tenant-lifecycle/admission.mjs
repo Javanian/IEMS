@@ -14,7 +14,7 @@ export const admissionReceipts = Object.freeze(Object.fromEntries([
   ['deliveryKeys','payloadHash'], ['fulfillmentReturnKeys','payloadHash'], ['workforceResults','inputHash'],
   ['purchaseOrderAmendmentKeys','payloadHash'], ['procurementRfqKeys','payloadHash'], ['procurementPromiseKeys','payloadHash'],
   ['procurementConversions','payloadHash'], ['quoteCatalogKeys','payloadHash'], ['quoteConversions','payloadHash'], ['companyStockKeys','payloadHash'],
-  ['crmCommandResults','inputHash'], ['legacyQuoteCommandResults','inputHash'], ['procurementCommandResults','inputHash'],
+  ['documentIssues','contentHash'], ['crmCommandResults','inputHash'], ['legacyQuoteCommandResults','inputHash'], ['procurementCommandResults','inputHash'],
 ].map(([collection,hashField]) => [collection,Object.freeze({collection,hashField})])));
 const operatorActions = new Set(['saas.subscribe','saas.meter','saas.suspend','saas.resume','saas.export','saas.delete','saas.restore']);
 export function createSaasAdmission({db,foundation,integrations={},clock=()=>new Date(),coverage=null}={}) {
@@ -53,17 +53,22 @@ export function createSaasAdmission({db,foundation,integrations={},clock=()=>new
     if(fence.matchedCount!==1) fail('SCOPE_DENIED',403);
     if(await subscriptions.findOne({tenantId},{session})) fail('SAAS_ADMISSION_UNSUPPORTED_EFFECT',403);
   }
-  async function effect({scope,grant:supplied,session,namespace,key,action,aggregateId,payloadHash,replayed}) {
+  async function effect({scope,grant:supplied,session,namespace,key,action,aggregateId,payloadHash,replayed,identity}) {
     const plantId=supplied?.plantId??scope?.selectedPlantId, authority=await active(scope,{plantId,session});
     if(!authority) return {state:'LEGACY_UNENROLLED',charged:false};
     const spec=admissionReceipts[namespace];
-    if(!spec || typeof action!=='string' || typeof key!=='string' || !key || key.length>128 ||
+    if(!spec || typeof action!=='string' || (namespace!=='documentIssues' && (typeof key!=='string' || !key || key.length>128)) ||
        typeof payloadHash!=='string' || !/^[a-f0-9]{64}$/.test(payloadHash) || typeof replayed!=='boolean') fail('SAAS_ADMISSION_IDENTITY_REQUIRED',400);
     const local=Object.hasOwn(localCommandPolicies,namespace),permission=local?localCommandPolicies[namespace][action]:action;
     if(!permission) fail('SAAS_ADMISSION_IDENTITY_REQUIRED',400);
     const grant=await foundation.authorizeInTransaction(scope,{tenantId:scope.tenantId,plantId,action:permission},{session});
-    const filter={tenantId:grant.tenantId,plantId:grant.plantId,...(namespace==='foundationCommandResults'||local?{userId:grant.userId,action}:{}),
+    let filter={tenantId:grant.tenantId,plantId:grant.plantId,...(namespace==='foundationCommandResults'||local?{userId:grant.userId,action}:{}),
       ...(namespace==='workforceResults'?{actorId:grant.userId}:{}),...(namespace==='purchaseOrderAmendmentKeys'?{cohort:'LEGACY'}:{}),key};
+    if(namespace==='documentIssues') {
+      const fields=['kind','legalEntityId','plantId','sourceId','sourceVersion','tenantId'];
+      if(!identity || Object.keys(identity).sort().join(',')!==fields.join(',') || ['tenantId','plantId','legalEntityId'].some(k=>identity[k]!==grant[k]) || !['quote','purchaseRequest','purchaseOrder','catalogPurchaseRequest','catalogPurchaseOrder','invoice','shipment'].includes(identity.kind) || typeof identity.sourceId!=='string' || !identity.sourceId || identity.sourceId.length>100 || !Number.isSafeInteger(identity.sourceVersion) || identity.sourceVersion<1 || action!=='document.issue') fail('SAAS_ADMISSION_IDENTITY_REQUIRED',400);
+      filter={...identity};
+    }
     const receipt=await db.collection(spec.collection).findOne(filter,{session});
     if(receipt && receipt[spec.hashField]!==payloadHash) fail('IDEMPOTENCY_CONFLICT');
     if(replayed!==Boolean(receipt)) fail('SAAS_RECEIPT_STATE_MISMATCH');

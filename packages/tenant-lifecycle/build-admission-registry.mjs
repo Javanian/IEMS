@@ -15,6 +15,7 @@ const wrappers={
 for(const prefix of ['quality','maintenance','operations']) wrappers[`${prefix}Keys`]={filter:['tenantId','plantId','key'],hash:'existing stockHash({action,params,body}); operations retains original actor-to-key contentHash',hook:'apps/portfolio-api/src/quality.mjs',replay:'current host/helper source authorization',nested:'one scopedModule receipt including voice; no independently charged child'};
 Object.assign(wrappers,JSON.parse(await readFile(new URL('./receipt-contracts-v6.json',import.meta.url),'utf8')));
 for(const [namespace,actions]of Object.entries(localCommandPolicies))wrappers[namespace]={filter:['tenantId','plantId','userId','action','key'],hash:'foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})',hashField:'inputHash',response:'exact original result snapshot',actions,hook:namespace==='crmCommandResults'?'apps/portfolio-api/src/app.mjs':namespace==='legacyQuoteCommandResults'?'apps/portfolio-api/src/commercial.mjs':'apps/portfolio-api/src/procurement.mjs',replay:'current actor/source scope, no new-effect CAS/state/expiry replay',meter:'ONE_COMMAND'};
+wrappers.documentIssues={filter:['tenantId','legalEntityId','plantId','kind','sourceId','sourceVersion'],hash:'existing renderer snapshot.contentHash',hashField:'contentHash',hook:'renderer.issueInTransaction + documents.mjs caller transaction',replay:'current source permissions/snapshot plus existing artifact/READY integrity',meter:'ONE_COMMAND',response:'original public READY intent ID and renderer record mapping'};
 function classify(route) {
  const [method,path]=route.split(' ');
  if(path.startsWith('/api/session/'))return {state:'AUTH_RECOVERY',meter:'NONE'};
@@ -46,6 +47,7 @@ function classify(route) {
   if(path.endsWith('/vendor-promise'))receipt='procurementPromiseKeys';
   if(path.endsWith('/convert')&&!path.includes('/material-shortages/'))receipt='procurementConversions';
  }
+ if(path==='/api/documents/issues')receipt='documentIssues';
  if(path.startsWith('/api/crm/'))receipt='crmCommandResults';
  if(['/api/procurement/vendors','/api/procurement/requests','/api/procurement/requests/:id/approve','/api/procurement/orders/:id/issue','/api/procurement/orders/:id/vendor-confirmation'].includes(path))receipt='procurementCommandResults';
  if(path.startsWith('/api/cs/')||path==='/api/platform/jobs')return {state:'LOCAL_COVERAGE_PENDING',meter:'NONE',note:'Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied.'};

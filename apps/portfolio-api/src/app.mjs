@@ -108,7 +108,7 @@ export async function initialize({ client, db, customerService = {}, businessClo
   runtime.predictions = createPredictionRuntime(runtime, { ...integrations.predictions, saasAdmission: runtime.saasAdmission });
   await runtime.predictions.initialize();
   runtime.tenantLifecycle = createTenantLifecycleRuntime(runtime, { ...integrations.tenantLifecycle,
-    domainPort: createMongoTenantDataPort(runtime), enrollmentGuard: runtime.saasAdmission.enrollmentGuard });
+    domainPort: createMongoTenantDataPort(runtime), documentPort:runtime.documents, enrollmentGuard: runtime.saasAdmission.enrollmentGuard });
   await runtime.tenantLifecycle.initialize();
   return runtime;
 }
