@@ -209,6 +209,17 @@ export async function runE02Flow(h, { setClock, onCheckpoint = async () => {} } 
   Object.assign(flow.manifest.identities, { [f.return_shipment.id]: flow.shipment.shipmentId, [pod.pod_id]: flow.delivery.confirmations[0]._id, [f.final_invoice.id]: flow.invoice._id, [f.warranty.id]: flow.warranty._id, [f.functional_testing.run_1_failed.test_order_id]: flow.case.tests[0]._id, [f.functional_testing.run_2_passed.test_order_id]: flow.case.tests[1]._id, [f.functional_testing.rework_order.id]: flow.case.reworks[0]._id });
   flow.manifest.authorityHashes = { source: flow.delivery.sourceHash, pod: flow.delivery.confirmations[0].contentHash, serviceSalesOrder: flow.serviceSalesOrder.contentHash, serviceWorkOrder: flow.serviceWorkOrder.contentHash, warrantySources: flow.warranty.sources };
   flow.manifest.materials = flow.sources.items.map((item, index) => ({ fixtureItemCode: item.code, itemId: item._id, receiptId: flow.sources.receipts[index]._id, uom: item.content.uom, quantity: '1', claim: flow.case.spareClaims.find(value => value.sourceId === flow.sources.receipts[index]._id), replacement: flow.case.replacements.find(value => value.sourceId === flow.sources.receipts[index]._id), removal: flow.case.componentRemovals[index] }));
+  // Read canonical movement identities for handoff; all business effects above use HTTP.
+  for (const material of flow.manifest.materials) {
+    const filter = { tenantId: flow.case.tenantId, plantId: flow.case.plantId };
+    const claim = await h.db.collection('catalogMaterialReservations').findOne({ ...filter, _id: material.claim.reservationId, caseId: flow.case._id });
+    assert.equal(claim.status, 'CONSUMED'); assert.equal(claim.contentHash, material.claim.contentHash);
+    const consumption = await h.db.collection('catalogMaterialConsumptions').findOne({ ...filter, _id: claim.consumptionId, reservationId: claim._id });
+    assert.ok(consumption); assert.equal(consumption.contentHash, claim.consumptionHash); assert.equal(consumption.receiptId, material.receiptId); assert.equal(consumption.uom, material.uom); assert.equal(consumption.quantity, material.quantity);
+    material.canonicalMovementProof = { evidence: 'READ_ONLY_CANONICAL_MONGO_RECORDS', issueId: claim.issueId, issueHash: claim.issueHash, consumptionId: consumption._id, consumptionHash: consumption.contentHash, receiptId: consumption.receiptId, itemId: consumption.itemId, quantity: consumption.quantity, uom: consumption.uom };
+  }
+  flow.manifest.identities[f.final_qc_release.certificate_no] = { caseId: flow.case._id, eventId: flow.case.history.find(value => value.action === 'qc')._id, testRun: flow.case.qc.testRun };
+  flow.manifest.identities[f.diagnostic_authorization.id] = { caseId: flow.case._id, eventId: flow.case.history.find(value => value.action === 'diagnostic-authorize')._id };
   flow.manifest.identities[f.repair_work_order.material_issues[0].movement_id] = { reservationId: flow.manifest.materials[0].claim.reservationId, receiptId: flow.sources.receipts[0]._id };
   flow.manifest.identities[f.final_invoice.final_payment.id] = flow.invoice.payments[0]._id;
   flow.manifest.identities[f.final_invoice.deposit_application.id] = { invoiceId: flow.invoice._id, depositIds: flow.invoice.depositIds };
