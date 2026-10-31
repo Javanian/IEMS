@@ -65,7 +65,7 @@ test('company-stock readiness matches real claim and event boundaries without re
     await denied(h, `${executionPath(candidate)}/reservations`, reserveBody(fixture, candidate, source, available._id), 'STOCK_HISTORY_LIMIT');
     const before = await allSnapshot(h);
     assert.deepEqual(await h.ok(`${executionPath(job)}/reservations`, lastReserveBody), lastReserveResult);
-    assert.deepEqual(await allSnapshot(h), authorizationOnly(before, h, 2));
+    assert.deepEqual(await allSnapshot(h), authorizationOnly(before, h, 2, 3));
     const restore = await h.setRoles(h.seeded[0], ['internalExecutionReserve', 'companyStockReader']);
     try { await denied(h, `${executionPath(job)}/reservations`, lastReserveBody, 'SCOPE_DENIED', 403); }
     finally { await restore(); }

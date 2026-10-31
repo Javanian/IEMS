@@ -13,7 +13,9 @@ export async function allSnapshot(h) {
   return result;
 }
 
-export function authorizationOnly(before, h, delta) {
+export function authorizationOnly(before, h, delta, enrollmentDelta, foundationDelta = 0) {
+  assert.ok(Number.isSafeInteger(enrollmentDelta) && enrollmentDelta >= 0);
+  assert.ok(Number.isSafeInteger(foundationDelta) && foundationDelta >= 0);
   const person = h.seeded[0], tokenHash = createHash('sha256').update(h.alpha.slice('portfolio_session='.length)).digest('hex');
   const plant = before.plants.find(row => row._id === person.plantId);
   const selected = { sessions: before.sessions.find(row => row.tokenHash === tokenHash)._id,
@@ -22,7 +24,9 @@ export function authorizationOnly(before, h, delta) {
   const result = { ...before };
   for (const [name, id] of Object.entries(selected)) {
     assert.equal(before[name].filter(row => row._id === id).length, 1);
-    result[name] = before[name].map(row => row._id === id ? { ...row, crmFence: (row.crmFence || 0) + delta } : row);
+    result[name] = before[name].map(row => row._id === id ? { ...row, crmFence: (row.crmFence || 0) + delta,
+      ...(foundationDelta ? { authorizationFence: (row.authorizationFence || 0) + foundationDelta } : {}),
+      ...(name === 'tenants' ? { saasEnrollmentFence: (row.saasEnrollmentFence || 0) + enrollmentDelta } : {}) } : row);
   }
   return result;
 }
