@@ -1,5 +1,15 @@
 # E02 v7 source handoff — runtime INCOMPLETE
 
+## V9 runtime continuation after usable148 base
+
+Adopted `55e6c34299373037bfff44cb8ad09a47d1e86ac0` by fast-forward, preserving78e0ce89 ancestry and its actual replay/registry corrections. Exact service/POD/full runner command reached HTTP:3PASS/1FAIL (full runner missing required receipt heat reference). Helper now supplies explicitly supplemental `E02-SYNTHETIC-HEAT-1/2`, retaining the original seal-kit lot and original fixture bytes. On the next actual full run, both accepted and rejected chains completed and exact dates/totals/stock/quarantine assertions passed; the test then failed strict replay comparison because initial customer-asset POD omitted `salesOrderId` while the saved Mongo result had `null`.
+
+Runtime fixes: `701b1627e3b001f1b1f70ac9aa59207277162f77` supplies trace evidence, restores the accepted final-payment clock after the isolated rejection timeline, and logs actual manifests before subsequent assertions. `ce0f08a3911bebf6a83a3fe82e6a8628a2cac04f` changes only allocated delivery view(): customer-asset `salesOrderId` is explicitly null from the first response. Generic purchased/manufactured views, persisted shipment/receipt hashes, quantity/writer/replay wrappers remain unchanged. A new assertion requires that stable null shape; exact replay comparison is retained.
+
+Current API syntax and node checks PASS; committed worktree clean. The fixed view changes pinned delivery source bytes, so the next runtime run waits for the existing pin owner to adopt the tip and regenerate actual-source pins.142 has not modified/bypassed pins and has not rerun known-invalid startup. Request goes to existing153 resume:true after148 handoff, per v9. Successful final manifests and a passing full-chain verdict remain pending. Failed logs `v9-first-e02.log` and `v9-e02-heat-trace.log` are preserved in the owner checkpoint directory; both include Mongo teardown ECONNRESET warnings, while the actual assertion failures are identified above. Full independent QA remains deferred.
+
+The original source-only handoff below is historical where superseded by this continuation.
+
 Base `19561749dbac890a4adfe192f3424996ff86d21e` retains required `576a947d623ee12561d0a7819eb4bd3645021eba`. Only allocated domain, bounded delivery adapter, existing repair UI and owned helper/contracts changed. The prior clock/VAT failure is corrected in source; actual domain HTTP verification is currently blocked at startup by the existing source admission pin. No pin, registry, host constructor, receipt wrapper, canonical fixture, stock authority or other worktree is edited.
 
 ## Typed contract
