@@ -1,6 +1,7 @@
 import{randomUUID}from'node:crypto';
 import{boundedTransaction,CommandError,contentHash}from'../tenant-foundation/commands.mjs';
 import{effectHash,effectTransaction}from'./effect-primitives.mjs';
+import{verifiedLocalProviderObservation}from'./local-ai-provider.mjs';
 const controlledAdapters=new WeakSet();
 export const isControlledLocalAdapter=value=>controlledAdapters.has(value);
 const fail=(code,status=409)=>{throw new CommandError(code,status);};
@@ -26,7 +27,7 @@ export function createControlledLocalAdapter({client,db,id,instanceEpoch=randomU
    const promise=(async()=>{
     try{
      const result=publicResult(await work()),proofHash=effectHash({attemptId:attempt._id,adapterId:id,instanceEpoch,providerKey:attempt.providerKey,inputHash:attempt.inputHash,result});
-     await tx(async session=>{const changed=await attempts.updateOne({_id:attempt._id,tenantId:attempt.tenantId,instanceEpoch,'provider.state':'BEGUN',fence:attempt.fence},{$set:{'provider.state':'TERMINAL','provider.result':result,'provider.proofHash':proofHash,'provider.completedAt':new Date().toISOString()}},{session});if(changed.matchedCount!==1)fail('LOCAL_PROVIDER_RECEIPT_CONFLICT');await record(attempt.commandId,attempt.tenantId,session,'PROVIDER_TERMINAL',{attemptId:attempt._id,adapterId:id,instanceEpoch,providerProofHash:proofHash});});
+     await tx(async session=>{const changed=await attempts.updateOne({_id:attempt._id,tenantId:attempt.tenantId,instanceEpoch,'provider.state':'BEGUN',fence:attempt.fence},{$set:{'provider.state':'TERMINAL','provider.result':result,'provider.proofHash':proofHash,'provider.completedAt':new Date().toISOString()}},{session});if(changed.matchedCount!==1){const previous=await attempts.findOne({_id:attempt._id,tenantId:attempt.tenantId,'provider.state':'TERMINAL'},{session});if(previous?.provider.proofHash!==proofHash)fail('LOCAL_PROVIDER_RECEIPT_CONFLICT');return;}await record(attempt.commandId,attempt.tenantId,session,'PROVIDER_TERMINAL',{attemptId:attempt._id,adapterId:id,instanceEpoch,providerProofHash:proofHash});});
      await fault('afterProviderReceipt',attempt);return result;
     }catch(error){await tx(async session=>{const changed=await attempts.updateOne({_id:attempt._id,tenantId:attempt.tenantId,instanceEpoch,'provider.state':'BEGUN'},{$set:{'provider.state':'UNKNOWN','provider.errorCode':typeof error.code==='string'?error.code:'LOCAL_PROVIDER_UNKNOWN'}},{session});if(changed.matchedCount)await record(attempt.commandId,attempt.tenantId,session,'PROVIDER_UNKNOWN',{attemptId:attempt._id,adapterId:id,instanceEpoch});});throw error;}
    })();inFlight.set(attempt._id,{tenantId:attempt.tenantId,promise});try{return await promise;}finally{inFlight.delete(attempt._id);}
@@ -36,6 +37,11 @@ export function createControlledLocalAdapter({client,db,id,instanceEpoch=randomU
    if(row.provider?.state!=='TERMINAL')return {state:row.provider?'UNKNOWN':'NOT_BEGUN'};
    const expected=effectHash({attemptId:row._id,adapterId:id,instanceEpoch:row.instanceEpoch,providerKey:row.providerKey,inputHash:row.inputHash,result:row.provider.result});if(expected!==row.provider.proofHash)fail('LOCAL_PROVIDER_RECEIPT_CORRUPT');
    return {state:'TERMINAL',mode:'LOCAL_SIMULATED',adapterId:id,instanceEpoch:row.instanceEpoch,providerKey:row.providerKey,proofHash:expected,result:row.provider.result};
+  },
+  async reconcile(attempt,observation,{session}){
+   if(!session?.inTransaction()||session.client!==client)fail('EFFECT_TRANSACTION_REQUIRED',500);const proof=verifiedLocalProviderObservation(observation,attempt),command=await commands.findOne({_id:attempt.commandId,tenantId:attempt.tenantId,ownerNamespace:'AI_INDEX_ROOT_V1'},{session});if(!command||command.plan.providerId!==proof.providerId)fail('LOCAL_PROVIDER_OBSERVATION_INVALID');
+   const row=await attempts.findOne({_id:attempt._id,tenantId:attempt.tenantId,commandId:attempt.commandId,adapterId:id,instanceEpoch:attempt.instanceEpoch,providerKey:attempt.providerKey,inputHash:attempt.inputHash,fence:attempt.fence},{session});if(!row?.provider)fail('LOCAL_PROVIDER_BINDING_CHANGED');const result=publicResult(proof.result),proofHash=effectHash({attemptId:row._id,adapterId:id,instanceEpoch:row.instanceEpoch,providerKey:row.providerKey,inputHash:row.inputHash,result});if(row.provider.state==='TERMINAL'){if(row.provider.proofHash!==proofHash)fail('LOCAL_PROVIDER_RECEIPT_CONFLICT');return adapter.observe(row,{session});}
+   if(!['BEGUN','UNKNOWN'].includes(row.provider.state))fail('LOCAL_PROVIDER_OBSERVATION_INVALID');await attempts.updateOne({_id:row._id,fence:row.fence,'provider.state':row.provider.state},{$set:{'provider.state':'TERMINAL','provider.result':result,'provider.proofHash':proofHash,'provider.nativeReceiptId':proof.receiptId,'provider.nativeProofHash':proof.receiptProofHash,'provider.completedAt':new Date().toISOString()}},{session});await record(row.commandId,row.tenantId,session,'PROVIDER_OBSERVED',{attemptId:row._id,adapterId:id,instanceEpoch:row.instanceEpoch,providerProofHash:proofHash,nativeReceiptId:proof.receiptId,nativeProofHash:proof.receiptProofHash});return adapter.observe(row,{session});
   },
   async stopAndDrain({tenantId,stopEpoch}){
    const tenant=await db.collection('tenants').findOne({_id:tenantId,active:true,saasEffectDispatchOpen:false,saasEffectEpoch:stopEpoch});if(!tenant)fail('LOCAL_STOP_GATE_REQUIRED');
