@@ -1,17 +1,17 @@
 import { AuditDetails,CustomerName } from './OperatorUi.jsx';
 import { displayReference,operatorStatus,quantitySummary } from './operator.mjs';
-import { useId, useRef, useState } from 'react';
+import { useContext, useEffect, useId, useRef, useState } from 'react';
 import { StockExceptions } from './HoldsWorkspace.jsx';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { portfolioRequest as request } from './client.mjs';
-import { EngineeringWorkOrderRelease } from './EngineeringWorkspace.jsx';
+import { EngineeringWorkOrderRelease, EngineeringDemandBinding } from './EngineeringWorkspace.jsx';
 import { LaborWorkspace } from './LaborWorkspace.jsx';
 import { MaterialTrace } from './MaterialTrace.jsx';
 import { GenealogyWorkspace } from './GenealogyWorkspace.jsx';
 import { SerialCustodyWorkOrder, WithSerialClaims } from './SerialCustodyWorkspace.jsx';
 import { InstallationWorkspace } from './InstallationWorkspace.jsx';
 import { custodyHint, hasCustodyMarker } from './serial-custody.mjs';
-import { Failure, Resource, useResource } from './PortfolioWorkspace.jsx';
+import { Failure, IdentityContext, Resource, useResource } from './PortfolioWorkspace.jsx';
 import { planCommand, releaseCommand, recordCommand, qcCommand, nextOperation, manufacturingHint } from './manufacturing.mjs';
 
 const base = '/portfolio/manufacturing';
@@ -21,10 +21,12 @@ function Boundary() { return <p>Every work order is operator recorded: people en
 export function CommandForm({ title, submitLabel, intro, build, path, onSaved, refresh, children, disabledReason }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState(null);
   const attempt = useRef(null), lock = useRef(false), reasonId = useId();
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   async function send() {
     if (lock.current) return; lock.current = true; setBusy(true); setError(null);
-    try { const { data } = await request(path, { body: attempt.current }); attempt.current = null; onSaved(data); }
-    catch (err) { setError(err); } finally { lock.current = false; setBusy(false); }
+    try { const { data } = await request(path, { body: attempt.current }); if (mounted.current) { attempt.current = null; onSaved(data); } }
+    catch (err) { if (mounted.current) setError(err); } finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
   const reset = () => { attempt.current = null; setError(null); refresh(); };
   const hint = manufacturingHint(error) || custodyHint(error);
@@ -36,6 +38,47 @@ export function CommandForm({ title, submitLabel, intro, build, path, onSaved, r
     {attempt.current && <button type="button" disabled={busy} onClick={reset}>Discard command and refresh</button>}
     <p className="pf-muted">If the result is uncertain, retry the same command. Discard it to review the server record before changing inputs.</p>
   </form>;
+}
+export function ApprovedDemandShortages({ demand, demandKind = 'INTERNAL_PRODUCTION', locked = '' }) {
+  const identity = useContext(IdentityContext), [sources, setSources] = useState([]);
+  const required = ['procurement.read','procurement.write','manufacturing.read','manufacturing.plan','catalog.stock.read','catalog.write'];
+  if (!required.every(permission => identity?.permissions?.includes(permission))) return <section className="pf-panel"><h2>Material shortage planning</h2><p>Your current role needs procurement, manufacturing planning and catalog stock access to refresh and claim shortages.</p></section>;
+  const purchased = (demand.engineering.content?.materials || []).filter(line => line.itemSnapshot?.content.kind === 'PURCHASED' && line.sourceKind !== 'COMPANY_OUTPUT');
+  return <section className="pf-panel"><h2>Material shortage planning</h2><p>Refresh approved material demand against eligible stock and active procurement claims. Evidence does not reserve stock. Each claim rechecks current source approvals and stock authority.</p>
+    {!purchased.length ? <p>No approved purchased-item requirements are available. Review engineering demand first.</p> : purchased.map(material => <CommandForm key={material.lineId} title={`Refresh ${material.itemSnapshot.code} shortage`} submitLabel={`Refresh ${material.itemSnapshot.code} shortage`} path="/api/procurement/material-shortages/refresh"
+      disabledReason={locked || !demand.planningReady ? locked ? 'Resolve the retained production command before refreshing demand.' : 'Approve current engineering demand and resolve source blockers first.' : ''}
+      refresh={() => setSources([])} onSaved={result => setSources(current => [...current.filter(source => source.materialLineId !== material.lineId), ...result.snapshots])}
+      build={(values, key) => ({ demandKind, demandId: demand._id, expectedDemandVersion: demand.version, engineeringRevision: demand.engineering.currentRevision, materialLineId: material.lineId, expectedShortageRevision: Number(values.expectedShortageRevision), reason: values.reason, idempotencyKey: key })}>
+      <p>{material.quantityPerUnit} {material.uom} per output UOM. Required quantities are computed by the server from approved demand.</p>
+      <Input label="Current shortage evidence revision (0 for first refresh)" name="expectedShortageRevision" type="number" min="0" step="1" defaultValue="0" required />
+      <Input label="Shortage refresh reason" name="reason" minLength={3} maxLength={500} required />
+    </CommandForm>)}
+    {sources.map(source => <DemandShortageSource key={`${source.sourceId}:${source.revision}`} sourceId={source.sourceId} locked={locked} />)}
+  </section>;
+}
+function DemandShortageSource({ sourceId, locked }) {
+  const resource = useResource(`/api/procurement/material-shortages/${sourceId}`), vendors = useResource('/api/procurement/vendors?limit=100', true);
+  const [created, setCreated] = useState(null);
+  return <Resource resource={resource}>{({ data: { snapshot: source, claims } }) => <section className="pf-panel"><h3>Material shortage evidence</h3>
+    <p>Revision {source.revision} · Observed {new Date(source.observedAt).toLocaleString('en-US')}</p><p>Required {source.requiredQuantity} {source.uom} · Eligible stock {source.eligibleQuantity} {source.uom} · Active claims at observation {source.activeClaimQuantity} {source.uom} · Uncovered at observation {source.shortageQuantity} {source.uom}</p>
+    <button type="button" disabled={!!locked} onClick={resource.reload}>Read current shortage and claims</button>
+    <Resource resource={vendors}>{({ data }) => <CommandForm title="Create purchase request from approved shortage" submitLabel="Claim shortage into purchase request" path="/api/procurement/requests/from-shortage" refresh={resource.reload}
+      disabledReason={locked || !data.length ? locked ? 'Resolve the retained production command before claiming material.' : 'Create a supplier before claiming this purchased material.' : ''}
+      onSaved={result => { setCreated(result); resource.reload(); }}
+      build={(values, key) => ({ sourceId, sourceRevision: source.revision, sourceHash: source.authorityHash, materialLineId: source.materialLineId, quantity: values.quantity, vendorId: values.vendorId, pricing: { unitPrice: values.unitPrice, currency: values.currency, taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP' }, reason: values.reason, idempotencyKey: key })}>
+      <label className="pf-field">Supplier<select name="vendorId" defaultValue="" required><option value="" disabled>Select supplier</option>{data.map(vendor => <option key={vendor._id} value={vendor._id}>{vendor.name}</option>)}</select></label>
+      <Input label={`Claim quantity (${source.uom})`} name="quantity" inputMode="decimal" required />
+      <Input label="Unit price" name="unitPrice" inputMode="decimal" required /><Input label="Currency code" name="currency" pattern="[A-Z]{3}" minLength={3} maxLength={3} required />
+      <Input label="Procurement reason" name="reason" minLength={3} maxLength={500} required />
+    </CommandForm>}</Resource>
+    {created && <p role="status"><Link to={`/portfolio/catalog-procurement/requests/${created.requestId}`}>Open created purchase request</Link></p>}
+    <h4>Retained procurement claims</h4>{!claims.length ? <p>No claims recorded.</p> : <ul className="pf-list">{claims.map(claim => <li key={claim.claimId}><span>{claim.status} · {claim.quantity} {source.uom}</span><Link to={`/portfolio/catalog-procurement/requests/${claim.requestId}`}>Review purchase request</Link></li>)}</ul>}
+    <Link to="/portfolio/procurement/requests">Review procurement and release unconverted claims</Link>
+  </section>}</Resource>;
+}
+function CustomerDemandShortages({ wo }) {
+  const binding = wo.materialDemandEngineering, resource = useResource(`/api/manufacturing/engineering/${binding.engineeringId}/revisions/${binding.revision}`);
+  return <Resource resource={resource}>{({ data }) => <ApprovedDemandShortages demandKind="SALES_ORDER_WORK_ORDER" demand={{ _id: wo._id, version: wo.version, planningReady: wo.status === 'PLANNED', engineering: { currentRevision: binding.revision, content: { materials: data.purchasedMaterials || [] } } }} />}</Resource>;
 }
 function Pager({ cursor, page, first }) { return <div className="pf-actions">{cursor && <Link to={first}>First page</Link>}{page.nextCursor && <Link to={`?cursor=${page.nextCursor}`}>Next page</Link>}</div>; }
 export function WorkOrderList() {
@@ -120,7 +163,7 @@ export function WorkOrderDetail() {
     <SerialCustodyWorkOrder wo={wo} refresh={resource.reload} />
     <InstallationWorkspace wo={wo} refresh={resource.reload} />
     {wo.engineeringSnapshot && <section className="pf-panel"><h2>Frozen work order engineering snapshot</h2><Link to={`${base}/engineering/${wo.engineeringSnapshot.engineeringId}`}>Approved engineering revision {wo.engineeringSnapshot.revision}</Link><p>Revision: {wo.engineeringSnapshot.revision}</p><AuditDetails action="manufacturing.read"><p>Engineering version at release: {wo.engineeringSnapshot.engineeringVersion}</p></AuditDetails><p>Routing and material reservations remain frozen through later package revisions or revocation.</p></section>}
-    {wo.status === 'PLANNED' && <><EngineeringWorkOrderRelease key={`engineering-${wo.version}`} wo={wo} refresh={resource.reload} /><ReleaseForm key={wo.version} wo={wo} refresh={resource.reload} /></>}
+    {wo.status === 'PLANNED' && <><EngineeringDemandBinding key={`demand-${wo.version}`} wo={wo} refresh={resource.reload} />{wo.materialDemandEngineering && <CustomerDemandShortages key={`shortage-${wo.version}`} wo={wo} />}<EngineeringWorkOrderRelease key={`engineering-${wo.version}`} wo={wo} refresh={resource.reload} /><ReleaseForm key={wo.version} wo={wo} refresh={resource.reload} /></>}
     {['RELEASED', 'IN_PROGRESS'].includes(wo.status) && <RecordForm key={wo.version} wo={wo} refresh={resource.reload} />}
     {wo.status === 'QUARANTINED' && <QcForm key={wo.version} wo={wo} refresh={resource.reload} />}
     <LaborWorkspace key={`labor-${wo._id}-${wo.version}`} wo={wo} refresh={resource.reload} />

@@ -16,7 +16,7 @@ export function CompanyStockEvidence({ source }) {
     <h3>{displayReference('receipts', source)} · {source.itemSnapshot.code}</h3>
     <p>{source.itemSnapshot.content.description} · Revision {source.itemRevision} · Location {source.locationSnapshot.code}</p>
     <p>Original accepted stock: {source.openingQuantity} {source.uom}. Producer quality accepted {source.qc.acceptedSerials.length}, rejected {source.qc.rejectedSerials.length}. {source.qc.evidence}</p>
-    <p>{source.sourcePolicy === 'ONE_HOP_SOURCE' ? 'Stored manufactured component source' : 'Final output: further component reuse is unavailable.'}</p>
+    <p>{source.sourcePolicy === 'LEAF_ONLY' ? 'Final output: further component reuse is unavailable.' : 'Stored manufactured component source'}</p>
     <p>On hand {source.onHandQuantity} · Reserved {source.reservedQuantity} · Issued {source.issuedQuantity} · Consumed {source.consumedQuantity} · Available {source.availableQuantity} · Currently eligible {source.eligibleQuantity} · Blocked {source.blockedQuantity} {source.uom}</p>
     <section data-company-reservation-readiness={source.canReserve === true ? 'ready' : 'blocked'}>
       <h4>New reservation readiness</h4>

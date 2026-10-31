@@ -8,7 +8,9 @@ const companyRestrictions = {
   PRODUCER_DEMAND_CHANGED:'The producer approval or its source demand changed. Review the producer plan before using this manufactured stock.',
   COMPANY_DEPENDENCY_CHANGED:'A producer, item, location or source approval changed. Refresh the manufactured stock and review its current restrictions.',
   COMPANY_SOURCE_HELD:'A company stock hold blocks new component use. Review or release the hold with the appropriate permission.',
-  ANCESTOR_HELD:'A consumed purchased source is on hold. Review that receipt before continuing this job.',
+  ANCESTOR_HELD:'A consumed purchased or manufactured ancestor is on hold. Review its receipt before continuing this job.',
+  MANUFACTURED_GRAPH_CYCLE:'This component would create a cycle in the manufacturing genealogy. Select a source outside this job and its descendants.',
+  MANUFACTURED_GRAPH_LIMIT:'This genealogy exceeds the supported trace depth or node count. Review its production ancestry before continuing.',
   RESERVATION_HISTORY_LIMIT:'This receipt has reached its reservation history limit. No new reservation can be added, even while physical stock remains available.',
   STOCK_EVENT_HISTORY_LIMIT:'This receipt has reached its stock event history limit. No further stock-changing command can be recorded. Ask an authorized reviewer to inspect its retained history.',
   STOCK_HISTORY_LIMIT:'This command exceeds the receipt history capacity. Refresh the stock evidence and review the reservation and stock event limits.',
@@ -35,12 +37,12 @@ export function currentCompanyStock(selected, resource) {
   return !resource.loading && !resource.error && row && !Array.isArray(row) && typeof row._id === 'string' && !!row._id && row._id === selected?._id && typeof row.uom === 'string' && Array.isArray(row.units) ? row : null;
 }
 export function companyStockVersionMatches(captured, current) {
-  return !!captured && !!current && typeof captured._id === 'string' && !!captured._id && Array.isArray(captured.units) && Array.isArray(current.units) && captured._id === current._id && positiveVersion(captured.version) && captured.version === current.version && current.sourcePolicy === 'ONE_HOP_SOURCE' && current.canReserve === true && captured.units.every(unit => typeof companyUnitId(unit) === 'string' && !!companyUnitId(unit) && positiveVersion(unit.version) && current.units.some(now => companyUnitId(now) === companyUnitId(unit) && now.version === unit.version));
+  return !!captured && !!current && typeof captured._id === 'string' && !!captured._id && Array.isArray(captured.units) && Array.isArray(current.units) && captured._id === current._id && positiveVersion(captured.version) && captured.version === current.version && ['ONE_HOP_SOURCE','MULTI_GENERATION_SOURCE'].includes(current.sourcePolicy) && current.canReserve === true && captured.units.every(unit => typeof companyUnitId(unit) === 'string' && !!companyUnitId(unit) && positiveVersion(unit.version) && current.units.some(now => companyUnitId(now) === companyUnitId(unit) && now.version === unit.version));
 }
 export function companyReservationFields(source, values) {
   if (!source || !Array.isArray(source.units)) throw Object.assign(Error('Refresh current manufactured stock evidence before choosing units.'), { status:400, local:true });
   const ids = values.companyUnitIds || [];
-  if (!Array.isArray(ids) || !ids.length || ids.length > 100 || new Set(ids).size !== ids.length || !source.canReserve || source.sourcePolicy !== 'ONE_HOP_SOURCE' || !positiveVersion(source.version)) throw Object.assign(Error('Select actual available manufactured units from the current stock receipt.'), { status:400, local:true });
+  if (!Array.isArray(ids) || !ids.length || ids.length > 100 || new Set(ids).size !== ids.length || !source.canReserve || !['ONE_HOP_SOURCE','MULTI_GENERATION_SOURCE'].includes(source.sourcePolicy) || !positiveVersion(source.version)) throw Object.assign(Error('Select actual available manufactured units from the current stock receipt.'), { status:400, local:true });
   const units = ids.map(id => source.units.find(unit => companyUnitId(unit) === id));
   if (units.some(unit => !unit || unit.status !== 'AVAILABLE' || !unit.eligible || !positiveVersion(unit.version))) throw Object.assign(Error('Select actual available manufactured units from the current stock receipt.'), { status:400, local:true });
   if (!/^[1-9][0-9]*(?:\.0{1,6})?$/.test(values.quantity) || Number(values.quantity) !== ids.length) throw Object.assign(Error('Enter an integral quantity matching the selected manufactured units.'), { status:400, local:true });
