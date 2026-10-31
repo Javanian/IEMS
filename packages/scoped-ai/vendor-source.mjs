@@ -13,10 +13,8 @@ export function createVendorDraftAuthority({ db, clock = () => new Date() }) {
         status: source.status, ...(reference.cohort === 'CATALOG' ? { 'content.vendorId': reference.vendorId } : { vendorId: reference.vendorId }) };
       const row = await db.collection(collection).findOne(filter, { session });
       if (!row || row.legalEntityId !== undefined && row.legalEntityId !== grant.legalEntityId) fail('SCOPE_DENIED', 403);
-      const write = await db.collection(collection).updateOne({ ...filter, version: row.version,
-        ...(row.documentRevision === undefined ? { documentRevision: { $exists: false } } : { documentRevision: row.documentRevision }) },
-      { $inc: { authorizationFence: 1 } }, { session });
-      if (write.matchedCount !== 1) fail('AI_VENDOR_SOURCE_CHANGED', 409);
+      // Foundation's transaction-scoped plant fence also conflicts with procurement guard writes.
+      // The AI workflow must never write the PO or its financial authority records.
       return source;
     },
     async recipient({ grant, vendorId, grantId, session }) {

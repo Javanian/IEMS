@@ -17,9 +17,10 @@ The dedicated `ai.vendor.source.read` internal procurement permission is require
 in the same foundation transaction before calling the existing approved PO reader.
 No vendor impersonation or portal grant is added to operators. LEGACY and CATALOG
 are explicit, with no fallback. Approved document revision/hash remain distinct
-from mutable order version. Source read fences the PO header against concurrent
-change and checks its legal entity when recorded; foundation binds plant/entity.
-Only an authorization fence changes; no PO snapshot, amount, stock or promise changes.
+from mutable order version. Source read checks the PO legal entity when recorded;
+foundation binds plant/entity and writes its transaction-scoped plant fence. The
+existing procurement mutation guard writes that same plant document, so concurrent
+changes conflict without any AI workflow write to the PO or financial ledger.
 
 Preview accepts an existing recipientGrantId or null. It resolves an actual active
 VENDOR portal read grant, active user and plant/entity membership, fences all three,
