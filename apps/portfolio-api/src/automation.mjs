@@ -58,9 +58,12 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     if (typeof value !== 'string' || !/^[A-Za-z0-9:_-]{8,120}$/.test(value)) fail(400, 'IDEMPOTENCY_KEY_REQUIRED');
     return value;
   };
-  const tx = async (req, action, effect) => {
+  const admittedOperations = new Set(['TICKET_ESCALATE','RESOLUTION_DRAFT_CREATE','RESOLUTION_DISPATCH_INTENT','DIGEST_DISPATCH_INTENT']);
+  const localIntent = Symbol('automation local admission');
+  const tx = async (req, action, effect, mode = 'UNSUPPORTED') => {
     const session = runtime.client.startSession();
-    try { return await session.withTransaction(async () => { await auth(req, action, session); await runtime.saasAdmission.unsupported(req.scope, {plantId:req.scope.selectedPlantId,session}); return effect(session); }); }
+    try { return await session.withTransaction(async () => { await auth(req, action, session); if(mode==='READ') await runtime.saasAdmission.authorize(req.scope,{plantId:req.scope.selectedPlantId,session});
+      else if(mode!=='RECEIPTED') await runtime.saasAdmission.unsupported(req.scope, {plantId:req.scope.selectedPlantId,session}); return effect(session); }); }
     finally { await session.endSession(); }
   };
   const audit = async (req, session, action, entityId, result, extra = {}) => {
@@ -83,11 +86,14 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
       try {
         return await tx(req, permission, async session => {
           const previous = await replay(req, session, action, entityId, payload, idem);
-          if (previous) return previous;
+          await recheckOperationSources(req,session,action,entityId,payload,previous);
+          const admission = admittedOperations.has(action) ? await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'automation_audit_logs',key:idem,identity:{tenantId:req.scope.tenantId,idempotencyKey:idem},action:permission,operation:action,aggregateId:entityId,payloadHash:digest(payload),replayed:Boolean(previous)}) : null;
+          const mark=result=>Object.defineProperty(result,localIntent,{value:admission?.state!=='LEGACY_UNENROLLED'});
+          if (previous) return mark(previous);
           const result = await effect(session);
           const row = await audit(req, session, action, entityId, result, { idempotencyKey: idem, payloadHash: digest(payload) });
-          return { ...result, auditId: row._id, idempotencyKey: idem, replayed: false };
-        });
+          return mark({ ...result, auditId: row._id, idempotencyKey: idem, replayed: false });
+        },admittedOperations.has(action)?'RECEIPTED':'UNSUPPORTED');
       } catch (error) { if (error.code !== 11000 || attempt) throw error; }
     }
   };
@@ -101,12 +107,8 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     if (!(p.minutes >= 0 && p.minutes <= 1440)) fail(503, 'INVALID_SLA_POLICY');
     const now = new Date(), limit = 100;
     const tickets = await c(runtime, 'cs_tickets').find(dueTicketFilter(req, now, p.minutes), { session }).sort({ createdAt: 1, _id: 1 }).limit(limit).toArray();
-    for (const ticket of tickets) {
-      const occurrence = `${ticket._id}:${p.version}`;
-      await c(runtime, 'automation_tasks').updateOne({ ...scope(req), kind: 'SLA', occurrence }, { $setOnInsert: { _id: randomUUID(), ...scope(req), kind: 'SLA', occurrence, ticketId: ticket._id, dueAt: new Date(new Date(ticket.createdAt).getTime() + p.minutes * 60000), policyVersion: p.version, policyMinutes: p.minutes, state: 'PENDING', createdAt: new Date() } }, { upsert: true, session });
-    }
     return tickets.filter(t => eligible(t, now));
-  });
+  },'READ');
   const getDraft = async (req, draftId, session) => {
     const draft = await c(runtime, 'cs_resolution_drafts').findOne({ ...scope(req), _id: id(draftId) }, { session });
     if (!draft) fail(404, 'NOT_FOUND');
@@ -185,17 +187,61 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
       return finish(req, delivery, submitted || error.submitted ? 'UNKNOWN' : 'FAILED', null, submitted || error.submitted ? 'SUBMISSION_UNCERTAIN' : 'SMTP_UNAVAILABLE');
     }
   };
-  const buildDigest = async req => {
+  const publishIntent=async(req,result)=>{
+    if(!result[localIntent])return dispatch(req,result.deliveryId);
+    const row=await c(runtime,'cs_outbox').findOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION'});
+    if(!row)fail(409,'DELIVERY_RECEIPT_SOURCE_MISSING');
+    return deliveryView(row);
+  };
+  const recheckOperationSources=async(req,session,action,entityId,payload,previous)=>{
+    if(action==='TICKET_ESCALATE'||action==='RESOLUTION_DRAFT_CREATE'){
+      const ticket=await c(runtime,'cs_tickets').findOneAndUpdate({...scope(req),_id:entityId},{$inc:{automationFence:1}},{session,returnDocument:'after'});
+      if(!ticket)fail(404,'NOT_FOUND');
+      if(action==='RESOLUTION_DRAFT_CREATE')await sourceBinding(req,ticket,session);
+      else if(ticket.bindingId){
+        // SLA escalation has no transport/channel policy; retain the ticket's actual binding authority.
+        const binding=await c(runtime,'cs_contact_bindings').findOneAndUpdate({...scope(req),_id:ticket.bindingId,customerId:ticket.customerId,status:'ACTIVE',$or:[{expiresAt:null},{expiresAt:{$gt:new Date()}}]},{$inc:{automationFence:1}},{session,returnDocument:'after'});
+        if(!binding)fail(409,'SOURCE_BINDING_INELIGIBLE');
+      }
+      if(!previous&&action==='TICKET_ESCALATE'){
+        if(ticket.version!==payload.expectedVersion)fail(409,'VERSION_CONFLICT');
+        if(!eligible(ticket))fail(409,'ELIGIBILITY_CHECK_FAILED');
+      }
+      if(!previous&&action==='RESOLUTION_DRAFT_CREATE'&&(ticket.stage!=='RESOLVED'||ticket.version!==payload.expectedTicketVersion))fail(409,'RESOLVED_TICKET_REQUIRED');
+      if(action==='TICKET_ESCALATE'&&previous){
+        const task=await c(runtime,'automation_tasks').findOne({...scope(req),kind:'SLA',ticketId:entityId,state:'COMPLETED',policyVersion:policy().version,occurrence:`${entityId}:${policy().version}`},{session});
+        const note=await c(runtime,'cs_internal_notes').findOne({...scope(req),_id:previous.noteId,ticketId:entityId},{session});
+        if(!task||!note||!ticket.isEscalated)fail(409,'ESCALATION_SOURCE_CHANGED');
+      }
+      if(action==='RESOLUTION_DRAFT_CREATE'&&previous){
+        const draft=await getDraft(req,previous.draftId,session);
+        if(draft.ticketId!==ticket._id||draft.bindingId!==ticket.bindingId||draft.customerId!==ticket.customerId||draft.approvalHash!==approvedHash(draft))fail(409,'SOURCE_BINDING_CHANGED');
+        await sourceBinding(req,ticket,session,draft.bindingVersion);
+      }
+    }
+    if(action==='RESOLUTION_DISPATCH_INTENT'){
+      const draft=await getDraft(req,entityId,session);
+      if(!['APPROVED','FAILED','DISPATCHED','QUEUED','UNKNOWN'].includes(draft.status))fail(409,'DRAFT_NOT_APPROVED');
+      await checkSource(req,draft,session,true);
+      if(previous)await recheckDelivery(req,session,previous.deliveryId,{draftId:draft._id,ticketId:draft.ticketId,bindingId:draft.bindingId,recipient:draft.recipient,body:draft.proposedResolution,kind:draft.channel==='EMAIL'?'RESOLUTION':'RESOLUTION_PREVIEW'});
+    }
+    if(action==='DIGEST_DISPATCH_INTENT'&&previous)await recheckDelivery(req,session,previous.deliveryId,{recipient:'reports@iems.local',kind:'DIGEST',actionKey:entityId});
+  };
+  const recheckDelivery=async(req,session,deliveryId,expected)=>{
+    const d=await c(runtime,'cs_outbox').findOneAndUpdate({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{$inc:{automationFence:1}},{session,returnDocument:'after'});
+    if(!d||Object.entries(expected).some(([k,v])=>d[k]!==v)||d.contentHash!==hashText(d.body.trim())||d.payloadHash!==digest({to:d.recipient,subject:d.subject,body:d.body}))fail(409,'DELIVERY_RECEIPT_SOURCE_CHANGED');
+  };
+  const buildDigest = async (req, session) => {
     const filter = scope(req), now = new Date(), from = new Date(now.getTime() - 7 * 86400000);
-    const [created, resolved, escalations, count, unassigned, open] = await Promise.all([
-      c(runtime, 'cs_tickets').countDocuments({ ...filter, createdAt: { $gte: from, $lt: now } }),
-      c(runtime, 'cs_tickets').countDocuments({ ...filter, resolvedAt: { $gte: from, $lt: now } }),
-      c(runtime, 'automation_audit_logs').countDocuments({ ...filter, action: 'TICKET_ESCALATE', occurredAt: { $gte: from, $lt: now } }),
-      c(runtime, 'cs_tickets').countDocuments({ ...filter, stage: { $nin: ['RESOLVED', 'CLOSED', 'CANCELLED'] } }),
-      c(runtime, 'cs_tickets').countDocuments({ ...filter, stage: { $in: ['NEW', 'TRIAGED'] }, assigneeId: null }),
-      c(runtime, 'cs_tickets').find({ ...filter, stage: { $nin: ['RESOLVED', 'CLOSED', 'CANCELLED'] } }).sort({ createdAt: 1 }).limit(20).toArray()
-    ]);
-    const overdue = await c(runtime, 'cs_tickets').countDocuments({ ...filter, stage: { $in: ['NEW', 'TRIAGED'] }, assigneeId: null, createdAt: { $lte: new Date(now.getTime() - policy().minutes * 60000) } });
+    const [created, resolved, escalations, count, unassigned, open] = await (async()=>{const rows=[];for(const read of [
+      ()=>c(runtime, 'cs_tickets').countDocuments({ ...filter, createdAt: { $gte: from, $lt: now } }, { session }),
+      ()=>c(runtime, 'cs_tickets').countDocuments({ ...filter, resolvedAt: { $gte: from, $lt: now } }, { session }),
+      ()=>c(runtime, 'automation_audit_logs').countDocuments({ ...filter, action: 'TICKET_ESCALATE', occurredAt: { $gte: from, $lt: now } }, { session }),
+      ()=>c(runtime, 'cs_tickets').countDocuments({ ...filter, stage: { $nin: ['RESOLVED', 'CLOSED', 'CANCELLED'] } }, { session }),
+      ()=>c(runtime, 'cs_tickets').countDocuments({ ...filter, stage: { $in: ['NEW', 'TRIAGED'] }, assigneeId: null }, { session }),
+      ()=>c(runtime, 'cs_tickets').find({ ...filter, stage: { $nin: ['RESOLVED', 'CLOSED', 'CANCELLED'] } }, { session }).sort({ createdAt: 1 }).limit(20).toArray()
+    ])rows.push(await read());return rows;})();
+    const overdue = await c(runtime, 'cs_tickets').countDocuments({ ...filter, stage: { $in: ['NEW', 'TRIAGED'] }, assigneeId: null, createdAt: { $lte: new Date(now.getTime() - policy().minutes * 60000) } }, { session });
     const summary = { periodDays: 7, since: from.toISOString(), until: now.toISOString(), timezone: 'UTC', ticketsCreated: created, ticketsResolved: resolved, escalationsTriggered: escalations, currentlyOpenCount: count, unassignedCount: unassigned, overdueCount: overdue, previewCount: open.length, slaComplianceRatePercent: null, slaMetricState: 'NO_DATA', slaMetricDefinition: 'Compliance is not measured by escalation-to-created ratios' };
     const markdown = `# IEMS CS digest\nUTC window: ${summary.since} to ${summary.until}\nOpen: ${count}\nUnassigned: ${unassigned}\nOverdue: ${overdue}\nCreated: ${created}\nResolved: ${resolved}\nSLA compliance: Not measured\nPreview: first ${open.length} of ${count} open tickets\n${open.map(t => `Ticket #${t.ticketNumber}: ${t.stage}`).join('\n')}`;
     return { summary, markdown, html: `<pre>${markdown.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>` };
@@ -281,13 +327,17 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
   app.post('/api/cs/automation/escalate', async (req, res) => {
     fields(req.body, ['ticketId', 'expectedVersion', 'reason']);
     const ticketId = id(req.body.ticketId), expectedVersion = version(req.body.expectedVersion), reason = text(req.body.reason || 'Unassigned ticket SLA breached', 500);
-    await auth(req, 'cs.automation.execute'); await schedule(req);
+    await auth(req, 'cs.automation.execute');
     const result = await operation(req, 'TICKET_ESCALATE', ticketId, { ticketId, expectedVersion, reason }, async session => {
-      const task = await c(runtime, 'automation_tasks').findOne({ ...scope(req), kind: 'SLA', occurrence: `${ticketId}:${policy().version}`, state: 'PENDING', dueAt: { $lte: new Date() }, policyMinutes: policy().minutes }, { session });
       const ticket = await c(runtime, 'cs_tickets').findOne({ ...scope(req), _id: ticketId }, { session });
       if (!ticket) fail(404, 'NOT_FOUND');
       if (ticket.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
-      if (!task || !eligible(ticket)) fail(409, 'ELIGIBILITY_CHECK_FAILED');
+      if (!eligible(ticket)) fail(409, 'ELIGIBILITY_CHECK_FAILED');
+      const p=policy(); if(!(p.minutes>=0&&p.minutes<=1440))fail(503,'INVALID_SLA_POLICY');
+      const occurrence=`${ticketId}:${p.version}`;
+      await c(runtime,'automation_tasks').updateOne({...scope(req),kind:'SLA',occurrence},{$setOnInsert:{_id:randomUUID(),...scope(req),kind:'SLA',occurrence,ticketId,dueAt:new Date(new Date(ticket.createdAt).getTime()+p.minutes*60000),policyVersion:p.version,policyMinutes:p.minutes,state:'PENDING',createdAt:new Date()}},{session,upsert:true});
+      const task=await c(runtime,'automation_tasks').findOne({...scope(req),kind:'SLA',occurrence,state:'PENDING',dueAt:{$lte:new Date()},policyMinutes:p.minutes},{session});
+      if(!task)fail(409,'ELIGIBILITY_CHECK_FAILED');
       const at = new Date();
       const changed = await c(runtime, 'cs_tickets').updateOne({ ...scope(req), _id: ticketId, version: expectedVersion, stage: { $in: ['NEW', 'TRIAGED'] }, assigneeId: null, assignedUserId: null, isEscalated: { $ne: true } }, { $set: { priority: 'URGENT', isEscalated: true, escalatedAt: at, slaBreached: true, requiresHuman: true, updatedAt: at }, $inc: { version: 1 } }, { session });
       if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
@@ -341,7 +391,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     fields(req.body, []);
     const draftId = id(req.params.id);
     const result = await resolutionIntent(req, draftId);
-    res.json({ data: { ...result, ...await dispatch(req, result.deliveryId) } });
+    res.json({ data: { ...result, ...await publishIntent(req, result) } });
   });
   app.get('/api/cs/automation/digest', async (req, res) => { await auth(req); res.json({ data: await buildDigest(req) }); });
   app.post('/api/cs/automation/digest/dispatch', async (req, res) => {
@@ -354,11 +404,11 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     if (mode === 'WEEKLY' && req.body.periodKey && req.body.periodKey !== week) fail(400, 'INVALID_PERIOD');
     const actionKey = `automation:digest:${req.scope.selectedPlantId}:${mode}:${periodKey}:reports@iems.local`;
     const result = await operation(req, 'DIGEST_DISPATCH_INTENT', actionKey, { mode, periodKey }, async session => {
-      const content = await buildDigest(req);
+      const content = await buildDigest(req, session);
       const delivery = await enqueue(req, session, { actionKey, kind: 'DIGEST', recipient: 'reports@iems.local', subject: `IEMS ${mode === 'DEMO' ? 'demo' : 'weekly'} CS digest ${periodKey}`, body: content.markdown, summary: content.summary });
       return { deliveryId: delivery._id, mode, periodKey };
     });
-    res.json({ data: { ...result, ...await dispatch(req, result.deliveryId) } });
+    res.json({ data: { ...result, ...await publishIntent(req, result) } });
   });
   app.post('/api/cs/automation/digest/record', async (req, res) => { await auth(req, 'cs.automation.execute'); fail(400, 'CALLER_RECEIPT_NOT_TRUSTED', 'Use the authoritative digest dispatch operation'); });
   app.get('/api/cs/automation/deliveries', async (req, res) => { await auth(req); res.json({ data: (await c(runtime, 'cs_outbox').find({ ...scope(req), origin: 'AUTOMATION' }).sort({ createdAt: -1 }).limit(100).toArray()).map(deliveryView) }); });

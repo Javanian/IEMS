@@ -14,7 +14,7 @@ export const admissionReceipts = Object.freeze(Object.fromEntries([
   ['deliveryKeys','payloadHash'], ['fulfillmentReturnKeys','payloadHash'], ['workforceResults','inputHash'],
   ['purchaseOrderAmendmentKeys','payloadHash'], ['procurementRfqKeys','payloadHash'], ['procurementPromiseKeys','payloadHash'],
   ['procurementConversions','payloadHash'], ['quoteCatalogKeys','payloadHash'], ['quoteConversions','payloadHash'], ['companyStockKeys','payloadHash'],
-  ['cs_idempotency','requestHash'], ['documentIssues','contentHash'], ['crmCommandResults','inputHash'], ['legacyQuoteCommandResults','inputHash'], ['procurementCommandResults','inputHash'],
+  ['automation_audit_logs','payloadHash'], ['cs_idempotency','requestHash'], ['documentIssues','contentHash'], ['crmCommandResults','inputHash'], ['legacyQuoteCommandResults','inputHash'], ['procurementCommandResults','inputHash'],
 ].map(([collection,hashField]) => [collection,Object.freeze({collection,hashField})])));
 export const csReceiptPolicies=Object.freeze({
  'inbound.command':{customer:true},'complaint.confirm':{customer:true},'ticket.customer_comment':{customer:true},'conversation.handoff_request':{customer:true},
@@ -60,7 +60,7 @@ export function createSaasAdmission({db,foundation,integrations={},clock=()=>new
     if(fence.matchedCount!==1) fail('SCOPE_DENIED',403);
     if(await subscriptions.findOne({tenantId},{session})) fail('SAAS_ADMISSION_UNSUPPORTED_EFFECT',403);
   }
-  async function effect({scope,grant:supplied,session,namespace,key,action,aggregateId,payloadHash,replayed,identity,parent}) {
+  async function effect({scope,grant:supplied,session,namespace,key,action,aggregateId,payloadHash,replayed,identity,parent,operation}) {
     if(namespace==='cs_idempotency')return operatorCsEffect({scope,session,identity,payloadHash,replayed,action,parent});
     const plantId=supplied?.plantId??scope?.selectedPlantId, authority=await active(scope,{plantId,session});
     if(!authority) return {state:'LEGACY_UNENROLLED',charged:false};
@@ -72,6 +72,12 @@ export function createSaasAdmission({db,foundation,integrations={},clock=()=>new
     const grant=await foundation.authorizeInTransaction(scope,{tenantId:scope.tenantId,plantId,action:permission},{session});
     let filter={tenantId:grant.tenantId,plantId:grant.plantId,...(namespace==='foundationCommandResults'||local?{userId:grant.userId,action}:{}),
       ...(namespace==='workforceResults'?{actorId:grant.userId}:{}),...(namespace==='purchaseOrderAmendmentKeys'?{cohort:'LEGACY'}:{}),key};
+    if(namespace==='automation_audit_logs') {
+      if(!identity||Object.keys(identity).sort().join(',')!=='idempotencyKey,tenantId'||identity.tenantId!==grant.tenantId||identity.idempotencyKey!==key||action!=='cs.automation.execute'||!['TICKET_ESCALATE','RESOLUTION_DRAFT_CREATE','RESOLUTION_DISPATCH_INTENT','DIGEST_DISPATCH_INTENT'].includes(operation))fail('SAAS_ADMISSION_IDENTITY_REQUIRED',400);
+      filter={...identity};
+      const receipt=await db.collection(namespace).findOne(filter,{session});
+      if(receipt&&(receipt.plantId!==grant.plantId||receipt.action!==operation||receipt.targetEntity?.id!==aggregateId))fail('IDEMPOTENCY_CONFLICT');
+    }
     if(namespace==='documentIssues') {
       const fields=['kind','legalEntityId','plantId','sourceId','sourceVersion','tenantId'];
       if(!identity || Object.keys(identity).sort().join(',')!==fields.join(',') || ['tenantId','plantId','legalEntityId'].some(k=>identity[k]!==grant[k]) || !['quote','purchaseRequest','purchaseOrder','catalogPurchaseRequest','catalogPurchaseOrder','invoice','shipment'].includes(identity.kind) || typeof identity.sourceId!=='string' || !identity.sourceId || identity.sourceId.length>100 || !Number.isSafeInteger(identity.sourceVersion) || identity.sourceVersion<1 || action!=='document.issue') fail('SAAS_ADMISSION_IDENTITY_REQUIRED',400);

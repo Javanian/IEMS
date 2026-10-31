@@ -421,6 +421,24 @@
       "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
       "meter": "ONE_COMMAND"
     },
+    "automation_audit_logs": {
+      "filter": [
+        "tenantId",
+        "idempotencyKey"
+      ],
+      "hash": "existing digest(payload)",
+      "hashField": "payloadHash",
+      "hook": "apps/portfolio-api/src/automation.mjs operation/caller session",
+      "actions": [
+        "TICKET_ESCALATE",
+        "RESOLUTION_DRAFT_CREATE",
+        "RESOLUTION_DISPATCH_INTENT",
+        "DIGEST_DISPATCH_INTENT"
+      ],
+      "replay": "current scope/permission, ticket/binding/approval/recipient/outbox proof; original result; zero charge",
+      "meter": "ONE_COMMAND",
+      "separateEffect": "Local enqueue only; sender/worker/engine/reconciliation unsupported"
+    },
     "cs_idempotency": {
       "filter": [
         "tenantId",
@@ -506,14 +524,14 @@
     "packages/scoped-ai/models.mjs",
     "packages/scoped-ai/vendor-drafts.mjs"
   ],
-  "system": "Private reporting relay, authorization/source/read fences, internal job retries and init/index creation are not independent billable user commands. Public job ingress is unsupported.",
+  "system": "Private reporting relay, authorization/source/read fences, internal job retries and init/index creation are not independent billable user commands. Public job ingress owns one foundation receipt with same-session rate consumption.",
   "externalEnrollment": "Any automation_engine_runs history blocks enrollment until authoritative quiescence/reconciliation is designed; an engine HTTP ACK does not prove effects stopped.",
   "sources": {
     "apps/portfolio-api/src/analytics.mjs": "321a9a29dc738b64cac746d7b4123f9cfcaece1c1af643c7b159aac53b007833",
     "apps/portfolio-api/src/app.mjs": "4cf21acce04e1de8ca283334e7cfe19eb75958f910ad4e27abac9f5c77badddb",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
     "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
-    "apps/portfolio-api/src/automation.mjs": "cc99bcaef8bbbab846a36ea8edaa5e785e0373b86f9cb1c33077b021ff9f7fc5",
+    "apps/portfolio-api/src/automation.mjs": "94f06299d84bbb44d30b8cbbf9767bae241e6819bb8d65c0797f1faed5c6707c",
     "apps/portfolio-api/src/business-clock.mjs": "75ac403414331887f6df0e944a7f6f6a0415aa62c4ae62b76124c28adb8f2188",
     "apps/portfolio-api/src/catalog-disposition-state.mjs": "14bdaae9188d604a15ea90ef63b2adf025600b26b3a4af58364ee24f4d99f875",
     "apps/portfolio-api/src/catalog-disposition.mjs": "1835a7e3235460873335e53979a409360f3ffea0d8814e6737317f7ef3dbb49f",
@@ -613,8 +631,8 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/admission.mjs": "4c095bc39ffd2ad626016783ac591071d24b8229826f34cf9bec7c000dfd3fe3",
-    "packages/tenant-lifecycle/index.mjs": "c2ac3dfb7cbea67cdbe41ac12c71255501aae6773ba74e720cc0e21bb0c2fa53",
+    "packages/tenant-lifecycle/admission.mjs": "4c812b0e0e392311c54bd7d884c0f1d6e95e1c3f453616b09e8c35396c12d289",
+    "packages/tenant-lifecycle/index.mjs": "7a74707b63d4d219611894884ae025aa88062e29aba4c0b5c5ebb679a0ca3eb0",
     "packages/tenant-lifecycle/domain-port.mjs": "48787a3e8928573328259a0bfef8bdf05ef183c4dd813a0175dff62c70131a36",
     "packages/tenant-lifecycle/admission-registry.mjs": "292fefe68375039b69c04cf3850e3413eb26934f02308e0e67fd8208cdbe1ca6"
   },
@@ -906,9 +924,9 @@
     },
     {
       "route": "GET /api/cs/automation/sla-breaches",
-      "state": "LOCAL_COVERAGE_PENDING",
+      "state": "READ",
       "meter": "NONE",
-      "note": "GET schedules automation tasks in the existing transaction; rejects enrolled tenants."
+      "note": "Bounded eligibility observation; no task scheduling or business writes."
     },
     {
       "route": "GET /api/cs/automation/status",
@@ -1840,103 +1858,107 @@
       "route": "POST /api/cs/automation/deliveries/:id/review",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/automation/digest/dispatch",
-      "state": "LOCAL_COVERAGE_PENDING",
-      "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
     },
     {
       "route": "POST /api/cs/automation/digest/record",
-      "state": "LOCAL_COVERAGE_PENDING",
+      "state": "REJECTED_COMMAND",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "Always rejects caller delivery receipts/alternate handoff; no business effect."
     },
     {
       "route": "POST /api/cs/automation/engine-error",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/automation/escalate",
-      "state": "LOCAL_COVERAGE_PENDING",
-      "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
     },
     {
       "route": "POST /api/cs/automation/pause",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/automation/recheck",
-      "state": "LOCAL_COVERAGE_PENDING",
+      "state": "READ",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "Bounded eligibility observation; no task scheduling or business writes."
     },
     {
       "route": "POST /api/cs/automation/reconcile",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/automation/resolution-draft",
-      "state": "LOCAL_COVERAGE_PENDING",
-      "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/approve",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/cancel",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/dispatch",
-      "state": "LOCAL_COVERAGE_PENDING",
-      "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/reject",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/automation/run/:workflowId",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/automation/service-credentials",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/automation/service-credentials/:id/revoke",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/automation/whatsapp-handoff",
-      "state": "LOCAL_COVERAGE_PENDING",
+      "state": "REJECTED_COMMAND",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "Always rejects caller delivery receipts/alternate handoff; no business effect."
     },
     {
       "route": "POST /api/cs/bindings",
@@ -1960,7 +1982,7 @@
       "route": "POST /api/cs/conversations/:id/reply",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/conversations/:id/takeover",
@@ -1978,7 +2000,7 @@
       "route": "POST /api/cs/simulator/dispatch",
       "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
     },
     {
       "route": "POST /api/cs/simulator/inbound",
