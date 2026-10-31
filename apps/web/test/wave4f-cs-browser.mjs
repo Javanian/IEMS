@@ -195,16 +195,29 @@ export async function csOnboardingJourney(ctx) {
   const reader = ctx.runtime.customerServiceOrderReader;
   assert.equal(typeof reader?.readCustomerOrder, 'function');
   let timeoutReads = 0;
-  ctx.runtime.customerServiceOrderReader = { async readCustomerOrder() { timeoutReads++; await new Promise(resolve => setTimeout(resolve, 2200)); return null; } };
+  const requests = [], countEffects = () => Promise.all(['cs_inbound', 'cs_outbox', 'cs_idempotency', 'cs_conversations'].map(name => db.collection(name).countDocuments({})));
+  const beforeTimeout = await countEffects(), exchangeCount = await exchanges();
+  const observeInquiry = event => {
+    if (event.method === 'Network.requestWillBeSent' && event.params.request.method === 'POST' && event.params.request.url.endsWith('/api/cs/simulator/inbound')) requests.push(JSON.parse(event.params.request.postData));
+  };
+  ctx.listeners.add(observeInquiry);
   try {
-    const unavailable = await send(`IEMS ORDER ${so.orderNumber}`);
-    assert.match(unavailable.text, /Status unavailable/i);
-    assert.doesNotMatch(unavailable.body || '', new RegExp(so.orderNumber));
-    assert.ok(timeoutReads > 0, 'The currently registered reader must exercise the timeout');
-  } finally { ctx.runtime.customerServiceOrderReader = reader; }
-  const recovered = await send(`IEMS ORDER ${so.orderNumber}`);
-  assert.equal(recovered.state, 'PREVIEWED'); assert.ok(recovered.body.includes(so.orderNumber));
-  check('W4F-C7 native reader timeout returns unavailable with no order disclosure; separate new inquiry after reader recovery renders actual manufacture preview');
+    ctx.runtime.customerServiceOrderReader = { async readCustomerOrder() { timeoutReads++; await new Promise(resolve => setTimeout(resolve, 2200)); return null; } };
+    try {
+      await fillIn(SIM, 'simulatorText', `IEMS ORDER ${so.orderNumber}`); await clickIn(SIM, 'Send simulated message');
+      await wait(`document.querySelector('${SIM}').innerText.includes('STATUS_UNAVAILABLE') && [...document.querySelectorAll('${SIM} button')].some(b=>b.textContent==='Retry same request'&&!b.disabled)`, 'current reader timeout offers same-key retry');
+      assert.equal(await exchanges(), exchangeCount, 'Unavailable source creates no public preview');
+      assert.deepEqual(await countEffects(), beforeTimeout, 'Unavailable source commits no inbound/outbox/receipt/conversation');
+      assert.ok(timeoutReads > 0, 'The currently registered reader must exercise the timeout');
+    } finally { ctx.runtime.customerServiceOrderReader = reader; }
+    await clickIn(SIM, 'Retry same request');
+    await wait(`document.querySelectorAll('.pf-exchange').length===${exchangeCount + 1}`, 'same inquiry recovers after current reader restoration');
+    const recovered = await evaluate(`(()=>{const x=document.querySelector('.pf-exchange');return {body:x.querySelector('.pf-preview-body')?.textContent,state:x.querySelector('[data-delivery-state]')?.dataset.deliveryState}})()`);
+    assert.equal(recovered.state, 'PREVIEWED'); assert.ok(recovered.body.includes(so.orderNumber));
+    assert.equal(requests.length, 2); assert.deepEqual(requests[1], requests[0], 'Recovery retries the original inbound key and body');
+    assert.equal(await inbound(), beforeTimeout[0] + 1);
+  } finally { ctx.listeners.delete(observeInquiry); }
+  check('W4F-C7 active reader timeout returns STATUS_UNAVAILABLE with zero effects/disclosure; same-key browser retry after recovery renders actual manufacture preview once');
   const manufacturing = await db.collection('manufacturingWorkOrders').find({ tenantId: so.tenantId, status: 'RELEASED' }).toArray();
   let manufactureOnly;
   for (const wo of manufacturing) {
