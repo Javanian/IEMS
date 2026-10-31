@@ -56,7 +56,9 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
   const tx = async (req, kind, effect) => {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
-      await guard(runtime, req, session, req.procurementAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+      await guard(runtime, req, session, req.procurementAction);
+      const receipted=kind.startsWith('purchaseOrder.amendment.')||['purchaseRequest.rfq','purchaseRequest.rfq-response','purchaseOrder.vendor-promise','purchaseRequest.convert'].includes(kind);
+      if(!receipted) await runtime.saasAdmission.unsupported(req.scope,{plantId:req.scope.selectedPlantId,session});
       const result = await effect(session);
       if (!result.replay) {
         const event = { ...req.filter, kind, subjectId: result._id, version: result.version, userId: req.scope.userId, occurredAt: new Date() };
@@ -76,7 +78,10 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
     const payloadHash = createHash('sha256').update(JSON.stringify([operation, req.params, input])).digest('hex');
     const data = await tx(req, `purchaseOrder.amendment.${operation}`, async session => {
       const prior = await c('purchaseOrderAmendmentKeys').findOne({ ...req.filter, cohort: 'LEGACY', key }, { session });
-      if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return { ...prior.result, replay: true }; }
+      if(prior && prior.payloadHash!==payloadHash) fail(409,'IDEMPOTENCY_CONFLICT');
+      const sourceOrder=await find('purchaseOrders',req,req.params.id,session); await find('vendors',req,sourceOrder.vendorId,session);
+      await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'purchaseOrderAmendmentKeys',key:key,action:req.procurementAction,payloadHash,replayed:Boolean(prior)});
+      if(prior) return {...prior.result,replay:true};
       const row = await find('purchaseOrders', req, req.params.id, session), previous = row.version;
       await find('vendors', req, row.vendorId, session);
       const build = async lines => {
@@ -141,7 +146,9 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
       const row = await find('purchaseRequests', req, req.params.id, session);
       await find('vendors', req, row.vendorId, session);
       const prior = await c('procurementRfqKeys').findOne({ ...req.filter, key }, { session });
-      if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return { ...prior.data, replay: true }; }
+      if(prior && prior.payloadHash!==payloadHash) fail(409,'IDEMPOTENCY_CONFLICT');
+      await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'procurementRfqKeys',key:key,action:req.procurementAction,payloadHash,replayed:Boolean(prior)});
+      if(prior) return {...prior.data,replay:true};
       if (row.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (row.status !== 'DRAFT') fail(409, 'STATE_CONFLICT');
       row.lineIds ||= row.snapshot.lines.map(() => randomUUID());
@@ -184,10 +191,12 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
       const prior = await c('procurementPromiseKeys').findOne({ ...req.filter, key }, { session });
       if (prior) {
         if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+        await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'procurementPromiseKeys',key:key,action:req.procurementAction,payloadHash,replayed:true});
         return { ...prior.data, replay: true };
       }
       if (row.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (!['ISSUED', 'CONFIRMED'].includes(row.status)) fail(409, 'STATE_CONFLICT');
+      await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'procurementPromiseKeys',key:key,action:req.procurementAction,payloadHash,replayed:false});
       const promise = { _id: randomUUID(), vendorId, promisedAt: new Date(promisedAt), reference: reference.trim(), reason: reason.trim(), recordedAt: new Date(), recordedBy: req.scope.userId, source: 'OPERATOR_RECORDED', previousPromiseId: row.promiseHistory?.at(-1)?._id || null };
       row.promiseHistory = [...(row.promiseHistory || []), promise];
       row.promisedAt = promise.promisedAt;
@@ -212,7 +221,7 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
         const row = await find(collection, req, req.params.id, session);
         if (operation === 'convert') {
           const prior = await c('procurementConversions').findOne({ ...req.filter, key: idempotencyKey }, { session });
-          if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return { ...await find('purchaseOrders', req, prior.orderId, session), replay: true }; }
+          if(prior) { if(prior.payloadHash!==payloadHash) fail(409,'IDEMPOTENCY_CONFLICT'); const order=await find('purchaseOrders',req,prior.orderId,session); await find('vendors',req,row.vendorId,session); await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'procurementConversions',key:idempotencyKey,action:req.procurementAction,payloadHash,replayed:true}); return {...order,replay:true}; }
         }
         if (row.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
         await find('vendors', req, row.vendorId, session);
@@ -221,6 +230,7 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
         let order;
         if (operation === 'approve') { row.approval = { snapshot: structuredClone(row.snapshot), approvedBy: req.scope.userId, approvedAt: new Date() }; row.status = 'APPROVED'; }
         if (operation === 'convert') {
+          await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'procurementConversions',key:idempotencyKey,action:req.procurementAction,payloadHash,replayed:false});
           order = { ...base(req), requestId: row._id, vendorId: row.vendorId, snapshot: structuredClone(row.approval.snapshot), status: 'DRAFT', ...(row.lineIds ? { lineIds: [...row.lineIds] } : {}), ...(row.selectedRfqResponseId ? { selectedRfqResponseId: row.selectedRfqResponseId } : {}) };
           await c('purchaseOrders').insertOne(order, { session });
           await c('procurementConversions').insertOne({ _id: randomUUID(), ...req.filter, key: idempotencyKey, payloadHash, requestId: row._id, orderId: order._id }, { session });

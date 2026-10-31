@@ -50,11 +50,12 @@ export function installWorkforce(app, runtime, helpers, { pepper, devices = {}, 
     const inputHash = digest(contentHash({ path: req.path, body: b }));
     return boundedTransaction(runtime.client, async session => {
       await authorize(req, session); await subject(runtime, req.filter, operatorId, session);
-      await runtime.saasAdmission.unsupported(req.scope, {plantId:req.scope.selectedPlantId,session});
       await beforeReplay(session, operatorId);
       const key = { ...req.filter, actorId: req.scope.userId, key: b.idempotencyKey };
       const previous = await db.collection('workforceResults').findOne(key, { session });
-      if (previous) { if (previous.inputHash !== inputHash) reject(409, 'IDEMPOTENCY_CONFLICT'); return previous.result; }
+      if(previous && previous.inputHash!==inputHash) reject(409,'IDEMPOTENCY_CONFLICT');
+      await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'workforceResults',key:b.idempotencyKey,action:req.workforceAction,payloadHash:inputHash,replayed:Boolean(previous)});
+      if(previous) return previous.result;
       const result = await effect(session, operatorId);
       await db.collection('workforceResults').insertOne({ _id: randomUUID(), ...key, inputHash, result }, { session });
       const event = { _id: randomUUID(), ...req.filter, action: req.workforceAction, resourceId: operatorId, actorId: req.scope.userId, occurredAt: businessNow(runtime).toISOString(), version: result.version, outcome: result.status ?? 'SAVED' };

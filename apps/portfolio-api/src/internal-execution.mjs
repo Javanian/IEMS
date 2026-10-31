@@ -74,11 +74,14 @@ export function installInternalExecution(app, runtime, { guard, fields, id }) {
     for (let attempt = 0; ; attempt++) {
       const session = runtime.client.startSession();
       try { return await session.withTransaction(async () => {
-        await guard(runtime, req, session, req.executionAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+        await guard(runtime, req, session, req.executionAction);
         const authority = req.params.id ? await c('internalExecutions').findOne({ ...req.filter, _id: id(req.params.id) }, { session }) : null, prior = await c('internalExecutionKeys').findOne({ ...req.filter, key }, { session });
         const companyCohort = row => row?.schema === 'INTERNAL_EXECUTION_V2' && row.materials?.some(material => material.sourceKind === 'COMPANY_OUTPUT');
-        if (companyCohort(authority) || companyCohort(prior?.result) || req.body.sourceKind === 'COMPANY_OUTPUT') await guard(runtime, req, session, req.executionAction === 'internal.execution.create' ? 'company.stock.read' : req.executionAction === 'internal.execution.reserve' ? 'company.stock.reserve' : 'company.stock.issue'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
-        if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+        if (companyCohort(authority) || companyCohort(prior?.result) || req.body.sourceKind === 'COMPANY_OUTPUT') await guard(runtime, req, session, req.executionAction === 'internal.execution.create' ? 'company.stock.read' : req.executionAction === 'internal.execution.reserve' ? 'company.stock.reserve' : 'company.stock.issue');
+        if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+        if(prior) { if(req.params.id) await context(req,session); else await requireInternalExecutionDemand(db,req.filter,body.internalOrderId,body.expectedOrderVersion,body.engineeringRevision,await owner(req,session),session,true); }
+        await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'internalExecutionKeys',key:key,action:req.executionAction,payloadHash:payloadHash,replayed:Boolean(prior)});
+        if(prior) return prior.result;
         const current = req.params.id ? await context(req, session) : null; if (current && current.head.version !== body.expectedVersion) fail(409, 'VERSION_CONFLICT');
         const result = await effect(current, body.reason.trim(), session), event = { ...req.filter, executionId: result._id, sourceReceiptIds: result.sourceReceiptIds, ...(result.companySourceReceiptIds ? { companySourceReceiptIds: result.companySourceReceiptIds } : {}), version: result.version, kind, recordedBy: req.scope.userId, recordedAt: new Date() };
         await c('internalExecutionAudit').insertOne({ _id: randomUUID(), ...event }, { session }); await c('internalExecutionOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session }); await c('internalExecutionKeys').insertOne({ _id: randomUUID(), ...req.filter, executionId: result._id, sourceReceiptIds: result.sourceReceiptIds, ...(result.companySourceReceiptIds ? { companySourceReceiptIds: result.companySourceReceiptIds } : {}), key, payloadHash, result }, { session }); return result;

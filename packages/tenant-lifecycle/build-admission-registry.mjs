@@ -12,6 +12,7 @@ const wrappers={
   fulfillmentKeys:{filter:['tenantId','plantId','key'],hash:'existing canonical({kind,payload}) SHA256',hook:'apps/portfolio-api/src/fulfillment.mjs',replay:'purchased/manufactured/deposit/invoice posting validators retained before admission'},
 };
 for(const prefix of ['quality','maintenance','operations']) wrappers[`${prefix}Keys`]={filter:['tenantId','plantId','key'],hash:'existing stockHash({action,params,body}); operations retains original actor-to-key contentHash',hook:'apps/portfolio-api/src/quality.mjs',replay:'current host/helper source authorization',nested:'one scopedModule receipt including voice; no independently charged child'};
+Object.assign(wrappers,JSON.parse(await readFile(new URL('./receipt-contracts-v6.json',import.meta.url),'utf8')));
 function classify(route) {
  const [method,path]=route.split(' ');
  if(path.startsWith('/api/session/'))return {state:'AUTH_RECOVERY',meter:'NONE'};
@@ -25,6 +26,26 @@ function classify(route) {
  if(path.startsWith('/api/repair/quality/'))receipt='qualityKeys';
  if(path.startsWith('/api/repair/maintenance/'))receipt='maintenanceKeys';
  if(path.startsWith('/api/operations/'))receipt='operationsKeys';
+ if(path.startsWith('/api/repair/')&&!path.startsWith('/api/repair/quality/')&&!path.startsWith('/api/repair/maintenance/'))receipt='repairKeys';
+ if(path.startsWith('/api/inventory-master/')||path.startsWith('/api/internal-production/'))receipt='internalPlanningKeys';
+ if(path.startsWith('/api/internal-execution/'))receipt='internalExecutionKeys';
+ if(path.startsWith('/api/warehouse/')&&path.includes('/holds'))receipt='stockHoldKeys';
+ if(path.startsWith('/api/commercial/inquiries'))receipt='inquiryKeys';
+ if(path.startsWith('/api/procurement/material-shortages')||path==='/api/procurement/requests/from-shortage')receipt='materialShortageKeys';
+ if(path.startsWith('/api/catalog-procurement/'))receipt='catalogKeys';
+ if(path.startsWith('/api/catalog-disposition/'))receipt='catalogDispositionKeys';
+ if(path.startsWith('/api/purchased-fulfillment/'))receipt='purchasedFulfillmentKeys';
+ if(path.startsWith('/api/deliveries/'))receipt=path.endsWith('/returns')?'fulfillmentReturnKeys':'deliveryKeys';
+ if(path.startsWith('/api/workforce/'))receipt='workforceResults';
+ if(path.startsWith('/api/company-stock/'))receipt='companyStockKeys';
+ if(path.startsWith('/api/procurement/')) {
+  if(path.includes('/amendments'))receipt='purchaseOrderAmendmentKeys';
+  if(/\/rfq(?:-response)?$/.test(path))receipt='procurementRfqKeys';
+  if(path.endsWith('/vendor-promise'))receipt='procurementPromiseKeys';
+  if(path.endsWith('/convert')&&!path.includes('/material-shortages/'))receipt='procurementConversions';
+ }
+ if(path.startsWith('/api/commercial/quotes'))return {state:'CONDITIONAL_RECEIPTED',receipt:['quoteCatalogKeys',...(path.endsWith('/convert')?['quoteConversions']:[])],condition:'Typed CATALOG_QUOTE_V1 with existing key; legacy convert uses its original receipt. Nonreceipted legacy create/change remains UNSUPPORTED.',meter:'ONE_COMMAND'};
+
  if(path.startsWith('/api/portals/')||['/api/ai/documents/:id','/api/ai/documents/:id/publish','/api/ai/documents/:id/revoke','/api/ai/documents/:id/index/revoke','/api/ai/models/select'].includes(path)||/^\/api\/ai\/vendor-drafts\/[^/]+\/(create|preview|approve|revoke|intent)$/.test(path))receipt='foundationCommandResults';
  if(['/api/ai/retrieve','/api/ai/predictions','/api/ai/cs-intent','/api/ai/assistant'].includes(path))return {state:'ADVISORY_READ',meter:'NONE',note:'No business write; source/authorization fences retained. Provider availability/cost separately gated.'};
  return receipt?{state:'RECEIPTED',receipt,meter:'ONE_COMMAND',nested:'Children inherit wrapper session; separately committed foundation command is independent'}:{state:'UNSUPPORTED',meter:'NONE',note:'No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier.'};

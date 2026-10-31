@@ -84,8 +84,11 @@ export function installCatalogDisposition(app, runtime, { guard, fields, id }) {
     for (let attempt = 0; ; attempt++) {
       const session = runtime.client.startSession();
       try { return await session.withTransaction(async () => {
-        await guard(runtime, req, session, req.dispositionAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
-        const prior = await c('catalogDispositionKeys').findOne({ ...req.filter, key }, { session }); if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+        await guard(runtime, req, session, req.dispositionAction);
+        const prior = await c('catalogDispositionKeys').findOne({ ...req.filter, key }, { session }); if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+        if(prior) await context(req,session);
+        await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'catalogDispositionKeys',key:key,action:req.dispositionAction,payloadHash:payloadHash,replayed:Boolean(prior)});
+        if(prior) return prior.result;
         const current = await context(req, session);
         if ((current.head?.version || 1) !== body.expectedVersion || current.receipt.version !== body.expectedReceiptVersion) fail(409, 'VERSION_CONFLICT');
         const result = await effect(current, body.reason.trim(), session), event = { ...req.filter, kind, receiptId: result.receiptId, version: result.version, receiptVersion: result.receiptVersion, recordedBy: req.scope.userId, recordedAt: new Date() };

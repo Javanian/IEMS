@@ -1,5 +1,12 @@
 # PLAT-038 bounded receipt profile and tenant data port
 
+V6 continuation: nineteen additional existing receipt namespaces and twenty-one
+actual wrapper cases are implemented; the registry now has26 namespaces,395
+routes (161 RECEIPTED,5 CONDITIONAL_RECEIPTED,44 UNSUPPORTED),105 full source
+pins. See ops/pilot/PLAT-038-V6-RECEIPTS.md and the exact contract proposals in
+ops/pilot/PLAT-038-V6-LOCAL-GAPS.md. Whole PLAT-038 remains incomplete pending
+the missing local contracts; no full-endpoint claim. Final focused suite35/35 PASS.
+
 Status: IMPLEMENTED_QA_PENDING for REGISTERED_MONGO_BUSINESS_GRAPH_V1 and
 RECEIPTED_COMMANDS_V1. This replaces the earlier UNWIRED integration guidance.
 It does not implement a full-endpoint admission profile or certify cloud/live use.
@@ -36,12 +43,16 @@ A future adapter/quiescence contract is required to enable those configurations.
 ## Receipt and metering contract
 
 admission-registry.json is the committed route/transaction/constructor registry.
-Seven receipt collections are supported: foundationCommandResults, manufacturingKeys,
-warehouseKeys, fulfillmentKeys, qualityKeys, maintenanceKeys and operationsKeys.
+Twenty-six receipt namespaces are enumerated in the registry. The seven v5
+namespaces are preserved. V6 adds repair/internal planning/execution, stock holds,
+inquiries/shortages, catalog/disposition/purchased fulfillment, delivery/returns,
+workforce, legacy procurement receipts, typed quotes/legacy quote conversion and
+company stock holds. Workforce retains actorId and original HMAC inputHash;
+legacy amendments retain cohort:LEGACY. No caller-supplied identity dimensions.
 Each retains its original filter, key and payload digest. Foundation identity is
 exactly tenant/plant/user/action/key, with the existing aggregate-bound inputHash.
-Other supported wrappers retain tenant/plant/key; operations retains its original
-actor-derived key. No actor/aggregate dimension or receipt hash is invented.
+Other supported wrappers retain tenant/plant/key, except the existing workforce
+actorId and amendment cohort filters; operations retains its original actor-derived key. No actor/aggregate dimension or receipt hash is invented.
 
 The callback follows current domain authorization, lookup and hash comparison.
 Replay retains existing source validators and reauthorizes current SaaS use with
@@ -54,16 +65,19 @@ Concurrent enrollment, suspension and quota contend through tenant/subscription
 writes. Existing bounded domain transaction retry/unknown-commit behavior remains.
 An exhausted transient retry may require reconciliation using the exact same key.
 
-CRM/commercial/procurement/documents, repair-case operations, internal production,
-purchased fulfillment, delivery, stock holds, workforce, customer service,
-automation, public job ingress and AI indexing rebuild/cleanup or vendor dispatch/
-reconciliation are explicitly UNSUPPORTED for enrolled tenants. They retain legacy
-behavior for unenrolled tenants. Some advisory POST operations are read-only and
-unmetered. GET automation SLA scheduling is a mutation and is also unsupported.
-The registry identifies each actual route, including inherited helpers and system
-read/source fences. Internal job retries/private reporting are not new billable
-user commands. Full endpoint receipt coverage remains NOT_YET_IMPLEMENTED and
-requires a further owner/receipt allocation through existing TPR-153.
+The remaining nonreceipted synchronous local writes are standalone CRM, legacy
+quote create/change without a typed receipt, vendor/request creation and unkeyed
+procurement approval/issue/confirmation. Typed quotes and existing legacy
+convert/amendment/RFQ/promise receipts are now admitted at their actual boundaries.
+Document publication already has source-version receipt authority but uses an
+independent renderer transaction; it remains unsupported until a caller-session
+renderer port is allocated. Exact proposed contracts and required paths are in
+PLAT-038-V6-LOCAL-GAPS.md and TPR-148's local-receipt-gaps document, sent to153.
+Private customer-service/automation, job ingress and external AI mutations remain
+explicit pending coverage. Some already have receipts; they are not mislabeled
+nonreceipted or external merely because this profile does not yet admit them.
+GET automation scheduling is unsupported; advisory read-only POSTs are unmetered.
+Non-enrolled compatibility, admin recovery and all earlier external gates remain.
 
 Usage is command-count quota, not SaaS payment collection or tenant finance.
 storageBytes is a cumulative explicitly admitted byte metric per UTC month, not
@@ -153,3 +167,5 @@ states; no new palette, typography or motion. Visual/mobile/contrast/click-throu
 acceptance is deferred by the Board's final-QA policy, not claimed PASS.
 Cloud/provider/live environment, spend, production migration, public push/merge
 and deployment remain unperformed and separately gated.
+
+V6 verification: node --test --test-concurrency=1 packages/tenant-lifecycle/receipt-wrappers-v6.test.mjs packages/tenant-lifecycle/admission.test.mjs packages/tenant-lifecycle/domain-port.test.mjs:35 PASS/0 FAIL/0 SKIP, exit0. Each of21 representative wrapper cases uses actual source API fixtures and marker-owned Mongo; quota/receipt-validator abort/once/hash conflict/saas.use revocation/replay are checked with scoped data and usage assertions. No stub domain receipt is used. Earlier v6 first run failed two test fixture assumptions (hold status201 and no-change amendment); preserved log, domain validators unchanged. Some earlier fixture cleanup logs include ECONNRESET; no claim it is a product acceptance PASS. Full independent QA remains NOT_RUN.

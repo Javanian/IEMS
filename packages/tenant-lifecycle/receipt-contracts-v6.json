@@ -1,0 +1,272 @@
+{
+  "repairKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "SHA256(JSON.stringify(canonical({kind,id,bodyWithoutKey})))",
+    "hashField": "payloadHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/repair.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "internalPlanningKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "stockHash({kind,resource,body})",
+    "hashField": "payloadHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/internal-production.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "internalExecutionKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "stockHash({kind,resource,body})",
+    "hashField": "payloadHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/internal-execution.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "stockHoldKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "SHA256(JSON.stringify(canonical({operation,subjectId,request})))",
+    "hashField": "requestHash",
+    "response": "status/body",
+    "hook": "apps/portfolio-api/src/stock-holds.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "inquiryKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "create:SHA256(JSON.stringify(body));change:SHA256(JSON.stringify({operation,id,body}))",
+    "hashField": "payloadHash",
+    "response": "data",
+    "hook": "apps/portfolio-api/src/inquiries.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "materialShortageKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "stockHash({operation,resource,bodyWithTrimmedReason})",
+    "hashField": "payloadHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/material-shortages.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "catalogKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "stockHash({kind,resource,body})",
+    "hashField": "payloadHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/catalog-procurement.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "catalogDispositionKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "stockHash({kind,resource,body})",
+    "hashField": "payloadHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/catalog-disposition.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "purchasedFulfillmentKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "stockHash({kind,orderId,body})",
+    "hashField": "payloadHash",
+    "response": "result (domain command proof)",
+    "hook": "apps/portfolio-api/src/purchased-fulfillment.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "deliveryKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "stockHash({path,body})",
+    "hashField": "payloadHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/delivery.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "fulfillmentReturnKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "stockHash({shipmentId,body})",
+    "hashField": "payloadHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/delivery.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "workforceResults": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "actorId",
+      "key"
+    ],
+    "actorId": "grant.userId",
+    "hash": "HMAC-SHA256(existing pepper,contentHash({path,body}))",
+    "hashField": "inputHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/workforce.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "purchaseOrderAmendmentKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "cohort",
+      "key"
+    ],
+    "cohort": "LEGACY",
+    "hash": "SHA256(JSON.stringify([operation,params,input]))",
+    "hashField": "payloadHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/procurement.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "procurementRfqKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "SHA256(JSON.stringify([operation,id,body]))",
+    "hashField": "payloadHash",
+    "response": "data",
+    "hook": "apps/portfolio-api/src/procurement.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "procurementPromiseKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "SHA256(JSON.stringify([id,expectedVersion,vendorId,promisedAt,reference,reason]))",
+    "hashField": "payloadHash",
+    "response": "data",
+    "hook": "apps/portfolio-api/src/procurement.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "procurementConversions": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "SHA256(JSON.stringify({requestId,expectedVersion}))",
+    "hashField": "payloadHash",
+    "response": "orderId -> scoped purchaseOrders",
+    "hook": "apps/portfolio-api/src/procurement.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "quoteCatalogKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "existing quoteCatalogPayloadHash({kind,quoteId?,body})",
+    "hashField": "payloadHash",
+    "response": "result/resultHash -> quoteCatalogReplay",
+    "hook": "apps/portfolio-api/src/commercial.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "quoteConversions": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "SHA256(JSON.stringify({quoteId,expectedVersion,revision}))",
+    "hashField": "payloadHash",
+    "response": "orderId -> scoped salesOrders",
+    "hook": "apps/portfolio-api/src/commercial.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  },
+  "companyStockKeys": {
+    "filter": [
+      "tenantId",
+      "plantId",
+      "key"
+    ],
+    "hash": "stockHash({action,companyReceiptId,body})",
+    "hashField": "payloadHash",
+    "response": "result",
+    "hook": "apps/portfolio-api/src/company-stock.mjs",
+    "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+    "meter": "ONE_COMMAND",
+    "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+  }
+}

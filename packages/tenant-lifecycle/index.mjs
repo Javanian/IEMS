@@ -82,8 +82,8 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
         const row = await rows.findOne({tenantId:grant.tenantId},{session});
         return {schema:'SAAS_STATUS_V1',subscription:row ? clean(current(row)) : null,plans,
           admission:{profile:'RECEIPTED_COMMANDS_V1',fullEndpointCoverage:false,
-            supported:'Manufacturing, inventory receipt commands, fulfillment posting, quality, maintenance, operations and selected document, model and portal commands.',
-            unsupported:'CRM, commercial, procurement, repair cases, internal production, purchased fulfillment, delivery, stock holds, workforce, customer service, automation, job ingress, AI indexing rebuild/cleanup and AI delivery dispatch/reconciliation.',
+            supported:'Receipt-backed manufacturing, repair, internal production, inventory and stock holds, inquiries, shortages, catalog procurement/disposition, purchased fulfillment, delivery/returns, workforce, operations and selected quote, procurement, document, model and portal commands.',
+            unsupported:'Standalone CRM writes, legacy quotes without an existing receipt, vendor/request creation and unkeyed procurement changes, document issue publication, customer service/automation, job ingress, AI indexing rebuild/cleanup and AI delivery dispatch/reconciliation.',
             enrollmentBoundary:'Enrollment blocks unsupported business mutations. Existing automation engine history prevents enrollment until authoritative quiescence can be established.'},
           domainLifecycleConfigured:!!domainPort, billing:'SAAS_METERING_ONLY_NO_PAYMENT_COLLECTION',
           boundary:'Tenant invoices are separate. Delete is a reversible archive workflow, not certified erasure. Domain effects require a complete authoritative transactional port.'};

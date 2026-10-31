@@ -175,9 +175,12 @@ export function installInternalPlanning(app, runtime, { guard, fields, id }) {
     for (let attempt = 1; ; attempt++) {
       const session = runtime.client.startSession();
       try { return await session.withTransaction(async () => {
-        await guard(runtime, req, session, req.planningAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+        await guard(runtime, req, session, req.planningAction);
         const prior = await c('internalPlanningKeys').findOne({ ...scope(req), key }, { session });
-        if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+        if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+        if(prior) { const type=req.route.path.includes('/items')?'ITEM':req.route.path.includes('/locations')?'LOCATION':'ORDER'; await view(type,req,await find(type,req,prior.result._id,session),session); }
+        await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'internalPlanningKeys',key:key,action:req.planningAction,payloadHash:payloadHash,replayed:Boolean(prior)});
+        if(prior) return prior.result;
         const legalEntityId = await owner(req, session), result = await effect(session, reason, legalEntityId);
         const event = { _id: randomUUID(), ...scope(req), kind, subjectId: result._id, version: result.version, recordedBy: req.scope.userId, recordedAt: new Date() };
         await c('internalPlanningAudit').insertOne(event, { session }); await c('internalPlanningOutbox').insertOne({ ...event, _id: randomUUID(), state: 'PENDING' }, { session });

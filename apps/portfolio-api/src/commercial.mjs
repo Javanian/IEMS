@@ -65,7 +65,9 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
   const tx = async (req, kind, effect) => {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
-      await guard(runtime, req, session, req.commercialAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+      await guard(runtime, req, session, req.commercialAction);
+      const receipted=kind==='quote.created'?Object.hasOwn(req.body,'schema'):req.body.idempotencyKey!==undefined;
+      if(!receipted) await runtime.saasAdmission.unsupported(req.scope,{plantId:req.scope.selectedPlantId,session});
       const result = await effect(session);
       if (!result.replay) {
         const event = { ...req.filter, userId: req.scope.userId, kind, subjectId: result._id, version: result.version, occurredAt: new Date() };
@@ -116,15 +118,16 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
     const data = await tx(req, 'quote.created', async session => {
       if (typed) {
         const prior = await quoteCatalogReplay(runtime.db, req.filter, key, payloadHash, session);
-        if (prior) return prior;
+        if(prior) { await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'quoteCatalogKeys',key:key,action:req.commercialAction,payloadHash,replayed:true}); return prior; }
         if (await c('quoteConversions').findOne({ ...req.filter, key }, { session })) fail(409, 'IDEMPOTENCY_CONFLICT');
       }
       if (!await c('accounts').findOne({ ...req.filter, _id: accountId }, { session })) fail(404, 'NOT_FOUND');
       let revision = validate(typed ? { ...req.body, lines: input.map(line => line.financial) } : req.body);
       if (typed) revision = await bindQuoteRevision(runtime.db, req.filter, revision, input.map(line => line.selector), session);
+      if(typed) await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'quoteCatalogKeys',key:key,action:req.commercialAction,payloadHash,replayed:false});
       const row = { _id: randomUUID(), ...req.filter, accountId, version: 1, status: 'DRAFT', revisions: [{ ...revision, number: 1 }], createdAt: new Date(), updatedAt: new Date(), ...(typed ? { schema: catalogQuoteSchema, ownerLegalEntityId: revision.lines[0].catalogBinding.ownerLegalEntityId } : {}) };
       if (req.body.opportunityId !== undefined) {
-        await guard(runtime, req, session, 'crm.write'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+        await guard(runtime, req, session, 'crm.write');
         const opportunity = await c('opportunities').findOne({ ...req.filter, _id: id(req.body.opportunityId) }, { session });
         if (!opportunity) fail(404, 'NOT_FOUND');
         if (opportunity.accountId !== accountId) fail(409, 'ACCOUNT_CONFLICT');
@@ -156,7 +159,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
     const data = await tx(req, operation === 'convert' ? 'quote.converted' : `quote.${operation}`, async session => {
       if (idempotencyKey !== undefined) {
         const prior = await quoteCatalogReplay(runtime.db, req.filter, quoteCatalogKey(idempotencyKey), typedHash, session);
-        if (prior) return prior;
+        if(prior) { await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'quoteCatalogKeys',key:idempotencyKey,action:req.commercialAction,payloadHash:typedHash,replayed:true}); return prior; }
       }
       const row = await find(req, req.params.id, session);
       const typed = await validateCatalogQuote(runtime.db, req.filter, row, session);
@@ -169,11 +172,14 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
         if (prior) {
           if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
           const order = await c('salesOrders').findOne({ ...req.filter, _id: prior.orderId }, { session });
+          await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'quoteConversions',key:idempotencyKey,action:req.commercialAction,payloadHash,replayed:true});
           return { ...order, replay: true };
         }
       }
       if (row.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (row.status === 'CONVERTED') fail(409, 'ALREADY_CONVERTED');
+      if(typed) await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'quoteCatalogKeys',key:idempotencyKey,action:req.commercialAction,payloadHash:typedHash,replayed:false});
+      else if(operation==='convert') await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'quoteConversions',key:idempotencyKey,action:req.commercialAction,payloadHash,replayed:false});
       const latest = row.revisions.at(-1);
       if (operation === 'revisions') {
         if (req.body.accountId !== undefined && req.body.accountId !== row.accountId) fail(400, 'ACCOUNT_CONFLICT');

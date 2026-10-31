@@ -43,11 +43,14 @@ export function installInquiries(app, runtime, { fail, guard, id, fields, valida
     const session = runtime.client.startSession();
     try {
       const data = await session.withTransaction(async () => {
-        await guard(runtime, req, session, 'quote.write'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+        await guard(runtime, req, session, 'quote.write');
         const row = await c('inquiries').findOne({ ...req.filter, _id: id(req.params.id) }, { session });
         if (!row) fail(404, 'NOT_FOUND');
         const prior = await c('inquiryKeys').findOne({ ...req.filter, key }, { session });
-        if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.data; }
+        if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+        if(prior && !await c('accounts').findOne({...req.filter,_id:row.accountId},{session})) fail(404,'NOT_FOUND');
+        await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'inquiryKeys',key:key,action:req.inquiryAction || 'quote.write',payloadHash:payloadHash,replayed:Boolean(prior)});
+        if(prior) return prior.data;
         if (row.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
         const latest = row.revisions.at(-1), now = new Date();
         let result = row;
@@ -94,9 +97,12 @@ export function installInquiries(app, runtime, { fail, guard, id, fields, valida
     const payloadHash = createHash('sha256').update(JSON.stringify(req.body)).digest('hex'), session = runtime.client.startSession();
     try {
       const data = await session.withTransaction(async () => {
-        await guard(runtime, req, session, req.inquiryAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+        await guard(runtime, req, session, req.inquiryAction);
         const prior = await c('inquiryKeys').findOne({ ...req.filter, key }, { session });
-        if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.data; }
+        if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+        if(prior && !await c('accounts').findOne({...req.filter,_id:accountId},{session})) fail(404,'NOT_FOUND');
+        await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'inquiryKeys',key:key,action:req.inquiryAction || 'quote.write',payloadHash:payloadHash,replayed:Boolean(prior)});
+        if(prior) return prior.data;
         if (!await c('accounts').findOne({ ...req.filter, _id: accountId }, { session })) fail(404, 'NOT_FOUND');
         const row = { _id: randomUUID(), ...req.filter, accountId, version: 1, stage: 'DRAFT', revisions: [{ number: 1, lines: content }], history: [], createdAt: new Date(), updatedAt: new Date() };
         await c('inquiries').insertOne(row, { session });
