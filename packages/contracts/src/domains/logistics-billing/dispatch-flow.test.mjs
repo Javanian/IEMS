@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { startOwned, orderWithStock } from '../../../../../apps/portfolio-api/test/support/owned-mongo.mjs';
+
+test('picked and packed partial shipments conserve stock; delivered returns stay in quarantine', async t => {
+  const h = await startOwned(t), { so, reservation } = await orderWithStock(h);
+  const command = quantity => ({ salesOrderId: so._id, expectedVersion: so.version, lineIndex: 0, uom: 'KG', sources: [{ sourceType: 'RESERVATION', sourceId: reservation._id, quantity }], reference: 'Synthetic local package', idempotencyKey: randomUUID() });
+  const pick = await h.ok('/fulfillment/packing', command('0.4'), 201);
+  assert.equal(pick.status, 'PICKED');
+  const packed = await h.ok(`/fulfillment/packing/${pick._id}/pack`, { expectedVersion: pick.version, packageReference: 'PKG-001', idempotencyKey: randomUUID() });
+  const dispatch = { ...command('0.4'), packingId: packed._id, expectedPackingVersion: packed.version };
+  const first = await h.ok('/fulfillment/shipments', dispatch, 201);
+  assert.deepEqual(await h.ok('/fulfillment/shipments', dispatch, 201), first);
+  assert.equal((await h.req('/fulfillment/shipments', { ...dispatch, idempotencyKey: randomUUID() }, h.alpha)).status, 409);
+  await h.ok('/fulfillment/shipments', command('0.3'), 201);
+  assert.equal((await h.req('/fulfillment/shipments', command('0.1'), h.alpha)).status, 409);
+  const delivery = await h.ok(`/deliveries/shipments/${first._id}`);
+  await h.ok(`/deliveries/shipments/${first._id}/confirmations`, { expectedVersion: delivery.version, expectedShipmentVersion: first.version, quantity: '0.4', deliveredAt: new Date().toISOString(), receiverName: 'Synthetic receiver', receiverReference: 'POD-001', evidenceReference: 'Local delivery note', evidenceNotes: 'Synthetic fixture received in full', idempotencyKey: randomUUID() }, 201);
+  const path = `/deliveries/shipments/${first._id}/returns`, before = await h.ok(path);
+  const returned = { expectedVersion: before.version, quantity: '0.2', serials: [], reference: 'RMA-001', reason: 'Synthetic damaged goods', idempotencyKey: randomUUID() };
+  const row = await h.ok(path, returned, 201);
+  assert.equal(row.status, 'QUARANTINED');
+  assert.deepEqual(await h.ok(path, returned, 201), row);
+  const after = await h.ok(path);
+  assert.equal(after.returnableQuantity, '0.2');
+  assert.equal((await h.req(path, { ...returned, expectedVersion: after.version, quantity: '0.3', idempotencyKey: randomUUID() }, h.alpha)).status, 409);
+  assert.equal((await h.ok(`/fulfillment/shipments/${first._id}`)).status, 'SHIPPED');
+  assert.equal((await h.ok(`/deliveries/shipments/${first._id}`)).status, 'DELIVERED');
+  assert.equal(await h.db.collection('fulfillmentPayments').countDocuments({}), 0);
+  assert.equal((await h.db.collection('warehouseReservations').findOne({ _id: reservation._id })).status, 'CONSUMED');
+});

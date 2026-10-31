@@ -19,17 +19,57 @@ const without = (row, fields) => Object.fromEntries(Object.entries(row).filter((
 const semantic = row => without(row, ['eventId', 'authorityHash']);
 const stamped = row => ({ ...row, contentHash: hash(row) });
 
+export async function deliverySourceHash(db, filter, shipment, session) {
+  const current = hash(shipmentSemantic(shipment));
+  const head = await db.collection('deliveryHeads').findOne({ ...filter, _id: shipment._id }, { session });
+  if (!head || head.sourceHash === current) return current;
+  // Older generic PODs included the document-use counter in their frozen source hash.
+  const count = shipment.documentFence;
+  if (Number.isSafeInteger(count) && count > 0 && count <= 1000) {
+    const source = shipmentSemantic(shipment);
+    for (let documentFence = 1; documentFence <= count; documentFence++) if (hash({ ...source, documentFence }) === head.sourceHash) return head.sourceHash;
+  }
+  invalid();
+}
+
 export async function initializeDelivery(db) {
+  for (const [name, keys] of [['fulfillmentReturns', { tenantId: 1, plantId: 1, shipmentId: 1, ordinal: 1 }], ['fulfillmentReturnKeys', { tenantId: 1, plantId: 1, key: 1 }]]) await db.collection(name).createIndex(keys, { unique: true });
   for (const [name, keys] of [['deliveryHeads', { tenantId: 1, plantId: 1, shipmentId: 1 }], ['deliveryConfirmations', { tenantId: 1, plantId: 1, shipmentId: 1, ordinal: 1 }], ['deliveryEvents', { tenantId: 1, plantId: 1, shipmentId: 1, version: 1 }], ['deliveryKeys', { tenantId: 1, plantId: 1, key: 1 }]]) await db.collection(name).createIndex(keys, { unique: true });
   for (const name of ['deliveryKeys', 'deliveryAudit', 'deliveryOutbox']) await db.collection(name).createIndex({ tenantId: 1, plantId: 1, shipmentId: 1 });
 }
+
+export async function readDeliveryState(db, scopeFilter, original, session) {
+    if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
+    const filter = { ...scopeFilter, shipmentId: original.shipment._id }, options = { session };
+    const head = await db.collection('deliveryHeads').findOne({ ...filter, _id: original.shipment._id }, options), confirmations = await db.collection('deliveryConfirmations').find(filter, options).sort({ ordinal: 1 }).limit(101).toArray(), events = await db.collection('deliveryEvents').find(filter, options).limit(101).toArray();
+    if (!head) {
+      if (confirmations.length || events.length || await db.collection('deliveryHeads').findOne(filter, options)) invalid();
+      for (const name of ['deliveryKeys', 'deliveryAudit', 'deliveryOutbox']) if (await db.collection(name).findOne(filter, options)) invalid();
+      return { head: null, confirmations: [] };
+    }
+    if (head.shipmentId !== original.shipment._id || head.sourceHash !== original.sourceHash || !positive(head.version) || head.version !== confirmations.length + 1 || confirmations.length > 100 || !confirmations.length || events.length !== confirmations.length || !Array.isArray(head.confirmationIds) || head.confirmationIds.length !== confirmations.length || !Array.isArray(head.confirmationRefs) || head.confirmationRefs.length !== confirmations.length) invalid();
+    const current = events.find(row => row._id === head.eventId);
+    if (!current || current.version !== head.version || current.contentHash !== head.authorityHash || hash(current.snapshot) !== head.authorityHash || hash(semantic(head)) !== head.authorityHash) invalid();
+    let delivered = 0n; const serials = [];
+    for (let index = 0; index < confirmations.length; index++) {
+      const confirmation = confirmations[index], event = events.find(row => row.version === index + 2);
+      if (head.confirmationRefs[index]?.id !== confirmation._id || head.confirmationRefs[index]?.contentHash !== confirmation.contentHash || event?.confirmationHash !== confirmation.contentHash || event?.confirmationId !== confirmation._id || event?.kind !== 'DELIVERY_CONFIRMED' || hash(event?.snapshot?.confirmationRefs) !== hash(head.confirmationRefs.slice(0, index + 1))) invalid();
+      if (confirmation.ordinal !== index + 1 || confirmation._id !== head.confirmationIds[index] || confirmation.sourceHash !== original.sourceHash || hash(without(confirmation, ['contentHash'])) !== confirmation.contentHash || storedUnits(confirmation.quantity) <= 0n || !event || hash(event.snapshot) !== event.contentHash || event.snapshot.sourceHash !== original.sourceHash || event.snapshot.shipmentId !== original.shipment._id || event.snapshot.version !== event.version) invalid();
+      if (original.serials.length ? !Array.isArray(confirmation.serials) || BigInt(confirmation.serials.length) * 1000000n > units(confirmation.quantity) || confirmation.serials.some(serial => !original.serials.includes(serial)) : Object.hasOwn(confirmation, 'serials')) invalid();
+      delivered += units(confirmation.quantity); serials.push(...(confirmation.serials || []));
+      if (delivered - BigInt(serials.length) * 1000000n > units(original.shipment.quantity) - BigInt(original.serials.length) * 1000000n) invalid();
+      if (event.snapshot.deliveredQuantity !== decimal(delivered) || hash(event.snapshot.confirmationIds) !== hash(head.confirmationIds.slice(0, index + 1)) || hash(event.snapshot.serials) !== hash([...serials].sort())) invalid();
+    }
+    if (delivered > units(original.shipment.quantity) || new Set(serials).size !== serials.length || head.deliveredQuantity !== decimal(delivered) || hash(head.serials) !== hash(serials.sort()) || head.status !== (delivered === units(original.shipment.quantity) ? 'DELIVERED' : 'PARTIALLY_DELIVERED')) invalid();
+    return { head, confirmations };
+  }
 
 export function installDelivery(app, runtime, { guard, fields, id }) {
   const db = runtime.db, c = name => db.collection(name), root = '/api/deliveries/shipments/:id';
   app.use('/api/deliveries', async (req, res, next) => {
     req.filter = resolveScopeAliases({ body: { tenantId: req.scope.tenantId, plantId: req.scope.selectedPlantId, ...req.body }, query: req.query, headers: req.headers });
     if (req.filter.plantId !== req.scope.selectedPlantId) fail(403, 'SCOPE_DENIED');
-    req.deliveryAction = req.method === 'GET' ? 'fulfillment.read' : req.method === 'POST' && /^\/shipments\/[^/]+\/confirmations$/.test(req.path) ? 'fulfillment.deliver' : null;
+    req.deliveryAction = req.method === 'GET' ? 'fulfillment.read' : req.method === 'POST' && /^\/shipments\/[^/]+\/(confirmations|returns)$/.test(req.path) ? 'fulfillment.deliver' : null;
     if (!req.deliveryAction) fail(404, 'NOT_FOUND');
     await runtime.foundation.authorize(req.scope, { ...req.filter, action: req.deliveryAction }); next();
   });
@@ -58,34 +98,56 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
       }
     }
     if (amount !== units(shipment.quantity) || new Set(serials).size !== serials.length || BigInt(serials.length) * 1000000n > amount) invalid();
-    return { shipment, serials: serials.sort(), sourceHash: hash(without(shipment, ['deliveryUseFence'])) };
+    return { shipment, serials: serials.sort(), sourceHash: await deliverySourceHash(db, req.filter, shipment, session) };
   }
-  async function state(req, original, session) {
-    const filter = { ...req.filter, shipmentId: original.shipment._id }, options = { session };
-    const head = await c('deliveryHeads').findOne({ ...req.filter, _id: original.shipment._id }, options), confirmations = await c('deliveryConfirmations').find(filter, options).sort({ ordinal: 1 }).limit(101).toArray(), events = await c('deliveryEvents').find(filter, options).limit(101).toArray();
-    if (!head) {
-      if (confirmations.length || events.length || await c('deliveryHeads').findOne(filter, options)) invalid();
-      for (const name of ['deliveryKeys', 'deliveryAudit', 'deliveryOutbox']) if (await c(name).findOne(filter, options)) invalid();
-      return { head: null, confirmations: [] };
-    }
-    if (head.shipmentId !== original.shipment._id || head.sourceHash !== original.sourceHash || !positive(head.version) || head.version !== confirmations.length + 1 || confirmations.length > 100 || !confirmations.length || events.length !== confirmations.length || !Array.isArray(head.confirmationIds) || head.confirmationIds.length !== confirmations.length || !Array.isArray(head.confirmationRefs) || head.confirmationRefs.length !== confirmations.length) invalid();
-    const current = events.find(row => row._id === head.eventId);
-    if (!current || current.version !== head.version || current.contentHash !== head.authorityHash || hash(current.snapshot) !== head.authorityHash || hash(semantic(head)) !== head.authorityHash) invalid();
-    let delivered = 0n; const serials = [];
-    for (let index = 0; index < confirmations.length; index++) {
-      const confirmation = confirmations[index], event = events.find(row => row.version === index + 2);
-      if (head.confirmationRefs[index]?.id !== confirmation._id || head.confirmationRefs[index]?.contentHash !== confirmation.contentHash || event?.confirmationHash !== confirmation.contentHash || event?.confirmationId !== confirmation._id || event?.kind !== 'DELIVERY_CONFIRMED' || hash(event?.snapshot?.confirmationRefs) !== hash(head.confirmationRefs.slice(0, index + 1))) invalid();
-      if (confirmation.ordinal !== index + 1 || confirmation._id !== head.confirmationIds[index] || confirmation.sourceHash !== original.sourceHash || hash(without(confirmation, ['contentHash'])) !== confirmation.contentHash || storedUnits(confirmation.quantity) <= 0n || !event || hash(event.snapshot) !== event.contentHash || event.snapshot.sourceHash !== original.sourceHash || event.snapshot.shipmentId !== original.shipment._id || event.snapshot.version !== event.version) invalid();
-      if (original.serials.length ? !Array.isArray(confirmation.serials) || BigInt(confirmation.serials.length) * 1000000n > units(confirmation.quantity) || confirmation.serials.some(serial => !original.serials.includes(serial)) : Object.hasOwn(confirmation, 'serials')) invalid();
-      delivered += units(confirmation.quantity); serials.push(...(confirmation.serials || []));
-      if (delivered - BigInt(serials.length) * 1000000n > units(original.shipment.quantity) - BigInt(original.serials.length) * 1000000n) invalid();
-      if (event.snapshot.deliveredQuantity !== decimal(delivered) || hash(event.snapshot.confirmationIds) !== hash(head.confirmationIds.slice(0, index + 1)) || hash(event.snapshot.serials) !== hash([...serials].sort())) invalid();
-    }
-    if (delivered > units(original.shipment.quantity) || new Set(serials).size !== serials.length || head.deliveredQuantity !== decimal(delivered) || hash(head.serials) !== hash(serials.sort()) || head.status !== (delivered === units(original.shipment.quantity) ? 'DELIVERED' : 'PARTIALLY_DELIVERED')) invalid();
-    return { head, confirmations };
-  }
+  const state = (req, original, session) => readDeliveryState(db, req.filter, original, session);
   const view = (original, current) => ({ shipmentId: original.shipment._id, shipmentVersion: original.shipment.version, shipmentReference: original.shipment.reference, salesOrderId: original.shipment.salesOrderId, accountId: original.shipment.accountId, shipmentStatus: original.shipment.status, sourceHash: original.sourceHash, version: current.head?.version || 1, status: current.head?.status || 'NOT_DELIVERED', shippedQuantity: decimal(units(original.shipment.quantity)), deliveredQuantity: current.head?.deliveredQuantity || '0', remainingQuantity: decimal(units(original.shipment.quantity) - units(current.head?.deliveredQuantity || '0')), uom: original.shipment.uom, unserializedQuantity: decimal(units(original.shipment.quantity) - BigInt(original.serials.length) * 1000000n), remainingUnserializedQuantity: decimal(units(original.shipment.quantity) - units(current.head?.deliveredQuantity || '0') - BigInt(original.serials.length - (current.head?.serials?.length || 0)) * 1000000n), serials: original.serials, deliveredSerials: current.head?.serials || [], remainingSerials: original.serials.filter(serial => !current.head?.serials.includes(serial)), confirmationCount: current.confirmations.length, canConfirm: current.head?.status !== 'DELIVERED' && current.confirmations.length < 100, confirmations: current.confirmations.map(row => without(row, ['tenantId', 'plantId'])), authorityHash: current.head?.authorityHash || null, evidenceMode: 'OPERATOR_RECORDED' });
   const read = async effect => { const session = runtime.client.startSession(); try { return await session.withTransaction(() => effect(session), { readConcern: { level: 'snapshot' }, readPreference: 'primary' }); } finally { await session.endSession(); } };
+  async function returns(req, original, delivered, session) {
+    const rows = await c('fulfillmentReturns').find({ ...req.filter, shipmentId: original.shipment._id }, { session }).sort({ ordinal: 1 }).limit(101).toArray();
+    if (rows.length > 100) invalid();
+    let returned = 0n; const serials = [];
+    for (const [index, row] of rows.entries()) {
+      if (row.ordinal !== index + 1 || row.sourceHash !== original.sourceHash || row.status !== 'QUARANTINED' || hash(without(row, ['contentHash'])) !== row.contentHash || storedUnits(row.quantity) <= 0n || row.accountId !== original.shipment.accountId || row.uom !== original.shipment.uom || row.salesOrderId !== original.shipment.salesOrderId) invalid();
+      if (!Array.isArray(row.serials) || row.serials.some(serial => !delivered.head?.serials.includes(serial)) || BigInt(row.serials.length) * 1000000n > units(row.quantity)) invalid();
+      const key = await c('fulfillmentReturnKeys').findOne({ ...req.filter, key: row.key }, { session });
+      if (!key || key.returnId !== row._id || key.contentHash !== row.contentHash || hash(key.result) !== hash(row)) invalid();
+      returned += units(row.quantity); serials.push(...row.serials);
+    }
+    const deliveredQuantity = units(delivered.head?.deliveredQuantity || '0');
+    if (returned > deliveredQuantity || new Set(serials).size !== serials.length || returned - BigInt(serials.length) * 1000000n > deliveredQuantity - BigInt(delivered.head?.serials.length || 0) * 1000000n) invalid();
+    return { shipmentId: original.shipment._id, version: rows.length + 1, uom: original.shipment.uom, deliveredQuantity: decimal(deliveredQuantity), returnedQuantity: decimal(returned), returnableQuantity: decimal(deliveredQuantity - returned), returnableSerials: (delivered.head?.serials || []).filter(serial => !serials.includes(serial)), returns: rows, canReturn: rows.length < 100 && returned < deliveredQuantity, inventoryEffect: 'QUARANTINED_CUSTOMER_CUSTODY', financialEffect: 'NONE' };
+  }
+  app.get(`${root}/returns`, async (req, res) => res.json({ data: await read(async session => { const original = await source(req, session); return returns(req, original, await state(req, original, session), session); }) }));
+  app.post(`${root}/returns`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'quantity', 'serials', 'reference', 'reason', 'idempotencyKey']);
+    const body = req.body, quantity = units(body.quantity);
+    if (!positive(body.expectedVersion) || quantity <= 0n || !Array.isArray(body.serials) || body.serials.length > 1000 || new Set(body.serials).size !== body.serials.length) fail(400, 'INVALID_RETURN');
+    if (typeof body.idempotencyKey !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(body.idempotencyKey)) fail(400, 'INVALID_IDEMPOTENCY_KEY');
+    for (const field of ['reference', 'reason']) if (typeof body[field] !== 'string' || body[field].trim().length < 3 || body[field].length > 500) fail(400, 'INVALID_RETURN_EVIDENCE');
+    const payloadHash = hash({ shipmentId: id(req.params.id), body });
+    const session = runtime.client.startSession();
+    try {
+      const data = await session.withTransaction(async () => {
+        await guard(runtime, req, session, 'fulfillment.deliver');
+        const original = await source(req, session), delivered = await state(req, original, session), current = await returns(req, original, delivered, session);
+        const prior = await c('fulfillmentReturnKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session });
+        if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+        if (current.version !== body.expectedVersion) fail(409, 'VERSION_CONFLICT');
+        if (!current.canReturn || quantity > units(current.returnableQuantity) || body.serials.some(serial => !current.returnableSerials.includes(serial)) || quantity < BigInt(body.serials.length) * 1000000n || quantity - BigInt(body.serials.length) * 1000000n > units(current.returnableQuantity) - BigInt(current.returnableSerials.length) * 1000000n) fail(409, 'RETURN_QUANTITY_EXCEEDED');
+        const changed = await c('fulfillmentShipments').updateOne({ ...req.filter, _id: original.shipment._id, version: original.shipment.version }, { $inc: { returnUseFence: 1 } }, { session });
+        if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+        const row = stamped({ _id: randomUUID(), ...req.filter, shipmentId: original.shipment._id, salesOrderId: original.shipment.salesOrderId, accountId: original.shipment.accountId, sourceHash: original.sourceHash, ordinal: current.version, key: body.idempotencyKey, quantity: decimal(quantity), uom: original.shipment.uom, serials: [...body.serials].sort(), reference: body.reference.trim(), reason: body.reason.trim(), status: 'QUARANTINED', inventoryEffect: 'QUARANTINED_CUSTOMER_CUSTODY', financialEffect: 'NONE', recordedBy: req.scope.userId, recordedAt: businessNow(runtime) });
+        await c('fulfillmentReturns').insertOne(row, { session });
+        const event = { ...req.filter, kind: 'return.quarantined', shipmentId: original.shipment._id, returnId: row._id, contentHash: row.contentHash, recordedBy: req.scope.userId, recordedAt: new Date() };
+        await c('fulfillmentReturnAudit').insertOne({ _id: randomUUID(), ...event }, { session });
+        await c('fulfillmentReturnOutbox').insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });
+        await c('fulfillmentReturnKeys').insertOne({ _id: randomUUID(), ...req.filter, key: body.idempotencyKey, payloadHash, returnId: row._id, contentHash: row.contentHash, result: row }, { session });
+        return row;
+      }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
+      res.status(201).json({ data });
+    } finally { await session.endSession(); }
+  });
   app.get(root, async (req, res) => res.json({ data: await read(async session => { const original = await source(req, session); return view(original, await state(req, original, session)); }) }));
   app.get(`${root}/confirmations`, async (req, res) => res.json(await read(async session => {
     const original = await source(req, session); await state(req, original, session);

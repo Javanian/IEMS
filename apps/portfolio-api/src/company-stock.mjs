@@ -1,3 +1,4 @@
+import { fulfillmentClaimBinding, buildFulfillmentCompanyTrace } from './manufactured-dispatch.mjs';
 import { repairClaimBinding, buildRepairCompanyTrace } from './repair-stock.mjs';
 import { companyStockCapacity, companyStockLimits } from './company-stock-capacity.mjs';
 import { randomUUID } from 'node:crypto';
@@ -55,7 +56,7 @@ export function companyStockView(context) {
   const reserveBlockers = [...blockers,
     ...(capacity.reservationLimitReached ? ['RESERVATION_HISTORY_LIMIT'] : []),
     ...(capacity.eventLimitReached ? ['STOCK_EVENT_HISTORY_LIMIT'] : [])];
-  return { ...receipt, companyReceiptId: receipt._id, producerExecutionId: producer.head._id, itemSnapshot: producer.head.sourceDemand.itemSnapshot, version: use.version, sourcePolicy, openingQuantity: receipt.quantity, onHandQuantity: use.onHandQuantity, reservedQuantity: use.reservedQuantity, issuedQuantity: use.issuedQuantity, consumedQuantity: use.consumedQuantity, availableQuantity: terminal ? '0' : use.availableQuantity, blockedQuantity: terminal ? use.availableQuantity : '0', eligibleQuantity: blockers.length ? '0' : use.availableQuantity, units: use.units.map(unit => ({ ...unit, companyUnitId: unit._id, eligible: !blockers.length && unit.status === 'AVAILABLE' })), hold: use.hold, blockers, reserveBlockers, capacity, canReserve: !reserveBlockers.length && units(use.availableQuantity) > 0n, canHold: capacity.remainingEvents >= 1 && !use.hold?.active, canReleaseHold: capacity.remainingEvents >= 1 && Boolean(use.hold?.active), canAllocate: false, canDispatch: false };
+  return { ...receipt, companyReceiptId: receipt._id, producerExecutionId: producer.head._id, itemSnapshot: producer.head.sourceDemand.itemSnapshot, version: use.version, sourcePolicy, openingQuantity: receipt.quantity, onHandQuantity: use.onHandQuantity, reservedQuantity: use.reservedQuantity, issuedQuantity: use.issuedQuantity, consumedQuantity: use.consumedQuantity, availableQuantity: terminal ? '0' : use.availableQuantity, blockedQuantity: terminal ? use.availableQuantity : '0', eligibleQuantity: blockers.length ? '0' : use.availableQuantity, units: use.units.map(unit => ({ ...unit, companyUnitId: unit._id, eligible: !blockers.length && unit.status === 'AVAILABLE' })), hold: use.hold, blockers, reserveBlockers, capacity, canReserve: !reserveBlockers.length && units(use.availableQuantity) > 0n, canHold: capacity.remainingEvents >= 1 && !use.hold?.active, canReleaseHold: capacity.remainingEvents >= 1 && Boolean(use.hold?.active), canAllocate: false, canDispatch: !reserveBlockers.length && capacity.remainingEvents >= 3 && units(use.availableQuantity) > 0n };
 }
 async function saveUse(db, filter, context, actor, reason, kind, session, hold = context.use.hold) {
   if (!session?.inTransaction()) throw new Error('company write requires transaction');
@@ -83,7 +84,7 @@ export async function writeCompanyReservation(db, filter, context, reservation, 
   if (reservation.status !== 'RELEASED' && context.blockers.length) fail(409, context.blockers.some(code => ['COMPANY_SOURCE_HELD', 'ANCESTOR_HELD'].includes(code)) ? 'STOCK_ENCUMBERED' : 'COMPANY_DEPENDENCY_CHANGED');
   const previous = await db.collection('companyMaterialReservations').findOne({ ...filter, _id: reservation._id }, { session });
   if (previous ? previous.status === 'RESERVED' ? !['RELEASED', 'ISSUED'].includes(reservation.status) : previous.status !== 'ISSUED' || reservation.status !== 'CONSUMED' : reservation.status !== 'RESERVED') fail(409, 'STATE_CONFLICT');
-  const binding = row => ({ ...(row.authorityKind === 'REPAIR_CASE' ? repairClaimBinding(row) : {}), ...Object.fromEntries(['executionId', 'materialLineId', 'sourceKind', 'companyReceiptId', 'openingHash', 'itemId', 'itemRevision', 'uom', 'ownerLegalEntityId', 'quantity', 'companyUnitIds', 'serials', 'sourceSnapshot'].map(key => [key, row[key]])) });
+  const binding = row => ({ ...(row.authorityKind === 'REPAIR_CASE' ? repairClaimBinding(row) : row.authorityKind === 'FULFILLMENT_SHIPMENT' ? fulfillmentClaimBinding(row) : {}), ...Object.fromEntries(['executionId', 'materialLineId', 'sourceKind', 'companyReceiptId', 'openingHash', 'itemId', 'itemRevision', 'uom', 'ownerLegalEntityId', 'quantity', 'companyUnitIds', 'serials', 'sourceSnapshot'].map(key => [key, row[key]])) });
   if (previous && hash(binding(previous)) !== hash(binding(reservation))) companyStockInvalid();
   if (!Array.isArray(reservation.companyUnitIds) || !reservation.companyUnitIds.length || new Set(reservation.companyUnitIds).size !== reservation.companyUnitIds.length || units(reservation.quantity) !== BigInt(reservation.companyUnitIds.length) * 1000000n || !Array.isArray(reservation.serials) || reservation.serials.length !== reservation.companyUnitIds.length) companyStockInvalid();
   if (reservation.sourceKind !== 'COMPANY_OUTPUT' || hash(reservation.sourceSnapshot) !== hash(companySourceSnapshot(context.producer, reservation.companyUnitIds))) companyStockInvalid();
@@ -111,7 +112,7 @@ export function installCompanyStock(app, runtime, { guard, fields, id }) {
     try {
       const data = await read(async session => {
         const context = await companyStockContext(db, req.filter, receiptId, session);
-        return buildRepairCompanyTrace(db, req.filter, context, unitId, session, () => buildCompanyUnitTrace(db, req.filter, context, unitId, session, sourceId => companyStockContext(db, req.filter, sourceId, session)));
+        return buildFulfillmentCompanyTrace(db, req.filter, context, unitId, session, () => buildRepairCompanyTrace(db, req.filter, context, unitId, session, () => buildCompanyUnitTrace(db, req.filter, context, unitId, session, sourceId => companyStockContext(db, req.filter, sourceId, session))));
       });
       res.json({ data });
     } catch (error) {
