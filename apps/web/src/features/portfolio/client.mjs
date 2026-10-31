@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 const defaultBase = import.meta.env?.VITE_PORTFOLIO_API_BASE || '/portfolio-api';
 export async function portfolioRequest(path, { body, base = defaultBase, signal, headers: extra = {} } = {}) {
   let response;
@@ -46,6 +46,7 @@ export function serviceCommandContract(path,body={}) {
  if(/^\/api\/cs\/conversations\/[^/]+\/reply$/.test(path)||path==='/api/cs/simulator/dispatch')return 'BODY';
  if(/^\/api\/cs\/automation\/(pause|service-credentials(?:\/[^/]+\/revoke)?|resolution-drafts\/[^/]+\/(approve|reject|cancel|dispatch)|deliveries\/[^/]+\/review|resolution-draft|escalate|digest\/dispatch)$/.test(path))return 'HEADER';
  if(path==='/api/cs/automation/reconcile'&&body.mode==='LOCAL_OBSERVE_V1')return 'HEADER';
+ if(/^\/api\/cs\/automation\/run\/(wf-sla-escalation|wf-cs-weekly-digest|wf-approved-resolution|wf-automation-recovery)$/.test(path)||path==='/api/cs/automation/reconcile'&&body.mode===undefined)return 'HEADER';
  return null;
 }
 function serviceResponse(path,data){
@@ -54,7 +55,8 @@ function serviceResponse(path,data){
  if(path.endsWith('/revoke'))return typeof data.sessionId==='string'&&data.revoked===true;
  if(path.endsWith('/pause'))return typeof data.paused==='boolean';
  if(path.endsWith('/simulator/dispatch'))return Array.isArray(data.previewedDeliveryIds)&&data.previewedDeliveryIds.every(x=>typeof x==='string');
- if(path.endsWith('/reconcile'))return data.mode==='LOCAL_OBSERVE_V1'&&Array.isArray(data.items);
+ if(path.endsWith('/reconcile'))return data.mode==='LOCAL_OBSERVE_V1'&&Array.isArray(data.items)||data.state==='ACCEPTED'&&typeof data.recoveryId==='string';
+ if(path.includes('/automation/run/'))return data.state==='ACCEPTED'&&typeof data.runId==='string';
  if(path.endsWith('/reply')||path.includes('/deliveries/')||path.endsWith('/dispatch'))return typeof data.deliveryId==='string'&&typeof data.state==='string';
  if(path.endsWith('/escalate'))return typeof data.ticketId==='string'&&Number.isSafeInteger(data.version);
  return typeof data.draftId==='string'&&Number.isSafeInteger(data.version);
@@ -89,6 +91,7 @@ export function createCommandAttempt(slot,{storage=globalThis.sessionStorage,key
   },
   retry(identity,options={}){if(lost)throw new Error('The original request body is unavailable. Reconcile the server record.');return transmit(identity,options.requester??portfolioRequest,options.signal);},
   reconcileRecoveredCredential(identity,{receipt,revocation}){const original=attempt??lostInfo;if(busy||!original||original.path!=='/api/cs/automation/service-credentials'||original.scope!==scopeKey(identity)||receipt?.action!=='SERVICE_CREDENTIAL_ISSUE'||receipt.idempotencyKey!==original.key||receipt.tenantId!==identity.scope.tenantId||receipt.plantId!==identity.scope.plantId||!receipt.result?.sessionId||revocation?.sessionId!==receipt.result.sessionId||revocation.revoked!==true)throw new Error('The original issuance receipt and confirmed revocation are required.');attempt=null;lostInfo=null;lost=false;warning='Original issued session revoked. A reviewed new issuance can use a new key.';storage.removeItem(marker);changed();},
+  reconcileAccepted(identity,{receipt,status}){const original=attempt??lostInfo,action=original?.path.includes('/automation/run/')?'AUTOMATION_ENGINE_RUN':original?.path==='/api/cs/automation/reconcile'?'AUTOMATION_RECOVERY':null,commandId=receipt?.result?.runId??receipt?.result?.recoveryId;if(busy||!action||original.scope!==scopeKey(identity)||receipt?.action!==action||receipt.idempotencyKey!==original.key||receipt.tenantId!==identity.scope.tenantId||receipt.plantId!==identity.scope.plantId||receipt.result.state!=='ACCEPTED'||status?.commandId!==commandId||status?.acceptedResult?.state!=='ACCEPTED')throw new Error('The original accepted receipt and authorized intent status are required.');attempt=null;lostInfo=null;lost=false;warning='Original intent accepted; inspect its phases separately.';storage.removeItem(marker);changed();},
   reconcileNoEffect(evidence){if((attempt??lostInfo)?.path==='/api/cs/automation/service-credentials')throw new Error('Resolve the original issuance receipt and confirm revocation before a replacement.');if(busy||typeof evidence!=='string'||evidence.trim().length<12)throw new Error('Record the checked server history and evidence that no effect occurred.');attempt=null;lost=false;warning='';storage.removeItem(marker);changed();},
  });
 }
@@ -97,5 +100,28 @@ export function useStableCommand(slot,identity,options={}){
  if(!commandAttempts.has(slot))commandAttempts.set(slot,createCommandAttempt(slot,options));
  const command=commandAttempts.get(slot),[state,setState]=useState(()=>command.snapshot());
  useEffect(()=>{setState(command.snapshot());return command.subscribe(()=>setState(command.snapshot()));},[command]);
- return {...state,send:(path,options)=>command.send(identity,path,options.body,options),retry:options=>command.retry(identity,options),reconcileNoEffect:command.reconcileNoEffect,reconcileRecoveredCredential:evidence=>command.reconcileRecoveredCredential(identity,evidence)};
+ return {...state,send:(path,options)=>command.send(identity,path,options.body,options),retry:options=>command.retry(identity,options),reconcileNoEffect:command.reconcileNoEffect,reconcileRecoveredCredential:evidence=>command.reconcileRecoveredCredential(identity,evidence),reconcileAccepted:evidence=>command.reconcileAccepted(identity,evidence)};
+}
+
+const effectTrackers=new Map(),effectId=value=>typeof value==='string'&&/^[a-f0-9-]{36}$/i.test(value);
+export function createEffectTracker(slot,{storage=globalThis.sessionStorage,requester=portfolioRequest,getIdentity}={}){
+ const marker='iems.local.effects:'+slot,listeners=new Set();let entries=[],busy=false,error=null;
+ try{const saved=JSON.parse(storage?.getItem(marker)||'[]');if(!Array.isArray(saved)||saved.length>25||saved.some(row=>!effectId(row.commandId)||typeof row.scope!=='string'||typeof row.label!=='string'||row.parentId!==undefined&&!effectId(row.parentId)||!Array.isArray(row.phases)||!row.phases.length||row.phases.length>100||row.phases.some(phase=>typeof phase!=='string'||!phase||phase.length>100)))throw Error('Invalid saved intent references');entries=saved;}catch{error=new Error('Saved intent references are unavailable. Recover the original receipt before starting another action.');}
+ const changed=()=>listeners.forEach(fn=>fn()),save=()=>storage.setItem(marker,JSON.stringify(entries.map(({scope,commandId,phases,label,parentId})=>({scope,commandId,phases,label,...(parentId?{parentId}:{})}))));
+ const current=()=>scopeKey(getIdentity()),find=id=>{const row=entries.find(entry=>entry.commandId===id);if(!row||row.scope!==current())throw Object.assign(new Error('Return to the original account and plant to inspect this intent.'),{code:'COMMAND_SCOPE_CHANGED'});return row;};
+ async function inspect(id){if(busy)throw Error('An intent request is already pending');busy=true;error=null;changed();try{const row=find(id),scope=current(),result=await requester(`/api/saas/effects/${id}`);if(scope!==current())throw Object.assign(new Error('The account or plant changed during this observation.'),{code:'COMMAND_SCOPE_CHANGED'});if(result.data?.commandId!==id||!Array.isArray(result.data.phases))throw Error('Intent status could not be verified');row.status=result.data;changed();return result.data;}catch(e){error=e;throw e;}finally{busy=false;changed();}}
+ async function operate(id,phase,action){const row=find(id);if(busy||!row.status||!row.phases.includes(phase))throw Error('Inspect the original intent before running a phase.');if(action==='reconcileChild'&&!effectId(row.parentId))throw Error('The original parent receipt is required');const previous=row.status.phases.find(item=>item.phase===phase);if(action==='continue'&&(previous&&['INVOKING','UNKNOWN','OBSERVED','SETTLED'].includes(previous.state)||['PUBLICATION_DENIED','STOPPED'].includes(row.status.state)))throw Error('Observe the same phase; its result cannot be replaced by another send.');busy=true;error=null;changed();try{const scope=current();await requester(action==='reconcileChild'?`/api/saas/effects/${row.parentId}/children/${id}/continue`:`/api/saas/effects/${id}/${action}`,{body:{phase}});if(scope!==current())throw Object.assign(new Error('The account or plant changed. Inspect the intent in its original scope.'),{code:'COMMAND_SCOPE_CHANGED'});}catch(e){error=e;throw e;}finally{busy=false;changed();}return inspect(id);}
+ return Object.freeze({snapshot:()=>{let scope=null;try{scope=current();}catch{}return{items:entries.map(row=>row.scope===scope?{...row}:{scope:row.scope,commandId:row.commandId,phases:row.phases,label:row.label,scopeChanged:true}),busy,error};},bindIdentity(resolver){getIdentity=resolver;},subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},
+  remember(commandId,phases,label,{parentId}={}){if(parentId!==undefined&&!effectId(parentId)||!effectId(commandId)||typeof label!=='string'||!label||label.length>200||!Array.isArray(phases)||!phases.length||phases.length>100||phases.some(value=>typeof value!=='string'||!value||value.length>100))throw Error('Invalid server intent reference');const scope=current(),prior=entries.find(row=>row.commandId===commandId);if(prior){if(prior.scope!==scope)throw Error('Intent scope changed');if(parentId)prior.parentId=parentId;const merged=[...new Set([...prior.phases,...phases])];if(merged.length>100)throw Error('Intent phase bound exceeded');prior.phases=merged;save();changed();return;}if(entries.length>=25)throw Error('Review and dismiss completed intents before accepting another.');const row={scope,commandId,phases:[...phases],label,...(parentId?{parentId}:{})};entries.push(row);try{save();}catch(e){entries.pop();throw e;}changed();},
+  rememberChild(parentId,childId,phase,label){const parent=find(parentId),items=parent.status?.phases.flatMap(row=>row.observedOutcome?.items??row.phaseResult?.items??[])??[];if(!items.some(row=>row.commandId===childId&&row.deliveryId===phase))throw Error('Inspect the original parent recovery evidence first');this.remember(childId,[phase],label,{parentId});},inspect,report(e){error=e;changed();},continue:(id,phase)=>operate(id,phase,'continue'),observe:(id,phase)=>operate(id,phase,'observe'),reconcileChild:(id,phase)=>operate(id,phase,'reconcileChild'),
+  dismiss(id){try{const row=find(id);if(busy||row.status?.state!=='COMPLETED')throw Error('Only an observed completed intent can be dismissed.');entries=entries.filter(entry=>entry!==row);save();changed();}catch(e){error=e;changed();throw e;}},
+ });
+}
+export function useLocalEffects(slot,identity){
+ const latest=useRef(identity);latest.current=identity;
+ if(!effectTrackers.has(slot))effectTrackers.set(slot,createEffectTracker(slot,{getIdentity:()=>latest.current}));
+ const tracker=effectTrackers.get(slot),[,render]=useState(0);tracker.bindIdentity(()=>latest.current);
+ useEffect(()=>{latest.current=identity;const unsubscribe=tracker.subscribe(()=>render(version=>version+1));return()=>{unsubscribe();latest.current=null;};},[tracker]);
+ const safely=async work=>{try{return await work();}catch(error){tracker.report(error);}};
+ return {...tracker.snapshot(),remember:tracker.remember,trackChild:(parentId,id,phase)=>safely(async()=>{tracker.rememberChild(parentId,id,phase,'Recovery child delivery');return tracker.inspect(id);}),reconcileChild:(id,phase)=>safely(()=>tracker.reconcileChild(id,phase)),track:(id,phases,label)=>safely(async()=>{tracker.remember(id,phases,label);return tracker.inspect(id);}),inspect:id=>safely(()=>tracker.inspect(id)),continue:(id,phase)=>safely(()=>tracker.continue(id,phase)),observe:(id,phase)=>safely(()=>tracker.observe(id,phase)),dismiss:id=>safely(()=>tracker.dismiss(id))};
 }
