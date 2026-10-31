@@ -8,25 +8,29 @@ export function VendorDraftWorkspace() {
   const identity = useContext(IdentityContext);
   const [draftId, setDraftId] = useState(''), [record, setRecord] = useState(null), [error, setError] = useState(null);
   const [busy, setBusy] = useState(false), [pending, setPending] = useState(null);
-  const generation = useRef(0), controller = useRef(null);
+  const generation = useRef(0), controller = useRef(null), operation = useRef(false);
   const storageKey = identity?.scope?.tenantId && identity?.scope?.plantId && identity?.user?.id
     ? `vendor-draft:${identity.scope.tenantId}:${identity.scope.plantId}:${identity.user.id}` : null;
   useEffect(() => {
-    generation.current++; controller.current?.abort(); setRecord(null); setError(null); setBusy(false); setDraftId('');
+    generation.current++; operation.current = false; controller.current?.abort(); setRecord(null); setError(null); setBusy(false); setDraftId('');
     try { setPending(storageKey ? JSON.parse(sessionStorage.getItem(storageKey) || 'null') : null); }
     catch { setPending(null); setError(new Error('Saved command recovery is unavailable. Contact purchasing before submitting another command.')); }
     return () => { generation.current++; controller.current?.abort(); };
   }, [identity, storageKey]);
   async function read(id = draftId) {
+    if (operation.current) return;
+    operation.current = true;
     const token = ++generation.current; controller.current?.abort(); controller.current = new AbortController();
     setBusy(true); setError(null);
     try {
       const result = await portfolioRequest(`/api/ai/vendor-drafts/${encodeURIComponent(id)}`, { signal: controller.current.signal });
       if (generation.current === token) { setDraftId(id); setRecord(result.data); }
     } catch (e) { if (generation.current === token && e.name !== 'AbortError') { setError(e); setRecord(null); } }
-    finally { if (generation.current === token) setBusy(false); }
+    finally { if (generation.current === token) { operation.current = false; setBusy(false); } }
   }
   async function submit(action, body, id = draftId, replay = false) {
+    if (operation.current) return;
+    operation.current = true;
     const token = ++generation.current; setBusy(true); setError(null);
     const attempt = { id, action, body };
     try {
@@ -35,8 +39,8 @@ export function VendorDraftWorkspace() {
       if (!replay) { sessionStorage.setItem(storageKey, JSON.stringify(attempt)); setPending(attempt); }
       await portfolioRequest(`/api/ai/vendor-drafts/${encodeURIComponent(id)}/${action}`, { body });
       if (generation.current !== token) return;
-      sessionStorage.removeItem(storageKey); setPending(null); setDraftId(id); await read(id);
-    } catch (e) { if (generation.current === token) { setError(e); setBusy(false); } }
+      sessionStorage.removeItem(storageKey); setPending(null); setDraftId(id); operation.current = false; await read(id);
+    } catch (e) { if (generation.current === token) { operation.current = false; setError(e); setBusy(false); } }
   }
   const command = extra => ({ key: crypto.randomUUID(), expectedRevision: record.revision, ...extra });
   const create = event => {
@@ -51,6 +55,8 @@ export function VendorDraftWorkspace() {
     <WorkspaceState title="External delivery disabled"><p>Email and WhatsApp contacts are not configured. Local delivery receipts are explicitly simulated; approval never sends a message.</p></WorkspaceState>
     {pending && <section className="pf-panel" aria-label="Unresolved command"><h2>Resolve the previous command</h2><p>The outcome may be unknown. Preserve this tab and reconcile the same command before creating another.</p>
       <button disabled={busy} onClick={() => pending.action === 'dispatch' ? read(pending.id) : submit(pending.action, pending.body, pending.id, true)}>Reconcile saved command</button>
+      <button disabled={busy} onClick={() => read(pending.id)}>Inspect current server record</button>
+      {record?.draftId === pending.id && <button disabled={busy} onClick={() => { sessionStorage.removeItem(storageKey); setPending(null); }}>Use inspected server state and clear tab command</button>}
       {pending.action === 'dispatch' && <button disabled={busy} onClick={() => submit('reconcile', pending.body, pending.id)}>Reconcile delivery attempt</button>}
     </section>}
     <section className="pf-panel"><h2>Open a draft</h2><form className="pf-form" onSubmit={e => { e.preventDefault(); read(); }}>
