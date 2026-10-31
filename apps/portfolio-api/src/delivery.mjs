@@ -180,14 +180,21 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
           const prior = await c('deliveryKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session });
           if (prior) {
             if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+            const persistedShipment=await c('fulfillmentShipments').findOne({...req.filter,_id:req.params.id},{session});
+            const returnEvidence=await c('repairReturnAuthorities').findOne({...req.filter,shipmentId:req.params.id},{session});
+            const repairReturn=persistedShipment?.sourceKind==='CUSTOMER_ASSET_RETURN' || persistedShipment?.schema==='REPAIR_RETURN_SHIPMENT_V1' || Boolean(returnEvidence);
+            if(repairReturn && (persistedShipment?.sourceKind!=='CUSTOMER_ASSET_RETURN' || persistedShipment?.schema!=='REPAIR_RETURN_SHIPMENT_V1' || !returnEvidence || persistedShipment.authorityId!==returnEvidence._id)) invalid();
             const original = await source(req, session), current = await state(req, original, session);
             const actualShipment = original.shipment;
-            const typed = await hasPurchasedShipmentEvidence(db, req.filter, req.params.id, session) || actualShipment && await c('quoteCatalogOrders').findOne({ ...req.filter, orderId: actualShipment.salesOrderId }, { session });
+            const typed = repairReturn || await hasPurchasedShipmentEvidence(db, req.filter, req.params.id, session) || actualShipment && await c('quoteCatalogOrders').findOne({ ...req.filter, orderId: actualShipment.salesOrderId }, { session });
             if (typed) {
               const event = await c('deliveryEvents').findOne({ ...req.filter, shipmentId: req.params.id, version: prior.result?.version }, { session });
               if (!event) invalid();
               const historical = { head: { ...event.snapshot, authorityHash: event.contentHash, eventId: event._id }, confirmations: current.confirmations.slice(0, event.version - 1) };
-              if (hash(prior.result) !== hash(view(original, historical))) invalid();
+              const expected=view(original,historical);
+              // Existing Mongo receipts encode the absent generic order ID as null for customer property.
+              if(repairReturn && expected.salesOrderId===undefined && prior.result.salesOrderId===null) expected.salesOrderId=null;
+              if (hash(prior.result) !== hash(expected)) invalid();
             }
             await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'deliveryKeys',key:body.idempotencyKey,action:'fulfillment.deliver',payloadHash,replayed:true});
             return prior.result;

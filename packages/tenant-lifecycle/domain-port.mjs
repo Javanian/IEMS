@@ -11,21 +11,31 @@ const bad=(code,status=409)=>{throw new CommandError(code,status);};
 const uuid=x=>typeof x==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(x);
 const privateField=/^(?:password|passwordHash|salt|secret|secretKey|privateKey|token|tokenHash|accessToken|refreshToken|cookie|authorization|pin|pinHash|nfcHash|biometric|biometricTemplate|messageBody|rawMessage|recipientToken)$/i;
 const typed=new Set(['ObjectId','Binary','Decimal128','Long','Int32','Double','Timestamp']);
-function checkDocument(row,fields,tenantId) {
+function checkDocument(row,fields,tenantId,collection) {
+  function diagnosticAuthorization(path,value) {
+    if(registry.collections[collection]?.businessAuthorizationPaths?.includes(path.join('.'))!==true) return false;
+    const invoice=path.length===1?row:row.result;
+    return invoice?.kind==='DIAGNOSTIC' && uuid(invoice.caseId) && value && Object.getPrototypeOf(value)===Object.prototype
+      && Object.keys(value).sort().join(',')==='evidence,feeCap,kind,recordedAt,recordedBy,source'
+      && value.kind==='DIAGNOSTIC_AUTHORIZED' && value.source==='OPERATOR_RECORDED'
+      && typeof value.evidence==='string' && Boolean(value.evidence.trim()) && value.evidence.length<=1000
+      && typeof value.feeCap==='string' && /^(0|[1-9][0-9]{0,27})(\.[0-9]{1,3})?$/.test(value.feeCap)
+      && uuid(value.recordedBy) && value.recordedAt instanceof Date && Number.isFinite(value.recordedAt.getTime());
+  }
   let nodes=0;
-  function visit(x,depth=0) {
+  function visit(x,depth=0,path=[]) {
     if(++nodes>50000||depth>32)bad('TENANT_SCHEMA_TOO_COMPLEX');
     if(x===null||['string','boolean'].includes(typeof x))return;
     if(typeof x==='number'){if(!Number.isFinite(x))bad('TENANT_SCHEMA_INVALID');return;}
     if(x instanceof Date){if(!Number.isFinite(x.getTime()))bad('TENANT_SCHEMA_INVALID');return;}
     if(Buffer.isBuffer(x)||(typed.has(x?._bsontype)&&Object.getPrototypeOf(x)!==Object.prototype))return;
-    if(Array.isArray(x)){for(const v of x)visit(v,depth+1);return;}
+    if(Array.isArray(x)){for(const v of x)visit(v,depth+1,path);return;}
     if(!x||Object.getPrototypeOf(x)!==Object.prototype)bad('TENANT_SCHEMA_INVALID');
     for(const [k,v]of Object.entries(x)){
-      if(privateField.test(k))bad('TENANT_PRIVATE_FIELD');
+      if(privateField.test(k) && !(k==='authorization' && diagnosticAuthorization([...path,k],v)))bad('TENANT_PRIVATE_FIELD');
       if(k.startsWith('$')||k.includes('.')||['__proto__','constructor','prototype'].includes(k)||!(depth===0?fields:allFields).has(k))bad('TENANT_SCHEMA_UNKNOWN_FIELD');
       if(k==='tenantId'&&v!==tenantId)bad('TENANT_SCOPE_INVALID',403);
-      visit(v,depth+1);
+      visit(v,depth+1,[...path,k]);
     }
   }
   visit(row);
@@ -83,7 +93,7 @@ export function createMongoTenantDataPort({db,foundation,maxResources=1000,maxBy
       if(rows.length+resources.length>maxResources)bad('TENANT_EXPORT_TOO_LARGE',413);
       collections.push({name,count:rows.length});
       for(const row of rows){
-        checkDocument(row,fields,grant.tenantId);
+        checkDocument(row,fields,grant.tenantId,name);
         if(row.plantId!==undefined&&!top.plants.some(p=>p._id===row.plantId))bad('TENANT_SCOPE_INVALID',403);
         if(row.legalEntityId!==undefined&&!top.entities.some(e=>e._id===row.legalEntityId))bad('TENANT_SCOPE_INVALID',403);
         resources.push({id:stableId(name,row._id),tenantId:grant.tenantId,collection:name,document:encode(row)});
@@ -106,7 +116,7 @@ export function createMongoTenantDataPort({db,foundation,maxResources=1000,maxBy
     const ids=new Set();
     for(const r of resources){
       const spec=registry.collections[r.collection];if(!spec||spec.disposition!=='BUSINESS'||r.tenantId!==tenantId||ids.has(r.id))bad('TENANT_ARCHIVE_SCHEMA_INVALID');ids.add(r.id);
-      const row=decode(r.document);checkDocument(row,new Set(spec.fields??spec.sources.flatMap(p=>registry.sources[p]?.fields??[])),tenantId);
+      const row=decode(r.document);checkDocument(row,new Set(spec.fields??spec.sources.flatMap(p=>registry.sources[p]?.fields??[])),tenantId,r.collection);
       if(stableId(r.collection,row._id)!==r.id||contentHash(encode(row))!==contentHash(r.document))bad('TENANT_ARCHIVE_SCHEMA_INVALID');
     }
     const counts=Object.entries(registry.collections).filter(([,s])=>s.disposition==='BUSINESS').map(([name])=>({name,count:resources.filter(r=>r.collection===name).length}));

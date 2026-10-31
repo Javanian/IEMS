@@ -2,6 +2,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { initializeRepairComponents, recordComponentCustody } from './repair-components.mjs';
 import { initializeRepairStock, repairSpareCommand, saveRepairStockAuthority, validateRepairCaseAuthority, recheckRepairStockSources, requireRepairInstallations } from './repair-stock.mjs';
+import { recheckRepairServiceSources } from './repair-return.mjs';
 import { businessNow } from './business-clock.mjs';
 import { stockHash as repairHash } from './catalog-stock-values.mjs';
 import { initializeRepairOrders, validateRepairSnapshot, diagnosticRepairSnapshot, createRepairOrders, readRepairOrders, advanceRepairOrders } from './repair-orders.mjs';
@@ -61,7 +62,21 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
         if (req.body.sourceKind === 'COMPANY_OUTPUT' || current.spareMaterials?.some(m => m.sourceKind === 'COMPANY_OUTPUT')) await guard(runtime, req, session, req.repairAction === 'repair.spare-authorize' ? 'company.stock.read' : ['repair.spare-reserve','repair.spare-release'].includes(req.repairAction) ? 'company.stock.reserve' : 'company.stock.issue');
       }
       const prior = await c('repairKeys').findOne({ ...req.filter, key }, { session });
-      if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); if (req.repairAction.startsWith('repair.spare-')) { const current = await c('repairCases').findOne({ ...req.filter, _id: id(req.params.id) }, { session }); await recheckRepairStockSources(runtime.db, req.filter, current, session); } await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'repairKeys',key:key,action:req.repairAction,payloadHash:payloadHash,replayed:true}); return prior.result; }
+      if (prior) {
+        if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+        let caseId=req.params.id;
+        if(req.repairAction==='repair.settle') {
+          const invoice=await c('repairInvoices').findOne({...req.filter,_id:id(req.params.id)},{session});
+          if(!invoice) fail(404,'NOT_FOUND');
+          caseId=invoice.caseId;
+        } else if(req.repairAction==='repair.intake') caseId=prior.result?._id;
+        const current=await c('repairCases').findOne({...req.filter,_id:id(caseId)},{session});
+        if(!current) fail(404,'NOT_FOUND');
+        if(req.repairAction.startsWith('repair.spare-')) await recheckRepairStockSources(runtime.db,req.filter,current,session);
+        if(current.serviceProfile==='REPAIR_SERVICE_V1') await recheckRepairServiceSources(runtime.db,req.filter,current,session);
+        await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'repairKeys',key,action:req.repairAction,payloadHash,replayed:true});
+        return prior.result;
+      }
       await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'repairKeys',key:key,action:req.repairAction,payloadHash:payloadHash,replayed:false});
       const result = await effect(session);
       const event = { ...base(req), kind, subjectId: result._id, subjectVersion: result.version };

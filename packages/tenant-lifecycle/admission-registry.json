@@ -1,7 +1,13 @@
 {
   "schema": "SAAS_ADMISSION_REGISTRY_V1",
   "profile": "RECEIPTED_COMMANDS_V1",
-  "base": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
+  "base": "78e0ce89a4f88bab0dfd9c116be04b984933f351",
+  "provenance": {
+    "data": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
+    "admission": "a87e593abe0476bae34275d1f19c78441c6a4b10",
+    "repairSource": "78e0ce89a4f88bab0dfd9c116be04b984933f351",
+    "pins": "Normalized actual source hashes in this registry; final feature SHA is recorded in handoff ledger"
+  },
   "fullEndpointCoverage": false,
   "unit": "command-count",
   "storageBytes": "Cumulative explicitly admitted bytes; not measured disk occupancy or invoice billing",
@@ -91,7 +97,7 @@
       "hashField": "payloadHash",
       "response": "result",
       "hook": "apps/portfolio-api/src/repair.mjs",
-      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "replay": "current scoped case; invoice-settle resolves scoped invoice.caseId; typed REPAIR_SERVICE_V1 invokes exported service source/quality/order/dispatch/POD/warranty validator; spare stock recheck retained",
       "meter": "ONE_COMMAND",
       "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
     },
@@ -217,7 +223,7 @@
       "hashField": "payloadHash",
       "response": "result",
       "hook": "apps/portfolio-api/src/delivery.mjs",
-      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "replay": "current persisted shipment and repair-return authority detector; typed/purchased/catalog source+state+historical event+view verification before original result; zero charge",
       "meter": "ONE_COMMAND",
       "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
     },
@@ -468,7 +474,7 @@
     "apps/portfolio-api/src/crm.mjs": "fc42fe7a9ed0a483154c5c5b02507516ca1f6bad58d54a37b5e26183cd6c72b3",
     "apps/portfolio-api/src/cs-intent.mjs": "8a3f8597044b9ec4b900aea6daeaf0d03df347d62ea5ea0953f0d609941ec0f7",
     "apps/portfolio-api/src/customer-service.mjs": "4044ab34ce59a64b38d6a48859b788eed5158209d45b7aacd19043402ece86ea",
-    "apps/portfolio-api/src/delivery.mjs": "688bdaea7892c831117aa10a01cb917fd90c11b246821d18208c64fa8cb6156d",
+    "apps/portfolio-api/src/delivery.mjs": "ea911beb0c8ca05362e410fca92959a22baa020d4f3da3da3ab8f11423c8ea94",
     "apps/portfolio-api/src/descendant-freeze.mjs": "ff470bb795c5667f871b239a2ecb86191294cdd2eff30b4f07ecec5626a6f0a7",
     "apps/portfolio-api/src/documents.mjs": "b21fd75da76bf8688204161bab07ad52e5d08dc52cbe30452a99a6a9036e666f",
     "apps/portfolio-api/src/engineering.mjs": "bb9d9b6f87405dfd8c59fd1a9bced4c4163e1597e79fe4689b83791238e027b1",
@@ -503,8 +509,10 @@
     "apps/portfolio-api/src/rag.mjs": "5ea97c46d382b77f60e424d61b587cccd1c765e1827bdf471be2d7a35d88e3ed",
     "apps/portfolio-api/src/receipt-origin.mjs": "9c8fe6accc3928ac8e2759aeb2b88f78b184fbac6792f96afd25992bf18c75dd",
     "apps/portfolio-api/src/repair-components.mjs": "226cbcce033a787a33f524d32be0aa76690374a6e1905d57848122d1b194508d",
+    "apps/portfolio-api/src/repair-orders.mjs": "85f28ed5fef7542b4a5a230e8a205331b3958c11eb5ef67d1a30fd3b4e5e7306",
+    "apps/portfolio-api/src/repair-return.mjs": "b0cd75dc63b8ab40453fe626b6d09a6bad9389f9ec3f4fe59831ba5ce0d7c021",
     "apps/portfolio-api/src/repair-stock.mjs": "28c58dfb3878a790f03d38dc265d6e1ad0e2d35afc85a985dc2d60efb97eb75d",
-    "apps/portfolio-api/src/repair.mjs": "eed2c70c1a8095b10a6dba2e44b02add4093f1ccce5411d91d42ec374fd10db9",
+    "apps/portfolio-api/src/repair.mjs": "68bf83976f85d2a193774569e7735678c68886f0d136bcb046ad4afb80e79257",
     "apps/portfolio-api/src/reporting-source.mjs": "4e4d834f2fed11f11cefcfd11544dec583a8b7548f6100c253d44fddf7343e90",
     "apps/portfolio-api/src/serial-custody.mjs": "0ca09720c49e011e9bec55124304cae418250a95fec896f758316cea28aaba87",
     "apps/portfolio-api/src/stock-holds.mjs": "fe0179862ca3a39ba65635e326e2340d8212e5ad3aa73a1a3c753e339d4cdd42",
@@ -548,8 +556,8 @@
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
     "packages/tenant-lifecycle/admission.mjs": "c86001a8fdec87454bcd1a4e77f76d801fe5d6993b4fdf2b4931785b0c372879",
     "packages/tenant-lifecycle/index.mjs": "5d6ee25d2175b489332a9236efdc23fa8b2bffa7561e2eabed04422c911401c4",
-    "packages/tenant-lifecycle/domain-port.mjs": "360ebbd148166a92367387a7c2a276d5ca5f22e259a20c450f642d0c817d5fbe",
-    "packages/tenant-lifecycle/admission-registry.mjs": "7ef6a1ce3fe0f93e9f564ca5740b0eb7ef93cb1c4df86f0bd6acfc7b5b4fa601"
+    "packages/tenant-lifecycle/domain-port.mjs": "48787a3e8928573328259a0bfef8bdf05ef183c4dd813a0175dff62c70131a36",
+    "packages/tenant-lifecycle/admission-registry.mjs": "292fefe68375039b69c04cf3850e3413eb26934f02308e0e67fd8208cdbe1ca6"
   },
   "routes": [
     {
@@ -1325,6 +1333,26 @@
     },
     {
       "route": "GET /api/repair/quality/resources/:type/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/sales-orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/sales-orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/work-orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/work-orders/:id",
       "state": "READ",
       "meter": "NONE"
     },
@@ -2590,6 +2618,13 @@
     },
     {
       "route": "POST /api/repair/cases/:id/hold",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/orders",
       "state": "RECEIPTED",
       "receipt": "repairKeys",
       "meter": "ONE_COMMAND",

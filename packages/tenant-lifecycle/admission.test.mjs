@@ -81,7 +81,7 @@ test('receipt admission on marker-owned Mongo', {timeout:120000}, async t=>{
    const text=await readFile(new URL(`../../${path}`,import.meta.url),'utf8');
    const calls=text.match(/createCommandExecutor\([^\n]+/g)||[];assert.ok(calls.length);assert.ok(calls.every(call=>call.includes('admission:')),'explicit callback at every constructor '+path);
   }
-  assert.equal(admissionRegistry.routes.length,395);assert.equal(admissionRegistry.fullEndpointCoverage,false);
+  assert.equal(admissionRegistry.routes.length,400);assert.equal(admissionRegistry.fullEndpointCoverage,false);
   assert.throws(()=>validateAdmissionRoutes({router:{stack:[]}}),{code:'SAAS_HOST_ROUTES_UNREGISTERED'});
   const unvalidated=createSaasAdmission({...h.runtime,coverage:admissionProfile});await assert.rejects(unvalidated.enrollmentGuard(admissionProfile),{code:'SAAS_ADMISSION_INCOMPLETE'});
   const configured=createSaasAdmission({...h.runtime,coverage:admissionProfile,integrations:{rag:{vectors:{}}}});
