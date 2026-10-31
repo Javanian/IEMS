@@ -18,7 +18,9 @@ export function installVendorDrafts(app, service) {
   app.get('/api/ai/vendor-drafts/:draftId', async (req, res) =>
     res.set('Cache-Control', 'no-store').json({ data: await service.read(req.scope, input(req, true)) }));
   for (const action of ['create', 'preview', 'approve', 'revoke', 'intent', 'dispatch', 'reconcile']) {
-    app.post(`/api/ai/vendor-drafts/:draftId/${action}`, async (req, res) =>
-      res.set('Cache-Control', 'no-store').json({ data: await service[action](req.scope, input(req)) }));
+    app.post(`/api/ai/vendor-drafts/:draftId/${action}`, async (req, res) => {
+      if (action === 'approve' && req.automationService) fail('HUMAN_APPROVAL_REQUIRED', 403);
+      res.set('Cache-Control', 'no-store').json({ data: await service[action](req.scope, input(req)) });
+    });
   }
 }
