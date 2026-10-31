@@ -1,0 +1,93 @@
+[
+  {
+    "adapter": "shortage producer/claim",
+    "path": "apps/portfolio-api/src/material-shortages.mjs",
+    "lastSourceCommit": "e97e7d7be5f0a960031f67d21bb28fd24b735740",
+    "blob": "48ea0ed3d1b5ed1e408c3d0a27f31c80b6251d3e",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "customer WO shortage adapter",
+    "path": "apps/portfolio-api/src/manufacturing.mjs",
+    "lastSourceCommit": "e97e7d7be5f0a960031f67d21bb28fd24b735740",
+    "blob": "6e52cc2d879fc140651bf0426f063b9ac578f7e6",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "historical PO reader",
+    "path": "packages/contracts/src/domains/commercial/purchase-orders.mjs",
+    "lastSourceCommit": "061f61e41f292bc433cf1ab222fa18deaa6ebe3c",
+    "blob": "684f8be57b3057f7d8fb9791dee43abe07344a2f",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "historical receipt reader",
+    "path": "apps/portfolio-api/src/receipt-origin.mjs",
+    "lastSourceCommit": "f3f3f1ad938b8fe7c587831405e9154f90cfa9d9",
+    "blob": "3a98c1a1e3350327a9aa584e9d82680bce6e6c66",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "historical document reader",
+    "path": "apps/portfolio-api/src/documents.mjs",
+    "lastSourceCommit": "8abab18d360a3541a1d9e448ee85db264a8f4b7d",
+    "blob": "d22f96ebfc05d3aee22a87eb937765a0dde57517",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "data v2 helper",
+    "path": "packages/domain-events/snapshot-source.mjs",
+    "lastSourceCommit": "3e7ddc692253ed33d619ec45046787f8d8836010",
+    "blob": "b9c35d0e8bb17ba0e3458a359128b0c6aa86a820",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "data bootstrap/reconciliation",
+    "path": "apps/portfolio-api/src/reporting-source.mjs",
+    "lastSourceCommit": "3e7ddc692253ed33d619ec45046787f8d8836010",
+    "blob": "26966abafe7c9cf7357da86ab2bcc498a476543c",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "commercial live order",
+    "path": "apps/portfolio-api/src/commercial.mjs",
+    "lastSourceCommit": "2f87e23f4653a813498a29ea69748e4f4f07692a",
+    "blob": "2f29e76de646327e5f0a0f3df6c9cd8c52771f1b",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "fulfillment grouped settlement/shipment",
+    "path": "apps/portfolio-api/src/fulfillment.mjs",
+    "lastSourceCommit": "7f7ed96996e0d6a6955a5d0db2b93116f5b3d090",
+    "blob": "512850d644f35f3cd7ce552a8e1dce25636796d8",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "purchased settlement/shipment",
+    "path": "apps/portfolio-api/src/purchased-fulfillment.mjs",
+    "lastSourceCommit": "9bffc562fa1d24b4615ae0b5e437a0d9c4326041",
+    "blob": "cdd5aaa36986ae4ec01bc1ae4826babab44f6f4d",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "manufactured dispatch",
+    "path": "apps/portfolio-api/src/manufactured-dispatch.mjs",
+    "lastSourceCommit": "9bffc562fa1d24b4615ae0b5e437a0d9c4326041",
+    "blob": "608796403877932ff038edc0fa6d8780ba06fd15",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "service reads",
+    "path": "packages/customer-service/order-source.mjs",
+    "lastSourceCommit": "fd2f6aedfd265ca1b7458758592a701ce9da52a3",
+    "blob": "f09e6b7838ec6dcd26e0bb3b963c73c28a8227d4",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "operations reads/telemetry",
+    "path": "apps/portfolio-api/src/operations.mjs",
+    "lastSourceCommit": "4deef871c73a7e98f21b05e9fa3e95567db2178d",
+    "blob": "34f78f8d3a64af633ea0170d9bca028bcde778ab",
+    "acceptance": "NOT_RUN"
+  }
+]

@@ -21,6 +21,21 @@ import { initializeInternalExecution, installInternalExecution, internalExecutio
 import { initializeCompanyStock, installCompanyStock, companyStockActions, companyStockRoles } from './company-stock.mjs';
 import { initializePurchasedFulfillment, installPurchasedFulfillment, purchasedFulfillmentActions, purchasedFulfillmentRoles } from './purchased-fulfillment.mjs';
 import { bindBusinessClock, businessNow } from './business-clock.mjs';
+import { initializePlatformRuntime, installPlatform, platformActions, platformRoles } from './platform-runtime.mjs';
+import { createPortalAccessService, createVendorResponseService, installPortals, portalRoles } from './portals.mjs';
+import { initializeAutomation, installAutomation, automationActions, automationRoles } from './automation.mjs';
+import { installAnalytics, analyticsActions, analyticsRoles } from './analytics.mjs';
+import { initializeReportingSnapshots } from '../../../packages/domain-events/snapshot-source.mjs';
+import { initializeOperations, initializeVoice, installOperations, installVoice, operationsActions, operationsRoles, voiceRoles } from './operations.mjs';
+import { initializeWorkforce, installWorkforce, workforceRoles } from './workforce.mjs';
+import { createRagRuntime, installRag, ragRoles } from './rag.mjs';
+import { createAssistantRuntime, installAssistants } from './assistants.mjs';
+import { createIntentRuntime, installCustomerIntent } from './cs-intent.mjs';
+import { createVendorDraftRuntime, installVendorDrafts, vendorDraftRoles } from './vendor-drafts.mjs';
+import { createPredictionRuntime, installPredictions, modelRoles } from './predictions.mjs';
+import { createTenantLifecycleRuntime, installTenantLifecycle, lifecycleRoles } from './tenant-lifecycle.mjs';
+Object.assign(roleActions, platformRoles, portalRoles, automationRoles, analyticsRoles, operationsRoles, voiceRoles, workforceRoles, ragRoles, vendorDraftRoles, modelRoles, lifecycleRoles);
+roleActions.owner.push(...platformActions, ...automationActions, ...analyticsActions, ...operationsActions);
 Object.assign(roleActions, documentRoles, repairRoles, procurementRoles, warehouseRoles, manufacturingRoles, fulfillmentRoles, customerServiceRoles);
 Object.assign(roleActions, internalPlanningRoles);
 Object.assign(roleActions, catalogRoles);
@@ -44,8 +59,8 @@ const actions = ['crm.read', 'crm.write'];
 export const fail = (status, code, message = code) => { throw Object.assign(new Error(message), { status, code }); };
 const hash = value => createHash('sha256').update(value).digest('hex');
 const c = (runtime, name) => runtime.db.collection(name);
-export async function initialize({ client, db, customerService = {}, businessClock, ownedRunMarker }) {
-  const runtime = { client, db };
+export async function initialize({ client, db, customerService = {}, businessClock, ownedRunMarker, integrations = {} }) {
+  const runtime = { client, db, integrations };
   await bindBusinessClock(runtime, businessClock, ownedRunMarker);
   const foundation = createTenantFoundation({ client, db, roleActions });
   await foundation.initialize();
@@ -66,8 +81,26 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await db.collection('credentials').createIndex({ username: 1 }, { unique: true });
   runtime.foundation = foundation;
   runtime.commands = await initializeFoundationRuntime(runtime);
+  await initializeReportingSnapshots(db);
+  runtime.platform = await initializePlatformRuntime(runtime, { ...integrations.platform, roleActions });
+  await createPortalAccessService(runtime).initialize();
+  await createVendorResponseService(runtime).initialize();
+  await initializeAutomation(db);
+  await initializeOperations(db);
+  await initializeVoice(db);
+  await initializeWorkforce(db);
   runtime.documents = await initializeDocuments(runtime);
   runtime.customerService = await initializeCustomerService(runtime, customerService);
+  runtime.rag = createRagRuntime(runtime, integrations.rag);
+  await runtime.rag.initialize();
+  runtime.assistants = createAssistantRuntime(runtime);
+  runtime.intent = createIntentRuntime(runtime, integrations.intent);
+  runtime.vendorDrafts = createVendorDraftRuntime(runtime, integrations.vendorDrafts);
+  await runtime.vendorDrafts.initialize();
+  runtime.predictions = createPredictionRuntime(runtime, integrations.predictions);
+  await runtime.predictions.initialize();
+  runtime.tenantLifecycle = createTenantLifecycleRuntime(runtime, integrations.tenantLifecycle);
+  await runtime.tenantLifecycle.initialize();
   return runtime;
 }
 export async function seedSynthetic(runtime, { password, e01Operators = false }) {
@@ -132,7 +165,13 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
     res.cookie('portfolio_session', session.token, cookieOptions).json({ data: identity(scope, record.username) });
   });
   app.use('/api', async (req, res, next) => {
-    try { req.token = tokenFrom(req); req.scope = await runtime.foundation.authenticate(req.token); next(); }
+    try {
+      req.token = tokenFrom(req);
+      req.scope = await runtime.foundation.authenticate(req.token);
+      const session = await c(runtime, 'sessions').findOne({ tokenHash: hash(req.token), tenantId: req.scope.tenantId, revoked: false });
+      req.automationService = session?.automationService === true;
+      next();
+    }
     catch { fail(401, 'UNAUTHENTICATED'); }
   });
   app.get('/api/session/me', async (req, res) => {
@@ -163,6 +202,19 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   installCompanyStock(app, runtime, { guard, fields, id });
   installPurchasedFulfillment(app, runtime, { guard, fields, id });
   installCustomerService(app, runtime, { fail, id, fields });
+  installPlatform(app, runtime);
+  installPortals(app, runtime);
+  installAutomation(app, runtime, { fail, id, fields });
+  installAnalytics(app, runtime, { reportingBaseUrl: runtime.integrations?.analytics?.reportingBaseUrl || 'http://127.0.0.1:4314', ...runtime.integrations?.analytics });
+  installOperations(app, runtime, { id, fields, guard }, runtime.integrations?.operations);
+  installVoice(app, runtime, { id, fields, guard }, runtime.integrations?.voice);
+  installWorkforce(app, runtime, { id, fields }, runtime.integrations?.workforce);
+  installRag(app, runtime.rag);
+  installAssistants(app, runtime.assistants);
+  installCustomerIntent(app, runtime.intent);
+  installVendorDrafts(app, runtime.vendorDrafts);
+  installPredictions(app, runtime.predictions);
+  installTenantLifecycle(app, runtime.tenantLifecycle);
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } }));
   app.use((error, req, res, next) => {
     const status = error.status || (error.code === 'SCOPE_DENIED' ? 403 : 500);

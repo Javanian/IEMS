@@ -1,0 +1,37 @@
+{
+  "independentQA": "NOT_RUN",
+  "mergedHead": "85a852384f57298c1759967c335fe45e2032edfe",
+  "status": "INTEGRATION_IN_PROGRESS",
+  "base": "0ad4248af46adad2762763438efb27aaace932b4",
+  "schema": "IEMS_INTEGRATION_V1",
+  "unresolved": [
+    "TPR-146 historical shipment/settlement source parity",
+    "private reporting job/relay/coverage export",
+    "SaaS admission and complete domain port",
+    "linked E01/E02 demo launcher",
+    "combined build and owned smoke"
+  ],
+  "publication": "LOCAL_ONLY",
+  "integratedHandoffs": {
+    "TPR-137": "04d0b28278b153939c3afefd36bf0ef4992223ca",
+    "TPR-138": "6dcf606e1b5ddbd7e97d8964415fe0f6aa8760a1",
+    "TPR-139": "a56788350b551874ce654fc8eea89dea0145f83e",
+    "TPR-140": "c7b8c4e265b942e5d4890fd9d5148dbbc85b94f3",
+    "TPR-141": "693a129f04038188b0d1f52bbef6b91a0d001708",
+    "TPR-142": "eee8f1554e49370a6157f9b04720bd5c2a612544",
+    "TPR-143": "7f7ed96996e0d6a6955a5d0db2b93116f5b3d090",
+    "TPR-144": "c8f1fcfe153598ae3ac7436ed2f5718918c50b43",
+    "TPR-145": "a517790418d59488d0f8fb37ad81ad4a95cd2479",
+    "TPR-146": "32c78a979881063f0f939e6efb4a529438944fcc",
+    "TPR-147": "ee687f3b041f86195d299fff13e9bd2550228e5b",
+    "TPR-148": "03debf5e487749cacfea88f4b38e32b8ab154a11"
+  },
+  "checks": {
+    "apiSyntax": "PASS exit0",
+    "webBuild": "PASS exit0; chunk/Browserslist warnings",
+    "integrationSmoke": "PASS 1/1 exit0; actual owned Mongo and HTTP",
+    "inheritedE01": "PASS exit0; Mongo ECONNRESET warnings retained",
+    "E02": "NOT_RUN",
+    "independentQA": "NOT_RUN"
+  }
+}

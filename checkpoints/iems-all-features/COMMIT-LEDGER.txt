@@ -1,0 +1,173 @@
+bbdbe3d94236bf1ecbe374e972ce5e60d612e0ce|fix(PLAT-041): preserve signed zero and exact integer boundaries
+9076374c38489f3e5b95086b001893793b473d52|feat(PLAT-041): add bounded atomic command and scoped resource execution
+cd71e873d8a95db8d86e3eccd80c7c580fe07e4b|docs(PLAT-003): freeze aggregate event precision and authority contracts
+04d0b28278b153939c3afefd36bf0ef4992223ca|feat(PLAT-006): deliver shared role workspace and accessible UI contract
+09aad242dce25e003c234355cec875702ada90f1|feat(PLAT-004): add bounded owned connections and measured replica profile
+d17734ef55f1b95fbc50764defd28c1d5b988052|feat(PLAT-037): add scoped indexes and execution statistics lab
+b1cfb19d02ee9225939305ac1f8238a59a7db0a2|feat(PLAT-003): export versioned command event and migration contracts
+94e1d74f985a6cbc77bc320f2a9deb43e2ebcdb6|fix(PLAT-005): fail closed on resource grants and ambiguous replay
+80d93f21e51a0ab3eacb0a3389c99df366cc405c|feat(PLAT-042): add versioned run-owned import parity and guarded rollback
+6dcf606e1b5ddbd7e97d8964415fe0f6aa8760a1|fix(PLAT-002): isolate native audio attempts and preserve completed artifacts
+ef909b82a2f76562c6019d5c51af9b3060204ff9|Merge commit '04d0b28278b153939c3afefd36bf0ef4992223ca' into program/iems-all-20261030-commercial
+973d08f0250192edfbae87a9ab7e6e269582d0db|Merge commit '04d0b28278b153939c3afefd36bf0ef4992223ca' into program/iems-all-20261030-platform
+abfd0cf49c5c60aa9b0b164c8e7ca31e9f501e7c|fix(PLAT-009): fence document requests and configured PDF downloads
+25350198ebbc5f2310206e15bcf7c1bf9af23d78|feat(PLAT-010): persist idempotent vendor delivery promise history
+2984f3c44e8fa0d230768b030e44c3073de80a71|feat(PLAT-043): add Mongo fenced jobs and confirmed RabbitMQ transport
+972ac00859341a92707f13cff31522d2c7cc9a86|feat(PLAT-045): add scoped disposable Redis and durable rate limits
+ad764c250d500eaf820cf210c4550453efd407d5|feat(PLAT-049): add offline AWS Terraform contracts and negative fixtures
+a4a57e78446ae2fff8e08fa0985b36b2ac30200d|feat(PLAT-009): issue purchase request PDFs from approved snapshots
+d933288c916a347520dea5f0cab15796e1bdf7e3|fix(PLAT-008): preserve revision inputs and fence commercial mutations
+8fe0427279c07c4b074366c36154c819902768a7|feat(PLAT-010): record RFQ responses and preserve purchase line lineage
+8700e338720dd461b8086ae4013c62bb3a13b686|fix(PLAT-043): reauthorize domain action on job replay and validate envelopes
+ebe54eda674a3c280998ff1a4cebd96819f3ede5|fix(PLAT-045): reject a lost durable rate bucket fence
+4bc2b27896f5eebdb468aac74d2b5c3a89bcb14d|fix(PLAT-049): isolate offline CLI environment and explicit empty ingress
+53d4516bfd51c0ea1d0b91540940b3aabdab05b3|feat(PLAT-050): add owned Terraform Docker lifecycle and durable job workspace
+b6f364bbc7628753264dddcd9e6fe808824a0d84|fix(PLAT-049): prepare offline provider config before CLI preflight
+a56788350b551874ce654fc8eea89dea0145f83e|fix(PLAT-050): prepare private provider config before CLI preflight
+393a0dc2b5cdd83256a2b8c654880d406bcffbcf|feat(PLAT-020): add outbox relay and transactional projection consumer
+41b2adfca13fa8641fe81fe3232540687e960bb0|feat(PLAT-021): publish checksummed raw Parquet and cursor manifests
+eedf0d4d7f7892eb06c0c5761aa1c57f1c90d01c|feat(PLAT-022): add scoped SCD2 marts and conservation quality gates
+3dafdcea571b5f79abb443f7f97eee5084a13b51|feat(PLAT-023): gate Airflow publications on immutable lineage and dbt results
+d7672b785539aad776f86d0107025d9066cbbd0b|feat(PLAT-024): add governed catalog and audited bounded exports
+83e1ce5892926afc8abb3bb6ea371c71d925f875|feat(PLAT-025): add bounded checkpointed event-time telemetry corrections
+54c77be490afbde905936cfc2bd7441a742fbbd5|feat(PLAT-026): add reconciled Iceberg backfill and scoped compaction
+97a5054435592916f69d9e942845203ea68e35e1|feat(PLAT-048): connect scoped SQL reporting projections API and analytics workspace
+81fed21b7870de8a166de2bc9a0c8739c085fd23|fix(PLAT-021): bound raw bytes and reject unavailable provenance
+8c5fb661b839ae05f3fc75dba8bb58fb741a6ee4|fix(PLAT-022): reject precision loss and normalize parity comparisons
+45dc7167244584712ddf836694b4bb51a01b3196|fix(PLAT-023): publish complete quality manifests atomically
+23ab146896dcae6d7b83afb1744187e4dfe43dfc|fix(PLAT-025): retain exact precision in bounded window sums
+7371dd0169201890d1a11bc99b1a9c2afc2273cb|fix(PLAT-048): fence parent corrections and reject stale SQL projections
+705e0af14cf248562936e492f7f6910003cccd8e|fix(PLAT-021): retain rejected numeric evidence in quarantine
+a3bd3ee651e3216e8cd58193024a4f05d0149486|test(PLAT-022): preserve isolated raw replay and mart parity probe for final QA
+8a2483452fdfae27c8f6f122ca5fb4f20a11eb08|fix(PLAT-020): isolate transport markers and preserve aggregate relay order
+ce2418226a0a1d7e445654f3036db424fcc1e6ad|feat(PLAT-020): add transactional reporting snapshot v2 helper
+46bd7c4024e2ea3f87827bbc8613bc69bc3b0076|feat(PLAT-007): bind opportunity quotes and explain stage aging
+49ede58d760a7349b987654b6772a3e5336f19bb|feat(PLAT-020): bind immutable source snapshots and scoped reconciliation
+0ce320a84c36d8df28bac615d581ac3f7ff28aed|feat(PLAT-010): claim approved material shortages into catalog procurement
+3e7ddc692253ed33d619ec45046787f8d8836010|fix(PLAT-020): fence source identity and document v2 adoption
+bdc61205cdfa2fdf7b38d2333f7a8c77c2da87f5|feat(PLAT-021): validate v2 raw snapshots before cursor publication
+a653ad63d3664af6b4de425c02fd280ebf8d5c94|feat(PLAT-022): reconcile mixed-unit marts with source coverage
+e12a458e93db8b92471c1c05b7f7bbab7a841073|feat(PLAT-023): gate trusted publication on coverage lineage
+43fab9d782bc6a7088b60d2ccd003f514d91a016|feat(PLAT-024): expose one monetary row and unit arrays in catalog
+1cd9870eab7c0d0677ee7b0b19cd181d00ec71ac|docs(PLAT-025): keep telemetry separate from financial snapshots
+4ffd2171053c9c6f92dd65f7b1dbd3d10301884b|docs(PLAT-026): preserve v2 envelope and coverage in backfills
+268e92fdca43fa4f57ac773e475aad5602e282a3|feat(PLAT-048): project monetary orders and quantities with coverage
+b5f5974273e457414ba40d7e2f4b5ba07b252fc2|docs(PLAT-020): normalize source contract whitespace
+1022f1a704f10d6a14e00b1db1c5e0ccbb64ad0c|docs(PLAT-025): normalize stream contract whitespace
+32c78a979881063f0f939e6efb4a529438944fcc|docs(PLAT-026): normalize backfill contract whitespace
+061f61e41f292bc433cf1ab222fa18deaa6ebe3c|feat(PLAT-010): approve versioned PO commitments and pin receipt history
+8abab18d360a3541a1d9e448ee85db264a8f4b7d|feat(PLAT-009): issue historical PO and cohort-specific catalog documents
+67fc902677796c4c81d06e7c7fa86e5ce596dd3d|feat(PLAT-020): add transactional reporting snapshot v2 helper
+2f87e23f4653a813498a29ea69748e4f4f07692a|feat(PLAT-008): append authorized order reporting snapshots atomically
+78f882eb16eb42598e379bc16819c7489b5421c0|fix(PLAT-007): load opportunity details and expose commercial source links
+d5b7098e5307fcd1ba70b90eeca9152d638f1570|docs(PLAT-010): hand off source readers and explicit adoption boundaries
+9df687df70399c53a29bb04be0f13d4ef49af6dd|feat(PLAT-010): refresh independent approved material lines
+e908cb98b5bdd305b09687cf566f64ead4fdd876|fix(PLAT-009): preserve catalog authority across document fences
+c7b8c4e265b942e5d4890fd9d5148dbbc85b94f3|test(PLAT-009): preserve receipt origins and PDFs across PO revisions
+cffff70c7e6657ff268aa9756f573c039020397a|Merge commercial prerequisite for TPR-144
+c3cad32b7baf9cfff9e854d011ac6a1a634bd2b9|Merge data prerequisite for TPR-144; retain final data-owned reporting contracts
+f3f3f1ad938b8fe7c587831405e9154f90cfa9d9|feat(PLAT-011): pin legacy receipt authority to historical PO revisions
+8e6711649e22547bfcdfdc2aace4daa475227d1a|PLAT-046 reconcile accepted n8n automation and fence local transport
+c5801f5678a588fa95b3c8698d6a1a3842a78402|PLAT-046 record scoped integration delta for accepted automation
+8d4e1a004a706779bccc2be2c7b4a4aff46d90b5|feat(PLAT-012): conserve manufactured stock across bounded genealogy generations
+6993513766f574079624f19e25a449ffab344f8a|feat(PLAT-046): fence automation credentials and bound SLA scan
+e97e7d7be5f0a960031f67d21bb28fd24b735740|feat(PLAT-012): adopt approved internal and customer WO material shortage demand
+84301c115ee5d5338d315469b0d7f448f3bac938|feat(PLAT-017): add scoped historical vendor PO source adapter
+10f56a4f7bd45ba9b6faf53a42c621eebfb1819c|fix(PLAT-011/F5): fence the first manufactured stock hold on producer authority
+4f9e372c48ce8bd8131ce2b05d758bf4b38666c8|feat(PLAT-012): freeze validated manufactured genealogy in production transactions
+ef58f1f14cdf92405a67b43dd7a388db00c29831|feat(PLAT-017): fence portal party access with authenticated grants
+693a129f04038188b0d1f52bbef6b91a0d001708|fix(PLAT-011): reject reconciliation with invalid receipt source authority
+b4653b35b1aef13619717fa3e1c94485b8272ded|feat(PLAT-017): add transactional portal grant revocation
+b1891f6427fcd8a21c8ca8c3a69fa00db950e1d6|feat(PLAT-017): provision scoped portal party grants
+4ec9a18b23709b629677601f27e723f4dc764c84|feat(PLAT-013): persist repair warranty and scoped claim custody
+5b7e0b9e6a5dcaaf43f826f9550935b7d2d58dea|feat(PLAT-017): persist revision-pinned vendor responses and promises
+491f48b7544d90885b74b496e3f9d35be465433b|feat(PLAT-014): enforce repair quality and maintenance capacity gates
+31c14333a35c70e9def5d10b65cb8cb0394d4f9b|feat(PLAT-013): quarantine authorized removed customer components
+a18c93109e890f3777210be52298a4ea7473f0cb|feat(PLAT-017): authorize vendor history and portal HTTP handlers
+1be2e4448a270ca91d35f8a613b65e6262337918|feat(PLAT-017): add customer portal status reads
+839ea02171d95775207562fd04a78b7f80ff1a7e|feat(PLAT-017): add authenticated customer status screen
+ed8628b51922db667a8661729cdb0724c3ec4453|feat(PLAT-017): add vendor portal response and recovery screen
+a2d13c48bbb3fbd92f830689b0aee141f0854829|fix(PLAT-051): omit private prompt bodies from bridge receipts
+8a688f50052e5d9774e0b6607649277eabbd4ceb|feat(PLAT-047): authenticate scoped provider callback envelopes
+0a12fc5cab07c60ae559216ec26e7f8476c6164a|feat(PLAT-047): reconcile authenticated provider delivery receipts
+1c8559bea54f74b668489d314cfbf77de3d5ea1c|feat(PLAT-047): fence session ownership and delivery registration
+79df6e9680fb55aa45be24db98f45bee293388c8|PLAT-047 fence explicit provider adapter lifecycle
+75d28a9ffd0c9115ca6e58e035f648d5c1185d20|feat(PLAT-047): mount bounded authenticated delivery callbacks
+86aa60768b95890548f9b8dc147de3c0bdfbdb38|feat(PLAT-051): validate provider registration policy metadata
+7b44f082230b95d410aa90ad98e2ae3ea18c6d0b|feat(PLAT-051): fence durable registration authority
+3ca746ca3758f86fb6c319f311a15b8f390677dd|PLAT-051 fence scoped provider authority revocation
+e1616d32993300e082189de29fc26fe37f247c95|feat(PLAT-051): add durable authorized revocation command
+2f8038f1a119e4b9d374cbb13a4ce2796ff4e2eb|feat(PLAT-051): bind provider revocation to scoped foundation authority
+ec996c3f3f45a1c6b1305e207800b3b08c2b54d4|feat(PLAT-051): provision inactive provider authority metadata
+b16d511fcb888af1273638bbfbda10bea4d9f051|feat(PLAT-051): add durable revision-fenced policy configuration
+47cc61decd7ba1c9c1e3ef4bcbeedb36cd45b48c|feat(PLAT-051): fence authoritative provider binding source
+a2ad57436f74acae059c3546bfadf0ab3fbd8bd7|feat(PLAT-051): revalidate binding source on delivery registration
+8c7ebd7180059101e0a9989c9b23189c2150adae|feat(PLAT-051): activate source-verified identity and binding atomically
+875b86207daace4df5366f5238b32791b9895637|feat(PLAT-051): queue metadata-only replies with authority fences
+66305119a3edb79afba72b7366421ba151ab3a0a|feat(PLAT-051): persist explicit fenced reply approvals
+eca31d853ba759b37fc7d2c43c525327f49448c1|feat(PLAT-051): compose scoped operator HTTP commands
+8f77bfb8c69d9e972ca99203ca506c971dc47016|feat(PLAT-047): fence bounded browser driver lifecycle
+527da897ce767eae81d241be06ec2644601ac17c|feat(PLAT-047): expose browser reconciliation ownership evidence
+28b6a613cc31e63d6ed939bc3ac9280a3d30b38a|fix(PLAT-052): fence bound status reads and scope fixture plant
+b38aa473d1bbac9850c2a07b408c6f25a5e834eb|feat(PLAT-052): complete scoped source projection and order detail fixtures
+809dee11b207a6e104b7bb637e7c21b97f05af32|feat(PLAT-047): implement isolated local Chromium lifecycle driver
+fd2f6aedfd265ca1b7458758592a701ce9da52a3|fix(PLAT-052): validate source IDs and shipment evidence
+95d29da0e4875a25a7f909d40eeab19de27c49f9|feat(PLAT-053): complete guarded service operations and truthful metrics
+21247837cb68e67fa3c7b1904010f8c9428989c8|feat(PLAT-051): compose fenced local provider runtime and clock contract
+c8f1fcfe153598ae3ac7436ed2f5718918c50b43|docs(service-portals): hand off all assigned local features and external boundaries
+eee8f1554e49370a6157f9b04720bd5c2a612544|feat(PLAT-013): bind repair spare replacement to canonical stock authority
+bf8c9af0a17648d67b49dededc61440bf348f258|feat(PLAT-044): add scoped versioned vector index and revocation core
+dc429394aef2bc3af6fe625be056b9cd3de39044|feat(PLAT-027): add revisioned manual ingestion and ACL rechecked retrieval API
+79d26a514fa56b4745fa864a1242efe4edee6985|feat(PLAT-044): expose authorized index status and deactivation
+9a14078d7cdc0286bfc08eed0d34181041797f7c|feat(PLAT-015): add pick pack dispatch and quarantined customer returns
+970e852ddfd761be3256016c650bb09d3844ac32|feat(PLAT-020): bind immutable source snapshots and scoped reconciliation
+52c0804b6b8e3ff9abe4ad7915d164889be00423|fix(PLAT-020): fence source identity and document v2 adoption
+a1c007ad020f2f345f8778ce7907c77282dbba50|feat(PLAT-028): add scoped evidence assistant and operator workspace
+ef3a1ef6169c134108e15894247be6b63c504192|feat(PLAT-055): add bounded customer intent adapter
+c83f2e77da3c8afcff7aab03427fbba494d9369b|feat(PLAT-016): preserve invoice postings and exact deposit credit settlement
+24a597df874e6a83952ee1c1ae441dfe93b51d42|feat(PLAT-031): add point-in-time scoring boundary
+9bffc562fa1d24b4615ae0b5e437a0d9c4326041|feat(PLAT-015): dispatch manufactured stock with canonical shipment authority and genealogy freeze
+48df127212d367a324a2d5b21f5e175a69638d2c|feat(PLAT-015,PLAT-016): derive truthful fulfillment closure from immutable evidence
+26cdcb5b8578fb2c273e7c48d9a4aa5297738cc0|fix(PLAT-015): retain execution and unit budgets for shipment ancestry evidence
+7ae408068c858544cefb504e17959e82de0bbea2|fix(PLAT-016): show missing legacy credit evidence explicitly
+7f7ed96996e0d6a6955a5d0db2b93116f5b3d090|feat(PLAT-016): bind invoice issuance to deduplicated reporting order snapshots
+038adebc651fb3f714e52548b5ece104890bc9e3|feat(PLAT-018): add scoped operational metrics aging capacity and read adapters
+39793e8a9d3dae5ebd2776dce9fde9ffefe721cc|feat(PLAT-030): add consented verification challenges and NFC PIN fallback
+a51be00ccde250b6571d0916ebbdc70c80b84269|feat(PLAT-018): bind telemetry source evidence and separate order invoice balances
+142ce2d2e7405c92ce32d89a301af4cedfd1159a|fix(PLAT-030): fence subject entity access and prevent duplicate NFC credentials
+6d5766805b61b41c64e45d5e03d02527401dde37|feat(PLAT-018): connect bounded read-only legacy measurement adapters
+af2811e1f2e5cdedcf6a15081714e299659940b2|fix(PLAT-018): expose reconciliation watermarks and fence drilldown reads
+6f564102f4db9b894bcaeea84fd31d262cecc79d|feat(PLAT-018): link operational drilldowns to authorized source records
+4deef871c73a7e98f21b05e9fa3e95567db2178d|feat(PLAT-032): add pinned-model zone generation publication and owned playback recovery
+507b0696f50bf0da76a721ad20b7bc6da8219c6c|docs(TPR-145): record operations workforce voice contracts and implementation ledger
+a517790418d59488d0f8fb37ad81ad4a95cd2479|docs(TPR-145): include feature SHA ledger and qualified verification matrix
+0cbe32753fbdae058a58d6bb86f9bafa86c64d25|feat(PLAT-029): persist approved vendor drafts and fenced local delivery
+d079b4ed864b6415bc79777f05b4e60265f179e3|feat(PLAT-055): connect scoped triage API and operator flow
+df7e8be9bece71d58d7b72ab5ac2f56c688a71c1|feat(PLAT-031): add temporal baseline lineage serving and rollback workflow
+de1534eeaf9cf0f1617dde3f9e491d71438db763|feat(PLAT-027): bind approved PO evidence and complete ingestion controls
+d52a868f7fc3e8923882fe78dfa674761e1249dc|feat(PLAT-044): add bounded retired-point cleanup and recovery controls
+81ebc15ad722e2d7a4aae31b23abd1b2d236dfec|fix(PLAT-029): deny automation service approval at authenticated API
+66c0e7fa08d324095cec0534a0687851c320800c|fix(PLAT-029): serialize draft commands and expose server reconciliation
+53cd5bd11ca9f565f7222a3098eb43caeefbeb05|docs(ai): hand off all six scoped implementation features for integration
+cb609d06bb98d93baf6f4d3f4fa66cb969f9e99a|fix(PLAT-029): preserve read-only approved purchase order authority
+ee687f3b041f86195d299fff13e9bd2550228e5b|docs(ai): record final source-authority boundary and verification
+f4d5fac8151c823235f58bc3bc8fec0067629461|Merge TPR-143 finance prerequisite into pilot lane
+23aa6903a241e6a3484343e0b4d97bbcfa1371a2|feat(PLAT-033): add bounded synthetic pilot onboarding reconciliation
+bb82db958da4fd38b3bcb8b3f55a702dd2690974|feat(PLAT-034): implement synthetic restore rehearsal and incident runbook
+08e6c97635f5029165010296ad7d673531cef3ec|feat(PLAT-038): implement scoped SaaS subscription metering and reversible lifecycle
+45a8d9f9a70fcbb1f5d471cb51b3ecb46bb26fe0|feat(PLAT-035): define offline AWS Atlas least privilege and release gates
+3d2e519b6afae4524fb37a2d84ef86ee0c7bfda9|feat(PLAT-036): define private data cloud resources and scoped parity adapter
+2b53b29efd609f15bcba1e23a1706dd18d3b9c15|feat(PLAT-039): add optional evidence bounded Databricks evaluation
+7527bf3272202d1773741d692625efe5b4e70a90|fix(PLAT-038): validate meter types and recover rejected commands
+a7a53c26f5c5423088d3cc5422c0e21d1b34ab60|fix(PLAT-035): distinguish missing Terraform from execution failure
+e0beca57726e1c91a4f3cfedf0aad7815857278a|fix(PLAT-038): use shared usage table and focus actionable errors
+03debf5e487749cacfea88f4b38e32b8ab154a11|docs(TPR-148): record feature ledger integration contracts and external boundaries
+288b1306c9f770205e085046374379d1e3832866|Merge commit 'c7b8c4e265b942e5d4890fd9d5148dbbc85b94f3' into program/iems-all-features-20261030
+88d5bb84f49cf719032182c492b17ce27a5f359f|merge(TPR-149): integrate final data helper over published prerequisite
+80c70a795bf0640272f6773e845679303701f9de|Merge commit '693a129f04038188b0d1f52bbef6b91a0d001708' into program/iems-all-features-20261030
+c2ca5564c215700bc879395d2aefc1f59923840f|Merge commit 'eee8f1554e49370a6157f9b04720bd5c2a612544' into program/iems-all-features-20261030
+1883c8d4b7d881d9cfbb810b581380cff633b029|merge(TPR-149): preserve canonical manufactured dispatch and reporting contracts
+b073dd3984793a98026c3d5851d1f4fe0dc17668|Merge commit 'c8f1fcfe153598ae3ac7436ed2f5718918c50b43' into program/iems-all-features-20261030
+130746824150a8a9790789a3484c1b8b16a76e15|Merge commit 'a517790418d59488d0f8fb37ad81ad4a95cd2479' into program/iems-all-features-20261030
+d74fb5ffd4878f413caad9bfd50ba4982358bf1a|Merge commit 'ee687f3b041f86195d299fff13e9bd2550228e5b' into program/iems-all-features-20261030
+85a852384f57298c1759967c335fe45e2032edfe|Merge commit '03debf5e487749cacfea88f4b38e32b8ab154a11' into program/iems-all-features-20261030
