@@ -6,7 +6,20 @@ CTO registration delta: merge data branch with prerequisite ancestry intact. Add
 
 Run Python service with `PYTHONPATH=jobs/analytics:apps/reporting-api uvicorn server:create --factory --host 127.0.0.1 --port <owned-port>` (Windows path separator `;`). Explicit environment only: IEMS_AUTHORITY_URL fixed gateway `/api/analytics/authority`; IEMS_REPORTING_DSN dedicated projection DB; IEMS_ANALYTICS_PUBLISH_ROOT immutable publications. Never load application .env or reuse source DB credentials. HTTPS/mTLS private routing for non-loopback delivery is an environment gate. The gateway forwards the actual session cookie; Python rechecks authority with the gateway, accepts no caller-provided grant headers, and never authenticates from UUID query parameters. Gateway reauthorizes after downstream read and audits exports in a fresh effect transaction. No domain mutation endpoint exists.
 
-Apply database/migrations/reporting/001_projection.sql only after separate target/migration authorization. Use non-superuser NOBYPASSRLS roles. Reader receives USAGE schema, SELECT heads/receipts/orders/payments/fulfillments and INSERT export_audit plus sequence usage. Projection writer receives scoped SELECT/INSERT/UPDATE on projection tables; no DELETE. Grant permissions explicitly; migration revokes PUBLIC and creates no login/secret. Do not grant source schema access. Transaction-local tenant/plant context drives forced RLS; source authorization and gateway session grants are still mandatory.
+Apply database/migrations/reporting/001_projection.sql only after separate target/migration authorization. Use non-superuser NOBYPASSRLS roles. Reader receives USAGE schema, SELECT heads/receipts/orders/order_quantities/payments/fulfillments/source_coverage and INSERT export_audit plus sequence usage. Grant permissions explicitly; migration revokes PUBLIC and creates no login/secret. Do not grant source schema access. Transaction-local tenant/plant context drives forced RLS; source authorization and gateway session grants are still mandatory.
+
+Provision the projection writer with these exact table privileges (replace the role name with the separately approved reporting writer):
+
+```sql
+GRANT USAGE ON SCHEMA reporting TO reporting_writer;
+GRANT SELECT, INSERT ON reporting.receipts, reporting.source_coverage,
+ reporting.order_quantities TO reporting_writer;
+GRANT SELECT, INSERT, UPDATE ON reporting.heads, reporting.orders,
+ reporting.payments, reporting.fulfillments TO reporting_writer;
+GRANT DELETE ON reporting.order_quantities TO reporting_writer;
+```
+
+The single DELETE grant is required by full-snapshot quantity replacement, including removing a UOM omitted by a later snapshot. `Projection.apply` deletes only the authorized tenant/plant/order's component quantities, then inserts the new quantities in the same advisory-locked transaction as the head, order and immutable receipt. A failed constraint or conservation check rolls the replacement back. Orders, payments and fulfillments use tombstones; receipts and coverage are append-only for this writer. No DELETE on those tables, TRUNCATE, schema ownership, CREATE, BYPASSRLS or source-ledger permission is required. Fresh reader roles receive no DELETE. Existing role privilege changes remain a separately approved provisioning action; this contract does not execute them.
 
 Source consumer: construct Projection(connect,authorize_source). `connect` must connect only to the isolated reporting DB. `authorize_source(event,cursor)` must validate a current active service grant for the event tenant/plant in the effect transaction and return that verified scope. Then call `apply({event,receivedAt,availableAt})`; ack Kafka only after commit. HTTP server uses a deny-all source callback so it cannot ingest through user-facing routes. Version gaps/FK parent races require replay after prerequisite events; immutable type mapping and source snapshot payload contract are in analytics/READ-CONTRACT.md. No inferred mapping from unrelated legacy events is enabled. Domain owners must provide full authorized snapshot events for their verticals before source-to-report deployment.
 
