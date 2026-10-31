@@ -218,15 +218,26 @@ export async function csOnboardingJourney(ctx) {
     assert.equal(await inbound(), beforeTimeout[0] + 1);
   } finally { ctx.listeners.delete(observeInquiry); }
   check('W4F-C7 active reader timeout returns STATUS_UNAVAILABLE with zero effects/disclosure; same-key browser retry after recovery renders actual manufacture preview once');
-  const manufacturing = await db.collection('manufacturingWorkOrders').find({ tenantId: so.tenantId, status: 'RELEASED' }).toArray();
-  let manufactureOnly;
-  for (const wo of manufacturing) {
-    if (wo.salesOrderId !== so._id && await db.collection('warehouseReservations').countDocuments({ salesOrderId: wo.salesOrderId }) === 0) {
-      const candidate = await db.collection('salesOrders').findOne({ _id: wo.salesOrderId, accountId: account._id });
-      if (candidate) { manufactureOnly = candidate; break; }
-    }
-  }
-  assert.ok(manufactureOnly, 'real released manufacture fixture with no sales reservations');
+  const content = { taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP', lines: [{ description: 'Synthetic manufacture-only inquiry', quantity: '1', uom: 'EA', unitPrice: '0.05', currency: 'USD' }] };
+  const quote = await post('commercial/quotes', { ...content, accountId: account._id, expiresAt: '2027-01-01T00:00:00.000Z' });
+  await post(`commercial/quotes/${quote._id}/approve`, { expectedVersion: 1, revision: 1 });
+  await post(`commercial/quotes/${quote._id}/accept`, { expectedVersion: 2, revision: 1 });
+  const manufactureOnly = await post(`commercial/quotes/${quote._id}/convert`, { expectedVersion: 3, revision: 1, idempotencyKey: key() });
+  const vendor = await db.collection('vendors').findOne({ tenantId: so.tenantId, plantId: so.plantId });
+  assert.ok(vendor);
+  const pr = await post('procurement/requests', { ...content, vendorId: vendor._id });
+  await post(`procurement/requests/${pr._id}/approve`, { expectedVersion: 1 });
+  const po = await post(`procurement/requests/${pr._id}/convert`, { expectedVersion: 2, idempotencyKey: key() });
+  await post(`procurement/orders/${po._id}/issue`, { expectedVersion: 1 });
+  const material = await post('warehouse/receipts', { purchaseOrderId: po._id, expectedVersion: 2, vendorId: vendor._id, lineIndex: 0, quantity: '1', uom: 'EA', idempotencyKey: key() });
+  await post(`warehouse/receipts/${material._id}/release`, { expectedVersion: 1, reason: 'Synthetic inquiry material inspection', idempotencyKey: key() });
+  await post(`warehouse/receipts/${material._id}/putaway`, { expectedVersion: 2, location: 'CS-INQUIRY-FIXTURE', idempotencyKey: key() });
+  await post('manufacturing/work-orders', { salesOrderId: manufactureOnly._id, expectedVersion: manufactureOnly.version, lineIndex: 0, uom: 'EA', quantities: ['1'], idempotencyKey: key() });
+  const work = await db.collection('manufacturingWorkOrders').findOne({ salesOrderId: manufactureOnly._id });
+  assert.ok(work);
+  await post(`manufacturing/work-orders/${work._id}/release`, { expectedVersion: work.version, routing: { operations: [{ code: 'BUILD', instruction: 'Synthetic manufacture-only inquiry fixture' }], materials: [{ receiptId: material._id, quantityPerUnit: '1', uom: 'EA' }] }, idempotencyKey: key() });
+  assert.equal((await db.collection('manufacturingWorkOrders').findOne({ _id: work._id })).status, 'RELEASED');
+  assert.equal(await db.collection('warehouseReservations').countDocuments({ salesOrderId: manufactureOnly._id }), 0);
   const only = await send(`IEMS ORDER ${manufactureOnly.orderNumber}`);
   assert.equal(only.kind, 'MANUFACTURE'); assert.equal(only.state, 'PREVIEWED'); assert.ok(only.body.includes(manufactureOnly.orderNumber));
   assert.equal(await db.collection('warehouseReservations').countDocuments({ salesOrderId: manufactureOnly._id }), 0);
