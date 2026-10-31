@@ -34,13 +34,16 @@ test('Wave4h canonical VAT quote/invoice PDFs, partial6/4 and historical replay 
   await ok(`/repair/cases/${repair._id}/diagnostic-authorize`, { expectedVersion: 1, feeCap: '100.00', evidence: 'Synthetic authorization', idempotencyKey: randomUUID() });
   await ok(`/repair/cases/${repair._id}/teardown`, { expectedVersion: 2, findings: [{ component: 'Housing', disposition: 'REPAIR' }], evidence: 'Synthetic teardown', idempotencyKey: randomUUID() });
   const repairBefore = await db.collection('repairCases').findOne({ _id: repair._id });
-  const repairScope = await post(`/repair/cases/${repair._id}/scope`, { expectedVersion: 3, quoteId: q._id, revision: 2, depositRequired: '0.00', evidence: 'Synthetic unsupported tax scope', idempotencyKey: randomUUID() });
-  // Converted quotes are already denied; a separate approved VAT quote tests the unsupported repair boundary.
+  const repairScope = await post(`/repair/cases/${repair._id}/scope`, { expectedVersion: 3, quoteId: q._id, revision: 2, depositRequired: '0.00', evidence: 'Synthetic converted quote boundary', idempotencyKey: randomUUID() });
   assert.equal(repairScope.status, 409);
+  assert.equal(repairScope.error.code, 'SCOPE_CONFLICT');
+  assert.deepEqual(await db.collection('repairCases').findOne({ _id: repair._id }), repairBefore);
   const rq = await ok('/commercial/quotes', { accountId: account._id, ...content(revisions[1]) }, 201);
   await ok(`/commercial/quotes/${rq._id}/approve`, { expectedVersion: 1, revision: 1 });
-  assert.equal((await post(`/repair/cases/${repair._id}/scope`, { expectedVersion: 3, quoteId: rq._id, revision: 1, depositRequired: '0.00', evidence: 'Synthetic unsupported tax scope', idempotencyKey: randomUUID() })).error.code, 'TAX_POLICY_UNSUPPORTED');
-  assert.deepEqual(await db.collection('repairCases').findOne({ _id: repair._id }), repairBefore);
+  const scopedRepair = await ok(`/repair/cases/${repair._id}/scope`, { expectedVersion: 3, quoteId: rq._id, revision: 1, depositRequired: '0.00', evidence: 'Synthetic approved fixture VAT scope', idempotencyKey: randomUUID() });
+  assert.equal(scopedRepair.version, 4); assert.equal(scopedRepair.status, 'SCOPE_QUOTED');
+  assert.deepEqual(scopedRepair.scopes[0].snapshot, rq.revisions[0]);
+  assert.deepEqual(triple(scopedRepair.scopes[0].snapshot), ['122500.00', '13475.00', '135975.00']);
   const plan = await ok('/manufacturing/work-orders', { salesOrderId: so._id, expectedVersion: 1, lineIndex: 0, uom: 'UN', quantities: ['6', '4'], idempotencyKey: randomUUID() }, 201);
   const { receipt } = await orderWithStock(h, { receiptQuantity: '20', reserve: null });
   const shipments = [];
@@ -51,7 +54,7 @@ test('Wave4h canonical VAT quote/invoice PDFs, partial6/4 and historical replay 
     await ok(`${path}/qc`, { expectedVersion: 3, acceptedQuantity: wo.quantity, rejectedQuantity: '0', uom: 'UN', evidence: 'Synthetic fixture QC', idempotencyKey: randomUUID() });
     shipments.push(await ok('/fulfillment/shipments', { salesOrderId: so._id, expectedVersion: 1, lineIndex: 0, uom: 'UN', sources: [{ sourceType: 'WORK_ORDER', sourceId: wo._id, quantity: wo.quantity }], reference: 'Synthetic E01 monetary slice', idempotencyKey: randomUUID() }, 201));
   }
-  const names = ['fulfillmentInvoices', 'fulfillmentTallies', 'fulfillmentKeys', 'fulfillmentAudit', 'fulfillmentOutbox', 'fulfillmentPayments', 'documentIntents', 'documentAudit', 'documentOutbox', 'salesOrders', 'quotes'];
+  const names = ['fulfillmentInvoices', 'fulfillmentTallies', 'fulfillmentKeys', 'fulfillmentAudit', 'fulfillmentOutbox', 'fulfillmentPayments', 'documentIntents', 'documentIssues', 'documentArtifacts', 'documentAudit', 'documentOutbox', 'salesOrders', 'quotes'];
   const snapshot = () => Promise.all(names.map(n => db.collection(n).find().sort({ _id: 1 }).toArray()));
   const invoiceBody = s => ({ salesOrderId: so._id, expectedVersion: 1, lines: [{ shipmentId: s._id, quantity: s.quantity }], idempotencyKey: randomUUID() });
   const body = invoiceBody(shipments[0]);
@@ -87,6 +90,17 @@ test('Wave4h canonical VAT quote/invoice PDFs, partial6/4 and historical replay 
     assert.deepEqual(await snapshot(),before);
     await db.collection('fulfillmentInvoices').replaceOne({_id:i1._id},storedInvoice);
   }
+  const documentBody = { kind: 'invoice', sourceId: i1._id, sourceVersion: 1 };
+  await db.createCollection('documentOutbox');
+  for (const name of ['documentIntents', 'documentOutbox']) {
+    const before = await snapshot();
+    await db.command({ collMod: name, validator: { forbidden: { $exists: true } }, validationLevel: 'strict' });
+    try { assert.equal((await post('/documents/issues', documentBody)).status, 500); assert.deepEqual(await snapshot(), before); }
+    finally { await db.command({ collMod: name, validator: {} }); }
+  }
+  const restore = await h.setRoles(h.seeded[0], ['documentReader', 'fulfillmentReader']);
+  try { const before = await snapshot(); assert.equal((await post('/documents/issues', documentBody)).status, 403); assert.deepEqual(await snapshot(), before); }
+  finally { await restore(); }
   const issued = [];
   for (const [kind, sourceId, sourceVersion, gross] of [['quote', q._id, 1, '142080.00'], ['quote', q._id, 2, '135975.00'], ['invoice', i1._id, 1, '81585.00'], ['invoice', i2._id, 1, '54390.00']]) {
     const body = { kind, sourceId, sourceVersion };
