@@ -3,12 +3,14 @@ import { IdentityContext } from './PortfolioWorkspace.jsx';
 import { portfolioRequest, errorMessage } from './client.mjs';
 import WorkspaceField from '../../components/forms/WorkspaceField.jsx';
 import WorkspaceState from '../../components/ui/WorkspaceState.jsx';
+import WorkspaceTable from '../../components/tables/WorkspaceTable.jsx';
 
 export function TenantLifecycleWorkspace() {
-  const identity=useContext(IdentityContext), generation=useRef(0), lock=useRef(false);
+  const identity=useContext(IdentityContext), generation=useRef(0), lock=useRef(false), errorRef=useRef(null);
   const [view,setView]=useState({}), [pending,setPending]=useState(null), [archive,setArchive]=useState(null);
   const storageKey=identity?.scope?.tenantId && identity?.scope?.plantId && identity?.user?.id
     ? `iems.saas:${identity.scope.tenantId}:${identity.scope.plantId}:${identity.user.id}` : null;
+  useEffect(()=>{if(view.error)errorRef.current?.focus();},[view.error]);
   useEffect(()=>{
     generation.current++; lock.current=false; setView({});setPending(null);setArchive(null);
     try {if(storageKey) setPending(JSON.parse(sessionStorage.getItem(storageKey)||'null'));}
@@ -59,13 +61,14 @@ export function TenantLifecycleWorkspace() {
     <header className="pf-page-header"><h1>Tenant subscription and lifecycle</h1><p>Manage tenant-wide SaaS entitlements, usage and reversible data archives. Tenant invoices remain in finance.</p></header>
     <button disabled={view.busy} onClick={load}>Refresh subscription</button>
     {view.busy&&<WorkspaceState kind="loading" title="Checking tenant authority"/>}
-    {view.error&&<WorkspaceState kind="error" title="SaaS action unavailable"><p>{errorMessage(view.error,true)}</p></WorkspaceState>}
+    {view.error&&<div tabIndex={-1} ref={errorRef}><WorkspaceState kind="error" title="SaaS action unavailable"><p>{errorMessage(view.error,true)}</p></WorkspaceState></div>}
     {pending&&<WorkspaceState title="Unresolved command"><p>Reconcile the exact saved command before submitting another action. Access is checked again.</p><button disabled={view.busy} onClick={()=>submit(pending)}>Reconcile saved command</button></WorkspaceState>}
     {!data&&!view.busy&&!view.error&&<WorkspaceState title="Load the current tenant"><p>A tenant-wide SaaS role is required. No subscription or usage is assumed.</p></WorkspaceState>}
     {data&&<>
       <section className="pf-panel"><h2>{row?.state??'No subscription'}</h2><p>{data.boundary}</p><p>Billing: metering only; no payment collection.</p>
         {row&&<><dl className="pf-dl"><dt>Plan</dt><dd>{row.plan}</dd><dt>Revision</dt><dd>{row.revision}</dd><dt>Usage month (UTC)</dt><dd>{row.period}</dd><dt>Last change (UTC)</dt><dd>{row.changedAt}</dd></dl>
-          <div className="pf-table-wrap" role="region" aria-label="SaaS usage" tabIndex={0}><table className="pf-table"><thead><tr><th scope="col">Meter</th><th scope="col">Used</th><th scope="col">Included limit</th></tr></thead><tbody>{Object.entries(row.usage).map(([k,v])=><tr key={k}><th scope="row">{k}</th><td>{v}</td><td>{row.limits[k]}</td></tr>)}</tbody></table></div></>}
+          <WorkspaceTable caption="SaaS usage" columns={[{key:'metric',label:'Meter'},{key:'used',label:'Used',numeric:true},{key:'limit',label:'Included limit',numeric:true}]}
+            rows={Object.entries(row.usage).map(([metric,used])=>({metric,used,limit:row.limits[metric]}))} rowKey={r=>r.metric}/></>}
         {(!row||['ACTIVE','SUSPENDED'].includes(row.state))&&<form className="pf-form" onSubmit={e=>command(e,'subscribe')}>
           <WorkspaceField as="select" name="plan" label="SaaS plan" required>{Object.keys(data.plans).map(p=><option key={p} value={p}>{p}</option>)}</WorkspaceField>
           <WorkspaceField name="reason" label="Subscription change reason" maxLength={500} required/><button disabled={disabled}>Save subscription</button></form>}
