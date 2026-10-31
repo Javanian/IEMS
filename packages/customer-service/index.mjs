@@ -259,10 +259,25 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
       const current=await c('cs_contact_bindings').findOne({...scoped,_id:request.bindingId},{session});if(!current)fail('NOT_FOUND');
       if(result&&(current.status!=='REVOKED'||current.version!==result.binding?.version))fail('DENIED');
     }
+    if(namespace==='simulator.dispatch')await previewRows(session,g,request.deliveryIds,result?.previewedDeliveryIds);
     if(namespace==='delivery.review') {
       const row=await c('cs_outbox').findOne({...scoped,_id:request.deliveryId},{session});if(!row)fail('NOT_FOUND');
       if(!await c('cs_contact_bindings').findOne({...scoped,_id:row.bindingId,version:row.bindingVersion,channelAccountId:row.channelAccountId,status:'ACTIVE',...unexpired()},{session}))fail('DENIED');
     }
+  }
+  async function previewRows(session,g,deliveryIds,replayIds) {
+    const ids=replayIds??deliveryIds,at=now(),filter={tenantId:g.tenantId,plantId:g.plantId,channelAccountId:SIMULATED_CHANNEL_ACCOUNT,...(ids?{_id:{$in:ids}}:{state:'QUEUED',nextAttemptAt:{$lte:at}})};
+    const rows=await c('cs_outbox').find(filter,{session}).sort({seq:1,_id:1}).limit(replayIds?25:ids?101:25).toArray();
+    if(ids&&rows.length!==ids.length)fail('NOT_FOUND');
+    if(rows.length>25)fail('INVALID_INPUT');
+    for(const d of rows){
+      if(!['QUEUED','PREVIEWED'].includes(d.state)||d.leaseOwner||d.leaseUntil||d.expiresAt<=at||d.nextAttemptAt>at)fail('DENIED');
+      if(await c('cs_outbox').findOne({tenantId:g.tenantId,conversationId:d.conversationId,state:{$in:['SENDING','UNKNOWN']}},{session}))fail('DENIED');
+      const b=await c('cs_contact_bindings').findOneAndUpdate({_id:d.bindingId,tenantId:g.tenantId,plantId:g.plantId,channel: 'SIMULATED',channelAccountId:SIMULATED_CHANNEL_ACCOUNT,status:'ACTIVE',version:d.bindingVersion,...unexpired()},{$inc:{previewFence:1}},{session,returnDocument:'after'});
+      const conv=await c('cs_conversations').findOneAndUpdate({_id:d.conversationId,tenantId:g.tenantId,plantId:g.plantId},{$inc:{previewFence:1}},{session,returnDocument:'after'});
+      if(!b||!conv||b.customerId!==conv.customerId||b._id!==conv.bindingId||['PAUSED','CLOSED'].includes(conv.mode)||(d.origin==='BOT'&&(conv.mode!=='BOT_ACTIVE'||conv.modeEpoch!==d.modeEpoch))||(d.origin==='OPERATOR'&&(conv.mode!=='HUMAN_ACTIVE'||conv.assigneeId!==d.actorUserId)))fail('DENIED');
+    }
+    return rows;
   }
   async function conversationFor(session, binding) {
     const at = now();
@@ -934,6 +949,26 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
         if(typeof disposition?.enrolled!=='boolean')fail('DENIED');
         return Object.defineProperty({conversationId:conv._id,bindingId:b._id,command:command.op,result},customerServiceDisposition,{value:disposition});
       },{onAdmission:value=>{disposition=value;}});
+    },
+
+    async dispatchLocalPreviews(scope,{plantId,commandKey,deliveryIds=null}) {
+      key(commandKey);
+      if(deliveryIds!==null&&(!Array.isArray(deliveryIds)||deliveryIds.length<1||deliveryIds.length>25||new Set(deliveryIds).size!==deliveryIds.length))fail('INVALID_INPUT');
+      deliveryIds=deliveryIds===null?null:deliveryIds.map(uuid).sort();
+      return operatorTx(scope,plantId,'cs.simulator.use',async(session,g)=>{
+        await operator(scope,plantId,'cs.ticket.read');
+        if(await c('sessions').findOne({tenantId:g.tenantId,userId:g.userId,automationService:true},{session}))fail('DENIED');
+        return idempotent(session,{tenantId:g.tenantId,scope:'simulator.dispatch',owner:g.userId,key:commandKey,request:{deliveryIds}},async()=>{
+          const rows=await previewRows(session,g,deliveryIds),previewedDeliveryIds=[];
+          for(const d of rows){
+            if(d.state==='QUEUED'){
+              const at=now(),change=await c('cs_outbox').updateOne({_id:d._id,tenantId:g.tenantId,plantId:g.plantId,state:'QUEUED',fence:d.fence,leaseOwner:null,leaseUntil:null},{$set:{state:'PREVIEWED',providerMessageId:null,previewedAt:at,updatedAt:at},$inc:{fence:1},$push:{history:{state:'PREVIEWED',outcome:'LOCAL_PREVIEW',actorUserId:g.userId,at}}},{session});if(change.matchedCount!==1)fail('STALE_FENCE');
+            }
+            previewedDeliveryIds.push(d._id);
+          }
+          await audit(session,g.tenantId,'simulator.local_preview',g.plantId,{type:'OPERATOR',userId:g.userId});return {previewedDeliveryIds};
+        });
+      });
     },
 
     async getOutboundMessages(scope, { plantId, deliveryIds }) {

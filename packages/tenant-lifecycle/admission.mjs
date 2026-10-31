@@ -18,6 +18,7 @@ export const admissionReceipts = Object.freeze(Object.fromEntries([
 ].map(([collection,hashField]) => [collection,Object.freeze({collection,hashField})])));
 export const automationReceiptPolicies=Object.freeze({TICKET_ESCALATE:'cs.automation.execute',RESOLUTION_DRAFT_CREATE:'cs.automation.execute',RESOLUTION_DISPATCH_INTENT:'cs.automation.execute',DIGEST_DISPATCH_INTENT:'cs.automation.execute',AUTOMATION_PAUSE:'cs.automation.admin',RESOLUTION_APPROVE:'cs.ticket.write',RESOLUTION_REJECT:'cs.ticket.write',RESOLUTION_CANCEL:'cs.ticket.write',DELIVERY_MANUAL_REVIEW:'cs.automation.admin',SERVICE_CREDENTIAL_ISSUE:'cs.automation.admin',SERVICE_CREDENTIAL_REVOKE:'cs.automation.admin'});
 export const csReceiptPolicies=Object.freeze({
+ 'simulator.dispatch':{permission:'cs.simulator.use',owner:'user'},
  'complaint.start':{customer:true},'complaint.update':{customer:true},'conversation.bot_reply':{customer:true},'conversation.operator_reply':{permission:'cs.reply',owner:'user'},
  'inbound.command':{customer:true},'complaint.confirm':{customer:true},'ticket.customer_comment':{customer:true},'conversation.handoff_request':{customer:true},
  'ticket.transition':{permission:'cs.ticket.write',owner:'user'},'ticket.public_update':{permission:'cs.ticket.write',owner:'user'},'ticket.internal_note':{permission:'cs.note.internal',owner:'user'},

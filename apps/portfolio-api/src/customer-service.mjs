@@ -154,9 +154,14 @@ export function installCustomerService(app, runtime, { fail, id, fields }) {
     } });
   }));
   app.post('/api/cs/simulator/dispatch', async (req, res) => contractErrors(async () => {
-    strict(req.body, []);
-    await runtime.foundation.authorize(req.scope, { plantId: plantId(req), action: 'cs.simulator.use' });
-    res.json({ data: { previewedDeliveryIds: await drainPreviews(req.scope.tenantId) } });
+    strict(req.body,['commandKey','deliveryIds']);
+    if(req.automationService)fail(403,'HUMAN_APPROVAL_REQUIRED');
+    if(req.body.commandKey!==undefined)res.json({data:await cs().dispatchLocalPreviews(req.scope,{plantId:plantId(req),commandKey:req.body.commandKey,deliveryIds:req.body.deliveryIds??null})});
+    else {
+      await runtime.foundation.authorize(req.scope,{plantId:plantId(req),action:'cs.simulator.use'});
+      if(req.body.deliveryIds!==undefined)fail(400,'COMMAND_KEY_REQUIRED');
+      res.json({data:{previewedDeliveryIds:await drainPreviews(req.scope.tenantId)}});
+    }
   }));
   app.get('/api/cs/metrics', async (req, res) => contractErrors(async () => {
     query(req, ['from', 'to']);

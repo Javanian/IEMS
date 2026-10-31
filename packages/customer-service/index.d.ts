@@ -137,6 +137,7 @@ export interface CustomerService {
   listBindingsPage(scope: VerifiedScope, input: Op<{ accountId?: UUID; status?: BindingStatus; limit?: number; cursor?: string }>): Promise<Page<BindingView>>;
   getOrderStatusForBinding(scope: VerifiedScope, input: Op<{ bindingId: UUID; orderNumber: string }>): Promise<Omit<OrderStatusView, 'sourceId' | 'sourceVersion' | 'kind' | 'milestones' | 'confirmedDates'> & { sourceId: string | null; sourceVersion: number | null; kind: OrderKind | null; milestones: OrderMilestone[]; confirmedDates: ConfirmedDates }>;
   simulateInbound(scope: VerifiedScope, input: Op<{ bindingId: UUID; inboundKey: string; text: string }>): Promise<{ conversationId: UUID; bindingId: UUID; command: string; result: InboundResult; readonly [customerServiceDisposition]?: {readonly enrolled: boolean} }>;
+  dispatchLocalPreviews(scope: VerifiedScope, input: {plantId: UUID; commandKey: string; deliveryIds?: UUID[] | null}): Promise<{previewedDeliveryIds: UUID[]}>;
   getOutboundMessages(scope: VerifiedScope, input: Op<{ deliveryIds: UUID[] }>): Promise<ThreadMessage[]>;
   getMetrics(scope: VerifiedScope, input: Op<{ from: Date; to: Date }>): Promise<CustomerServiceMetrics>;
 }

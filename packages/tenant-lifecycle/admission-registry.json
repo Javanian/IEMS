@@ -457,6 +457,10 @@
       "hashField": "requestHash",
       "hook": "packages/customer-service/index.mjs idempotent/immutable AsyncLocalStorage context",
       "principals": {
+        "simulator.dispatch": {
+          "permission": "cs.simulator.use",
+          "owner": "user"
+        },
         "complaint.start": {
           "customer": true
         },
@@ -570,7 +574,7 @@
     "apps/portfolio-api/src/config.mjs": "68d37bb07eeef69f3b0179992f94e7b7c1c158a81c57b2ce80a1230d2e0be15a",
     "apps/portfolio-api/src/crm.mjs": "fc42fe7a9ed0a483154c5c5b02507516ca1f6bad58d54a37b5e26183cd6c72b3",
     "apps/portfolio-api/src/cs-intent.mjs": "8a3f8597044b9ec4b900aea6daeaf0d03df347d62ea5ea0953f0d609941ec0f7",
-    "apps/portfolio-api/src/customer-service.mjs": "268cab8fa79147268afdebfc921a5b67f03e8f1f78e448570ad89cb5871c3b9a",
+    "apps/portfolio-api/src/customer-service.mjs": "3f7f7b9ea7004d2537ae6fd8cb84c7f87a732ba4b7d51ada903edd586b820703",
     "apps/portfolio-api/src/delivery.mjs": "ac6c9e63567df966e0b5ae2f58eb121c095a93a430b9e82494e1c14afd26910f",
     "apps/portfolio-api/src/descendant-freeze.mjs": "ff470bb795c5667f871b239a2ecb86191294cdd2eff30b4f07ecec5626a6f0a7",
     "apps/portfolio-api/src/documents.mjs": "b21fd75da76bf8688204161bab07ad52e5d08dc52cbe30452a99a6a9036e666f",
@@ -620,7 +624,7 @@
     "packages/contracts/src/domains/engineering-repair/gates.mjs": "4d250c6bafc99853bdb25d69655d20c68159c9d0518c05c8129b0287c2daf3e3",
     "packages/contracts/src/domains/logistics-billing/values.mjs": "91d85580045284e070a5395a75b0875c1b7e91aaff5b9f5326794272fc335c20",
     "packages/contracts/src/domains/planning-execution/manufactured-graph.mjs": "1df97ae2c4854a2be65d2ed1735b87424a2e068d61a138f316c1d09e7dae9efd",
-    "packages/customer-service/index.mjs": "926f3dfa3aa294c0773b807a8b48e2da759f38e750ac4342c243ce37cd6a63b0",
+    "packages/customer-service/index.mjs": "f792d66232af2f26e30defbd782f6e6948ccbe447556625816ce5721a6703356",
     "packages/customer-service/order-fixtures.mjs": "a6cd15176e749a31f4c8366661b0781289129f77f7731fe3a2c39f5d11b9bcc8",
     "packages/customer-service/order-source.mjs": "140c440c8530ef772ef4bd1a29659e9285414a41f1082ae40a0cbe2ddde12aa0",
     "packages/customer-service/service-metrics.mjs": "469cc57b2779ef6b81d907c91c052664a6d7a73ae109882a72cfdf6910cba9b4",
@@ -651,7 +655,7 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/admission.mjs": "3d6f2a6f29de9c557a311e067aac02b888b7b929088ca9d54f4d690b4123b70d",
+    "packages/tenant-lifecycle/admission.mjs": "4bff4637dd27a300384d69c5ea147fd06ecb95b766abf18cb936897e7f506a78",
     "packages/tenant-lifecycle/index.mjs": "7a74707b63d4d219611894884ae025aa88062e29aba4c0b5c5ebb679a0ca3eb0",
     "packages/tenant-lifecycle/domain-port.mjs": "48787a3e8928573328259a0bfef8bdf05ef183c4dd813a0175dff62c70131a36",
     "packages/tenant-lifecycle/admission-registry.mjs": "292fefe68375039b69c04cf3850e3413eb26934f02308e0e67fd8208cdbe1ca6"
@@ -2025,9 +2029,9 @@
     },
     {
       "route": "POST /api/cs/simulator/dispatch",
-      "state": "LOCAL_COVERAGE_PENDING",
-      "meter": "NONE",
-      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
     },
     {
       "route": "POST /api/cs/simulator/inbound",
