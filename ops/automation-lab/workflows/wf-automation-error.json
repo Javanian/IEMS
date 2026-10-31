@@ -1,0 +1,77 @@
+{
+  "id": "wf-automation-error",
+  "name": "IEMS - Record sanitized engine failure",
+  "active": false,
+  "nodes": [
+    {
+      "id": "engine-failure",
+      "name": "Engine failure",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        160,
+        240
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "record-failure-reference",
+      "name": "Record failure reference",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        240
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:4319/api/cs/automation/engine-error",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-IEMS-Execution-Id",
+              "value": "={{ $execution.id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { executionId: String($json.execution?.id || \"unknown\"), workflowId: String($json.workflow?.id || \"unknown\"), message: \"n8n execution failed; inspect the local execution reference\" } }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "iems-service-api",
+          "name": "IEMS scoped automation service"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Engine failure": {
+      "main": [
+        [
+          {
+            "node": "Record failure reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Bangkok",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "pinData": {},
+  "tags": [],
+  "versionId": "96b86a70-6e76-4a47-ad13-34618bd1ebe0"
+}

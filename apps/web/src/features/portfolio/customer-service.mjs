@@ -125,7 +125,7 @@ export function metricsView(m) {
   return [
     { key: 'open', label: 'Open tickets', value: String(m.open), detail: 'Not resolved or closed', empty: false },
     { key: 'unassigned', label: 'Unassigned', value: String(m.unassigned), detail: `of ${m.open} open`, empty: false },
-    { key: 'overdue', label: 'Overdue', value: String(m.overdue?.count ?? 0), detail: m.overdue?.slaMinutes ? `of ${m.open} open · SLA ${minutes(m.overdue.slaMinutes)}` : `of ${m.open} open`, empty: false },
+    { key: 'overdue', label: 'Overdue', value: m.overdue?.count == null ? 'No data' : String(m.overdue.count), detail: m.overdue?.slaMinutes ? `of ${m.open} open · SLA ${minutes(m.overdue.slaMinutes)}` : `of ${m.open} open`, empty: false },
     { key: 'firstHumanResponse', label: 'First human response', ...duration(m.firstHumanResponse, 'ticket', 'No agent replies in this window. Bot messages do not count.') },
     { key: 'resolution', label: 'Resolution time', ...duration(m.resolution, 'ticket', 'No tickets resolved in this window.') },
   ];

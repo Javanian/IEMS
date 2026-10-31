@@ -89,3 +89,65 @@ Mongo unique indexes hold inbound dedup and outbox key/nonce constraints across 
 Authorization transitions, eligible inbox persistence, queue admission and local preview now use Mongo replica-set transactions contending on one configured scope policy document. STOP/Pause cannot commit between authorization and a local preview state transition. This serialization is intentionally bounded to this preview account, not a throughput claim. Session expiry and allowlist/receive configuration are rechecked for queued work. Unknown own outgoing on an allowed direct conversation deactivates it and cancels queued work without reading content; a new explicit session/activation is required. There are no known app-generated provider IDs because there are no provider calls.
 
 This is a standalone preview slice, not full WA acceptance, a live order integration, retention implementation, browser/account isolation, public production login, or a live delivery lease/receipt system. Actual tenant-foundation session authentication is integrated for the owned preview operator API; synthetic customer binding and single-use known-prompt scope remain preview-only. The synthetic HTTP endpoint necessarily parses its bounded JSON envelope including `text`; the lazy body privacy gate applies to `inbound(meta, readBody)` and no ignored content is durably stored or logged. A future provider must call that lazy interface only after metadata extraction, not forward private content through this HTTP fixture endpoint. Any future live adapter requires remote-call fencing, conversation modes and independent acceptance. No provider guarantees or exactly-once delivery claims are made.
+
+## Local provider implementation (PLAT-047/051)
+
+Status: IMPLEMENTED_QA_PENDING for local policy, lifecycle and callback composition.
+External send is always disabled. Actual provider login, inbound collection and
+messaging acceptance require scoped provider/account access and final independent
+QA; no provider-specific navigation or transport is implemented by the blank-browser
+driver. It must not be represented as a live WhatsApp session.
+
+`createLocalProviderRuntime` in `src/provider-runtime.mjs` composes the following
+owned modules with one fixed tenant/plant/account mapping and trusted host adapters:
+
+| Boundary | Module | Behavior |
+| --- | --- | --- |
+| Verified source | provider-binding-source.mjs | Current CRM/contact/binding read and write fence in caller transaction; synthetic/fixture onboarding is denied for live authority. Verification methods are trusted host configuration. |
+| Policy | provider-policy.mjs, provider-authority.mjs | Allowlist, exact command prefix, expiry, pause, identity/binding/reply/approval versions and revocation fences before registration/replay. |
+| Operator commands | provider-operator.mjs, provider-operator-http.mjs | Foundation actor authorization in effect transaction; six metadata-only commands: provision, revoke, configurePolicy, activate, queueReply, approveReply. |
+| Durable commands | provider-provisioning.mjs, provider-policy-commands.mjs, provider-activation.mjs, provider-replies.mjs, provider-approvals.mjs, provider-commands.mjs | Inactive provisioning, revision CAS, separate explicit approval, atomic receipt/audit/outbox and replay reauthorization. No role grant or private body persistence. |
+| Session | provider-session.mjs, provider-lifecycle.mjs, provider-browser.mjs | One durable owner/generation; no lease timeout takeover; confirmed close before release. Delivery registration requires current policy/source. |
+| Callback | provider-callback.mjs, provider-reconciliation.mjs, provider-http.mjs | Exact-byte HMAC before parsing, durable event dedup, fixed delivery/provider ID and monotonic terminal-state reconciliation. Never resends. |
+| Concrete local browser | local-browser-driver.mjs | Installed Chromium, unique fresh scratch profile, about:blank only, sanitized child environment, confirmed process exit. No URL/evaluate/ready/send port. |
+
+The runtime constructor does not read/write the DB or launch a process. Host startup
+must explicitly await initialize(), which declares the authority, command, session,
+delivery and callback indexes. Until then both handlers return 503 and lifecycle
+start/stop refuse. Initialization is not a production migration authorization.
+The host supplies db, bounded atomic transaction(fn), foundation,
+partyDirectory.verifyCustomerContact, fixed tenantId/plantId/accountId,
+verifiedMethods, authenticate, callbackSecret (Buffer at least 32 bytes), and browser
+{ ownerId, executablePath, scratchRoot, timeoutMs? }. Paths must be absolute, scratch
+must be run-owned, and executable must already be installed. Do not install a browser
+or forward CDP ports during startup. No credential secret is returned from status.
+
+Mount operatorHandler on an exact authenticated host route before a JSON parser;
+authenticate must enforce host session, origin and CSRF policy. Mount callbackHandler
+on a separate exact route, preserving bytes for HMAC. Constructor configuration
+cannot come from request tenant/plant/account fields. Shared host mounting and role
+registration remain integration owner TPR-149 work; no root app/manifest was edited.
+start/stop are trusted local host operations, never public request endpoints. The
+runtime deliberately exposes no dispatch or delivery-registration port.
+
+Operator request is { action, payload }, with no extra envelope fields. The HTTP
+reader bounds UTF8 JSON to 8192 bytes; invalid content encoding and unknown actions
+fail closed. Commands use stable commandId and expected revisions. The composition
+adapts its epoch-millisecond clock to the revocation command's Date audit contract.
+Unknown outcomes return same-command reconciliation guidance without automatic retry.
+
+Callback envelope is exactly version=1, tenantId, accountId, eventId, deliveryId,
+providerMessageId and status (ACCEPTED/DELIVERED/FAILED). Sign lowercase hex HMAC-SHA256
+of timestamp + '.' + exact bytes using x-iems-timestamp and x-iems-signature; maximum
+body 4096 bytes and timestamp skew 5 minutes. Never persist message bodies, notes,
+raw callback bytes, session activation codes or prompt text in provider authority,
+callback/audit/outbox collections. `buildCsReplyBody` is metadata-only; private domain
+bodies remain outside automation/reporting/provider metadata storage.
+
+No external provider/account is fabricated. Live source verification assertion
+issuance, account authentication and provider receipt delivery are external boundaries;
+fixtures and simulated bindings cannot activate live authority. main.mjs still refuses
+WA_LIVE_ENABLED. Local Chromium smoke does not establish provider or Mongo acceptance.
+See [browser integration and UNKNOWN reconciliation](BROWSER-INTEGRATION.md) for
+exact process evidence and safe manual reconciliation. Never release UNKNOWN after
+elapsed time alone, and never retry an ambiguous non-idempotent result blindly.

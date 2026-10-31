@@ -68,15 +68,15 @@ export type DraftAction =
 export interface TicketReceipt { ticketId: UUID; ticketNumber: string }
 export interface CustomerTicketView { ticketNumber: string; stage: TicketStage; category: ComplaintCategory; orderNumber: string | null; updatedAt: Date; updates: { kind: 'CREATED' | 'STAGE_CHANGED' | 'PUBLIC_UPDATE' | 'CUSTOMER_COMMENT'; stage: TicketStage; text: string | null; at: Date }[] }
 export type Actor = { type: 'CUSTOMER'; customerId: UUID } | { type: 'OPERATOR'; userId: UUID } | { type: 'SYSTEM' };
-export interface TicketView { ticketId: UUID; ticketNumber: string; plantId: UUID; customerId: UUID; stage: TicketStage; version: number; category: ComplaintCategory; orderNumber: string | null; orderSource: typeof SYNTHETIC_ORDER_SOURCE | 'PORTFOLIO_API_OWNED' | null; assigneeId: UUID | null; description: string; createdAt: Date; updatedAt: Date }
-export interface TicketEvent { eventId: UUID; ticketId: UUID; kind: string; visibility: 'CUSTOMER'; fromStage: TicketStage | null; toStage: TicketStage; version: number; actor: Actor; reason?: string | null; text?: string; at: Date }
+export interface TicketView { ticketId: UUID; ticketNumber: string; plantId: UUID; customerId: UUID; stage: TicketStage; version: number; category: ComplaintCategory; orderNumber: string | null; orderSource: typeof SYNTHETIC_ORDER_SOURCE | 'PORTFOLIO_API_OWNED' | null; assigneeId: UUID | null; description: string; dataOrigin?: 'SYNTHETIC_RUNTIME' | 'SEEDED' | 'UNKNOWN'; conversationId?: UUID | null; createdAt: Date; updatedAt: Date }
+export interface TicketEvent { eventId: UUID; ticketId: UUID; kind: string; visibility: 'CUSTOMER'; fromStage: TicketStage | null; toStage: TicketStage; version: number; actor: Actor; reason?: string | null; text?: string | null; historyOrigin?: 'RECORDED' | 'SEEDED' | 'UNKNOWN'; at: Date }
 export interface ModeChange { conversationId: UUID; mode: ConversationMode; version: number; cancelledDeliveryIds: UUID[]; inFlightDeliveryIds: UUID[] }
 export interface ConversationView { conversationId: UUID; mode: ConversationMode; version: number; assigneeId: UUID | null; activeTicketId: UUID | null; deliveries: { deliveryId: UUID; kind: string; origin: 'BOT' | 'SYSTEM' | 'OPERATOR'; state: DeliveryState; attempt: number; cancelReason: string | null; deliveryUncertain: boolean }[] }
 export interface ClaimedDelivery { deliveryId: UUID; fence: number; attempt: number; kind: 'TICKET_ACK' | 'HANDOFF_ACK' | 'BOT_REPLY' | 'OPERATOR_REPLY' | 'TICKET_RESOLVED'; recipient: { channelAccountId: string; providerContactId: string }; payload: Record<string, unknown>; payloadHash: string }
 type Op<T> = T & { plantId: UUID };
 
 export interface OrderSnapshot { orderNumber: string; publicStage: OrderPublicStage; progress: {released: number; total: number} | null; source: 'PORTFOLIO_API_OWNED'; sourceId: string; sourceVersion: number; asOf: Date; kind?: OrderKind; milestones?: OrderMilestone[]; confirmedDates?: ConfirmedDates }
-export interface OrderReader { readCustomerOrder(input: {tenantId: UUID; plantId: UUID; customerId: UUID; orderNumber: string}): Promise<OrderSnapshot | null> }
+export interface OrderReader { readCustomerOrder(input: {tenantId: UUID; plantId: UUID; customerId: UUID; orderNumber: string}, options?: { session?: unknown }): Promise<OrderSnapshot | null> }
 export interface Page<T> { items: T[]; nextCursor: string | null }
 export interface ConversationSummary { conversationId: UUID; mode: ConversationMode; version: number; assigneeId: UUID | null; activeTicketId: UUID | null; customerLabel: string; lastActivityAt: Date; hasUnknownDelivery: boolean }
 export interface ThreadMessage { messageId: UUID; direction: 'INBOUND' | 'OUTBOUND'; origin: 'CUSTOMER' | 'BOT' | 'SYSTEM' | 'OPERATOR'; kind: string; text: string; state: string; at: Date;
@@ -86,7 +86,7 @@ export interface ThreadMessage { messageId: UUID; direction: 'INBOUND' | 'OUTBOU
 export type BindingStatus = 'ACTIVE' | 'EXPIRED' | 'REVOKED';
 export interface BindingView { bindingId: UUID; accountId: UUID; contactId: UUID | null; channel: 'SIMULATED' | 'FIXTURE'; address: string | null; status: BindingStatus; version: number; expiresAt: Date | null; verifiedMethod: string; createdAt: Date; createdBy: UUID | null; revokedAt: Date | null; revokedBy: UUID | null; revokeReason: string | null }
 export interface MetricSummary { n: number; p50Minutes: number; p90Minutes: number }
-export interface CustomerServiceMetrics { window: { from: Date; to: Date }; open: number; unassigned: number; overdue: { count: number; slaMinutes: number }; firstHumanResponse: MetricSummary | null; resolution: MetricSummary | null; asOf: Date; truncated: boolean; definitions: Record<string, string> }
+export interface CustomerServiceMetrics { window: { from: Date; to: Date }; open: number; unassigned: number; overdue: { count: number; slaMinutes: number }; firstHumanResponse: MetricSummary | null; resolution: MetricSummary | null; asOf: Date; truncated: boolean; coverage: 'COMPLETE' | 'INCOMPLETE'; provenance: { syntheticRuntime: number; seeded: number; unknown: number }; definitions: Record<string, string> }
 export interface PartyDirectory { verifyCustomerContact(input: { tenantId: UUID; plantId: UUID; accountId: UUID; contactId: UUID }, options: { session: unknown }): Promise<{ accountLabel?: string } | null> }
 export type InboundCommand = {op: 'MENU' | 'HUMAN' | 'COMPLAINT' | 'CONFIRM' | 'UNKNOWN_COMMAND'} | {op: 'ORDER'; orderNumber: string} | {op: 'TICKET'; ticketNumber: string} | {op: 'DRAFT'; action: DraftAction};
 export interface InboundResult { draft?: DraftView; ticket?: TicketReceipt | CustomerTicketView; receipt?: TicketReceipt; deliveryIds: UUID[]; reply?: {deliveryId: UUID | null; state: DeliveryState | 'SUPPRESSED'}; error?: string; mode?: ConversationMode }
@@ -103,7 +103,7 @@ export interface CustomerService {
   provisionFixtureCustomer(scope: VerifiedScope, input: Op<{ customerId: UUID; label: string }>): Promise<UUID>;
   bindContact(scope: VerifiedScope, input: Op<{ bindingId: UUID; customerId: UUID; channelAccountId: string; providerContactId: string }>): Promise<UUID>;
   revokeBinding(scope: VerifiedScope, input: Op<{ bindingId: UUID; expectedVersion: number }>): Promise<{ bindingId: UUID; version: number; cancelledDeliveries: number }>;
-  registerSyntheticOrderSnapshot(scope: VerifiedScope, input: Op<{ customerId: UUID; orderNumber: string; publicStage: OrderPublicStage; progress?: { released: number; total: number } | null }>): Promise<{ orderNumber: string; source: typeof SYNTHETIC_ORDER_SOURCE }>;
+  registerSyntheticOrderSnapshot(scope: VerifiedScope, input: Op<{ customerId: UUID; orderNumber: string; publicStage: OrderPublicStage; progress?: { released: number; total: number } | null; kind?: OrderKind; milestones?: OrderMilestone[]; confirmedDates?: ConfirmedDates }>): Promise<{ orderNumber: string; source: typeof SYNTHETIC_ORDER_SOURCE }>;
   // Trusted bridge port: tenantId comes from configured channel account, never message content.
   resolveCustomerPrincipal(input: { tenantId: UUID; channelAccountId: string; providerContactId: string }): Promise<CustomerPrincipal>;
   getOrderStatusForCustomer(principal: CustomerPrincipal, input: { orderNumber: string }): Promise<OrderStatusView>;

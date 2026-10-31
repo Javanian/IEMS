@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
+import { summarizeServiceMetrics } from './service-metrics.mjs';
 
 export const SYNTHETIC_ORDER_SOURCE = 'SYNTHETIC_FIXTURE_SNAPSHOT';
 export const DRAFT_STAGES = Object.freeze(['ORDER_SELECTION', 'CATEGORY', 'DESCRIPTION', 'PREVIEW', 'CONFIRMED', 'CANCELLED']);
@@ -62,7 +63,7 @@ export function renderTemplate(payload) {
     case 'handoff_queued': return 'IEMS preview: a team member has been requested. Automated replies are paused.';
     case 'menu': return 'IEMS preview commands: ORDER <number>, COMPLAINT, TICKET <number>, HUMAN, STOP.';
     case 'order_status': {
-      const progress = q.total ? ` ${q.released} of ${q.total} units released.` : '';
+      const progress = q.total ? ` ${q.released} of ${q.total} ${q.kind === 'MANUFACTURE' ? 'work orders' : 'units'} released.` : '';
       const next = q.nextMilestone ? ` Next: ${q.nextMilestone}.` : '';
       const kind = q.kind === 'REPAIR' ? 'repair order' : 'order';
       return `${q.orderNumber}: ${q.publicStage}.${progress}${next} ${q.source === 'PORTFOLIO_API_OWNED' ? `Authoritative owned ${kind}.` : 'Synthetic fixture snapshot, not a live lookup.'}`;
@@ -228,7 +229,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
     revokedAt: b.revokedAt ?? null, revokedBy: b.revokedBy ?? null, revokeReason: b.revokeReason ?? null,
   });
   const draftView = d => ({ draftId: d._id, stage: d.stage, version: d.version, orderNumber: d.orderNumber, category: d.category, description: d.description, expiresAt: d.expiresAt });
-  const ticketView = t => ({ ticketId: t._id, ticketNumber: t.ticketNumber, plantId: t.plantId, customerId: t.customerId, stage: t.stage, version: t.version, category: t.category, orderNumber: t.orderNumber, orderSource: t.orderSource, assigneeId: t.assigneeId, description: t.description, createdAt: t.createdAt, updatedAt: t.updatedAt });
+  const ticketView = t => ({ ticketId: t._id, ticketNumber: t.ticketNumber, plantId: t.plantId, customerId: t.customerId, stage: t.stage, version: t.version, category: t.category, orderNumber: t.orderNumber, orderSource: t.orderSource, assigneeId: t.assigneeId, description: t.description, dataOrigin: t.seeded === true ? 'SEEDED' : t.dataOrigin ?? 'UNKNOWN', conversationId: t.conversationId ?? null, createdAt: t.createdAt, updatedAt: t.updatedAt });
 
   // kind/milestones/confirmedDates are optional (older readers omit them) but validated strictly when present.
   function validOrderDetail(s) {
@@ -236,6 +237,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
     const date = v => v === null || (v instanceof Date && Number.isFinite(v.getTime()));
     return ORDER_KINDS.includes(s.kind) && Array.isArray(s.milestones) && s.milestones.length <= 20
       && s.milestones.every(m => m && typeof m.code === 'string' && /^[A-Z_]{1,40}$/.test(m.code) && typeof m.label === 'string' && m.label.length <= 80 && date(m.at) && MILESTONE_STATES.includes(m.state))
+      && new Set(s.milestones.map(m => m.code)).size === s.milestones.length
       && !!s.confirmedDates && typeof s.confirmedDates === 'object' && Object.entries(s.confirmedDates).every(([k, v]) => ['promisedShipDate', 'estimatedReturnDate'].includes(k) && v instanceof Date && Number.isFinite(v.getTime()));
   }
   async function loadOwnDraft(session, binding, draftId) {
@@ -246,15 +248,19 @@ export function createCustomerService({ client, db, foundation, now = () => new 
     if (orderReader) {
       let timer, snapshot;
       try {
-        snapshot = await Promise.race([orderReader.readCustomerOrder({tenantId: binding.tenantId, plantId: binding.plantId, customerId: binding.customerId, orderNumber}), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), orderReaderTimeoutMs); })]);
+        snapshot = await Promise.race([orderReader.readCustomerOrder({tenantId: binding.tenantId, plantId: binding.plantId, customerId: binding.customerId, orderNumber}, { session }), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), orderReaderTimeoutMs); })]);
         if (snapshot !== null && (snapshot.source !== 'PORTFOLIO_API_OWNED' || snapshot.orderNumber !== orderNumber || !ORDER_PUBLIC_STAGES.includes(snapshot.publicStage) || !Number.isSafeInteger(snapshot.sourceVersion) || snapshot.sourceVersion < 1 || typeof snapshot.sourceId !== 'string' || !(snapshot.asOf instanceof Date) || !Number.isFinite(snapshot.asOf.getTime()) || now() - snapshot.asOf > orderMaxStaleMs || snapshot.asOf > now() || !validOrderDetail(snapshot))) fail('STATUS_UNAVAILABLE');
       } catch { fail('STATUS_UNAVAILABLE'); } finally { clearTimeout(timer); }
       if (!snapshot) fail('NOT_FOUND');
       return {orderNumber: snapshot.orderNumber, publicStage: snapshot.publicStage, progress: snapshot.progress, source: snapshot.source, sourceId: snapshot.sourceId, sourceVersion: snapshot.sourceVersion, asOf: snapshot.asOf, liveLookup: true, ...(snapshot.kind === undefined ? {} : { kind: snapshot.kind, milestones: snapshot.milestones.map(m => ({ code: m.code, label: m.label, at: m.at, state: m.state })), confirmedDates: { ...snapshot.confirmedDates } })};
     }
     if (!allowSyntheticOrders) fail('STATUS_UNAVAILABLE');
-    const s = await c('cs_order_snapshots').findOne({ tenantId: binding.tenantId, customerId: binding.customerId, orderNumber }, { session });
-    return s ?? fail('NOT_FOUND');
+    const s = await c('cs_order_snapshots').findOne({ tenantId: binding.tenantId, plantId: binding.plantId, customerId: binding.customerId, orderNumber }, { session });
+    if (!s) fail('NOT_FOUND');
+    if (s.source !== SYNTHETIC_ORDER_SOURCE || !validOrderDetail(s)) fail('STATUS_UNAVAILABLE');
+    return { orderNumber: s.orderNumber, publicStage: s.publicStage, progress: s.progress,
+      source: SYNTHETIC_ORDER_SOURCE, liveLookup: false, asOf: s.asOf,
+      ...(s.kind === undefined ? {} : { kind: s.kind, milestones: s.milestones.map(({ code, label, at, state }) => ({ code, label, at, state })), confirmedDates: structuredClone(s.confirmedDates) }) };
   }
 
   const api = {
@@ -368,14 +374,17 @@ export function createCustomerService({ client, db, foundation, now = () => new 
       });
     },
 
-    async registerSyntheticOrderSnapshot(scope, { plantId, customerId, orderNumber, publicStage, progress = null }) {
+    async registerSyntheticOrderSnapshot(scope, { plantId, customerId, orderNumber, publicStage, progress = null, kind, milestones, confirmedDates }) {
       const g = await operator(scope, plantId, 'cs.fixture.admin');
       uuid(customerId); orderNo(orderNumber); oneOf(publicStage, ORDER_PUBLIC_STAGES);
       if (progress !== null && !(Number.isSafeInteger(progress?.released) && Number.isSafeInteger(progress?.total) && progress.released >= 0 && progress.total > 0 && progress.released <= progress.total)) fail('INVALID_INPUT');
+      if (!validOrderDetail({ kind, milestones, confirmedDates })) fail('INVALID_INPUT');
+      const detail = kind === undefined ? {} : { kind, milestones: structuredClone(milestones.map(({ code, label, at, state }) => ({ code, label, at, state }))), confirmedDates: structuredClone(confirmedDates) };
+      const progressCopy = progress === null ? null : { released: progress.released, total: progress.total };
       return operatorTx(scope, plantId, 'cs.fixture.admin', async (session, g) => {
         if (!(await c('cs_customers').findOne({ _id: customerId, tenantId: g.tenantId, plantId: g.plantId }, { session }))) fail('NOT_FOUND');
         const at = now();
-        await c('cs_order_snapshots').insertOne({ _id: randomUUID(), tenantId: g.tenantId, plantId: g.plantId, customerId, orderNumber, publicStage, progress, source: SYNTHETIC_ORDER_SOURCE, liveLookup: false, asOf: at }, { session });
+        await c('cs_order_snapshots').insertOne({ _id: randomUUID(), tenantId: g.tenantId, plantId: g.plantId, customerId, orderNumber, publicStage, progress: progressCopy, ...detail, source: SYNTHETIC_ORDER_SOURCE, liveLookup: false, asOf: at }, { session });
         await audit(session, g.tenantId, 'fixture.order_snapshot.created', customerId, { type: 'OPERATOR', userId: g.userId });
         return { orderNumber, source: SYNTHETIC_ORDER_SOURCE };
       });
@@ -391,10 +400,11 @@ export function createCustomerService({ client, db, foundation, now = () => new 
 
     async getOrderStatusForCustomer(principal, { orderNumber }) {
       orderNo(orderNumber);
-      const b = await customerContext(principal, transactionContext.getStore());
-      const s = await ownSnapshot(transactionContext.getStore(), b, orderNumber);
-      await customerContext(principal);
-      return { orderNumber: s.orderNumber, publicStage: s.publicStage, progress: s.progress, asOf: s.asOf, source: s.source, liveLookup: s.liveLookup ?? false, ...(s.sourceId ? {sourceId:s.sourceId, sourceVersion:s.sourceVersion} : {}), ...(s.kind ? { kind: s.kind, milestones: s.milestones, confirmedDates: s.confirmedDates } : {}) };
+      return tx(async session => {
+        const b = await customerContext(principal, session);
+        const s = await ownSnapshot(session, b, orderNumber);
+        return { orderNumber: s.orderNumber, publicStage: s.publicStage, progress: s.progress, asOf: s.asOf, source: s.source, liveLookup: s.liveLookup ?? false, ...(s.sourceId ? {sourceId:s.sourceId, sourceVersion:s.sourceVersion} : {}), ...(s.kind ? { kind: s.kind, milestones: s.milestones, confirmedDates: s.confirmedDates } : {}) };
+      });
     },
 
     async startComplaintDraft(principal, { requestKey }) {
@@ -454,15 +464,16 @@ export function createCustomerService({ client, db, foundation, now = () => new 
           if (moved.matchedCount !== 1) fail('VERSION_CONFLICT');
           const counter = await c('cs_counters').findOneAndUpdate({ _id: `${b.tenantId}:ticket` }, { $inc: { seq: 1 } }, { upsert: true, returnDocument: 'after', session });
           const at = now();
+          let conv = await conversationFor(session, b);
           const ticket = {
-            _id: randomUUID(), tenantId: b.tenantId, plantId: b.plantId, customerId: b.customerId, bindingId: b._id, draftId: d._id,
+            _id: randomUUID(), tenantId: b.tenantId, plantId: b.plantId, customerId: b.customerId, bindingId: b._id, draftId: d._id, conversationId: conv._id,
             ticketNumber: `CS-${String(counter.seq).padStart(6, '0')}`, category: d.category, orderNumber: d.orderNumber,
             orderSource: d.orderNumber ? (orderReader ? 'PORTFOLIO_API_OWNED' : SYNTHETIC_ORDER_SOURCE) : null, description: d.description, stage: 'NEW', version: 1, assigneeId: null,
+            dataOrigin: b.channel === 'SIMULATED' || b.verifiedMethod === 'ADMIN_FIXTURE' ? 'SYNTHETIC_RUNTIME' : 'UNKNOWN',
             requiresHuman: d.category === 'SAFETY_OR_DAMAGE', createdAt: at, updatedAt: at
           };
           await c('cs_tickets').insertOne(ticket, { session });
-          await c('cs_ticket_events').insertOne({ _id: randomUUID(), tenantId: b.tenantId, ticketId: ticket._id, kind: 'CREATED', visibility: 'CUSTOMER', fromStage: null, toStage: 'NEW', version: 1, actor: { type: 'CUSTOMER', customerId: b.customerId }, reason: null, at }, { session });
-          let conv = await conversationFor(session, b);
+          await c('cs_ticket_events').insertOne({ _id: randomUUID(), tenantId: b.tenantId, ticketId: ticket._id, kind: 'CREATED', visibility: 'CUSTOMER', historyOrigin: 'RECORDED', fromStage: null, toStage: 'NEW', version: 1, actor: { type: 'CUSTOMER', customerId: b.customerId }, reason: null, at }, { session });
           const linked = await c('cs_conversations').findOneAndUpdate({ _id: conv._id, version: conv.version }, { $set: { activeTicketId: ticket._id }, $inc: { version: 1 } }, { session, returnDocument: 'after' });
           if (!linked) fail('VERSION_CONFLICT');
           conv = linked;
@@ -476,12 +487,13 @@ export function createCustomerService({ client, db, foundation, now = () => new 
 
     async getTicketForCustomer(principal, { ticketNumber }) {
       if (typeof ticketNumber !== 'string' || !/^CS-\d{6}$/.test(ticketNumber)) fail('INVALID_INPUT');
-      const session=transactionContext.getStore();
-      const b = await customerContext(principal,session);
-      const t = await c('cs_tickets').findOne({ tenantId: b.tenantId, customerId: b.customerId, ticketNumber }, {session});
-      if (!t) fail('NOT_FOUND');
-      const events = await c('cs_ticket_events').find({ tenantId: b.tenantId, ticketId: t._id, visibility: 'CUSTOMER' }).sort({ at: 1, version: 1 }).toArray();
-      return { ticketNumber: t.ticketNumber, stage: t.stage, category: t.category, orderNumber: t.orderNumber, updatedAt: t.updatedAt, updates: events.map(e => ({ kind: e.kind, stage: e.toStage, text: e.text ?? null, at: e.at })) };
+      return tx(async session => {
+        const b = await customerContext(principal, session);
+        const t = await c('cs_tickets').findOne({ tenantId: b.tenantId, plantId: b.plantId, customerId: b.customerId, ticketNumber }, { session });
+        if (!t) fail('NOT_FOUND');
+        const events = await c('cs_ticket_events').find({ tenantId: b.tenantId, ticketId: t._id, visibility: 'CUSTOMER' }, { session }).sort({ at: 1, version: 1 }).toArray();
+        return { ticketNumber: t.ticketNumber, stage: t.stage, category: t.category, orderNumber: t.orderNumber, updatedAt: t.updatedAt, updates: events.map(e => ({ kind: e.kind, stage: e.toStage, text: e.text ?? null, at: e.at })) };
+      });
     },
 
     async addCustomerComment(principal, { ticketNumber, inboundKey, text: body }) {
@@ -493,7 +505,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
           if (!t) fail('NOT_FOUND');
           if (t.stage === 'CLOSED') fail('INVALID_TRANSITION');
           const eventId = randomUUID();
-          await c('cs_ticket_events').insertOne({ _id: eventId, tenantId: b.tenantId, ticketId: t._id, kind: 'CUSTOMER_COMMENT', visibility: 'CUSTOMER', fromStage: t.stage, toStage: t.stage, version: t.version, actor: { type: 'CUSTOMER', customerId: b.customerId }, text: t0, at: now() }, { session });
+          await c('cs_ticket_events').insertOne({ _id: eventId, tenantId: b.tenantId, ticketId: t._id, historyOrigin: 'RECORDED', kind: 'CUSTOMER_COMMENT', visibility: 'CUSTOMER', fromStage: t.stage, toStage: t.stage, version: t.version, actor: { type: 'CUSTOMER', customerId: b.customerId }, text: t0, at: now() }, { session });
           return { eventId };
         });
       });
@@ -503,8 +515,8 @@ export function createCustomerService({ client, db, foundation, now = () => new 
       const g = await operator(scope, plantId, 'cs.ticket.read');
       const t = await c('cs_tickets').findOne({ _id: uuid(ticketId), tenantId: g.tenantId, plantId: g.plantId });
       if (!t) fail('NOT_FOUND');
-      const history = await c('cs_ticket_events').find({ tenantId: g.tenantId, ticketId: t._id }).sort({ at: 1, version: 1 }).toArray();
-      return { ...ticketView(t), history: history.map(({ _id, tenantId, ...e }) => ({ eventId: _id, ...e })) };
+      const history = await c('cs_ticket_events').find({ tenantId: g.tenantId, ticketId: t._id, visibility: 'CUSTOMER' }).sort({ at: 1, version: 1 }).toArray();
+      return { ...ticketView(t), history: history.map(e => ({ eventId: e._id, ticketId: t._id, visibility: e.visibility, actor: Object.fromEntries(['type', 'userId', 'customerId'].filter(k => Object.hasOwn(e.actor ?? {}, k)).map(k => [k, e.actor[k]])), assigneeId: e.assigneeId ?? null, kind: e.kind, fromStage: e.fromStage, toStage: e.toStage, version: e.version, text: e.text ?? null, reason: e.reason ?? null, at: e.at, historyOrigin: e.seeded === true ? 'SEEDED' : e.historyOrigin ?? 'UNKNOWN' })) };
     },
 
     async listTicketsPage(scope, { plantId, stage, assigneeId, limit, cursor }) {
@@ -574,7 +586,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
         if (toStage === 'CLOSED') set.closedAt = now();
         const res = await c('cs_tickets').updateOne({ _id: t._id, version: t.version }, { $set: set, $inc: { version: 1 } }, { session });
         if (res.matchedCount !== 1) fail('VERSION_CONFLICT');
-        await c('cs_ticket_events').insertOne({ _id: randomUUID(), tenantId: g.tenantId, ticketId: t._id, kind: 'STAGE_CHANGED', visibility: 'CUSTOMER', fromStage: t.stage, toStage, version: t.version + 1, actor: { type: 'OPERATOR', userId: g.userId }, reason: why, assigneeId: set.assigneeId ?? t.assigneeId, at: now() }, { session });
+        await c('cs_ticket_events').insertOne({ _id: randomUUID(), tenantId: g.tenantId, ticketId: t._id, historyOrigin: 'RECORDED', kind: 'STAGE_CHANGED', visibility: 'CUSTOMER', fromStage: t.stage, toStage, version: t.version + 1, actor: { type: 'OPERATOR', userId: g.userId }, reason: why, assigneeId: set.assigneeId ?? t.assigneeId, at: now() }, { session });
         if(toStage==='RESOLVED') {
           const b=await c('cs_contact_bindings').findOne({_id:t.bindingId,tenantId:g.tenantId,status:'ACTIVE',...unexpired()},{session});
           const conv=await c('cs_conversations').findOne({tenantId:g.tenantId,bindingId:t.bindingId},{session});
@@ -592,7 +604,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
       return operatorTx(scope, plantId, 'cs.ticket.write', async (session, g) => idempotent(session, { tenantId: g.tenantId, scope: 'ticket.public_update', owner: g.userId, key: commandKey, request: { ticketId, expectedVersion, text: t0 } }, async () => {
         const res = await c('cs_tickets').findOneAndUpdate({ _id: ticketId, tenantId: g.tenantId, plantId: g.plantId, version: expectedVersion }, { $set: { updatedAt: now() }, $inc: { version: 1 } }, { session, returnDocument: 'after' });
         if (!res) fail((await c('cs_tickets').countDocuments({ _id: ticketId, tenantId: g.tenantId, plantId: g.plantId }, { session })) ? 'VERSION_CONFLICT' : 'NOT_FOUND');
-        await c('cs_ticket_events').insertOne({ _id: randomUUID(), tenantId: g.tenantId, ticketId, kind: 'PUBLIC_UPDATE', visibility: 'CUSTOMER', fromStage: res.stage, toStage: res.stage, version: res.version, actor: { type: 'OPERATOR', userId: g.userId }, text: t0, at: now() }, { session });
+        await c('cs_ticket_events').insertOne({ _id: randomUUID(), tenantId: g.tenantId, ticketId, historyOrigin: 'RECORDED', kind: 'PUBLIC_UPDATE', visibility: 'CUSTOMER', fromStage: res.stage, toStage: res.stage, version: res.version, actor: { type: 'OPERATOR', userId: g.userId }, text: t0, at: now() }, { session });
         await audit(session, g.tenantId, 'ticket.public_update', ticketId, { type: 'OPERATOR', userId: g.userId });
         return { ticketId, version: res.version };
       }));
@@ -668,6 +680,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
         if (!conv) fail('NOT_FOUND');
         if (conv.version !== expectedVersion) fail('VERSION_CONFLICT');
         if (conv.mode === toMode || conv.mode === 'CLOSED') fail('INVALID_TRANSITION');
+        if (conv.assigneeId && conv.assigneeId !== g.userId) fail('DENIED');
         const r = await changeMode(session, conv, toMode, { type: 'OPERATOR', userId: g.userId }, why, toMode === 'BOT_ACTIVE' ? { assigneeId: null } : {});
         await audit(session, g.tenantId, `conversation.${toMode.toLowerCase()}`, conv._id, { type: 'OPERATOR', userId: g.userId });
         return r;
@@ -703,7 +716,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
         if (conv.mode !== 'HUMAN_ACTIVE' || conv.assigneeId !== g.userId) fail('INVALID_TRANSITION');
         const b = await c('cs_contact_bindings').findOne({ _id: conv.bindingId, tenantId: g.tenantId, status: 'ACTIVE', ...unexpired() }, { session });
         if (!b) fail('DENIED');
-        const row = await enqueue(session, conv, b, { kind: 'OPERATOR_REPLY', origin: 'OPERATOR', actionKey, payload: { template: 'operator_text', text: t0 }, ttlMs: ackTtlMs, actorUserId: g.userId });
+        const row = await enqueue(session, conv, b, { kind: 'OPERATOR_REPLY', origin: 'OPERATOR', actionKey, payload: { template: 'operator_text', text: t0 }, ttlMs: ackTtlMs, actorUserId: g.userId, ticketId: conv.activeTicketId ?? null });
         await audit(session, g.tenantId, 'conversation.operator_reply', conv._id, { type: 'OPERATOR', userId: g.userId });
         return { deliveryId: row._id, state: row.state };
       });
@@ -782,15 +795,18 @@ export function createCustomerService({ client, db, foundation, now = () => new 
 
     // Operator view of what the bound customer would see; a revoked/expired/foreign binding reads as NOT_FOUND.
     async getOrderStatusForBinding(scope, { plantId, bindingId, orderNumber }) {
-      const g = await operator(scope, plantId, 'cs.ticket.read');
+      await operator(scope, plantId, 'cs.ticket.read');
       if (typeof bindingId !== 'string' || !UUID_RE.test(bindingId)) fail('NOT_FOUND');
       orderNo(orderNumber);
-      const b = await c('cs_contact_bindings').findOne({ _id: bindingId, tenantId: g.tenantId, plantId: g.plantId, status: 'ACTIVE', ...unexpired() });
-      if (!b) fail('NOT_FOUND');
-      const s = await ownSnapshot(undefined, b, orderNumber);
-      // Re-check after the (possibly slow) read so a revocation during the read cannot leak the result.
-      if (!(await c('cs_contact_bindings').findOne({ _id: b._id, tenantId: b.tenantId, status: 'ACTIVE', version: b.version, ...unexpired() }))) fail('NOT_FOUND');
-      return { orderNumber: s.orderNumber, publicStage: s.publicStage, progress: s.progress, asOf: s.asOf, source: s.source, liveLookup: s.liveLookup ?? false, sourceId: s.sourceId ?? null, sourceVersion: s.sourceVersion ?? null, kind: s.kind ?? null, milestones: s.milestones ?? [], confirmedDates: s.confirmedDates ?? {} };
+      return operatorTx(scope, plantId, 'cs.ticket.read', async (session, g) => {
+        const b = await c('cs_contact_bindings').findOne({ _id: bindingId, tenantId: g.tenantId, plantId: g.plantId, status: 'ACTIVE', ...unexpired() }, { session });
+        if (!b) fail('NOT_FOUND');
+        const s = await ownSnapshot(session, b, orderNumber);
+        // The write conflicts with concurrent revocation; expiry is checked after the bounded source read.
+        const fenced = await c('cs_contact_bindings').updateOne({ _id: b._id, tenantId: g.tenantId, plantId: g.plantId, status: 'ACTIVE', version: b.version, ...unexpired() }, { $inc: { commandFence: 1 } }, { session });
+        if (fenced.matchedCount !== 1) fail('NOT_FOUND');
+        return { orderNumber: s.orderNumber, publicStage: s.publicStage, progress: s.progress, asOf: s.asOf, source: s.source, liveLookup: s.liveLookup ?? false, sourceId: s.sourceId ?? null, sourceVersion: s.sourceVersion ?? null, kind: s.kind ?? null, milestones: s.milestones ?? [], confirmedDates: s.confirmedDates ?? {} };
+      });
     },
 
     // Product path for simulated inbound messages: same handleInboundCommand as the bridge, inside an operator transaction.
@@ -816,47 +832,21 @@ export function createCustomerService({ client, db, foundation, now = () => new 
       return rows.map(outboundView);
     },
 
-    // Bounded, data-derived metrics. Bot/system acknowledgements are never human responses; null when n = 0.
     async getMetrics(scope, { plantId, from, to }) {
-      const g = await operator(scope, plantId, 'cs.ticket.read');
+      await operator(scope, plantId, 'cs.ticket.read');
       if (!(from instanceof Date) || !(to instanceof Date) || !Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || from >= to || to - from > 31 * 24 * HOUR) fail('VALIDATION');
-      const at = now(), cap = 10000, scoped = { tenantId: g.tenantId, plantId: g.plantId };
-      const projection = { _id: 1, createdAt: 1, assigneeId: 1, bindingId: 1, stage: 1 };
-      const open = await c('cs_tickets').find({ ...scoped, stage: { $nin: ['RESOLVED', 'CLOSED'] } }, { projection }).limit(cap + 1).toArray();
-      const inWindow = await c('cs_tickets').find({ ...scoped, createdAt: { $gte: from, $lt: to } }, { projection }).limit(cap + 1).toArray();
-      const tickets = new Map([...open, ...inWindow].map(t => [t._id, t]));
-      const ids = [...tickets.keys()], bindings = [...new Set([...tickets.values()].map(t => t.bindingId))];
-      const updates = await c('cs_ticket_events').find({ tenantId: g.tenantId, ticketId: { $in: ids }, kind: 'PUBLIC_UPDATE', 'actor.type': 'OPERATOR' }, { projection: { ticketId: 1, at: 1 } }).toArray();
-      const replies = await c('cs_outbox').find({ tenantId: g.tenantId, bindingId: { $in: bindings }, origin: 'OPERATOR', kind: 'OPERATOR_REPLY' }, { projection: { bindingId: 1, createdAt: 1 } }).sort({ createdAt: 1 }).toArray();
-      const resolved = await c('cs_ticket_events').find({ tenantId: g.tenantId, ticketId: { $in: ids }, kind: 'STAGE_CHANGED', toStage: 'RESOLVED' }, { projection: { ticketId: 1, at: 1 } }).toArray();
-      const firstHuman = t => {
-        const times = [...updates.filter(e => e.ticketId === t._id).map(e => e.at), ...replies.filter(r => r.bindingId === t.bindingId && r.createdAt >= t.createdAt).map(r => r.createdAt)];
-        return times.length ? new Date(Math.min(...times.map(x => x.getTime()))) : null;
-      };
-      const firstResolved = t => { const times = resolved.filter(e => e.ticketId === t._id).map(e => e.at.getTime()); return times.length ? new Date(Math.min(...times)) : null; };
-      const summary = minutes => {
-        if (!minutes.length) return null;
-        const sorted = [...minutes].sort((a, b) => a - b), rank = p => sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)];
-        const round = x => Math.round(x * 10) / 10;
-        return { n: sorted.length, p50Minutes: round(rank(0.5)), p90Minutes: round(rank(0.9)) };
-      };
-      const windowed = inWindow.slice(0, cap);
-      const response = windowed.map(t => [t, firstHuman(t)]).filter(([, r]) => r).map(([t, r]) => (r - t.createdAt) / 60000);
-      const resolution = windowed.map(t => [t, firstResolved(t)]).filter(([, r]) => r).map(([t, r]) => (r - t.createdAt) / 60000);
-      const openRows = open.slice(0, cap);
-      return {
-        window: { from, to }, open: openRows.length, unassigned: openRows.filter(t => t.assigneeId === null).length,
-        overdue: { count: openRows.filter(t => at - t.createdAt > firstResponseSlaMinutes * 60000 && !firstHuman(t)).length, slaMinutes: firstResponseSlaMinutes },
-        firstHumanResponse: summary(response), resolution: summary(resolution), asOf: at,
-        truncated: open.length > cap || inWindow.length > cap,
-        definitions: {
-          open: 'Tickets in this plant not RESOLVED or CLOSED at asOf (not limited to the window).',
-          unassigned: 'Open tickets with no assignee.',
-          overdue: 'Open tickets older than slaMinutes with no human response yet.',
-          firstHumanResponse: 'Tickets created in the window with a human response: first operator public update on the ticket, or first operator reply on its conversation at/after ticket creation. Bot, acknowledgement and system messages are excluded. Minutes from ticket creation; nearest-rank percentiles.',
-          resolution: 'Tickets created in the window that reached RESOLVED: minutes from creation to the first RESOLVED transition; nearest-rank percentiles.',
-        },
-      };
+      return operatorTx(scope, plantId, 'cs.ticket.read', async (session, g) => {
+        const at = now(), cap = 10000, scoped = { tenantId: g.tenantId, plantId: g.plantId };
+        const projection = { _id: 1, createdAt: 1, assigneeId: 1, bindingId: 1, stage: 1, dataOrigin: 1, seeded: 1 };
+        const open = await c('cs_tickets').find({ ...scoped, createdAt: { $lt: at }, stage: { $nin: ['RESOLVED', 'CLOSED'] } }, { session, projection }).sort({ createdAt: 1, _id: 1 }).limit(cap + 1).toArray();
+        const inWindow = await c('cs_tickets').find({ ...scoped, createdAt: { $gte: from, $lt: new Date(Math.min(to.getTime(), at.getTime())) } }, { session, projection }).sort({ createdAt: 1, _id: 1 }).limit(cap + 1).toArray();
+        const ids = [...new Set([...open.slice(0, cap), ...inWindow.slice(0, cap)].map(t => t._id))];
+        const eventScope = { tenantId: g.tenantId, ticketId: { $in: ids }, at: { $lt: at } };
+        const updates = await c('cs_ticket_events').find({ ...eventScope, kind: 'PUBLIC_UPDATE', 'actor.type': 'OPERATOR' }, { session, projection: { ticketId: 1, at: 1 } }).sort({ at: 1, _id: 1 }).limit(cap + 1).toArray();
+        const replies = await c('cs_outbox').find({ ...scoped, ticketId: { $in: ids }, origin: 'OPERATOR', kind: 'OPERATOR_REPLY', state: { $in: ['PREVIEWED', 'SENT', 'DELIVERED', 'READ'] } }, { session, projection: { ticketId: 1, state: 1, previewedAt: 1, sentAt: 1 } }).sort({ createdAt: 1, _id: 1 }).limit(cap + 1).toArray();
+        const resolved = await c('cs_ticket_events').find({ ...eventScope, kind: 'STAGE_CHANGED', toStage: 'RESOLVED' }, { session, projection: { ticketId: 1, at: 1 } }).sort({ at: 1, _id: 1 }).limit(cap + 1).toArray();
+        return summarizeServiceMetrics({ open, inWindow, updates, replies, resolved, from, to, at, cap, slaMinutes: firstResponseSlaMinutes });
+      });
     },
 
     // Trusted dispatcher port. Marks SENDING durably before the caller performs any remote call.

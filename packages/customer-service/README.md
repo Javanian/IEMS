@@ -60,3 +60,31 @@ Live customer order connectivity, main application HTTP routes, provider send/re
 ## Operator bindings and metrics
 
 `createBinding` verifies the customer/contact through an injected `partyDirectory`. This version accepts the `SIMULATED` channel and reserved synthetic addresses only. Binding creation, expiry and revocation have permission, version and idempotency checks. `simulateInbound` requires `cs.simulator.use`; the preview dispatcher records `PREVIEWED` without a provider receipt. Scoped metrics report ticket counts and observed response timing from persisted events.
+
+## PLAT-052 source and synthetic detail contract
+
+`order-source.mjs` provides `createServiceOrderReader`. The CS host passes the current transaction session so actor/binding fences and account, order, work-order and shipment reads share one snapshot. This is a public projection, never a second domain ledger. SourceVersion is the owning order/case revision, not a sum of unrelated revisions or reporting sequence. Related source reads are capped at 500; incomplete or malformed coverage produces STATUS_UNAVAILABLE, with no synthetic fallback. Shipment completeness compares decimal strings per line and UOM. Work-order progress counts work orders, not physical units. Repair diagnostics, notes, financial data and unconfirmed dates are excluded.
+
+`serviceOrderFixtures` in `order-fixtures.mjs` returns explicit MANUFACTURE and REPAIR inputs for `registerSyntheticOrderSnapshot`; callers must opt into synthetic reads and possess fixture authority. It performs no seeding on import. Both records carry SYNTHETIC_FIXTURE_SNAPSHOT/liveLookup false and no invented promised date. Existing minimal fixture callers remain compatible. Detailed milestone fields are validated and projected explicitly. Actual Mongo transaction/concurrency and end-to-end source behavior remain for final QA.
+
+## PLAT-053 service operations
+
+Assigned human conversations can only be resumed/paused/closed by their assignee;
+other agents use an explicit takeover from a permitted mode. Transaction-scoped
+operator authorization precedes command replay. Human replies pin the active ticket
+ID, so later tickets on the same binding cannot inherit another ticket's response.
+Customer ticket/order reads share binding transaction fences. Internal notes remain
+in their permission-specific collection; ticket history projects explicit public
+fields and marks new events RECORDED. Explicit seeded markers remain SEEDED;
+unmarked older history stays UNKNOWN. New synthetic-channel tickets carry
+SYNTHETIC_RUNTIME; this is separate from authoritative order-source provenance.
+
+Metrics read one authorized source snapshot, cap each collection scan at 10,001 and
+report INCOMPLETE on truncation. Counts are bounded samples when incomplete;
+percentiles are suppressed. Human response uses public operator updates or confirmed
+preview/sent time of a reply explicitly linked to the ticket; bot/system/queued,
+failed, cancelled, unlinked and future replies do not count. Local PREVIEWED is
+explicitly not external delivery. Window distributions stop at window end/asOf;
+current overdue considers all observed responses through asOf. Origin counts expose
+synthetic runtime, explicit seed and unknown historical markers without guessing.
+No backfill/migration or source record rewrite is performed.

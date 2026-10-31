@@ -1,0 +1,62 @@
+import { createProviderRevocationCommands } from './provider-commands.mjs';
+import { createProviderProvisioningCommands } from './provider-provisioning.mjs';
+import { createProviderPolicyCommands } from './provider-policy-commands.mjs';
+import { createProviderActivation } from './provider-activation.mjs';
+import { createProviderReplyCommands } from './provider-replies.mjs';
+import { createProviderApprovalCommands } from './provider-approvals.mjs';
+
+const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+const identifier = value => typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(value);
+const denied = () => { throw Object.assign(new Error('PROVIDER_OPERATOR_DENIED'), { status: 403 }); };
+
+export const providerOperatorRoles = Object.freeze({
+  providerReplyOperator: Object.freeze(['provider.reply.queue']),
+  providerReplyApprover: Object.freeze(['provider.reply.approve']),
+  providerAuthorityAdmin: Object.freeze(['provider.authority.revoke', 'provider.authority.provision', 'provider.authority.configure']),
+});
+
+export function createScopedProviderApprovalCommands({ db, transaction, foundation, verifyBindingSource, tenantId, plantId, accountId, now }) {
+  const authorize = createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId });
+  return createProviderApprovalCommands({ db, transaction, authorize, verifyBindingSource, tenantId, accountId, now });
+}
+
+export function createScopedProviderReplyCommands({ db, transaction, foundation, verifyBindingSource, tenantId, plantId, accountId, now }) {
+  const authorize = createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId });
+  return createProviderReplyCommands({ db, transaction, authorize, verifyBindingSource, tenantId, accountId, now });
+}
+
+export function createScopedProviderActivation({ db, transaction, foundation, verifyBindingSource, tenantId, plantId, accountId, now }) {
+  const authorize = createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId });
+  return createProviderActivation({ db, transaction, authorize, verifyBindingSource, tenantId, accountId, now });
+}
+
+export function createScopedProviderPolicyCommands({ db, transaction, foundation, tenantId, plantId, accountId, now }) {
+  const authorize = createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId });
+  return createProviderPolicyCommands({ db, transaction, authorize, tenantId, accountId, now });
+}
+
+export function createScopedProviderRevocationCommands({ db, transaction, foundation, tenantId, plantId, accountId, now }) {
+  const authorize = createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId });
+  return createProviderRevocationCommands({ db, transaction, authorize, tenantId, accountId, now });
+}
+
+export function createScopedProviderProvisioningCommands({ db, transaction, foundation, tenantId, plantId, accountId, now }) {
+  const authorize = createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId });
+  return createProviderProvisioningCommands({ db, transaction, authorize, tenantId, accountId, now });
+}
+
+// The composition root owns this immutable account-to-plant mapping; never derive it from a request.
+export function createProviderOperatorAuthorization({ foundation, tenantId, plantId, accountId }) {
+  if (typeof foundation?.authorizeInTransaction !== 'function' || !uuid(tenantId) || !uuid(plantId)
+    || !identifier(accountId)) throw new Error('INVALID_PROVIDER_OPERATOR_CONFIGURATION');
+  return async (actor, request, session) => {
+    if (!session?.inTransaction?.() || !request || Object.getPrototypeOf(request) !== Object.prototype
+      || Object.keys(request).some(key => !['tenantId', 'accountId', 'action'].includes(key))
+      || request.tenantId !== tenantId || request.accountId !== accountId
+      || !Object.values(providerOperatorRoles).some(actions => actions.includes(request.action))) denied();
+    const grant = await foundation.authorizeInTransaction(actor,
+      { tenantId, plantId, action: request.action }, { session });
+    if (!grant || grant.tenantId !== tenantId || grant.plantId !== plantId || !uuid(grant.userId)) denied();
+    return Object.freeze({ tenantId, accountId, userId: grant.userId });
+  };
+}

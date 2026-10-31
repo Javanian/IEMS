@@ -1,6 +1,6 @@
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { createCustomerService, SIMULATED_CHANNEL_ACCOUNT } from '../../../packages/customer-service/index.mjs';
-import { createOrderReader } from './order-reader.mjs';
+import { createServiceOrderReader } from '../../../packages/customer-service/order-source.mjs';
 
 export const customerServiceRoles = {
   csViewer: ['cs.ticket.read'],
@@ -14,7 +14,7 @@ export const customerServiceRoles = {
 };
 export const customerServiceOwnerActions = ['cs.ticket.read', 'cs.ticket.write', 'cs.note.internal', 'cs.conversation.handoff', 'cs.delivery.review', 'cs.ticket.reopen_closed', 'cs.reply', 'cs.binding.read', 'cs.binding.manage', 'cs.simulator.use'];
 export async function initializeCustomerService(runtime, options = {}) {
-  runtime.orderReader = createOrderReader(runtime);
+  runtime.customerServiceOrderReader = createServiceOrderReader(runtime);
   // CRM account/contact ownership is verified inside the package transaction (same session) before a binding exists.
   const partyDirectory = { async verifyCustomerContact({ tenantId, plantId, accountId, contactId }, { session }) {
     const account = await runtime.db.collection('accounts').findOne({ tenantId, plantId, _id: accountId }, { session });
@@ -22,7 +22,7 @@ export async function initializeCustomerService(runtime, options = {}) {
     const contact = await runtime.db.collection('contacts').findOne({ tenantId, plantId, _id: contactId, accountId }, { session });
     return contact ? { accountLabel: account.name } : null;
   } };
-  const shared = { client: runtime.client, db: runtime.db, ...options, partyDirectory, orderReader: options.allowSyntheticOrders ? undefined : { readCustomerOrder: input => runtime.orderReader.readCustomerOrder(input) }, foundation: { authorize: (...args) => runtime.foundation.authorize(...args), authorizeInTransaction: (...args) => runtime.foundation.authorizeInTransaction(...args) } };
+  const shared = { client: runtime.client, db: runtime.db, ...options, partyDirectory, orderReader: options.allowSyntheticOrders ? undefined : { readCustomerOrder: (input, options) => runtime.customerServiceOrderReader.readCustomerOrder(input, options) }, foundation: { authorize: (...args) => runtime.foundation.authorize(...args), authorizeInTransaction: (...args) => runtime.foundation.authorizeInTransaction(...args) } };
   const service = createCustomerService({ ...shared, previewDispatcher: false });
   // Reader and foundation are late-bound so rotations are honoured by the package.
   await service.initialize();
