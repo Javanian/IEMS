@@ -131,6 +131,16 @@ function DocumentControls() {
     } catch (error) { if (current === generation.current) setState(s => ({ ...s, busy: false, error })); }
     finally { if (current === generation.current) lock.current = false; }
   }
+  async function readCleanup(resourceId) {
+    if (lock.current) return;
+    lock.current=true;const current=generation.current;setState(s=>({...s,busy:true,error:null,cleanup:null}));
+    try {
+      const result=await portfolioRequest(`/api/ai/documents/${resourceId}/index/cleanup`);
+      if(result.data?.schema!=='AI_INDEX_CLEANUP_STATUS_V1'||result.data.resourceId!==resourceId)throw new Error('Cleanup authority could not be verified.');
+      if(current===generation.current)setState(s=>({...s,busy:false,cleanup:result.data}));
+    } catch(error){if(current===generation.current)setState(s=>({...s,busy:false,error,cleanup:null}));}
+    finally{if(current===generation.current)lock.current=false;}
+  }
   function publish(event) {
     event.preventDefault(); const f = Object.fromEntries(new FormData(event.currentTarget)), resourceId = selected?.resourceId || crypto.randomUUID();
     const body = { key: crypto.randomUUID(), expectedRevision: selected?.revision || 0, title: f.title || 'Approved purchase order',
@@ -142,6 +152,15 @@ function DocumentControls() {
   return <section className="pf-panel" aria-labelledby="ai-documents-heading"><h2 id="ai-documents-heading">Documents and index</h2>
     <p>Publish scoped plain text or bind an approved purchase order. Source changes and revoked access invalidate old index generations. PDF/OCR and remote URL imports are unsupported.</p>
     <LocalEffectStatus control={effects}/>
+    <details><summary>Cleanup an inactive or superseded document index</summary>
+      <p>Enter an existing document ID to inspect cleanup authority. Current ACL and original source permission are required. Cleanup removes at most 100 retired or proven orphan points and preserves the published generation.</p>
+      <form className="pf-form" onSubmit={event=>{event.preventDefault();readCleanup(new FormData(event.currentTarget).get('cleanupResourceId').trim());}}>
+        <WorkspaceField name="cleanupResourceId" label="Cleanup document ID" required pattern="[a-fA-F0-9-]{36}" />
+        <button disabled={state.busy||!!pending}>Inspect cleanup authority</button>
+      </form>
+      {state.cleanup&&<><p className="pf-id">{state.cleanup.resourceId}</p><p>{state.cleanup.metadata.active?'Active':'Inactive'} document · {state.cleanup.metadata.provenance} · document revision {state.cleanup.metadata.revision} · index revision {state.cleanup.revision}. Tracked retired points: {state.cleanup.retiredPointCount}.</p>
+        <button disabled={state.busy||!!pending||state.cleanup.revision===0} onClick={()=>{const value=state.cleanup;setState(s=>({...s,cleanup:null}));mutate({path:`/api/ai/documents/${value.resourceId}/index/cleanup`,body:{key:crypto.randomUUID(),expectedRevision:value.revision}});}}>Clean verified retired or orphan points</button></>}
+    </details>
     <button disabled={state.busy} onClick={() => read()}>Load authorized documents</button>
     {pending && <WorkspaceState title="Unresolved document command"><p>Reconcile the saved command before submitting another change.</p><button disabled={state.busy} onClick={() => mutate(pending)}>Reconcile same command</button></WorkspaceState>}
     {state.error && <WorkspaceState kind="error" title="Document or index unavailable"><p>{errorMessage(state.error)}</p><p>An unavailable embedding/vector provider does not prevent manual document persistence.</p></WorkspaceState>}
