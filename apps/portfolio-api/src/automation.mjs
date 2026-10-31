@@ -59,8 +59,8 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     return value;
   };
   const administrativeActions={AUTOMATION_PAUSE:'cs.automation.admin',RESOLUTION_APPROVE:'cs.ticket.write',RESOLUTION_REJECT:'cs.ticket.write',RESOLUTION_CANCEL:'cs.ticket.write',DELIVERY_MANUAL_REVIEW:'cs.automation.admin',SERVICE_CREDENTIAL_ISSUE:'cs.automation.admin',SERVICE_CREDENTIAL_REVOKE:'cs.automation.admin'};
-  const admittedOperations = new Set([...Object.keys(administrativeActions),'TICKET_ESCALATE','RESOLUTION_DRAFT_CREATE','RESOLUTION_DISPATCH_INTENT','DIGEST_DISPATCH_INTENT']);
-  const localIntent = Symbol('automation local admission');
+  const admittedOperations = new Set([...Object.keys(administrativeActions),'TICKET_ESCALATE','RESOLUTION_DRAFT_CREATE','RESOLUTION_DISPATCH_INTENT','DIGEST_DISPATCH_INTENT','LOCAL_DELIVERY_RECONCILE']);
+  const localIntent = Symbol('automation local admission'), observationProofs=new WeakMap();
   const tx = async (req, action, effect, mode = 'UNSUPPORTED') => {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => { await auth(req, action, session); if(mode==='READ') await runtime.saasAdmission.authorize(req.scope,{plantId:req.scope.selectedPlantId,session});
@@ -81,13 +81,13 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     if (row.plantId !== req.scope.selectedPlantId || row.action !== action || row.targetEntity?.id !== entityId || row.payloadHash !== digest(payload)) fail(409, 'IDEMPOTENCY_CONFLICT', 'Key metadata is missing or does not match this operation');
     return { ...row.result, auditId: row._id, idempotencyKey: idem, replayed: true };
   };
-  const operation = async (req, action, entityId, payload, effect, permission = 'cs.automation.execute') => {
+  const operation = async (req, action, entityId, payload, effect, permission = 'cs.automation.execute', prepared=null) => {
     const idem = key(req);
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         return await tx(req, permission, async session => {
           const previous = await replay(req, session, action, entityId, payload, idem);
-          await recheckOperationSources(req,session,action,entityId,payload,previous);
+          await recheckOperationSources(req,session,action,entityId,payload,previous,prepared);
           const admission = admittedOperations.has(action) ? await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'automation_audit_logs',key:idem,identity:{tenantId:req.scope.tenantId,idempotencyKey:idem},action:permission,operation:action,aggregateId:entityId,payloadHash:digest(payload),replayed:Boolean(previous)}) : null;
           const mark=result=>Object.defineProperty(result,localIntent,{value:admission?.state!=='LEGACY_UNENROLLED'});
           if (previous) return mark(previous);
@@ -198,7 +198,20 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     if(!row)fail(409,'DELIVERY_RECEIPT_SOURCE_MISSING');
     return deliveryView(row);
   };
-  const recheckOperationSources=async(req,session,action,entityId,payload,previous)=>{
+  const recheckOperationSources=async(req,session,action,entityId,payload,previous,prepared)=>{
+    if(action==='LOCAL_DELIVERY_RECONCILE'){
+      const proof=observationProofs.get(prepared);if(!proof||JSON.stringify(proof.ids)!==JSON.stringify(payload.deliveryIds))fail(400,'LOCAL_OBSERVATION_PROOF_REQUIRED');
+      for(const entry of proof.entries){
+        await recheckDelivery(req,session,entry.delivery._id,{});
+        const d=await c(runtime,'cs_outbox').findOne({...scope(req),_id:entry.delivery._id,origin:'AUTOMATION'},{session});
+        const intent=await c(runtime,'automation_audit_logs').findOne({...scope(req),action:{$in:['RESOLUTION_DISPATCH_INTENT','DIGEST_DISPATCH_INTENT']},'result.deliveryId':d._id,idempotencyKey:{$type:'string'},payloadHash:{$type:'string'}},{session});
+        if(!intent)fail(409,'LOCAL_INTENT_RECEIPT_REQUIRED');
+        if(intent.action==='RESOLUTION_DISPATCH_INTENT'?(intent.targetEntity?.id!==d.draftId||intent.result.draftId!==d.draftId||intent.payloadHash!==digest({draftId:d.draftId})||d.actionKey!==`automation:resolution:${d.draftId}`):(intent.payloadHash!==digest({mode:intent.result.mode,periodKey:intent.result.periodKey})||intent.targetEntity?.id!==d.actionKey||d.actionKey!==`automation:digest:${d.plantId}:${intent.result.mode}:${intent.result.periodKey}:reports@iems.local`))fail(409,'LOCAL_INTENT_RECEIPT_INVALID');
+        if(d.draftId)await checkSource(req,await getDraft(req,d.draftId,session),session,true);else if(d.kind!=='DIGEST'||d.recipient!=='reports@iems.local')fail(409,'SOURCE_BINDING_CHANGED');
+        if(previous){const saved=previous.items?.find(x=>x.deliveryId===d._id);if(!saved||saved.proofHash!==entry.proofHash)fail(409,'LOCAL_OBSERVATION_EVIDENCE_CHANGED');}
+        else if(observationFingerprint(d)!==observationFingerprint(entry.delivery))fail(409,'LOCAL_OBSERVATION_SOURCE_CHANGED');
+      }
+    }
     if(administrativeActions[action]) {
       await human(req,administrativeActions[action],session);
       if(action==='AUTOMATION_PAUSE'&&entityId!==req.scope.selectedPlantId)fail(403,'SCOPE_DENIED');
@@ -261,6 +274,48 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
   const recheckDelivery=async(req,session,deliveryId,expected)=>{
     const d=await c(runtime,'cs_outbox').findOneAndUpdate({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{$inc:{automationFence:1}},{session,returnDocument:'after'});
     if(!d||Object.entries(expected).some(([k,v])=>d[k]!==v)||d.contentHash!==hashText(d.body.trim())||d.payloadHash!==digest({to:d.recipient,subject:d.subject,body:d.kind==='DIGEST'&&d.summary?.previewCount===0?d.body+'\n':d.body}))fail(409,'DELIVERY_RECEIPT_SOURCE_CHANGED');
+  };
+  const observationFingerprint=d=>digest({id:d._id,state:d.state,fence:d.fence,attempt:d.attempt,leaseUntil:d.leaseUntil?new Date(d.leaseUntil).toISOString():null,updatedAt:d.updatedAt?new Date(d.updatedAt).toISOString():null,contentHash:d.contentHash,payloadHash:d.payloadHash,recipient:d.recipient,draftId:d.draftId});
+  const localObserve=async(req)=>{
+    fields(req.body,['mode','deliveryIds']);
+    if(req.body.mode!=='LOCAL_OBSERVE_V1'||!Array.isArray(req.body.deliveryIds)||req.body.deliveryIds.length<1||req.body.deliveryIds.length>100||new Set(req.body.deliveryIds).size!==req.body.deliveryIds.length)fail(400,'INVALID_LOCAL_OBSERVATION');
+    const ids=req.body.deliveryIds.map(id).sort(),payload={mode:'LOCAL_OBSERVE_V1',deliveryIds:ids},idem=key(req);
+    await auth(req,'cs.automation.execute');
+    const previous=await c(runtime,'automation_audit_logs').findOne({tenantId:req.scope.tenantId,idempotencyKey:idem});
+    if(previous&&(previous.plantId!==req.scope.selectedPlantId||previous.action!=='LOCAL_DELIVERY_RECONCILE'||previous.targetEntity?.id!==req.scope.selectedPlantId||previous.payloadHash!==digest(payload)))fail(409,'IDEMPOTENCY_CONFLICT');
+    localUrl(cfg().sinkUrl||process.env.IEMS_AUTOMATION_SINK_URL,'http://127.0.0.1:8027');
+    const entries=[];
+    for(const deliveryId of ids){
+      const delivery=await c(runtime,'cs_outbox').findOne({...scope(req),_id:deliveryId,origin:'AUTOMATION'});if(!delivery)fail(404,'NOT_FOUND');
+      if(!/^[a-z0-9._+-]+@iems\.local$/.test(delivery.recipient)||typeof delivery.body!=='string'||Buffer.byteLength(delivery.body)>65536||delivery.contentHash!==hashText(delivery.body.trim()))fail(409,'LOCAL_OBSERVATION_SOURCE_INVALID');
+      const sinkBase=localUrl(cfg().sinkUrl||process.env.IEMS_AUTOMATION_SINK_URL,'http://127.0.0.1:8027'),sinkToken=cfg().sinkToken||process.env.IEMS_AUTOMATION_SINK_TOKEN;
+      let receipt=null,supported=Boolean(sinkToken);
+      if(supported){
+        const response=await fetch(sinkBase+'/api/emails?messageId='+encodeURIComponent(delivery.messageId),{headers:{authorization:'Bearer '+sinkToken},signal:AbortSignal.timeout(2000),redirect:'error'});
+        if(response.status===401||response.status===403)fail(403,'LOCAL_EVIDENCE_AUTH_DENIED');if(!response.ok)fail(503,'LOCAL_EVIDENCE_UNAVAILABLE');
+        const raw=await response.text();if(raw.length>524288)fail(409,'LOCAL_EVIDENCE_TOO_LARGE');let data;try{data=JSON.parse(raw).data;}catch{fail(409,'LOCAL_EVIDENCE_INVALID');}
+        if(data===undefined)fail(409,'LOCAL_EVIDENCE_INVALID');const candidates=Array.isArray(data)?data:data?[data]:[];
+        if(candidates.length){receipt=await verifiedSinkReceipt(delivery,cfg());if(!receipt)fail(409,'LOCAL_RECEIPT_INTEGRITY_FAILED');}
+      }
+      const proofHash=digest({deliveryId,tenantId:delivery.tenantId,plantId:delivery.plantId,contentHash:delivery.contentHash,recipient:delivery.recipient,messageId:delivery.messageId,receiptId:receipt?.id??null});
+      entries.push(Object.freeze({delivery:Object.freeze(delivery),receipt:receipt?Object.freeze({id:receipt.id}):null,supported,proofHash}));
+    }
+    const prepared=Object.freeze({});observationProofs.set(prepared,Object.freeze({ids:Object.freeze(ids),entries:Object.freeze(entries)}));
+    return operation(req,'LOCAL_DELIVERY_RECONCILE',req.scope.selectedPlantId,payload,async session=>{
+      const items=[];
+      for(const entry of entries){
+        const d=entry.delivery,at=new Date();let state=d.state,observation='UNKNOWN',reason='NO_AUTHORITATIVE_LOCAL_RECEIPT',set=null;
+        if(!entry.supported){observation='UNSUPPORTED_EVIDENCE';reason='LOCAL_SINK_AUTHORITY_NOT_CONFIGURED';}
+        else if(!['SENDING','UNKNOWN','SENT'].includes(d.state)){observation='UNSUPPORTED_EVIDENCE';reason='NO_SUBMISSION_STATE';}
+        else if(entry.receipt){state='SENT';observation='OBSERVED_LOCAL';reason=null;if(d.state!=='SENT')set={state:'SENT',deliveryState:'ACCEPTED_LOCAL',providerMessageId:entry.receipt.id,receiptStatus:'Accepted by local mail sink',lastError:null,leaseUntil:null,updatedAt:at};else if(d.providerMessageId!==entry.receipt.id)fail(409,'LOCAL_RECEIPT_CONFLICT');}
+        else if(d.state==='SENDING'&&d.leaseUntil&&new Date(d.leaseUntil)<=at){state='UNKNOWN';set={state:'UNKNOWN',deliveryState:'UNKNOWN',leaseUntil:null,lastError:'LEASE_EXPIRED',updatedAt:at};reason='LEASE_EXPIRED_NO_VERIFIED_RECEIPT';}
+        if(set){const changed=await c(runtime,'cs_outbox').updateOne({...scope(req),_id:d._id,origin:'AUTOMATION',state:d.state,fence:d.fence,leaseUntil:d.leaseUntil,updatedAt:d.updatedAt},{$set:set,$push:{history:{state,at,reason,sinkMessageId:entry.receipt?.id??null,observation:'LOCAL_OBSERVE_V1'}}},{session});if(changed.matchedCount!==1)fail(409,'STALE_DELIVERY_FENCE');
+          if(d.draftId){const draft=await getDraft(req,d.draftId,session);const update=await c(runtime,'cs_resolution_drafts').updateOne({...scope(req),_id:d.draftId,version:draft.version},{$set:{status:state==='SENT'?'DISPATCHED':'UNKNOWN',deliveryState:set.deliveryState,deliveryProof:entry.receipt?.id??null,updatedAt:at},$inc:{version:1}},{session});if(update.matchedCount!==1)fail(409,'STALE_DRAFT');}
+        }
+        items.push({deliveryId:d._id,state,observation,reason,receiptId:entry.receipt?.id??null,proofHash:entry.proofHash});
+      }
+      return {mode:'LOCAL_OBSERVE_V1',items};
+    },'cs.automation.execute',prepared);
   };
   const buildDigest = async (req, session) => {
     const filter = scope(req), now = new Date(), from = new Date(now.getTime() - 7 * 86400000);
@@ -450,6 +505,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     res.json({ data: await c(runtime, 'automation_audit_logs').find(filter).sort({ occurredAt: -1 }).limit(100).toArray() });
   });
   app.post('/api/cs/automation/reconcile', async (req, res) => {
+    if(req.body?.mode==='LOCAL_OBSERVE_V1'){res.json({data:await localObserve(req)});return;}
     await auth(req, 'cs.automation.execute'); fields(req.body, []);
     const expired = await tx(req, 'cs.automation.execute', async session => {
       const rows = await c(runtime, 'cs_outbox').find({ ...scope(req), origin: 'AUTOMATION', state: 'SENDING', leaseUntil: { $lte: new Date() } }, { session }).toArray();

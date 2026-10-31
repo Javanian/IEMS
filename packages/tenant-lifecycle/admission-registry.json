@@ -440,7 +440,8 @@
         "RESOLUTION_CANCEL": "cs.ticket.write",
         "DELIVERY_MANUAL_REVIEW": "cs.automation.admin",
         "SERVICE_CREDENTIAL_ISSUE": "cs.automation.admin",
-        "SERVICE_CREDENTIAL_REVOKE": "cs.automation.admin"
+        "SERVICE_CREDENTIAL_REVOKE": "cs.automation.admin",
+        "LOCAL_DELIVERY_RECONCILE": "cs.automation.execute"
       },
       "replay": "current scope/permission, ticket/binding/approval/recipient/outbox proof; original result; zero charge",
       "meter": "ONE_COMMAND",
@@ -555,7 +556,7 @@
     "apps/portfolio-api/src/app.mjs": "4cf21acce04e1de8ca283334e7cfe19eb75958f910ad4e27abac9f5c77badddb",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
     "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
-    "apps/portfolio-api/src/automation.mjs": "2bc5c41a7e559580f36e4705c4a91b9c89484d2a58439bf1912c9220562d08c4",
+    "apps/portfolio-api/src/automation.mjs": "0892457b521faf4315885500e76fcfa6df05034c81cc6e08275dfb1bea0e89ec",
     "apps/portfolio-api/src/business-clock.mjs": "75ac403414331887f6df0e944a7f6f6a0415aa62c4ae62b76124c28adb8f2188",
     "apps/portfolio-api/src/catalog-disposition-state.mjs": "14bdaae9188d604a15ea90ef63b2adf025600b26b3a4af58364ee24f4d99f875",
     "apps/portfolio-api/src/catalog-disposition.mjs": "1835a7e3235460873335e53979a409360f3ffea0d8814e6737317f7ef3dbb49f",
@@ -655,7 +656,7 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/admission.mjs": "4bff4637dd27a300384d69c5ea147fd06ecb95b766abf18cb936897e7f506a78",
+    "packages/tenant-lifecycle/admission.mjs": "8657e5231f4049e86c9e779333bf4e3aae9a1668532dcf3bf3ed8f7046b62f72",
     "packages/tenant-lifecycle/index.mjs": "7a74707b63d4d219611894884ae025aa88062e29aba4c0b5c5ebb679a0ca3eb0",
     "packages/tenant-lifecycle/domain-port.mjs": "48787a3e8928573328259a0bfef8bdf05ef183c4dd813a0175dff62c70131a36",
     "packages/tenant-lifecycle/admission-registry.mjs": "292fefe68375039b69c04cf3850e3413eb26934f02308e0e67fd8208cdbe1ca6"
@@ -1926,9 +1927,10 @@
     },
     {
       "route": "POST /api/cs/automation/reconcile",
-      "state": "LOCAL_COVERAGE_PENDING",
-      "meter": "NONE",
-      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "condition": "Explicit bounded LOCAL_OBSERVE_V1 only; legacy/full recovery and all workers remain unsupported enrolled."
     },
     {
       "route": "POST /api/cs/automation/resolution-draft",
