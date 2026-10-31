@@ -35,7 +35,7 @@ test('receipt admission on marker-owned Mongo', {timeout:120000}, async t=>{
   r=await h.req('/crm/accounts',{name:'Must not write'},h.alpha);assert.equal(r.status,400);assert.equal(r.error.code,'COMMAND_KEY_REQUIRED');assert.equal(await h.db.collection('accounts').countDocuments(filter),before);
   r=await h.req('/cs/simulator/dispatch',{},h.alpha);assert.equal(r.status,403,JSON.stringify(r));
   h.runtime.platform.handlers.ownedProbe=async()=>assert.fail('Job must not run');
-  r=await h.req('/platform/jobs',{kind:'ownedProbe',input:{},key:randomUUID()},h.alpha);assert.equal(r.status,403,JSON.stringify(r));
+  r=await h.req('/platform/jobs',{kind:'ownedProbe',input:{},key:randomUUID()},h.alpha);assert.equal(r.status,400,JSON.stringify(r));assert.equal(r.error.code,'INVALID_JOB');
   assert.equal(await h.db.collection('jobs').countDocuments(filter),0);assert.equal(await usage(),'1');
  });
  await t.test('foundation receipt, hash conflict, missing port and abort rollback',async()=>{

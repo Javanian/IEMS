@@ -1,5 +1,5 @@
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
-import { createCustomerService, SIMULATED_CHANNEL_ACCOUNT } from '../../../packages/customer-service/index.mjs';
+import { createCustomerService, SIMULATED_CHANNEL_ACCOUNT, customerServiceDisposition } from '../../../packages/customer-service/index.mjs';
 import { createServiceOrderReader } from '../../../packages/customer-service/order-source.mjs';
 
 export const customerServiceRoles = {
@@ -22,7 +22,7 @@ export async function initializeCustomerService(runtime, options = {}) {
     const contact = await runtime.db.collection('contacts').findOne({ tenantId, plantId, _id: contactId, accountId }, { session });
     return contact ? { accountLabel: account.name } : null;
   } };
-  const shared = { client: runtime.client, db: runtime.db, ...options, saasAdmission:runtime.saasAdmission, partyDirectory, orderReader: options.allowSyntheticOrders ? undefined : { readCustomerOrder: (input, options) => runtime.customerServiceOrderReader.readCustomerOrder(input, options) }, foundation: { authorize: (...args) => runtime.foundation.authorize(...args), authorizeInTransaction: (...args) => runtime.foundation.authorizeInTransaction(...args) } };
+  const shared = { client: runtime.client, db: runtime.db, ...options, saasAdmission:runtime.saasAdmission, createCustomerServicePort:runtime.saasAdmission.createCustomerServicePort, partyDirectory, orderReader: options.allowSyntheticOrders ? undefined : { readCustomerOrder: (input, options) => runtime.customerServiceOrderReader.readCustomerOrder(input, options) }, foundation: { authorize: (...args) => runtime.foundation.authorize(...args), authorizeInTransaction: (...args) => runtime.foundation.authorizeInTransaction(...args) } };
   const service = createCustomerService({ ...shared, previewDispatcher: false });
   // Reader and foundation are late-bound so rotations are honoured by the package.
   await service.initialize();
@@ -132,8 +132,16 @@ export function installCustomerService(app, runtime, { fail, id, fields }) {
     const { bindingId, inboundKey, text } = req.body;
     const out = await cs().simulateInbound(req.scope, { plantId: plantId(req), bindingId, inboundKey, text });
     const ids = out.result.deliveryIds || [];
-    const previewed = await drainPreviews(req.scope.tenantId, ids);
-    const messages = ids.length ? await cs().getOutboundMessages(req.scope, { plantId: plantId(req), deliveryIds: ids }) : [];
+    const disposition=out[customerServiceDisposition];
+    if(typeof disposition?.enrolled!=='boolean')fail(500,'CS_ADMISSION_DISPOSITION_MISSING');
+    let previewed=[],interrupted=false,before=[];
+    if(!disposition.enrolled) {
+      before=ids.length?await cs().getOutboundMessages(req.scope,{plantId:plantId(req),deliveryIds:ids}):[];
+      try{previewed=await drainPreviews(req.scope.tenantId,ids);}
+      catch(error){if(error.code!=='SAAS_ADMISSION_UNSUPPORTED_EFFECT')throw error;interrupted=true;}
+    }
+    const messages=ids.length?await cs().getOutboundMessages(req.scope,{plantId:plantId(req),deliveryIds:ids}):[];
+    if(interrupted)previewed=messages.filter(m=>m.state==='PREVIEWED'&&before.find(old=>old.messageId===m.messageId)?.state!=='PREVIEWED').map(m=>m.messageId);
     const replyId = out.result.reply?.deliveryId ?? null;
     res.json({ data: {
       conversationId: out.conversationId, bindingId: out.bindingId, command: out.command,
@@ -146,9 +154,14 @@ export function installCustomerService(app, runtime, { fail, id, fields }) {
     } });
   }));
   app.post('/api/cs/simulator/dispatch', async (req, res) => contractErrors(async () => {
-    strict(req.body, []);
-    await runtime.foundation.authorize(req.scope, { plantId: plantId(req), action: 'cs.simulator.use' });
-    res.json({ data: { previewedDeliveryIds: await drainPreviews(req.scope.tenantId) } });
+    strict(req.body,['commandKey','deliveryIds']);
+    if(req.automationService)fail(403,'HUMAN_APPROVAL_REQUIRED');
+    if(req.body.commandKey!==undefined)res.json({data:await cs().dispatchLocalPreviews(req.scope,{plantId:plantId(req),commandKey:req.body.commandKey,deliveryIds:req.body.deliveryIds??null})});
+    else {
+      await runtime.foundation.authorize(req.scope,{plantId:plantId(req),action:'cs.simulator.use'});
+      if(req.body.deliveryIds!==undefined)fail(400,'COMMAND_KEY_REQUIRED');
+      res.json({data:{previewedDeliveryIds:await drainPreviews(req.scope.tenantId)}});
+    }
   }));
   app.get('/api/cs/metrics', async (req, res) => contractErrors(async () => {
     query(req, ['from', 'to']);

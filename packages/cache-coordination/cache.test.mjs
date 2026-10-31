@@ -36,7 +36,8 @@ test('advisory release compares ownership token and never grants authority', asy
 test('durable rate decision survives adapter recreation and never consults Redis', async () => {
   let row;
   const db = { collection: () => ({ async findOne() { return row; }, async insertOne(value) { row = value; }, async updateOne() { row.used++; return { matchedCount: 1 }; } }) };
-  const client = { startSession: () => ({ startTransaction() {}, async commitTransaction() {}, async endSession() {}, inTransaction: () => true, async abortTransaction() {} }) };
+  const client = { startSession: () => ({ client, startTransaction() {}, async commitTransaction() {}, async endSession() {}, inTransaction: () => true, async abortTransaction() {} }) };
+  db.client=client;
   const config = { db, client, authorize: async () => ({ ...scope, userId: 'user' }), now: () => new Date('2026-10-30T12:00:00Z') };
   const policy = { subjectId: 'user', policy: 'job.request', limit: 1, windowMs: 60000 };
   assert.equal((await createDurableRateLimiter(config).consume(scope, policy)).allowed, true);

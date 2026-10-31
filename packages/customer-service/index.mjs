@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
 import { summarizeServiceMetrics } from './service-metrics.mjs';
 
+export const customerServiceDisposition=Symbol('customer-service-current-admission');
 export const SYNTHETIC_ORDER_SOURCE = 'SYNTHETIC_FIXTURE_SNAPSHOT';
 export const DRAFT_STAGES = Object.freeze(['ORDER_SELECTION', 'CATEGORY', 'DESCRIPTION', 'PREVIEW', 'CONFIRMED', 'CANCELLED']);
 export const COMPLAINT_CATEGORIES = Object.freeze(['DELIVERY_DELAY', 'QUALITY', 'WRONG_ITEM', 'INVOICE_QUESTION', 'SAFETY_OR_DAMAGE', 'OTHER']);
@@ -23,7 +24,7 @@ const TICKET_TRANSITIONS = Object.freeze({
 });
 const DRAFT_BACK = Object.freeze({ CATEGORY: 'ORDER_SELECTION', DESCRIPTION: 'CATEGORY', PREVIEW: 'DESCRIPTION' });
 const OPEN_DRAFT = ['ORDER_SELECTION', 'CATEGORY', 'DESCRIPTION', 'PREVIEW'];
-const STATUS = { DENIED: 403, NOT_FOUND: 404, INVALID_INPUT: 400, INVALID_TRANSITION: 409, VERSION_CONFLICT: 409, IDEMPOTENCY_CONFLICT: 409, DRAFT_EXPIRED: 410, STALE_FENCE: 409, STATUS_UNAVAILABLE: 503, VALIDATION: 400, BINDING_REVOKED: 409, BINDING_CONFLICT: 409, IDEMPOTENCY_KEY_REUSED: 409, SYNTHETIC_ADDRESS_REQUIRED: 422 };
+const STATUS = { DENIED: 403, NOT_FOUND: 404, INVALID_INPUT: 400, INVALID_TRANSITION: 409, VERSION_CONFLICT: 409, IDEMPOTENCY_CONFLICT: 409, DRAFT_EXPIRED: 410, STALE_FENCE: 409, STATUS_UNAVAILABLE: 503, VALIDATION: 400, BINDING_REVOKED: 409, BINDING_CONFLICT: 409, IDEMPOTENCY_KEY_REUSED: 409, HISTORICAL_RESULT_RECEIPT_REQUIRED:409, COMMAND_KEY_REQUIRED:400, SYNTHETIC_ADDRESS_REQUIRED: 422 };
 export const BINDING_CHANNELS = Object.freeze(['SIMULATED']);
 export const SIMULATED_CHANNEL_ACCOUNT = 'SIMULATED';
 export const SYNTHETIC_ADDRESS = /^\+62000\d{6,9}$/;
@@ -102,18 +103,18 @@ export function parseInboundText(raw) {
   return { op: 'UNKNOWN_COMMAND' };
 }
 
-export function createCustomerService({ client, db, foundation, saasAdmission, now = () => new Date(), draftTtlMs = 24 * HOUR, ackTtlMs = 24 * HOUR, botReplyTtlMs = 15 * 60000, maxSendAttempts = 3, orderReader, orderReaderTimeoutMs = 2000, orderMaxStaleMs = 60000, allowSyntheticOrders = false, previewDispatcher = false, faultInjector = async () => {}, partyDirectory = null, firstResponseSlaMinutes = 240 }) {
+export function createCustomerService({ client, db, foundation, saasAdmission, createCustomerServicePort = saasAdmission?.createCustomerServicePort, now = () => new Date(), draftTtlMs = 24 * HOUR, ackTtlMs = 24 * HOUR, botReplyTtlMs = 15 * 60000, maxSendAttempts = 3, orderReader, orderReaderTimeoutMs = 2000, orderMaxStaleMs = 60000, allowSyntheticOrders = false, previewDispatcher = false, faultInjector = async () => {}, partyDirectory = null, firstResponseSlaMinutes = 240 }) {
   if (!client || !db || !foundation) throw new TypeError('client, db and foundation are required');
   const c = name => db.collection(name);
   const principals = new WeakMap();
 
   const transactionContext = new AsyncLocalStorage();
   async function tx(fn) {
-    if (transactionContext.getStore()) return fn(transactionContext.getStore());
+    if (transactionContext.getStore()) return fn(transactionContext.getStore().session);
     for (let attempt = 1; ; attempt++) {
       const session = client.startSession();
       try {
-        return await session.withTransaction(() => transactionContext.run(session, () => fn(session)), TXN);
+        return await session.withTransaction(() => transactionContext.run(Object.freeze({session,actor:null,principal:null,binding:null,admission:null}), () => fn(session)), TXN);
       } catch (e) {
         // A committed concurrent duplicate surfaces as E11000 instead of a transient write conflict; rerun to read it.
         if (e?.code === 11000 && attempt < 4) continue;
@@ -124,25 +125,56 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
   const audit = (session, tenantId, action, subjectId, actor) =>
     c('cs_audit').insertOne({ _id: randomUUID(), tenantId, action, subjectId, actor, at: now() }, { session });
 
-  async function idempotent(session, { tenantId, scope, owner, key: k, request, conflictCode = 'IDEMPOTENCY_CONFLICT' }, compute) {
-    await saasAdmission?.unsupportedTenant({tenantId,session});
-    const hash = requestHash(request);
-    const found = await c('cs_idempotency').findOne({ tenantId, scope, owner, key: k }, { session });
-    if (found) return found.requestHash === hash ? found.result : fail(conflictCode);
-    const result = await compute();
-    await c('cs_idempotency').insertOne({ _id: randomUUID(), tenantId, scope, owner, key: k, requestHash: hash, result, at: now() }, { session });
-    return result;
+  async function missingPort(tenantId,session) {
+    if(session)await c('tenants').updateOne({_id:tenantId,active:true},{$inc:{saasEnrollmentFence:1}},{session});
+    if(await c('saasSubscriptions').findOne({tenantId},{session}))fail('DENIED');
+  }
+  async function idempotent(session, { tenantId, scope, owner, key: k, request, principal, conflictCode = 'IDEMPOTENCY_CONFLICT' }, compute) {
+    const hash=requestHash(request),identity={tenantId,scope,owner,key:k};
+    const found=await c('cs_idempotency').findOne(identity,{session});
+    if(found&&found.requestHash!==hash)fail(conflictCode);
+    const parent=transactionContext.getStore();if(parent?.session!==session)fail('DENIED');
+    const context=principal?Object.freeze({...parent,principal,binding:Object.freeze({...await loadCustomerContext(principal,session)})}):parent;
+    await recheckReceiptSources(session,context,scope,request,found?.result);
+    const descriptor={session,namespace:'cs_idempotency',identity,key:k,payloadHash:hash,replayed:Boolean(found),parent:context.admission};
+    let admitted;
+    if(['inbound.command','complaint.confirm','ticket.customer_comment','conversation.handoff_request','complaint.start','complaint.update','conversation.bot_reply'].includes(scope)) {
+      if(!context.principal)fail('DENIED');
+      if(customerPort)admitted=await customerPort.effect({...descriptor,principal:context.principal});else await missingPort(tenantId,session);
+    } else {
+      if(!context.actor)fail('DENIED');
+      if(saasAdmission)admitted=await saasAdmission.effect({...descriptor,scope:context.actor.scope,action:context.actor.action});else await missingPort(tenantId,session);
+    }
+    if(admitted&&!['LEGACY_UNENROLLED','ADMITTED','REPLAY','INHERITED'].includes(admitted.state))fail('DENIED');
+    if(!context.admission)context.onAdmission?.(Object.freeze({enrolled:admitted?admitted.state!=='LEGACY_UNENROLLED':false}));
+    if(found)return found.result;
+    return transactionContext.run(Object.freeze({...context,admission:admitted?.context??context.admission??Object.freeze({legacy:true})}),async()=>{
+      const result=await compute();
+      await c('cs_idempotency').insertOne({_id:randomUUID(),...identity,requestHash:hash,result,at:now()},{session});return result;
+    });
   }
 
+  async function immutableRoot(session,descriptor,compute,historical) {
+    if(descriptor.principal&&transactionContext.getStore()?.admission)return compute();
+    if(descriptor.key===undefined){if(await c('saasSubscriptions').findOne({tenantId:descriptor.tenantId},{session}))fail('COMMAND_KEY_REQUIRED');await unreceiptedCustomer(session,await loadCustomerContext(descriptor.principal,session));return compute();}
+    key(descriptor.key);
+    const prior=await c('cs_idempotency').findOne({tenantId:descriptor.tenantId,scope:descriptor.scope,owner:descriptor.owner,key:descriptor.key},{session});
+    if(!prior&&historical){const result=await historical();if(result){if(await c('saasSubscriptions').findOne({tenantId:descriptor.tenantId},{session}))fail('HISTORICAL_RESULT_RECEIPT_REQUIRED');if(!descriptor.principal)await recheckReceiptSources(session,transactionContext.getStore(),descriptor.scope,descriptor.request,result);return result;}}
+    return idempotent(session,descriptor,compute);
+  }
   async function operator(scope, plantId, action) {
-    const session = transactionContext.getStore();
+    const session = transactionContext.getStore()?.session;
     return session ? foundation.authorizeInTransaction(scope, { plantId: uuid(plantId), action }, { session }) : foundation.authorize(scope, { plantId: uuid(plantId), action });
   }
-  async function operatorTx(scope, plantId, action, fn) {
-    return tx(async session => {
-      const grant = await operator(scope, plantId, action);
-      if(!['cs.ticket.read','cs.binding.read'].includes(action)) await saasAdmission?.unsupported(scope,{plantId,session});
-      return fn(session, grant);
+  async function operatorTx(scope,plantId,action,fn,{onAdmission}={}) {
+    return tx(async session=>{
+      const grant=await operator(scope,plantId,action),context=transactionContext.getStore();
+      if(saasAdmission) {
+        if(['cs.ticket.read','cs.binding.read'].includes(action))await saasAdmission.authorize(scope,{plantId,session});
+        else if(['cs.ticket.write','cs.note.internal','cs.conversation.handoff','cs.binding.manage','cs.delivery.review','cs.simulator.use','cs.reply'].includes(action))await saasAdmission.authorize(scope,{plantId,session});
+        else await saasAdmission.unsupported(scope,{plantId,session});
+      }else await missingPort(grant.tenantId,session);
+      return transactionContext.run(Object.freeze({...context,actor:Object.freeze({scope,grant,action}),onAdmission:onAdmission??context.onAdmission}),()=>fn(session,grant));
     });
   }
   // Expiry is enforced at query and dispatch time; an ACTIVE binding past expiresAt is treated as unusable.
@@ -150,21 +182,107 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
   const usable = b => !!b && b.status === 'ACTIVE' && (b.expiresAt === undefined || b.expiresAt === null || b.expiresAt > now());
   function registerPrincipal(b) {
     const principal = Object.freeze({ kind: 'CUSTOMER', tenantId: b.tenantId, customerId: b.customerId, bindingId: b._id, bindingVersion: b.version });
-    principals.set(principal, { tenantId: b.tenantId, bindingId: b._id, bindingVersion: b.version });
+    principals.set(principal, { tenantId: b.tenantId, plantId:b.plantId, customerId:b.customerId, bindingId: b._id, bindingVersion: b.version });
     return principal;
   }
-  async function customerContext(principal, session) {
+  async function loadCustomerContext(principal, session) {
     const ref = principals.get(principal);
     if (!ref) fail('DENIED');
-    const binding = await c('cs_contact_bindings').findOne({ _id: ref.bindingId, tenantId: ref.tenantId, status: 'ACTIVE', version: ref.bindingVersion, ...unexpired() }, { session });
+    const binding = await c('cs_contact_bindings').findOne({ _id: ref.bindingId, tenantId: ref.tenantId, plantId:ref.plantId, customerId:ref.customerId, status: 'ACTIVE', version: ref.bindingVersion, ...unexpired() }, { session });
     if (!binding) fail('DENIED');
-    if(session) await saasAdmission?.unsupportedTenant({tenantId:binding.tenantId,session});
     if (session) {
       await faultInjector('bindingSnapshot');
       const fenced = await c('cs_contact_bindings').updateOne({ _id: binding._id, tenantId: binding.tenantId, status: 'ACTIVE', version: binding.version }, { $inc: { commandFence: 1 } }, { session });
       if (fenced.matchedCount !== 1) fail('DENIED');
     }
     return binding;
+  }
+  const customerPort=createCustomerServicePort?.({resolvePrincipal:async(principal,{session})=>loadCustomerContext(principal,session)});
+  async function customerContext(principal,session) {
+    if(!session)return tx(inner=>customerContext(principal,inner));
+    const binding=await loadCustomerContext(principal,session);
+    if(customerPort)await customerPort.authorize(principal,{session});else await missingPort(binding.tenantId,session);
+    return binding;
+  }
+  async function unreceiptedCustomer(session,binding) {
+    if(transactionContext.getStore()?.admission)return;
+    if(saasAdmission)await saasAdmission.unsupportedTenant({tenantId:binding.tenantId,session});else await missingPort(binding.tenantId,session);
+  }
+  async function recheckReceiptSources(session,context,namespace,request,result) {
+    const binding=context.binding,g=context.actor?.grant,tenantId=binding?.tenantId??g?.tenantId,plantId=binding?.plantId??g?.plantId;
+    const scoped={tenantId,plantId};
+    async function ticket(filter) {
+      const row=await c('cs_tickets').findOneAndUpdate({...scoped,...filter},{$inc:{admissionSourceFence:1}},{session,returnDocument:'after'});if(!row)fail('NOT_FOUND');
+      if(binding&&row.customerId!==binding.customerId)fail('DENIED');
+      if(row.bindingId) {
+        const source=await c('cs_contact_bindings').findOne({...scoped,_id:row.bindingId,customerId:row.customerId,status:'ACTIVE',...unexpired()},{session});if(!source)fail('DENIED');
+        if((await c('cs_contact_bindings').updateOne({_id:source._id,status:'ACTIVE',version:source.version},{$inc:{commandFence:1}},{session})).matchedCount!==1)fail('DENIED');
+      }
+      return row;
+    }
+    if(binding) {
+      const conv=await c('cs_conversations').findOne({tenantId:binding.tenantId,bindingId:binding._id},{session});
+      if(conv&&(conv.plantId!==binding.plantId||conv.customerId!==binding.customerId))fail('DENIED');
+      if(namespace==='conversation.handoff_request'&&result?.conversationId&&(!conv||conv._id!==result.conversationId))fail('NOT_FOUND');
+    }
+    if(namespace.startsWith('ticket.')&&request.ticketId)await ticket({_id:request.ticketId});
+    if(namespace==='ticket.customer_comment')await ticket({ticketNumber:request.ticketNumber});
+    if(['complaint.start','complaint.update'].includes(namespace)) {
+      if(!binding)fail('DENIED');const draftId=namespace==='complaint.update'?request.draftId:result?.draftId;
+      if(draftId){const draft=await loadOwnDraft(session,binding,draftId);if(draft.orderNumber)await ownSnapshot(session,binding,draft.orderNumber);}
+      if(namespace==='complaint.update'&&request.action?.type==='SELECT_ORDER')await ownSnapshot(session,binding,request.action.orderNumber);
+    }
+    if(namespace==='conversation.bot_reply') {
+      if(!binding)fail('DENIED');const conv=await c('cs_conversations').findOne({...scoped,bindingId:binding._id},{session});
+      if(result&&(!conv||(result.state==='SUPPRESSED'?conv.mode!==result.mode:conv.mode!=='BOT_ACTIVE')))fail('DENIED');
+      if(result?.deliveryId){const d=await c('cs_outbox').findOne({...scoped,_id:result.deliveryId,bindingId:binding._id,conversationId:conv._id},{session});if(!d||d.bindingVersion!==binding.version||d.payloadHash!==requestHash(request))fail('DENIED');}
+    }
+    if(namespace==='complaint.confirm') {if(!binding)fail('DENIED');const draft=await loadOwnDraft(session,binding,request.draftId);if(draft.orderNumber)await ownSnapshot(session,binding,draft.orderNumber);}
+    if(namespace==='inbound.command') {
+      if(!binding)fail('DENIED');const cmd=request.command;
+      if(cmd?.op==='ORDER')await ownSnapshot(session,binding,cmd.orderNumber);
+      if(cmd?.op==='TICKET')await ticket({ticketNumber:cmd.ticketNumber});
+      if(result?.draft?.draftId) {const draft=await loadOwnDraft(session,binding,result.draft.draftId);if(draft.orderNumber)await ownSnapshot(session,binding,draft.orderNumber);}
+      const ticketNumber=result?.ticket?.ticketNumber??result?.receipt?.ticketNumber;if(ticketNumber){const current=await ticket({ticketNumber});if(cmd?.op==='CONFIRM'&&current.draftId){const draft=await loadOwnDraft(session,binding,current.draftId);if(draft.orderNumber)await ownSnapshot(session,binding,draft.orderNumber);}}
+      const conv=await c('cs_conversations').findOne({...scoped,bindingId:binding._id},{session});if(result?.mode&&!conv)fail('NOT_FOUND');
+    }
+    if(namespace.startsWith('conversation.')&&request.conversationId) {
+      const conv=await c('cs_conversations').findOneAndUpdate({...scoped,_id:request.conversationId},{$inc:{admissionSourceFence:1}},{session,returnDocument:'after'});if(!conv)fail('NOT_FOUND');
+      if(namespace==='conversation.operator_reply'&&(conv.mode!=='HUMAN_ACTIVE'||conv.assigneeId!==g.userId))fail('DENIED');
+      if(namespace==='conversation.mode'&&conv.assigneeId&&conv.assigneeId!==g.userId)fail('DENIED');
+      const source=await c('cs_contact_bindings').findOneAndUpdate({...scoped,_id:conv.bindingId,customerId:conv.customerId,status:'ACTIVE',...unexpired()},{$inc:{commandFence:1}},{session,returnDocument:'after'});if(!source)fail('DENIED');
+      if(namespace==='conversation.operator_reply'&&result?.deliveryId){const delivery=await c('cs_outbox').findOne({...scoped,_id:result.deliveryId,conversationId:conv._id,bindingId:source._id,bindingVersion:source.version,actorUserId:g.userId},{session});if(!delivery||delivery.payloadHash!==requestHash({template:'operator_text',text:request.text}))fail('DENIED');}
+    }
+    if(namespace==='binding.create') {
+      if(!await partyDirectory?.verifyCustomerContact({...scoped,accountId:request.accountId,contactId:request.contactId},{session}))fail('NOT_FOUND');
+      if(result?.binding?.bindingId&&!await c('cs_contact_bindings').findOne({...scoped,_id:result.binding.bindingId,customerId:request.accountId,accountId:request.accountId,contactId:request.contactId,address:request.address,status:'ACTIVE',...unexpired()},{session}))fail('DENIED');
+    }
+    if(namespace==='binding.revoke') {
+      const current=await c('cs_contact_bindings').findOne({...scoped,_id:request.bindingId},{session});if(!current)fail('NOT_FOUND');
+      if(result&&(current.status!=='REVOKED'||current.version!==result.binding?.version))fail('DENIED');
+    }
+    if(namespace==='simulator.dispatch')await previewRows(session,g,request.deliveryIds,result?.previewedDeliveryIds);
+    if(namespace==='delivery.review') {
+      const row=await c('cs_outbox').findOne({...scoped,_id:request.deliveryId},{session});if(!row)fail('NOT_FOUND');
+      if(!await c('cs_contact_bindings').findOne({...scoped,_id:row.bindingId,version:row.bindingVersion,channelAccountId:row.channelAccountId,status:'ACTIVE',...unexpired()},{session}))fail('DENIED');
+    }
+  }
+  async function previewRows(session,g,deliveryIds,replayIds) {
+    const ids=replayIds??deliveryIds,at=now(),filter={tenantId:g.tenantId,plantId:g.plantId,channelAccountId:SIMULATED_CHANNEL_ACCOUNT,...(ids?{_id:{$in:ids}}:{state:'QUEUED',nextAttemptAt:{$lte:at}})};
+    const rows=await c('cs_outbox').find(filter,{session}).sort({seq:1,_id:1}).limit(replayIds?25:ids?101:25).toArray();
+    if(ids&&rows.length!==ids.length)fail('NOT_FOUND');
+    if(rows.length>25)fail('INVALID_INPUT');
+    for(const d of rows){
+      if(!d.payload||d.payload.templateVersion!==1||typeof d.actionKey!=='string'||d.providerMessageId)fail('DENIED');
+      const sourcePayload=d.actionKey.startsWith('inbound:')?d.payload:Object.fromEntries(Object.entries(d.payload).filter(([k])=>k!=='templateVersion'));
+      if(d.payloadHash!==requestHash(sourcePayload))fail('DENIED');
+      if(!['QUEUED','PREVIEWED'].includes(d.state)||d.leaseOwner||d.leaseUntil||d.expiresAt<=at||d.nextAttemptAt>at)fail('DENIED');
+      if(await c('cs_outbox').findOne({tenantId:g.tenantId,conversationId:d.conversationId,state:{$in:['SENDING','UNKNOWN']}},{session}))fail('DENIED');
+      const b=await c('cs_contact_bindings').findOneAndUpdate({_id:d.bindingId,tenantId:g.tenantId,plantId:g.plantId,channel: 'SIMULATED',channelAccountId:SIMULATED_CHANNEL_ACCOUNT,status:'ACTIVE',version:d.bindingVersion,...unexpired()},{$inc:{previewFence:1}},{session,returnDocument:'after'});
+      const conv=await c('cs_conversations').findOneAndUpdate({_id:d.conversationId,tenantId:g.tenantId,plantId:g.plantId},{$inc:{previewFence:1}},{session,returnDocument:'after'});
+      if(!b||!conv||b.customerId!==conv.customerId||b._id!==conv.bindingId||['PAUSED','CLOSED'].includes(conv.mode)||(d.origin==='BOT'&&(conv.mode!=='BOT_ACTIVE'||conv.modeEpoch!==d.modeEpoch))||(d.origin==='OPERATOR'&&(conv.mode!=='HUMAN_ACTIVE'||conv.assigneeId!==d.actorUserId)))fail('DENIED');
+    }
+    return rows;
   }
   async function conversationFor(session, binding) {
     const at = now();
@@ -274,7 +392,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
       key(inboundKey);const inboundText=text(body,4096);
       const result=await tx(async session=>{
         const b=await customerContext(principal,session);
-        return idempotent(session,{tenantId:b.tenantId,scope:'inbound.command',owner:b._id,key:inboundKey,request:{text:inboundText,command}},async()=>{
+        return idempotent(session,{tenantId:b.tenantId,scope:'inbound.command',principal,owner:b._id,key:inboundKey,request:{text:inboundText,command}},async()=>{
           let conv=await conversationFor(session,b);
           await c('cs_inbound').insertOne({_id:randomUUID(),tenantId:b.tenantId,plantId:b.plantId,conversationId:conv._id,bindingId:b._id,inboundKey,text:inboundText,at:now()},{session});
           const result={deliveryIds:[]};
@@ -414,20 +532,25 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
       key(requestKey);
       return tx(async session => {
         const b = await customerContext(principal, session);
+        return immutableRoot(session,{tenantId:b.tenantId,scope:'complaint.start',owner:b._id,key:requestKey,request:{},principal},async()=>{
         const existing = await c('cs_complaint_drafts').findOne({ tenantId: b.tenantId, bindingId: b._id, requestKey }, { session });
         if (existing) return draftView(existing);
         const at = now();
         const d = { _id: randomUUID(), tenantId: b.tenantId, plantId: b.plantId, customerId: b.customerId, bindingId: b._id, requestKey, stage: 'ORDER_SELECTION', version: 1, orderNumber: null, category: null, description: null, createdAt: at, updatedAt: at, expiresAt: new Date(at.getTime() + draftTtlMs) };
         await c('cs_complaint_drafts').insertOne(d, { session });
         return draftView(d);
+        },async()=>{const d=await c('cs_complaint_drafts').findOne({tenantId:b.tenantId,bindingId:b._id,requestKey},{session});return d?draftView(d):null;});
       });
     },
 
-    async updateComplaintDraft(principal, { draftId, expectedVersion, action }) {
+    async updateComplaintDraft(principal, { draftId, expectedVersion, action, commandKey }) {
       version(expectedVersion);
       if (!action || typeof action.type !== 'string') fail('INVALID_INPUT');
+      const types={SELECT_ORDER:()=>({type:action.type,orderNumber:orderNo(action.orderNumber)}),GENERAL_INQUIRY:()=>({type:action.type}),SELECT_CATEGORY:()=>({type:action.type,category:oneOf(action.category,COMPLAINT_CATEGORIES)}),DESCRIBE:()=>({type:action.type,text:text(action.text)}),BACK:()=>({type:action.type}),CANCEL:()=>({type:action.type})};
+      if(!types[action.type])fail('INVALID_INPUT');action=types[action.type]();
       return tx(async session => {
         const b = await customerContext(principal, session);
+        return immutableRoot(session,{tenantId:b.tenantId,scope:'complaint.update',owner:b._id,key:commandKey,request:{draftId,expectedVersion,action},principal},async()=>{
         const d = await loadOwnDraft(session, b, draftId);
         if (d.version !== expectedVersion) fail('VERSION_CONFLICT');
         if (!OPEN_DRAFT.includes(d.stage)) fail('INVALID_TRANSITION');
@@ -445,6 +568,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
         }
         const res = await c('cs_complaint_drafts').findOneAndUpdate({ _id: d._id, version: d.version }, { $set: { ...set, updatedAt: now() }, $inc: { version: 1 } }, { session, returnDocument: 'after' });
         return res ? draftView(res) : fail('VERSION_CONFLICT');
+        });
       });
     },
 
@@ -453,7 +577,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
       uuid(draftId); version(expectedVersion); key(inboundKey);
       return tx(async session => {
         const b = await customerContext(principal, session);
-        return idempotent(session, { tenantId: b.tenantId, scope: 'complaint.confirm', owner: b._id, key: inboundKey, request: { draftId, expectedVersion } }, async () => {
+        return idempotent(session, { tenantId: b.tenantId, scope: 'complaint.confirm', principal, owner: b._id, key: inboundKey, request: { draftId, expectedVersion } }, async () => {
           const d = await loadOwnDraft(session, b, draftId);
           if (d.stage === 'CONFIRMED') {
             const t = await c('cs_tickets').findOne({ draftId: d._id, tenantId: b.tenantId }, { session });
@@ -503,7 +627,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
       key(inboundKey); const t0 = text(body);
       return tx(async session => {
         const b = await customerContext(principal, session);
-        return idempotent(session, { tenantId: b.tenantId, scope: 'ticket.customer_comment', owner: b._id, key: inboundKey, request: { ticketNumber, text: t0 } }, async () => {
+        return idempotent(session, { tenantId: b.tenantId, scope: 'ticket.customer_comment', principal, owner: b._id, key: inboundKey, request: { ticketNumber, text: t0 } }, async () => {
           const t = await c('cs_tickets').findOne({ tenantId: b.tenantId, customerId: b.customerId, ticketNumber }, { session });
           if (!t) fail('NOT_FOUND');
           if (t.stage === 'CLOSED') fail('INVALID_TRANSITION');
@@ -635,14 +759,17 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
     async enqueueBotReply(principal, { inboundKey, template, params = {} }) {
       key(inboundKey); oneOf(template, BOT_TEMPLATES);
       if (!params || typeof params !== 'object' || Array.isArray(params) || Object.keys(params).length > 10 || !Object.values(params).every(v => typeof v === 'string' && v.length <= 200)) fail('INVALID_INPUT');
+      params={...params};
       return tx(async session => {
         const b = await customerContext(principal, session);
+        return immutableRoot(session,{tenantId:b.tenantId,scope:'conversation.bot_reply',owner:b._id,key:inboundKey,request:{template,params},principal},async()=>{
         const conv = await conversationFor(session, b);
         const existing = await c('cs_outbox').findOne({ tenantId: b.tenantId, actionKey: `bot-reply:${b._id}:${inboundKey}` }, { session });
         if (existing) return existing.payloadHash === requestHash({ template, params }) ? { deliveryId: existing._id, state: existing.state } : fail('IDEMPOTENCY_CONFLICT');
         if (conv.mode !== 'BOT_ACTIVE') return { deliveryId: null, state: 'SUPPRESSED', mode: conv.mode };
         const row = await enqueue(session, conv, b, { kind: 'BOT_REPLY', origin: 'BOT', actionKey: `bot-reply:${b._id}:${inboundKey}`, payload: { template, params }, ttlMs: botReplyTtlMs });
         return { deliveryId: row._id, state: row.state };
+        },async()=>{const d=await c('cs_outbox').findOne({tenantId:b.tenantId,actionKey:`bot-reply:${b._id}:${inboundKey}`},{session});if(d&&d.payloadHash!==requestHash({template,params}))fail('IDEMPOTENCY_CONFLICT');return d?{deliveryId:d._id,state:d.state}:null;});
       });
     },
 
@@ -650,7 +777,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
       key(inboundKey);
       return tx(async session => {
         const b = await customerContext(principal, session);
-        return idempotent(session, { tenantId: b.tenantId, scope: 'conversation.handoff_request', owner: b._id, key: inboundKey, request: {} }, async () => {
+        return idempotent(session, { tenantId: b.tenantId, scope: 'conversation.handoff_request', principal, owner: b._id, key: inboundKey, request: {} }, async () => {
           const conv = await conversationFor(session, b);
           if (conv.mode !== 'BOT_ACTIVE') return { conversationId: conv._id, mode: conv.mode, version: conv.version, cancelledDeliveryIds: [], inFlightDeliveryIds: [] };
           const r = await changeMode(session, conv, 'HUMAN_PENDING', { type: 'CUSTOMER', customerId: b.customerId }, 'CUSTOMER_REQUESTED_HUMAN');
@@ -710,7 +837,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
     async operatorReply(scope, { plantId, conversationId, text: body, commandKey }) {
       const g = await operator(scope, plantId, 'cs.reply');
       uuid(conversationId); const t0 = text(body, 2000); key(commandKey);
-      return operatorTx(scope, plantId, 'cs.reply', async (session, g) => {
+      return operatorTx(scope, plantId, 'cs.reply', async (session, g) => immutableRoot(session,{tenantId:g.tenantId,scope:'conversation.operator_reply',owner:g.userId,key:commandKey,request:{conversationId,text:t0}},async()=>{
         const conv = await c('cs_conversations').findOne({ _id: conversationId, tenantId: g.tenantId, plantId: g.plantId }, { session });
         if (!conv) fail('NOT_FOUND');
         const actionKey = `operator-reply:${g.userId}:${commandKey}`;
@@ -722,7 +849,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
         const row = await enqueue(session, conv, b, { kind: 'OPERATOR_REPLY', origin: 'OPERATOR', actionKey, payload: { template: 'operator_text', text: t0 }, ttlMs: ackTtlMs, actorUserId: g.userId, ticketId: conv.activeTicketId ?? null });
         await audit(session, g.tenantId, 'conversation.operator_reply', conv._id, { type: 'OPERATOR', userId: g.userId });
         return { deliveryId: row._id, state: row.state };
-      });
+      },async()=>{const d=await c('cs_outbox').findOne({tenantId:g.tenantId,actionKey:`operator-reply:${g.userId}:${commandKey}`},{session});if(d&&(d.payloadHash!==requestHash({template:'operator_text',text:t0})||d.conversationId!==conversationId))fail('IDEMPOTENCY_CONFLICT');return d?{deliveryId:d._id,state:d.state}:null;}));
     },
 
     // ---- Wave 4f: trusted operator onboarding of synthetic bindings (cs.binding.*) ----
@@ -817,14 +944,36 @@ export function createCustomerService({ client, db, foundation, saasAdmission, n
       await operator(scope, plantId, 'cs.simulator.use');
       if (typeof bindingId !== 'string' || !UUID_RE.test(bindingId)) fail('NOT_FOUND');
       if (typeof inboundKey !== 'string' || !/^[A-Za-z0-9:_.-]{1,128}$/.test(inboundKey) || typeof body !== 'string' || !body.trim() || body.length > 4096) fail('VALIDATION');
-      const command = parseInboundText(body);
+      const command = parseInboundText(body);let disposition;
       return operatorTx(scope, plantId, 'cs.simulator.use', async (session, g) => {
+        await operator(scope,plantId,'cs.ticket.read');
         const b = await c('cs_contact_bindings').findOne({ _id: bindingId, tenantId: g.tenantId, plantId: g.plantId }, { session });
         if (!b || b.channel !== 'SIMULATED') fail('NOT_FOUND');
         if (!usable(b)) fail('BINDING_REVOKED', { currentVersion: b.version });
         const result = await api.handleInboundCommand(registerPrincipal(b), { inboundKey, text: body, command });
         const conv = await c('cs_conversations').findOne({ tenantId: b.tenantId, bindingId: b._id }, { session });
-        return { conversationId: conv._id, bindingId: b._id, command: command.op, result };
+        if(typeof disposition?.enrolled!=='boolean')fail('DENIED');
+        return Object.defineProperty({conversationId:conv._id,bindingId:b._id,command:command.op,result},customerServiceDisposition,{value:disposition});
+      },{onAdmission:value=>{disposition=value;}});
+    },
+
+    async dispatchLocalPreviews(scope,{plantId,commandKey,deliveryIds=null}) {
+      key(commandKey);
+      if(deliveryIds!==null&&(!Array.isArray(deliveryIds)||deliveryIds.length<1||deliveryIds.length>25||new Set(deliveryIds).size!==deliveryIds.length))fail('INVALID_INPUT');
+      deliveryIds=deliveryIds===null?null:deliveryIds.map(uuid).sort();
+      return operatorTx(scope,plantId,'cs.simulator.use',async(session,g)=>{
+        await operator(scope,plantId,'cs.ticket.read');
+        if(await c('sessions').findOne({tenantId:g.tenantId,userId:g.userId,automationService:true},{session}))fail('DENIED');
+        return idempotent(session,{tenantId:g.tenantId,scope:'simulator.dispatch',owner:g.userId,key:commandKey,request:{deliveryIds}},async()=>{
+          const rows=await previewRows(session,g,deliveryIds),previewedDeliveryIds=[];
+          for(const d of rows){
+            if(d.state==='QUEUED'){
+              const at=now(),change=await c('cs_outbox').updateOne({_id:d._id,tenantId:g.tenantId,plantId:g.plantId,state:'QUEUED',fence:d.fence,leaseOwner:null,leaseUntil:null},{$set:{state:'PREVIEWED',providerMessageId:null,previewedAt:at,updatedAt:at},$inc:{fence:1},$push:{history:{state:'PREVIEWED',outcome:'LOCAL_PREVIEW',actorUserId:g.userId,at}}},{session});if(change.matchedCount!==1)fail('STALE_FENCE');
+            }
+            previewedDeliveryIds.push(d._id);
+          }
+          await audit(session,g.tenantId,'simulator.local_preview',g.plantId,{type:'OPERATOR',userId:g.userId});return {previewedDeliveryIds};
+        });
       });
     },
 

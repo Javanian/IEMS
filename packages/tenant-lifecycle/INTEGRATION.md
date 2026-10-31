@@ -1,3 +1,16 @@
+# Current v14 handoff
+
+See ops/pilot/PLAT-038-V14-HANDOFF.md and PLAT-038-V14-COVERAGE.json for allocated immutable CS roots, administrative/one-time credential receipts, explicit human preview, bounded LOCAL_OBSERVE and caller recovery. All allocated A-E are IMPLEMENTED_QA_PENDING; reserved engine/worker/transport/full recovery remain gated. fullEndpointCoverage:false.
+
+## Prior handoffs (historical)
+
+# Current v12/v13 handoff
+
+See ops/pilot/PLAT-038-V12-HANDOFF.md and PLAT-038-V12-COVERAGE.json.
+Private CS receipt admission, four local automation receipts, public job caller-session rate and thirteen explicit UI attempts are implemented. Separate workers, credentials/approval/review and other enumerated local gaps remain pending. fullEndpointCoverage:false.
+
+## Historical handoff (superseded where amended above)
+
 # PLAT-038 bounded receipt profile and tenant data port
 
 V6 continuation: nineteen additional existing receipt namespaces and twenty-one

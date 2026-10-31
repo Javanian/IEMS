@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createDurableJobs, JobError } from '../../../packages/durable-jobs/index.mjs';
 import { createJobAuthorization } from '../../../packages/durable-jobs/authorization.mjs';
-import { boundedTransaction } from '../../../packages/tenant-foundation/commands.mjs';
+import { boundedTransaction, createCommandExecutor } from '../../../packages/tenant-foundation/commands.mjs';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { createCacheCoordination, createDurableRateLimiter } from '../../../packages/cache-coordination/index.mjs';
 
@@ -13,13 +13,24 @@ export async function initializePlatformRuntime(runtime, { roleActions, handlers
   await jobs.initialize();
   const rateLimiter = createDurableRateLimiter({ ...runtime, authorize: async (scope, { session }) => {
     const grant=await runtime.foundation.authorizeInTransaction(scope.authScope, { ...scope, action: 'platform.job.request' }, { session });
-    await runtime.saasAdmission.unsupported(scope.authScope,{plantId:grant.plantId,session});
     return grant;
   } });
   await rateLimiter.initialize();
-  return { jobs, handlers, actionForKind, rateLimiter, coordination: redis ? createCacheCoordination(redis) : null };
+  const jobCommands=createCommandExecutor({...runtime,admission:async descriptor=>{
+    const {scope,grant,session,action,key,replayed}=descriptor;
+    await runtime.foundation.authorizeInTransaction(scope,{tenantId:grant.tenantId,plantId:grant.plantId,action:'platform.job.request'},{session});
+    await runtime.foundation.authorizeInTransaction(scope,{tenantId:grant.tenantId,plantId:grant.plantId,action},{session});
+    if(replayed) {
+      const receipt=await runtime.db.collection('foundationCommandResults').findOne({tenantId:grant.tenantId,plantId:grant.plantId,userId:grant.userId,action,key},{session});
+      const job=await runtime.db.collection('jobs').findOne({_id:receipt?.response?.data?.id,tenantId:grant.tenantId,plantId:grant.plantId,legalEntityId:grant.legalEntityId,requestedBy:grant.userId,active:true,engine:'durable-v1'},{session});
+      if(!job || !Object.hasOwn(handlers,job.kind) || actionForKind(job.kind)!==action) throw new JobError('JOB_AUTHORIZATION_DENIED',403);
+      await authorizeJob(job,{session});
+    }
+    return runtime.saasAdmission.effect(descriptor);
+  }});
+  return { jobs, jobCommands, handlers, actionForKind, rateLimiter, coordination: redis ? createCacheCoordination(redis) : null };
 }
-const publicJob = j => ({ id: j._id, kind: j.kind, status: j.status, attempt: j.attempt, maxAttempts: j.maxAttempts, revision: j.revision, createdAt: j.createdAt, updatedAt: j.updatedAt, errorCode: j.errorCode || null, nextState: j.status === 'DEAD' ? 'Review failure before requesting a new job.' : j.status === 'QUEUED' ? 'Waiting for worker.' : j.status === 'RUNNING' ? 'Worker owns an attempt.' : 'No further action.' });
+const publicJob = j => ({ id: j._id, kind: j.kind, status: j.status, attempt: j.attempt, maxAttempts: j.maxAttempts, revision: j.revision, createdAt: new Date(j.createdAt).toISOString(), updatedAt: new Date(j.updatedAt).toISOString(), errorCode: j.errorCode || null, nextState: j.status === 'DEAD' ? 'Review failure before requesting a new job.' : j.status === 'QUEUED' ? 'Waiting for worker.' : j.status === 'RUNNING' ? 'Worker owns an attempt.' : 'No further action.' });
 export function installPlatform(app, runtime) {
   const target = req => {
     const requested = { tenantId: req.scope.tenantId, plantId: req.scope.selectedPlantId };
@@ -44,15 +55,15 @@ export function installPlatform(app, runtime) {
     const scope = target(req), input = req.body;
     if (!input || Object.keys(input).some(k => !['tenantId', 'plantId', 'kind', 'input', 'key'].includes(k)) || !Object.hasOwn(runtime.platform.handlers, input.kind)) throw new JobError('INVALID_JOB_REQUEST', 400);
     const grant = await runtime.foundation.authorize(req.scope, { ...scope, action: 'platform.job.request' });
-    const rate = await runtime.platform.rateLimiter.consume({ ...grant, authScope: req.scope }, { subjectId: grant.userId, policy: 'platform.job.request', limit: 20, windowMs: 60000 });
-    if (!rate.allowed) { res.set('Retry-After', String(Math.max(1, Math.ceil((Date.parse(rate.retryAt) - Date.now()) / 1000)))); throw new JobError('JOB_RATE_LIMITED', 429); }
     const jobId = randomUUID();
     const requiredAction = runtime.platform.actionForKind(input.kind);
-    const result = await runtime.commands.execute(req.scope, { ...scope, action: requiredAction, key: input.key, aggregateId: `job:${input.key}`, expectedRevision: 0, input: { kind: input.kind, input: input.input } }, async ({ session, grant }) => {
+    const result = await runtime.platform.jobCommands.execute(req.scope, { ...scope, action: requiredAction, key: input.key, aggregateId: `job:${input.key}`, expectedRevision: 0, input: { kind: input.kind, input: input.input } }, async ({ session, grant }) => {
       await runtime.foundation.authorizeInTransaction(req.scope, { ...scope, action: 'platform.job.request' }, { session });
       await runtime.foundation.authorizeInTransaction(req.scope, { ...scope, action: runtime.platform.actionForKind(input.kind) }, { session });
       const s = await runtime.db.collection('sessions').findOne({ tokenHash: createHash('sha256').update(req.token).digest('hex'), revoked: false }, { session });
       if (!s) throw new JobError('UNAUTHENTICATED', 401);
+      const rate=await runtime.platform.rateLimiter.consumeInTransaction({...grant,authScope:req.scope},{subjectId:grant.userId,policy:'platform.job.request',limit:20,windowMs:60000},{session});
+      if(!rate.allowed) { res.set('Retry-After',String(Math.max(1,Math.ceil((Date.parse(rate.retryAt)-Date.now())/1000))));throw new JobError('JOB_RATE_LIMITED',429); }
       const job = await runtime.platform.jobs.enqueue({ _id: jobId, ...grant, requestedBy: grant.userId, authorizationSessionId: s._id, kind: input.kind, input: input.input, maxAttempts: 5 }, { session });
       return { data: publicJob(job), revision: 1, events: [] };
     });
