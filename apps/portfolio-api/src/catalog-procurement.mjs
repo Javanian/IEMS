@@ -3,6 +3,8 @@ import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.m
 import { requireCatalogInventoryItem } from './internal-production.mjs';
 import { validateCatalogDispositionState } from './catalog-disposition-state.mjs';
 import { initializeCatalogOptions, installCatalogOptions } from './catalog-options.mjs';
+import { catalogStockContext } from './catalog-stock.mjs';
+import { initializePurchaseOrderRevisions, readApprovedOrderRevision, archiveInitialOrderRevision, applyOrderAmendment } from '../../../packages/contracts/src/domains/commercial/purchase-orders.mjs';
 
 export const catalogActions = ['read', 'write', 'approve', 'convert', 'issue', 'receive'].map(action => `catalog.${action}`);
 export const catalogRoles = Object.fromEntries(['Reader', 'Writer', 'Approver', 'Converter', 'Issuer', 'Receiver'].map((role, index) => [`catalog${role}`, [...new Set(['catalog.read', catalogActions[index]])]]));
@@ -13,7 +15,7 @@ const fail = (status, code) => { throw Object.assign(new Error(code), { status, 
 const invalid = () => fail(409, 'CATALOG_SOURCE_INVALID');
 const positive = value => Number.isSafeInteger(value) && value > 0;
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-const semantic = row => Object.fromEntries(Object.entries(row).filter(([key]) => !['useFence', 'eventId', 'authorityHash'].includes(key)));
+const semantic = row => Object.fromEntries(Object.entries(row).filter(([key]) => !['useFence', 'documentFence', 'eventId', 'authorityHash'].includes(key)));
 const revisionContent = row => Object.fromEntries(['_id', 'tenantId', 'plantId', 'ownerLegalEntityId', 'subjectId', 'revision', 'content', 'reason', 'recordedBy', 'recordedAt'].map(key => [key, row[key]]));
 const quantityPattern = /^(0|[1-9][0-9]{0,17})(\.[0-9]{1,6})?$/;
 const units = value => { if (typeof value !== 'string' || !quantityPattern.test(value)) invalid(); return BigInt(value.split('.')[0]) * 1000000n + BigInt((value.split('.')[1] || '').padEnd(6, '0')); };
@@ -43,27 +45,44 @@ async function load(db, filter, type, id, session) {
   const event = await db.collection('catalogEvents').findOne({ ...filter, _id: row.eventId, subjectType: type, subjectId: row._id }, { session });
   const rev = await db.collection(REVS[type]).findOne({ ...filter, subjectId: row._id, revision: row.currentRevision }, { session });
   if (!event || event.version !== row.version || event.status !== row.status || event.contentHash !== row.authorityHash || hash(event.snapshot) !== row.authorityHash || hash(semantic(row)) !== row.authorityHash || !rev || hash(revisionContent(rev)) !== rev.contentHash || rev.contentHash !== row.contentHash || hash(rev.content) !== hash(row.content) || rev.ownerLegalEntityId !== row.ownerLegalEntityId) invalid();
-  if (!row.content || !uuid(row.content.vendorId) || !Array.isArray(row.content.lines) || !row.content.lines.length || row.content.lines.length > 20 || new Set(row.content.lines.map(line => line.itemId)).size !== row.content.lines.length || new Set(row.content.lines.map(line => line.lineId)).size !== row.content.lines.length) invalid();
+  if (!row.content || !uuid(row.content.vendorId) || !Array.isArray(row.content.lines) || !row.content.lines.length || row.content.lines.length > 20 || type === 'REQUEST' && new Set(row.content.lines.map(line => line.itemId)).size !== row.content.lines.length || new Set(row.content.lines.map(line => line.lineId)).size !== row.content.lines.length) invalid();
   if (!await db.collection('vendors').findOne({ ...filter, _id: row.content.vendorId }, { session })) invalid();
   for (const line of row.content.lines) await historicalLine(db, filter, line, row.ownerLegalEntityId, session);
   if (type === 'REQUEST') {
     if (!['DRAFT', 'APPROVED', 'CONVERTED'].includes(row.status) || (row.status === 'DRAFT' ? row.approval !== null : row.approval?.revision !== row.currentRevision || row.approval?.contentHash !== row.contentHash) || (row.status === 'CONVERTED' ? !uuid(row.orderId) : row.orderId !== null)) invalid();
   } else {
-    if (!['DRAFT', 'ISSUED'].includes(row.status) || row.currentRevision !== 1 || !uuid(row.requestId) || !positive(row.requestRevision) || (row.status === 'ISSUED' && (!row.issuedAt || !uuid(row.issuedBy)))) invalid();
+    if (!['DRAFT', 'ISSUED'].includes(row.status) || row.currentRevision !== (row.documentRevision || 1) || !uuid(row.requestId) || !positive(row.requestRevision) || (row.status === 'ISSUED' && (!row.issuedAt || !uuid(row.issuedBy)))) invalid();
     const request = await load(db, filter, 'REQUEST', row.requestId, session);
-    if (request.status !== 'CONVERTED' || request.orderId !== row._id || request.currentRevision !== row.requestRevision || request.contentHash !== row.requestContentHash || request.ownerLegalEntityId !== row.ownerLegalEntityId || hash(request.content) !== hash(row.content)) invalid();
+    const original = row.currentRevision === 1 ? row.content : (await readApprovedOrderRevision(db, filter, 'CATALOG', row, 1, session)).snapshot;
+    if (request.status !== 'CONVERTED' || request.orderId !== row._id || request.currentRevision !== row.requestRevision || request.contentHash !== row.requestContentHash || request.ownerLegalEntityId !== row.ownerLegalEntityId || hash(request.content) !== hash(original)) invalid();
+    if (row.documentRevision > 1 && hash((await readApprovedOrderRevision(db, filter, 'CATALOG', row, row.documentRevision, session)).snapshot) !== hash(row.content)) invalid();
   }
   return row;
+}
+export async function readCatalogOrderRevision(db, filter, orderId, revision, session) {
+  const order = await load(db, filter, 'ORDER', orderId, session);
+  return readApprovedOrderRevision(db, filter, 'CATALOG', order, revision, session);
+}
+export async function readCatalogRequestApproval(db, filter, requestId, revision, session) {
+  await load(db, filter, 'REQUEST', requestId, session);
+  const stored = await db.collection(REVS.REQUEST).findOne({ ...filter, subjectId: requestId, revision }, { session });
+  const approval = await db.collection('catalogEvents').findOne({ ...filter, subjectType: 'REQUEST', subjectId: requestId, status: { $in: ['APPROVED', 'CONVERTED'] }, 'snapshot.currentRevision': revision }, { session });
+  if (!stored || stored.contentHash !== hash(revisionContent(stored)) || !approval || approval.contentHash !== hash(approval.snapshot) || approval.snapshot.approval?.contentHash !== stored.contentHash) fail(409, 'SOURCE_NOT_ISSUED');
+  return stored.content;
 }
 
 export async function validateCatalogReceiptOrigin(db, receipt, origin, session) {
   const filter = scopeOf(receipt);
-  if (!origin || origin.receiptId !== receipt._id || origin.tenantId !== receipt.tenantId || origin.plantId !== receipt.plantId || origin.schema !== 'CATALOG_RECEIPT_ORIGIN_V1' || origin.originType !== 'CATALOG_PURCHASE' || !uuid(origin._id) || !uuid(origin.receiveMovementId) || !uuid(origin.recordedBy) || !origin.recordedAt || hash(withoutHash(origin)) !== origin.contentHash || !Object.hasOwn(receipt, 'catalogSource') || hash(receipt.catalogSource) !== hash(origin.source) || hash(physicalOf(receipt)) !== hash(origin.physical) || !positive(receipt.version) || receipt.availableQuantity !== '0' || receipt.reservedQuantity !== '0' || Object.hasOwn(receipt, 'serialCustody')) invalid();
+  if (!origin || origin.receiptId !== receipt._id || origin.tenantId !== receipt.tenantId || origin.plantId !== receipt.plantId || !['CATALOG_RECEIPT_ORIGIN_V1', 'CATALOG_RECEIPT_ORIGIN_V2'].includes(origin.schema) || origin.originType !== 'CATALOG_PURCHASE' || !uuid(origin._id) || !uuid(origin.receiveMovementId) || !uuid(origin.recordedBy) || !origin.recordedAt || hash(withoutHash(origin)) !== origin.contentHash || !Object.hasOwn(receipt, 'catalogSource') || hash(receipt.catalogSource) !== hash(origin.source) || hash(physicalOf(receipt)) !== hash(origin.physical) || !positive(receipt.version) || receipt.availableQuantity !== '0' || receipt.reservedQuantity !== '0' || Object.hasOwn(receipt, 'serialCustody')) invalid();
   if (['shippedQuantity', 'manufacturingReservedQuantity', 'manufacturingConsumedQuantity'].some(key => Object.hasOwn(receipt, key) && units(receipt[key]) !== 0n)) invalid();
   const order = await load(db, filter, 'ORDER', receipt.purchaseOrderId, session);
   if (order.status !== 'ISSUED' || order.content.vendorId !== receipt.vendorId || !Number.isSafeInteger(receipt.lineIndex) || receipt.lineIndex < 0) invalid();
-  const line = order.content.lines[receipt.lineIndex], source = origin.source;
-  if (!line || !source || hash(source) !== hash(sourceFor(order, line)) || receipt.uom !== line.uom || qtyStored(receipt.quantity) > units(line.quantity) || !Array.isArray(receipt.serials)) invalid();
+  const source = origin.source;
+  if (!source || !positive(source.purchaseOrderRevision)) invalid();
+  const pinned = await readApprovedOrderRevision(db, filter, 'CATALOG', order, source.purchaseOrderRevision, session);
+  const historical = { ...order, content: pinned.snapshot, documentRevision: origin.schema === 'CATALOG_RECEIPT_ORIGIN_V2' ? pinned.revision : undefined };
+  const line = historical.content.lines[receipt.lineIndex];
+  if (!line || hash(source) !== hash(sourceFor(historical, line, pinned.contentHash)) || receipt.uom !== line.uom || qtyStored(receipt.quantity) > units(line.quantity) || !Array.isArray(receipt.serials)) invalid();
   const trace = traceInput(receipt, line.trackingPolicy, true);
   if (hash(trace) !== hash(Object.fromEntries(['lotNumber', 'heatNumber'].filter(key => Object.hasOwn(receipt, key)).map(key => [key, receipt[key]])))) invalid();
   if (line.trackingPolicy === 'LOT' ? receipt.serials.length !== 0 : receipt.serials.length < 1 || receipt.serials.length > 100 || new Set(receipt.serials).size !== receipt.serials.length || receipt.serials.some(serial => typeof serial !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(serial)) || units(receipt.quantity) !== BigInt(receipt.serials.length) * 1000000n) invalid();
@@ -76,7 +95,7 @@ export async function validateCatalogReceiptOrigin(db, receipt, origin, session)
 }
 
 const qtyStored = value => { const amount = units(value); if (amount <= 0n) invalid(); return amount; };
-const sourceFor = (order, line) => ({ schema: 'CATALOG_RECEIPT_V1', purchaseOrderId: order._id, purchaseOrderRevision: 1, purchaseOrderLineId: line.lineId, purchaseOrderLineHash: hash(line), itemId: line.itemId, itemRevision: line.itemRevision, itemContentHash: line.itemContentHash, itemVersion: line.itemVersion, ownerLegalEntityId: line.ownerLegalEntityId, uom: line.uom, trackingPolicy: line.trackingPolicy });
+const sourceFor = (order, line, approvedRevisionContentHash) => ({ schema: order.documentRevision ? 'CATALOG_RECEIPT_V2' : 'CATALOG_RECEIPT_V1', purchaseOrderId: order._id, purchaseOrderRevision: order.documentRevision || 1, purchaseOrderLineId: line.lineId, purchaseOrderLineHash: hash(line), itemId: line.itemId, itemRevision: line.itemRevision, itemContentHash: line.itemContentHash, itemVersion: line.itemVersion, ownerLegalEntityId: line.ownerLegalEntityId, uom: line.uom, trackingPolicy: line.trackingPolicy, ...(order.documentRevision ? { approvedRevisionContentHash } : {}) });
 function traceInput(body, policy, stored = false) {
   const traced = Object.hasOwn(body, 'lotNumber') || Object.hasOwn(body, 'heatNumber');
   if ((policy === 'LOT' && !traced) || (traced && ['lotNumber', 'heatNumber'].some(key => typeof body[key] !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/.test(body[key])))) { if (stored) invalid(); fail(400, 'INVALID_MATERIAL_TRACE'); }
@@ -84,6 +103,7 @@ function traceInput(body, policy, stored = false) {
 }
 
 export async function initializeCatalogProcurement(db) {
+  await initializePurchaseOrderRevisions(db);
   await initializeCatalogOptions(db);
   for (const [name, keys] of [
     ['catalogPurchaseOrders', { tenantId: 1, plantId: 1, requestId: 1 }], ['catalogRequestRevisions', { tenantId: 1, plantId: 1, subjectId: 1, revision: 1 }], ['catalogOrderRevisions', { tenantId: 1, plantId: 1, subjectId: 1, revision: 1 }],
@@ -93,6 +113,48 @@ export async function initializeCatalogProcurement(db) {
   await db.collection('catalogEvents').createIndex({ tenantId: 1, plantId: 1, subjectType: 1, subjectId: 1, _id: 1 });
 }
 
+export async function createCatalogRequestFromShortage(db, filter, input, actor, session) {
+  if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
+  const { requestId, lineId, vendorId, ownerLegalEntityId, pricing, quantity, shortageSource } = input;
+  const item = await requireCatalogInventoryItem(db, filter, input.itemId, input.itemVersion, input.itemRevision, session, true);
+  if (item.ownerLegalEntityId !== ownerLegalEntityId || item.contentHash !== input.itemContentHash || item.content.uom !== input.uom) invalid();
+  const vendor = await db.collection('vendors').findOne({ ...filter, _id: vendorId }, { session });
+  if (!vendor || vendor.active === false) fail(409, 'VENDOR_INACTIVE');
+  const changed = await db.collection('vendors').updateOne({ ...filter, _id: vendorId, version: vendor.version }, { $inc: { catalogUseFence: 1 } }, { session });
+  if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+  const amount = qty(quantity), scale = scales[pricing?.currency];
+  if (pricing?.taxPolicy !== 'NO_TAX' || pricing?.roundingPolicy !== 'LINE_HALF_UP' || scale === undefined) fail(400, 'INVALID_POLICY');
+  if (typeof pricing.unitPrice !== 'string' || !new RegExp(`^(0|[1-9][0-9]{0,27})${scale ? `\\.[0-9]{${scale}}` : ''}$`).test(pricing.unitPrice)) fail(400, 'INVALID_PRICE');
+  if (item.content.trackingPolicy === 'SERIAL' && (amount % 1000000n !== 0n || amount > 100000000n)) fail(400, 'INVALID_QUANTITY');
+  const denominator = 10n ** BigInt(quantity.split('.')[1]?.length || 0);
+  const total = money((BigInt(quantity.replace('.', '')) * BigInt(pricing.unitPrice.replace('.', '')) * 2n + denominator) / (2n * denominator), scale);
+  const line = { lineId, itemId: item._id, itemVersion: item.version, itemRevision: item.currentRevision, itemContentHash: item.contentHash, itemCode: item.code, description: item.content.description, uom: item.content.uom, kind: item.content.kind, itemSchema: item.content.schema, trackingPolicy: item.content.trackingPolicy, ownerLegalEntityId, quantity, unitPrice: pricing.unitPrice, currency: pricing.currency, lineTotal: total };
+  const row = { _id: requestId, ...filter, ownerLegalEntityId, schema: 'CATALOG_PURCHASE_V1', version: 1, currentRevision: 1, content: { vendorId, lines: [line], currency: pricing.currency, total, taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP' }, status: 'DRAFT', approval: null, orderId: null, shortageSource };
+  await db.collection('catalogRequestLineIds').insertOne({ _id: randomUUID(), ...filter, requestId, itemId: item._id, lineId }, { session });
+  const revision = { _id: randomUUID(), ...filter, ownerLegalEntityId, subjectId: requestId, revision: 1, content: row.content, reason: input.reason, recordedBy: actor, recordedAt: new Date() };
+  revision.contentHash = hash(revisionContent(revision)); row.contentHash = revision.contentHash;
+  await db.collection(REVS.REQUEST).insertOne(revision, { session });
+  await persistShortageRequest(db, filter, row, null, actor, input.reason, session);
+  return { sourceCohort: 'CATALOG', requestId, requestRevision: 1, lineId };
+}
+async function persistShortageRequest(db, filter, row, previousVersion, actor, reason, session) {
+  const snapshot = semantic(row), eventId = randomUUID(), contentHash = hash(snapshot);
+  await db.collection('catalogEvents').insertOne({ _id: eventId, ...filter, subjectType: 'REQUEST', subjectId: row._id, version: row.version, status: row.status, kind: previousVersion ? 'SHORTAGE_CANCELLED' : 'SHORTAGE_CREATED', reason, recordedBy: actor, recordedAt: new Date(), snapshot, contentHash }, { session });
+  row.eventId = eventId; row.authorityHash = contentHash;
+  if (previousVersion) {
+    const changed = await db.collection(HEADS.REQUEST).replaceOne({ ...filter, _id: row._id, version: previousVersion }, row, { session });
+    if (changed.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
+  } else await db.collection(HEADS.REQUEST).insertOne(row, { session });
+}
+export async function cancelCatalogShortageRequest(db, filter, requestId, expectedVersion, claimId, actor, reason, session) {
+  if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
+  const row = await load(db, filter, 'REQUEST', requestId, session);
+  if (row.version !== expectedVersion || row.shortageSource?.claimId !== claimId) fail(409, 'VERSION_CONFLICT');
+  if (!['DRAFT', 'APPROVED'].includes(row.status) || row.orderId || row.shortageCancellation) fail(409, 'COMMITTED_REQUEST');
+  row.status = 'DRAFT'; row.approval = null; row.shortageCancellation = { reason, recordedBy: actor, recordedAt: new Date() }; row.version++;
+  await persistShortageRequest(db, filter, row, expectedVersion, actor, reason, session);
+  return row;
+}
 export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
   const db = runtime.db, c = name => db.collection(name), root = '/api/catalog-procurement';
   const owner = async (req, session) => { const plant = await c('plants').findOne({ _id: req.filter.plantId, tenantId: req.filter.tenantId, active: true }, { session }); if (!plant || !await c('legalEntities').findOne({ _id: plant.legalEntityId, tenantId: req.filter.tenantId, active: true }, { session })) fail(403, 'SCOPE_DENIED'); return plant.legalEntityId; };
@@ -123,7 +185,8 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
   app.use(root, async (req, res, next) => {
     req.filter = resolveScopeAliases({ body: { tenantId: req.scope.tenantId, plantId: req.scope.selectedPlantId, ...req.body }, query: req.query, headers: req.headers });
     if (req.filter.plantId !== req.scope.selectedPlantId) fail(403, 'SCOPE_DENIED');
-    const action = req.method === 'GET' ? 'read' : req.method === 'POST' ? /^\/requests(?:\/[^/]+\/revisions)?$/.test(req.path) ? 'write' : /^\/requests\/[^/]+\/(approve|convert)$/.exec(req.path)?.[1] || (/^\/orders\/[^/]+\/issue$/.test(req.path) ? 'issue' : req.path === '/receipts' ? 'receive' : null) : null;
+    const amendment = /^\/orders\/[^/]+\/amendments(?:\/[^/]+\/(approve|issue))?$/.exec(req.path);
+    const action = req.method === 'GET' ? 'read' : req.method === 'POST' ? amendment ? amendment[1] || 'write' : /^\/requests(?:\/[^/]+\/revisions)?$/.test(req.path) || /^\/requests\/[^/]+\/rfq(?:-response)?$/.test(req.path) || /^\/orders\/[^/]+\/vendor-promise$/.test(req.path) ? 'write' : /^\/requests\/[^/]+\/(approve|convert)$/.exec(req.path)?.[1] || (/^\/orders\/[^/]+\/issue$/.test(req.path) ? 'issue' : req.path === '/receipts' ? 'receive' : null) : null;
     if (!action) fail(404, 'NOT_FOUND'); req.catalogAction = `catalog.${action}`; await runtime.foundation.authorize(req.scope, { ...req.filter, action: req.catalogAction }); next();
   });
   installCatalogOptions(app, runtime, { read, owner, id });
@@ -138,6 +201,7 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
   }
   async function dependencies(req, row, session, fence = false) {
     const blockers = [], legalEntityId = await owner(req, session);
+    if (row.shortageCancellation) blockers.push('SHORTAGE_CANCELLED');
     if (row.ownerLegalEntityId !== legalEntityId) invalid();
     if (fence) await requireFreshVendor(req, row.content.vendorId, session);
     else {
@@ -222,12 +286,88 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
     return { vendorId, lines, currency, total: money(total, scales[currency]), taxPolicy: body.taxPolicy, roundingPolicy: body.roundingPolicy };
   }
   const common = ['expectedVersion', 'reason', 'idempotencyKey'];
+  for (const operation of ['rfq', 'rfq-response']) app.post(`${root}/requests/:id/${operation}`, async (req, res) => {
+    fields(req.body, [...common, 'reference', ...(operation === 'rfq-response' ? ['rfqId', 'prices'] : [])]);
+    if (typeof req.body.reference !== 'string' || !req.body.reference.trim() || req.body.reference.length > 200) fail(400, 'INVALID_REFERENCE');
+    const data = await mutation(req, `request.${operation}`, async (session, reason) => {
+      const row = await load(db, req.filter, 'REQUEST', id(req.params.id), session), previous = row.version;
+      if (row.version !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT');
+      if (row.status !== 'DRAFT' || row.shortageCancellation) fail(409, 'STATE_CONFLICT');
+      await dependencies(req, row, session, true);
+      const event = { _id: randomUUID(), kind: 'RFQ_PREPARED', requestId: row._id, requestVersion: row.version, vendorId: row.content.vendorId, reference: req.body.reference.trim(), recordedBy: req.scope.userId, recordedAt: new Date(), reason, source: 'OPERATOR_RECORDED', snapshot: structuredClone(row.content), lineIds: row.content.lines.map(line => line.lineId) };
+      if (operation === 'rfq-response') {
+        const rfq = row.rfqHistory?.find(value => value._id === id(req.body.rfqId) && value.kind === 'RFQ_PREPARED');
+        const prices = req.body.prices;
+        if (!rfq || rfq.vendorId !== row.content.vendorId || row.rfqHistory.some(value => value.rfqId === rfq._id)) fail(409, 'RFQ_CONFLICT');
+        if (!Array.isArray(prices) || prices.length !== rfq.lineIds.length || new Set(prices.map(price => price?.lineId)).size !== prices.length) fail(400, 'INVALID_RFQ_PRICES');
+        for (const price of prices) { fields(price, ['lineId', 'unitPrice', 'currency']); if (!rfq.lineIds.includes(price.lineId)) fail(400, 'INVALID_RFQ_PRICES'); }
+        if (hash(row.content.lines.map(line => [line.lineId, line.itemId, line.quantity, line.uom])) !== hash(rfq.snapshot.lines.map(line => [line.lineId, line.itemId, line.quantity, line.uom]))) fail(409, 'RFQ_SOURCE_CHANGED');
+        const input = { ...req, body: { ...rfq.snapshot, lines: rfq.snapshot.lines.map(line => { const price = prices.find(value => value.lineId === line.lineId); return { itemId: line.itemId, itemVersion: line.itemVersion, itemRevision: line.itemRevision, quantity: line.quantity, unitPrice: price.unitPrice, currency: price.currency }; }) } };
+        row.content = await content(input, row._id, session, row.ownerLegalEntityId); row.currentRevision++; row.approval = null;
+        await addRevision('REQUEST', req, row, reason, session);
+        Object.assign(event, { kind: 'RFQ_RESPONSE_SELECTED', rfqId: rfq._id, snapshot: structuredClone(row.content) }); row.selectedRfqResponseId = event._id;
+      }
+      row.rfqHistory = [...(row.rfqHistory || []), event]; row.version++;
+      return save('REQUEST', req, row, previous, event.kind, reason, session);
+    }); res.json({ data });
+  });
+  app.post(`${root}/orders/:id/vendor-promise`, async (req, res) => {
+    fields(req.body, [...common, 'vendorId', 'promisedAt', 'reference']);
+    const { promisedAt, reference } = req.body;
+    if (typeof promisedAt !== 'string' || !Number.isFinite(Date.parse(promisedAt)) || new Date(promisedAt).toISOString() !== promisedAt || typeof reference !== 'string' || !reference.trim() || reference.length > 500) fail(400, 'INVALID_PROMISE');
+    const data = await mutation(req, 'order.vendor-promise', async (session, reason) => {
+      const row = await load(db, req.filter, 'ORDER', id(req.params.id), session), previous = row.version;
+      if (row.version !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT');
+      if (row.status !== 'ISSUED' || row.content.vendorId !== id(req.body.vendorId)) fail(409, 'VENDOR_CONFLICT');
+      await dependencies(req, row, session, true); await use('ORDER', req, row, session);
+      const promise = { _id: randomUUID(), vendorId: row.content.vendorId, promisedAt: new Date(promisedAt), reference: reference.trim(), reason, recordedBy: req.scope.userId, recordedAt: new Date(), source: 'OPERATOR_RECORDED', previousPromiseId: row.promiseHistory?.at(-1)?._id || null };
+      row.promiseHistory = [...(row.promiseHistory || []), promise]; row.promisedAt = promise.promisedAt; row.version++;
+      return save('ORDER', req, row, previous, 'VENDOR_PROMISE', reason, session);
+    }); res.json({ data });
+  });
+  for (const operation of ['create', 'approve', 'issue']) app.post(`${root}/orders/:id/amendments${operation === 'create' ? '' : '/:amendmentId/' + operation}`, async (req, res) => {
+    fields(req.body, [...common, 'baseDocumentRevision', ...(operation === 'create' ? ['lines'] : ['amendmentHash'])]);
+    const data = await mutation(req, `order.amendment.${operation}`, async (session, reason) => {
+      const row = await load(db, req.filter, 'ORDER', id(req.params.id), session), previous = row.version;
+      const build = async (input, current) => {
+        if (!Array.isArray(input) || !input.length || input.length > 20) fail(400, 'INVALID_LINES');
+        const lines = []; let total = 0n;
+        for (const raw of input) {
+          if (!raw || raw.retired) fail(409, 'FINANCIAL_COMMITMENT_READER_REQUIRED');
+          const lineId = id(raw.lineId), prior = current.snapshot.lines.find(line => line.lineId === lineId);
+          if (prior && ['itemId', 'itemVersion', 'itemRevision', 'uom', 'description', 'ownerLegalEntityId', 'trackingPolicy'].some(key => raw[key] !== undefined && raw[key] !== prior[key])) fail(409, 'PO_IDENTITY_IMMUTABLE');
+          const itemId = prior?.itemId || id(raw.itemId), itemVersion = prior?.itemVersion || raw.itemVersion, itemRevision = prior?.itemRevision || raw.itemRevision;
+          const item = await requireCatalogInventoryItem(db, req.filter, itemId, itemVersion, itemRevision, session, true);
+          if (item.ownerLegalEntityId !== row.ownerLegalEntityId) invalid();
+          const amount = qty(raw.quantity), currency = raw.currency, scale = scales[currency];
+          if (currency !== current.snapshot.currency || scale === undefined || typeof raw.unitPrice !== 'string' || !new RegExp(`^(0|[1-9][0-9]{0,27})${scale ? `\\.[0-9]{${scale}}` : ''}$`).test(raw.unitPrice)) fail(400, 'INVALID_PRICE');
+          if (item.content.trackingPolicy === 'SERIAL' && (amount % 1000000n !== 0n || amount > 100000000n)) fail(400, 'INVALID_QUANTITY');
+          const denominator = 10n ** BigInt(raw.quantity.split('.')[1]?.length || 0), lineTotal = (BigInt(raw.quantity.replace('.', '')) * BigInt(raw.unitPrice.replace('.', '')) * 2n + denominator) / (2n * denominator); total += lineTotal;
+          lines.push({ ...(prior || { lineId, itemId, itemVersion: item.version, itemRevision: item.currentRevision, itemContentHash: item.contentHash, itemCode: item.code, description: item.content.description, uom: item.content.uom, kind: item.content.kind, itemSchema: item.content.schema, trackingPolicy: item.content.trackingPolicy, ownerLegalEntityId: row.ownerLegalEntityId }), quantity: raw.quantity, unitPrice: raw.unitPrice, currency, lineTotal: money(lineTotal, scale) });
+        }
+        return { snapshot: { ...current.snapshot, lines, total: money(total, scales[current.snapshot.currency]) }, lineIds: lines.map(line => line.lineId) };
+      };
+      const validateCurrent = async () => {
+        await dependencies(req, row, session, true);
+        await use('ORDER', req, row, session);
+        for (const line of row.content.lines) {
+          const received = await tally(req, row, line, session);
+          for (const origin of received.origins) await catalogStockContext(db, req.filter, origin.receiptId, session, { fence: true });
+        }
+      };
+      await applyOrderAmendment(db, req.filter, 'CATALOG', row, { ...req.body, reason }, req.scope.userId, operation, req.params.amendmentId, build, validateCurrent, session);
+      if (operation === 'issue') await addRevision('ORDER', req, row, reason, session);
+      return save('ORDER', req, row, previous, `AMENDMENT_${operation.toUpperCase()}`, reason, session);
+    }); res.json({ data });
+  });
+  app.get(`${root}/orders/:id/document-revisions/:revision`, async (req, res) => res.json({ data: await read(session => readCatalogOrderRevision(db, req.filter, id(req.params.id), Number(req.params.revision), session)) }));
   for (const revise of [false, true]) app.post(`${root}/requests${revise ? '/:id/revisions' : ''}`, async (req, res) => {
     fields(req.body, [...common, 'vendorId', 'lines', 'taxPolicy', 'roundingPolicy']);
     const data = await mutation(req, revise ? 'request.revise' : 'request.create', async (session, reason, legalEntityId) => {
       let row, previous = null;
       if (revise) { row = await load(db, req.filter, 'REQUEST', id(req.params.id), session); if (row.version !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT'); if (row.status === 'CONVERTED') fail(409, 'STATE_CONFLICT'); if (row.currentRevision >= 100) fail(409, 'REVISION_CONFLICT'); if (row.ownerLegalEntityId !== legalEntityId) invalid(); previous = row.version; row.version++; row.currentRevision++; }
       else { if (req.body.expectedVersion !== 1) fail(409, 'VERSION_CONFLICT'); row = { _id: randomUUID(), ...req.filter, ownerLegalEntityId: legalEntityId, schema: 'CATALOG_PURCHASE_V1', version: 1, currentRevision: 1 }; }
+      if (row.shortageSource) fail(409, 'SHORTAGE_REQUEST_FROZEN');
       row.content = await content(req, row._id, session, legalEntityId); row.status = 'DRAFT'; row.approval = null; row.orderId = null;
       await addRevision('REQUEST', req, row, reason, session); return save('REQUEST', req, row, previous, revise ? 'REVISED' : 'CREATED', reason, session);
     }); res.status(revise ? 200 : 201).json({ data });
@@ -236,13 +376,16 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
     fields(req.body, [...common, ...(operation === 'approve' ? ['revision'] : [])]); if (operation === 'approve' && !positive(req.body.revision)) fail(400, 'INVALID_REVISION');
     const data = await mutation(req, `catalog.${operation}`, async (session, reason) => {
       const type = operation === 'issue' ? 'ORDER' : 'REQUEST', row = await load(db, req.filter, type, id(req.params.id), session), previous = row.version;
+      if (row.shortageCancellation) fail(409, 'SHORTAGE_CANCELLED');
       if (previous !== req.body.expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (row.status !== ({ approve: 'DRAFT', convert: 'APPROVED', issue: 'DRAFT' }[operation])) fail(409, 'STATE_CONFLICT');
       await dependencies(req, row, session, true);
       if (operation === 'approve') { if (req.body.revision !== row.currentRevision) fail(409, 'REVISION_CONFLICT'); row.status = 'APPROVED'; row.approval = { revision: row.currentRevision, contentHash: row.contentHash, approvedBy: req.scope.userId, approvedAt: new Date() }; }
-      if (operation === 'issue') { row.status = 'ISSUED'; row.issuedAt = new Date(); row.issuedBy = req.scope.userId; }
+      if (operation === 'issue') { row.status = 'ISSUED'; row.issuedAt = new Date(); row.issuedBy = req.scope.userId; row.documentRevision = 1; await archiveInitialOrderRevision(db, req.filter, 'CATALOG', row, session); }
       if (operation === 'convert') {
         const order = { _id: randomUUID(), ...req.filter, ownerLegalEntityId: row.ownerLegalEntityId, schema: row.schema, version: 1, currentRevision: 1, status: 'DRAFT', requestId: row._id, requestRevision: row.currentRevision, requestContentHash: row.contentHash, content: structuredClone(row.content) };
+        if (row.shortageSource) order.shortageSource = structuredClone(row.shortageSource);
+        if (row.selectedRfqResponseId) order.selectedRfqResponseId = row.selectedRfqResponseId;
         await addRevision('ORDER', req, order, reason, session); row.status = 'CONVERTED'; row.orderId = order._id; row.version++;
         await save('REQUEST', req, row, previous, 'CONVERTED', reason, session); return save('ORDER', req, order, null, 'CREATED', reason, session);
       }
@@ -263,10 +406,11 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
       const total = { quantity: decimal(received.total + amount), receiptCount: received.origins.length + 1 };
       if (received.stored) { const result = await c('catalogReceived').updateOne({ _id: received.stored._id, ...req.filter, version: received.stored.version }, { $set: total, $inc: { version: 1 } }, { session }); if (result.matchedCount !== 1) fail(409, 'VERSION_CONFLICT'); }
       else await c('catalogReceived').insertOne({ _id: randomUUID(), ...req.filter, purchaseOrderId, lineId, version: 1, ...total }, { session });
-      const time = new Date(), source = sourceFor(order, line), row = { _id: randomUUID(), ...req.filter, version: 1, createdAt: time, createdBy: req.scope.userId, purchaseOrderId, vendorId, lineIndex, quantity: req.body.quantity, uom: line.uom, serials, ...trace, status: 'QUARANTINED', availableQuantity: '0', reservedQuantity: '0', catalogSource: source };
+      const approved = await readApprovedOrderRevision(db, req.filter, 'CATALOG', order, order.documentRevision || 1, session);
+      const time = new Date(), source = sourceFor(order, line, approved.contentHash), row = { _id: randomUUID(), ...req.filter, version: 1, createdAt: time, createdBy: req.scope.userId, purchaseOrderId, vendorId, lineIndex, quantity: req.body.quantity, uom: line.uom, serials, ...trace, status: 'QUARANTINED', availableQuantity: '0', reservedQuantity: '0', catalogSource: source };
       for (const serial of serials) { if (await c('warehouseSerials').findOne({ ...req.filter, serial }, { session })) fail(409, 'SERIAL_CONFLICT'); await c('warehouseSerials').insertOne({ _id: randomUUID(), ...req.filter, serial, receiptId: row._id }, { session }); }
       const movement = { _id: randomUUID(), ...req.filter, version: 1, createdAt: time, createdBy: req.scope.userId, receiptId: row._id, purchaseOrderId, vendorId, lineIndex, uom: line.uom, quantity: row.quantity, kind: 'RECEIVE', from: null, to: 'QUARANTINE', catalogSource: source, ...(Object.keys(trace).length ? { materialTrace: { receiptId: row._id, ...trace } } : {}) };
-      const origin = { _id: randomUUID(), ...req.filter, receiptId: row._id, originType: 'CATALOG_PURCHASE', schema: 'CATALOG_RECEIPT_ORIGIN_V1', source, physical: physicalOf(row), receiveMovementId: movement._id, recordedBy: req.scope.userId, recordedAt: time }; origin.contentHash = hash(origin);
+      const origin = { _id: randomUUID(), ...req.filter, receiptId: row._id, originType: 'CATALOG_PURCHASE', schema: order.documentRevision ? 'CATALOG_RECEIPT_ORIGIN_V2' : 'CATALOG_RECEIPT_ORIGIN_V1', source, physical: physicalOf(row), receiveMovementId: movement._id, recordedBy: req.scope.userId, recordedAt: time }; origin.contentHash = hash(origin);
       await c('warehouseReceipts').insertOne(row, { session }); await c('warehouseMovements').insertOne(movement, { session }); await c('warehouseReceiptOrigins').insertOne(origin, { session });
       await c('catalogEvents').insertOne({ _id: randomUUID(), ...req.filter, subjectType: 'RECEIPT', subjectId: row._id, version: 1, status: row.status, kind: 'RECEIVED', reason, recordedBy: req.scope.userId, recordedAt: time, contentHash: origin.contentHash, originId: origin._id }, { session });
       return receiptView(req, row, session);

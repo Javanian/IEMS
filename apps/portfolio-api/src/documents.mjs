@@ -5,10 +5,12 @@ import { fixtureVat } from './fixture-tax.mjs';
 import { isDeepStrictEqual } from 'node:util';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { createSnapshot, createIssuer } from '../../../packages/document-rendering/src/index.mjs';
+import { readApprovedOrderRevision } from '../../../packages/contracts/src/domains/commercial/purchase-orders.mjs';
+import { readCatalogOrderRevision, readCatalogRequestApproval } from './catalog-procurement.mjs';
 
 export const documentActions = ['document.read', 'document.issue'];
 export const documentRoles = { documentReader: ['document.read'], documentIssuer: documentActions };
-const kinds = { quote: ['quotes', 'quote.read'], purchaseOrder: ['purchaseOrders', 'procurement.read'], invoice: ['fulfillmentInvoices', 'fulfillment.read'], repairInvoice: ['repairInvoices', 'repair.read'], shipment: ['fulfillmentShipments', 'fulfillment.read'] };
+const kinds = { quote: ['quotes', 'quote.read'], purchaseRequest: ['purchaseRequests', 'procurement.read'], purchaseOrder: ['purchaseOrders', 'procurement.read'], catalogPurchaseRequest: ['catalogPurchaseRequests', 'catalog.read'], catalogPurchaseOrder: ['catalogPurchaseOrders', 'catalog.read'], invoice: ['fulfillmentInvoices', 'fulfillment.read'], repairInvoice: ['repairInvoices', 'repair.read'], shipment: ['fulfillmentShipments', 'fulfillment.read'] };
 const options = { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' };
 export async function initializeDocuments(runtime) {
   await runtime.db.collection('documentIntents').createIndex({ tenantId: 1, legalEntityId: 1, plantId: 1, kind: 1, sourceId: 1, sourceVersion: 1 }, { unique: true });
@@ -29,7 +31,7 @@ export function installDocuments(app, runtime, { fail, guard, id }) {
     if (!Object.hasOwn(kinds, kind)) fail(400, 'INVALID_KIND');
     id(sourceId);
     if (!Number.isSafeInteger(sourceVersion) || sourceVersion < 1) fail(400, 'INVALID_VERSION');
-    if (kind !== 'quote' && sourceVersion !== 1) fail(400, 'INVALID_VERSION');
+    if (!['quote', 'purchaseOrder', 'catalogPurchaseOrder', 'catalogPurchaseRequest'].includes(kind) && sourceVersion !== 1) fail(400, 'INVALID_VERSION');
     return { kind, sourceId, sourceVersion };
   };
   const snapshot = async (req, scope, key, session) => {
@@ -42,9 +44,16 @@ export function installDocuments(app, runtime, { fail, guard, id }) {
       const approval = row.approvals?.find(a => a.revision === key.sourceVersion);
       if (!approval) fail(409, 'SOURCE_NOT_ISSUED');
       source = { snapshot: approval.snapshot };
+    } else if (key.kind === 'catalogPurchaseRequest') {
+      source = { snapshot: await readCatalogRequestApproval(runtime.db, req.filter, row._id, key.sourceVersion, session) };
+    } else if (key.kind === 'catalogPurchaseOrder') {
+      source = { snapshot: (await readCatalogOrderRevision(runtime.db, req.filter, row._id, key.sourceVersion, session)).snapshot };
+    } else if (key.kind === 'purchaseRequest') {
+      if (!['APPROVED', 'CONVERTED'].includes(row.status) || !row.approval?.snapshot) fail(409, 'SOURCE_NOT_ISSUED');
+      source = { snapshot: row.approval.snapshot };
     } else if (key.kind === 'purchaseOrder') {
       if (!['ISSUED', 'CONFIRMED'].includes(row.status)) fail(409, 'SOURCE_NOT_ISSUED');
-      source = { snapshot: row.snapshot };
+      source = { snapshot: (await readApprovedOrderRevision(runtime.db, req.filter, 'LEGACY', row, key.sourceVersion, session)).snapshot };
     } else if (key.kind === 'repairInvoice') {
       if (!['FINAL', 'DIAGNOSTIC'].includes(row.kind) || !['ISSUED', 'PARTIALLY_PAID', 'PAID'].includes(row.status)) fail(409, 'SOURCE_NOT_ISSUED');
       source = row.snapshot;
