@@ -525,6 +525,33 @@
       "replay": "current actor/source/ticket/customer/conversation/binding/approval rechecks; customer WeakMap resolver; parent receipt inherits once",
       "meter": "ONE_TOP_LEVEL_COMMAND"
     },
+    "saasEffectCommands": {
+      "filter": [
+        "tenantId",
+        "ownerNamespace",
+        "ownerIdentityHash"
+      ],
+      "ownerNamespace": "AI_INDEX_ROOT_V1",
+      "rootIdentity": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "resourceId",
+        "key"
+      ],
+      "hashField": "payloadHash",
+      "hash": "Existing foundation contentHash of validated new AI root descriptor; exact route producer integration pending",
+      "actions": [
+        "ai.index.rebuild",
+        "ai.index.cleanup"
+      ],
+      "permission": "ai.index plus saas.use",
+      "hook": "packages/tenant-lifecycle/effects.mjs admitIndexRoot/accept caller session",
+      "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+      "profileState": "CONTROL_PRIMITIVE_IMPLEMENTED_AI_ROUTES_PENDING",
+      "finalBusinessReceipt": "Original foundationCommandResults unchanged; subordinate phase publication integration pending"
+    },
     "documentIssues": {
       "filter": [
         "tenantId",
@@ -549,7 +576,9 @@
     "packages/scoped-ai/documents.mjs",
     "packages/scoped-ai/indexing.mjs",
     "packages/scoped-ai/models.mjs",
-    "packages/scoped-ai/vendor-drafts.mjs"
+    "packages/scoped-ai/vendor-drafts.mjs",
+    "packages/tenant-lifecycle/local-effects-adapter.mjs",
+    "packages/tenant-lifecycle/local-ai-provider.mjs"
   ],
   "system": "Private reporting relay, authorization/source/read fences, internal job retries and init/index creation are not independent billable user commands. Public job ingress owns one foundation receipt with same-session rate consumption.",
   "externalEnrollment": "Legacy/unmanaged engine/vendor history and CS SENDING/UNKNOWN remain denied. Fresh managed LOCAL_SIMULATED history requires current owner/source authority and verified closed-epoch high-water/complete-attempt barrier; ACK, timeout and missing promises never prove stopped.",
@@ -721,10 +750,11 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/effects.mjs": "252d6d19a651e1082956ad733e45724bbef505bda65d7bc734984f8ecaf8cd57",
-    "packages/tenant-lifecycle/local-effects-adapter.mjs": "fbf0409c0064a1c75e177f53a91327b554943421f8423b7274c7306fc68aa6a3",
+    "packages/tenant-lifecycle/effects.mjs": "53022f65ad57cf8bc4de99fb35a3c5aa16b23e038b3583215cb8fd2d05cb1c38",
+    "packages/tenant-lifecycle/local-effects-adapter.mjs": "ec10a47e70e8af85f8d5c05b7c069924668db8abe26f3aadb3e12085c39af918",
     "packages/tenant-lifecycle/effect-primitives.mjs": "7c528a2602f3b46fc2d0d94dc782ebf5d0fecec9f867618bc5397d871d4fbb6f",
-    "packages/tenant-lifecycle/admission.mjs": "b22f9d0a95daf9bae2df9ee27d22e8c9af16e3b3e179179f6519cab2d097be28",
+    "packages/tenant-lifecycle/local-ai-provider.mjs": "5d906bd4b80489bf8c6943da2cbfd59babd259575336f55680ba5cee6dabe6b6",
+    "packages/tenant-lifecycle/admission.mjs": "4cb23a52c354d9f1f3c5540c06d5e0470b84a77f203db330b636ba5284250b39",
     "packages/tenant-lifecycle/index.mjs": "4359aa7714debaa617c107aad3b3a0666c94a10168bc937bf7373827af922585",
     "packages/tenant-lifecycle/domain-port.mjs": "48787a3e8928573328259a0bfef8bdf05ef183c4dd813a0175dff62c70131a36",
     "packages/tenant-lifecycle/admission-registry.mjs": "292fefe68375039b69c04cf3850e3413eb26934f02308e0e67fd8208cdbe1ca6"
