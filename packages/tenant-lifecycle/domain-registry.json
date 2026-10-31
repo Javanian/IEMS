@@ -10366,7 +10366,7 @@
       ]
     },
     "apps/portfolio-api/src/reporting-source.mjs": {
-      "sha256": "4e4d834f2fed11f11cefcfd11544dec583a8b7548f6100c253d44fddf7343e90",
+      "sha256": "0d9c65f4df034c0417d7d39e887a07cb1120a05fe8f58351a7865ad867e88e33",
       "fields": [
         "ACCOUNT_UNALLOCATED_SEPARATE_DATASET",
         "APPROVED_SNAPSHOT_MISSING",
@@ -10382,6 +10382,7 @@
         "COVERAGE_REPLAY_GAP_OR_BOUND",
         "CREDIT",
         "CREDIT_ADJUSTMENT",
+        "CUSTOMER_ASSET_RETURN",
         "DEPOSIT",
         "EXPLICIT_SOURCE_RESOURCE_AUTHORIZER_REQUIRED",
         "IMMUTABLE_REPORTING_EVIDENCE_CORRUPT_OR_UNSEALED",
@@ -10407,8 +10408,13 @@
         "RECEIVABLE_REDUCTION",
         "RECORDED",
         "REGISTERED_SOURCE_KIND_EVIDENCE_MISSING",
+        "REPAIR_RETURN_RECEIPT_MISSING_OR_CONFLICT",
+        "REPAIR_RETURN_SHIPMENT_V1",
+        "REPAIR_RETURN_SOURCE_INVALID",
+        "REPAIR_SERVICE_V1",
         "REPORTING_SCOPE_RESOURCE_BOUND_EXCEEDED",
         "RESERVATION",
+        "RETURNED",
         "SCOPE_EXCEEDS_BOUNDED_COMPLETE_SCAN",
         "SETTLEMENT_AUTHORITY_MISSING",
         "SHIPMENT_IMMUTABLE_RECEIPT_CONFLICT",
@@ -10430,6 +10436,8 @@
         "UNREGISTERED_SETTLEMENT_KIND",
         "UNREGISTERED_SHIPMENT_SCHEMA",
         "UNREGISTERED_SOURCE_KIND",
+        "UNSUPPORTED_SOURCE_AUTHORITY_CHANGED",
+        "VALIDATED_REPAIR_RETURN_NO_REGISTERED_REPORTING_V2_TARGET",
         "WHOLE_AUTHORITY_COVERAGE_NOT_PROVEN",
         "WORK_ORDER",
         "_id",
@@ -10445,12 +10453,17 @@
         "assign",
         "at",
         "authority",
+        "authorityHash",
+        "authorityId",
         "authorizeInTransaction",
         "authorizeSnapshot",
         "await",
         "balanceEffect",
         "baseline",
+        "binding",
         "body",
+        "caseId",
+        "caseVersion",
         "cashEffect",
         "catch",
         "code",
@@ -10467,6 +10480,8 @@
         "cursorAdvanced",
         "data",
         "deleted",
+        "deliveryConfirmations",
+        "deliveryHeads",
         "depositId",
         "emitted",
         "entries",
@@ -10534,6 +10549,7 @@
         "packed",
         "parse",
         "payload",
+        "payloadHash",
         "payment",
         "paymentId",
         "picked",
@@ -10548,9 +10564,21 @@
         "quoteRevision",
         "read",
         "reason",
+        "receiptCollection",
+        "receiptHash",
         "receiptId",
         "recorded",
         "reduce",
+        "repair",
+        "repairAudit",
+        "repairCases",
+        "repairInvoices",
+        "repairKeys",
+        "repairReturnAuthorities",
+        "repairSalesOrderId",
+        "repairSalesOrders",
+        "repairWorkOrderId",
+        "repairWorkOrders",
         "reportingPaymentIdentities",
         "reportingSnapshotHeads",
         "reportingSnapshotOutbox",
@@ -10561,6 +10589,8 @@
         "resourceType",
         "result",
         "resultHash",
+        "return",
+        "returnDispatch",
         "revoked",
         "runId",
         "salesOrderId",
@@ -10570,6 +10600,7 @@
         "schemaVersion",
         "scope",
         "selectedPlantId",
+        "serviceProfile",
         "set",
         "setOnInsert",
         "settlementKind",
@@ -10583,17 +10614,21 @@
         "some",
         "sort",
         "source",
+        "sourceHash",
         "sourceHashes",
         "sourceHighWater",
         "sourceId",
+        "sourceKind",
         "sourceLineIndex",
         "sourceLineIndexes",
         "sourceOccurredAt",
         "sourceType",
         "sources",
+        "startsWith",
         "status",
         "stringify",
         "subjectId",
+        "subjectVersion",
         "t",
         "tenantId",
         "test",
@@ -10609,7 +10644,8 @@
         "userId",
         "validity",
         "values",
-        "version"
+        "version",
+        "warranty"
       ]
     },
     "apps/portfolio-api/src/serial-custody.mjs": {
@@ -15664,7 +15700,8 @@
       "disposition": "BUSINESS",
       "schema": "PINNED_BSON_BUSINESS_V1",
       "sources": [
-        "apps/portfolio-api/src/delivery.mjs"
+        "apps/portfolio-api/src/delivery.mjs",
+        "apps/portfolio-api/src/reporting-source.mjs"
       ]
     },
     "deliveryEvents": {
@@ -15678,7 +15715,8 @@
       "disposition": "BUSINESS",
       "schema": "PINNED_BSON_BUSINESS_V1",
       "sources": [
-        "apps/portfolio-api/src/delivery.mjs"
+        "apps/portfolio-api/src/delivery.mjs",
+        "apps/portfolio-api/src/reporting-source.mjs"
       ]
     },
     "deliveryKeys": {
@@ -16753,7 +16791,8 @@
       "disposition": "BUSINESS",
       "schema": "PINNED_BSON_BUSINESS_V1",
       "sources": [
-        "apps/portfolio-api/src/repair.mjs"
+        "apps/portfolio-api/src/repair.mjs",
+        "apps/portfolio-api/src/reporting-source.mjs"
       ]
     },
     "repairCaseEvents": {
@@ -16771,6 +16810,7 @@
         "apps/portfolio-api/src/repair-return.mjs",
         "apps/portfolio-api/src/repair-stock.mjs",
         "apps/portfolio-api/src/repair.mjs",
+        "apps/portfolio-api/src/reporting-source.mjs",
         "packages/customer-service/order-source.mjs"
       ]
     },
@@ -16793,7 +16833,8 @@
       "schema": "PINNED_BSON_BUSINESS_V1",
       "sources": [
         "apps/portfolio-api/src/repair-return.mjs",
-        "apps/portfolio-api/src/repair.mjs"
+        "apps/portfolio-api/src/repair.mjs",
+        "apps/portfolio-api/src/reporting-source.mjs"
       ],
       "businessAuthorizationPaths": [
         "authorization"
@@ -16803,7 +16844,8 @@
       "disposition": "BUSINESS",
       "schema": "PINNED_BSON_BUSINESS_V1",
       "sources": [
-        "apps/portfolio-api/src/repair.mjs"
+        "apps/portfolio-api/src/repair.mjs",
+        "apps/portfolio-api/src/reporting-source.mjs"
       ],
       "businessAuthorizationPaths": [
         "result.authorization"
@@ -16850,7 +16892,8 @@
       "schema": "PINNED_BSON_BUSINESS_V1",
       "sources": [
         "apps/portfolio-api/src/delivery.mjs",
-        "apps/portfolio-api/src/repair-return.mjs"
+        "apps/portfolio-api/src/repair-return.mjs",
+        "apps/portfolio-api/src/reporting-source.mjs"
       ]
     },
     "repairSalesOrders": {
