@@ -42,7 +42,7 @@ async function ready(url, timeout = 180000) {
 function launch(name, args, env = {}) {
   const stdout = openSync(join(root, 'logs', `${name}.out.log`), 'a');
   const stderr = openSync(join(root, 'logs', `${name}.err.log`), 'a');
-  const child = spawn(process.execPath, args, { cwd: repo, windowsHide: true, env: { ...process.env, ...env }, stdio: ['ignore', stdout, stderr] });
+  const child = spawn(process.execPath, args, { cwd: name === 'web' ? join(repo, 'apps', 'web') : repo, windowsHide: true, env: { ...process.env, ...env }, stdio: ['ignore', stdout, stderr] });
   closeSync(stdout); closeSync(stderr);
   children.set(name, child); child.on('error', error => log(`${name}: ${error.message}`)); child.on('exit', code => { log(`${name} exit ${code}`); status({ ready: false }); });
   return child;
