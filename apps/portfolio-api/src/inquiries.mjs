@@ -43,7 +43,7 @@ export function installInquiries(app, runtime, { fail, guard, id, fields, valida
     const session = runtime.client.startSession();
     try {
       const data = await session.withTransaction(async () => {
-        await guard(runtime, req, session, 'quote.write');
+        await guard(runtime, req, session, 'quote.write'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
         const row = await c('inquiries').findOne({ ...req.filter, _id: id(req.params.id) }, { session });
         if (!row) fail(404, 'NOT_FOUND');
         const prior = await c('inquiryKeys').findOne({ ...req.filter, key }, { session });
@@ -94,7 +94,7 @@ export function installInquiries(app, runtime, { fail, guard, id, fields, valida
     const payloadHash = createHash('sha256').update(JSON.stringify(req.body)).digest('hex'), session = runtime.client.startSession();
     try {
       const data = await session.withTransaction(async () => {
-        await guard(runtime, req, session, req.inquiryAction);
+        await guard(runtime, req, session, req.inquiryAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
         const prior = await c('inquiryKeys').findOne({ ...req.filter, key }, { session });
         if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.data; }
         if (!await c('accounts').findOne({ ...req.filter, _id: accountId }, { session })) fail(404, 'NOT_FOUND');

@@ -11,7 +11,11 @@ export async function initializePlatformRuntime(runtime, { roleActions, handlers
   const authorizeJob = createJobAuthorization({ db: runtime.db, roleActions, actionForKind });
   const jobs = createDurableJobs({ ...runtime, ...options, authorizeJob, handlers });
   await jobs.initialize();
-  const rateLimiter = createDurableRateLimiter({ ...runtime, authorize: (scope, { session }) => runtime.foundation.authorizeInTransaction(scope.authScope, { ...scope, action: 'platform.job.request' }, { session }) });
+  const rateLimiter = createDurableRateLimiter({ ...runtime, authorize: async (scope, { session }) => {
+    const grant=await runtime.foundation.authorizeInTransaction(scope.authScope, { ...scope, action: 'platform.job.request' }, { session });
+    await runtime.saasAdmission.unsupported(scope.authScope,{plantId:grant.plantId,session});
+    return grant;
+  } });
   await rateLimiter.initialize();
   return { jobs, handlers, actionForKind, rateLimiter, coordination: redis ? createCacheCoordination(redis) : null };
 }

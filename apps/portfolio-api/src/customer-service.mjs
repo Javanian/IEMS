@@ -22,7 +22,7 @@ export async function initializeCustomerService(runtime, options = {}) {
     const contact = await runtime.db.collection('contacts').findOne({ tenantId, plantId, _id: contactId, accountId }, { session });
     return contact ? { accountLabel: account.name } : null;
   } };
-  const shared = { client: runtime.client, db: runtime.db, ...options, partyDirectory, orderReader: options.allowSyntheticOrders ? undefined : { readCustomerOrder: (input, options) => runtime.customerServiceOrderReader.readCustomerOrder(input, options) }, foundation: { authorize: (...args) => runtime.foundation.authorize(...args), authorizeInTransaction: (...args) => runtime.foundation.authorizeInTransaction(...args) } };
+  const shared = { client: runtime.client, db: runtime.db, ...options, saasAdmission:runtime.saasAdmission, partyDirectory, orderReader: options.allowSyntheticOrders ? undefined : { readCustomerOrder: (input, options) => runtime.customerServiceOrderReader.readCustomerOrder(input, options) }, foundation: { authorize: (...args) => runtime.foundation.authorize(...args), authorizeInTransaction: (...args) => runtime.foundation.authorizeInTransaction(...args) } };
   const service = createCustomerService({ ...shared, previewDispatcher: false });
   // Reader and foundation are late-bound so rotations are honoured by the package.
   await service.initialize();

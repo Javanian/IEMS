@@ -33,7 +33,7 @@ export function TenantLifecycleWorkspace() {
       if(result.data.data.archiveId)setArchive(result.data.data);
       sessionStorage.removeItem(storageKey);setPending(null);lock.current=false;await load();
     } catch(error){if(current===generation.current){
-      const rejected=['INVALID_SAAS_PLAN','SAAS_REASON_REQUIRED','INVALID_METER','REVISION_CONFLICT','SAAS_QUOTA_EXCEEDED','PLAN_BELOW_USAGE','SAAS_INVALID_STATE','TENANT_DATA_PORT_UNAVAILABLE','TENANT_EXPORT_INCOMPLETE','TENANT_EXPORT_TOO_LARGE','ARCHIVE_NOT_CURRENT','ARCHIVE_INTEGRITY_INVALID','EXPORT_STALE'];
+      const rejected=['SAAS_ADMISSION_INCOMPLETE','SAAS_ADMISSION_EXTERNAL_ADAPTER_UNCOVERED','SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING','INVALID_SAAS_PLAN','SAAS_REASON_REQUIRED','INVALID_METER','REVISION_CONFLICT','SAAS_QUOTA_EXCEEDED','PLAN_BELOW_USAGE','SAAS_INVALID_STATE','TENANT_DATA_PORT_UNAVAILABLE','TENANT_EXPORT_INCOMPLETE','TENANT_EXPORT_TOO_LARGE','ARCHIVE_NOT_CURRENT','ARCHIVE_INTEGRITY_INVALID','EXPORT_STALE'];
       if(rejected.includes(error.code)){try{sessionStorage.removeItem(storageKey);setPending(null);}catch{/* Keep recovery pending if session storage is unavailable. */}}
       setView(s=>({...s,busy:false,error}));
     }}
@@ -70,6 +70,11 @@ export function TenantLifecycleWorkspace() {
           <WorkspaceTable caption="SaaS usage" columns={[{key:'metric',label:'Meter'},{key:'used',label:'Used',numeric:true},{key:'limit',label:'Included limit',numeric:true}]}
             rows={Object.entries(row.usage).map(([metric,used])=>({metric,used,limit:row.limits[metric]}))} rowKey={r=>r.metric}/></>}
         {(!row||['ACTIVE','SUSPENDED'].includes(row.state))&&<form className="pf-form" onSubmit={e=>command(e,'subscribe')}>
+          <WorkspaceField as="select" name="admissionProfile" label="Business command coverage" required>
+            <option value="RECEIPTED_COMMANDS_V1">Receipt-backed commands (limited coverage)</option>
+          </WorkspaceField>
+          <p>{data.admission?.enrollmentBoundary}</p>
+          <details><summary>Supported and unavailable operations after enrollment</summary><p>Supported: {data.admission?.supported}</p><p>Unavailable: {data.admission?.unsupported}</p><p>Usage counts admitted commands. Storage usage records cumulative admitted bytes, rather than current disk occupancy.</p></details>
           <WorkspaceField as="select" name="plan" label="SaaS plan" required>{Object.keys(data.plans).map(p=><option key={p} value={p}>{p}</option>)}</WorkspaceField>
           <WorkspaceField name="reason" label="Subscription change reason" maxLength={500} required/><button disabled={disabled}>Save subscription</button></form>}
       </section>

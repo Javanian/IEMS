@@ -159,7 +159,7 @@ export function installPurchasedFulfillment(app, runtime, { guard, fields, id })
     for (let attempt = 1; ; attempt++) {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
-      for (const action of req.purchasedActions) await guard(runtime, req, session, action);
+      for (const action of req.purchasedActions) await guard(runtime, req, session, action); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
       const prior = await db.collection('purchasedFulfillmentKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session });
       if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
       const current = await purchasedFulfillmentContext(db, req.filter, orderId, session);

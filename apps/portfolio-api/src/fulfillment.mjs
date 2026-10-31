@@ -133,9 +133,11 @@ export function installFulfillment(app, runtime, { fail, guard, id, fields }) {
           if (req.manufacturedDispatch && !await validateManufacturedShipment(runtime.db, req.filter, prior.result._id, session)) fail(409, 'FULFILLMENT_STOCK_AUTHORITY_INVALID');
           if (kind === 'deposit.recorded' || req.body.settlementKind === 'DEPOSIT') await depositState(runtime.db, req.filter, req.body.depositId || prior.result._id, session);
           if (kind === 'payment.recorded') for (const allocation of req.body.allocations) await validateInvoicePosting(runtime.db, req.filter, await find('fulfillmentInvoices', req, allocation.invoiceId, session), session);
+          await runtime.saasAdmission.effect({ scope: req.scope, session, namespace: 'fulfillmentKeys', key, action: req.fulfillmentAction, payloadHash, replayed: true });
           return prior.result;
         }
         if (await c('purchasedFulfillmentKeys').findOne({ ...req.filter, key }, { session })) fail(409, 'IDEMPOTENCY_CONFLICT');
+        await runtime.saasAdmission.effect({ scope: req.scope, session, namespace: 'fulfillmentKeys', key, action: req.fulfillmentAction, payloadHash, replayed: false });
         const result = await effect(session);
         const purchasedProofHash = await recordPurchasedFinancial(runtime.db, req.filter, kind, req.body, result, purchased, req.scope.userId, session);
         if (kind === 'invoice.issued') await c('fulfillmentInvoicePostings').insertOne({ _id: randomUUID(), ...req.filter, invoiceId: result._id, snapshot: structuredClone(result), contentHash: stockHash(result) }, { session });

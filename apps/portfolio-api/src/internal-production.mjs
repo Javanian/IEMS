@@ -175,7 +175,7 @@ export function installInternalPlanning(app, runtime, { guard, fields, id }) {
     for (let attempt = 1; ; attempt++) {
       const session = runtime.client.startSession();
       try { return await session.withTransaction(async () => {
-        await guard(runtime, req, session, req.planningAction);
+        await guard(runtime, req, session, req.planningAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
         const prior = await c('internalPlanningKeys').findOne({ ...scope(req), key }, { session });
         if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
         const legalEntityId = await owner(req, session), result = await effect(session, reason, legalEntityId);

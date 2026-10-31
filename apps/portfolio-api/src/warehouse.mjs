@@ -54,7 +54,9 @@ export function installWarehouse(app, runtime, { fail, guard, id, fields }) {
       await guard(runtime, req, session, req.warehouseAction);
       if (req.body.salesOrderId) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, req.body.salesOrderId, session), session);
       const prior = await c('warehouseKeys').findOne({ ...req.filter, key }, { session });
-      if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+      if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+      await runtime.saasAdmission.effect({ scope: req.scope, session, namespace: 'warehouseKeys', key, action: req.warehouseAction, aggregateId: req.params.id, payloadHash, replayed: Boolean(prior) });
+      if (prior) return prior.result;
       const result = await effect(session);
       const event = { ...req.filter, kind, subjectId: result._id, version: result.version, userId: req.scope.userId, occurredAt: new Date() };
       await c('warehouseAudit').insertOne({ _id: randomUUID(), ...event }, { session });

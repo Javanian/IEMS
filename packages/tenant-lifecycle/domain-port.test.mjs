@@ -1,0 +1,72 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { startOwned, orderWithStock } from '../../apps/portfolio-api/test/support/owned-mongo.mjs';
+import { createMongoTenantDataPort, businessRegistry } from './domain-port.mjs';
+import { createTenantLifecycle } from './index.mjs';
+import { boundedTransaction } from '../tenant-foundation/commands.mjs';
+process.env.MONGOMS_RUNTIME_DOWNLOAD='false';
+
+test('marker-owned Mongo business graph archive and restore', {timeout:120000}, async t=>{
+  const h=await startOwned(t), graph=await orderWithStock(h);
+  const alpha=h.seeded[0],beta=h.seeded[1];
+  const ownFilter={tenantId:alpha.tenantId,plantId:alpha.plantId};
+  await h.db.collection('credentials').updateOne({_id:alpha.userId},{$set:{privateTestValue:'SYNTHETIC_PRIVATE_SENTINEL_4183'}});
+  await h.db.collection('cs_internal_notes').insertOne({_id:randomUUID(),...ownFilter,text:'SYNTHETIC_PRIVATE_SENTINEL_4183'});
+  await h.db.collection('memberships').updateOne({_id:alpha.membershipId},{$set:{tenantWide:true,roles:[{role:'saasOperator',plantIds:[],tenantWide:true},{role:'saasUser',plantIds:[alpha.plantId],tenantWide:false},{role:'owner',plantIds:[alpha.plantId],tenantWide:false}]}});
+  const scope=await h.scopeOf(h.alpha),port=createMongoTenantDataPort(h.runtime),api=createTenantLifecycle({...h.runtime,domainPort:port});
+  const input=(rev,extra={})=>({plantId:alpha.plantId,key:randomUUID(),expectedRevision:rev,reason:'Marker-owned synthetic rehearsal',...extra});
+  await api.subscribe(scope,input(0,{plan:'pilot'}));
+  assert.deepEqual((await h.db.listCollections({},{nameOnly:true}).toArray()).map(c=>c.name).filter(n=>!businessRegistry.collections[n]),[],'every initialized collection must have an explicit disposition');
+  let exported=await api.export(scope,input(1)),proof={archiveId:exported.data.archiveId,digest:exported.data.digest};
+  const downloaded=await api.download(scope,{plantId:alpha.plantId,archiveId:proof.archiveId});
+  const snapshot=downloaded.snapshot;
+  assert.equal(snapshot.coverage,'COMPLETE');assert.equal(snapshot.coverageScope,businessRegistry.coverageScope);
+  assert.ok(snapshot.resources.some(r=>r.collection==='salesOrders'));
+  assert.ok(snapshot.resources.some(r=>r.collection==='warehouseReservations'));
+  assert.ok(snapshot.resources.some(r=>r.collection==='warehouseMovements'));
+  assert.ok(snapshot.resources.some(r=>r.collection==='purchaseOrderDocumentRevisions'));
+  assert.ok(!JSON.stringify(snapshot).includes('SYNTHETIC_PRIVATE_SENTINEL_4183'));
+  assert.ok(snapshot.resources.every(r=>r.tenantId===alpha.tenantId));
+  const before=await h.db.collection('salesOrders').findOne({_id:graph.so._id});
+  await api.suspend(scope,input(2));
+  await api.delete(scope,input(3,proof));
+  assert.equal(await h.db.collection('salesOrders').countDocuments({tenantId:alpha.tenantId}),0);
+  assert.ok(await h.db.collection('credentials').findOne({_id:alpha.userId}));
+  assert.ok(await h.db.collection('cs_internal_notes').findOne(ownFilter));
+  assert.ok(await h.db.collection('tenants').findOne({_id:beta.tenantId,active:true}));
+  await api.restore(scope,input(4,proof));
+  assert.deepEqual(await h.db.collection('salesOrders').findOne({_id:graph.so._id}),before);
+  const again=await api.export(scope,input(5));
+  assert.equal(again.data.digest,proof.digest,'whole graph, child/history records and BSON types are unchanged');
+
+  await t.test('stale source rejects removal without partial effects',async()=>{
+    await h.db.collection('accounts').updateOne({_id:graph.account._id},{$set:{name:'Changed synthetic source'}});
+    await assert.rejects(api.delete(scope,input(6,{archiveId:again.data.archiveId,digest:again.data.digest})),{code:'EXPORT_STALE'});
+    assert.ok(await h.db.collection('salesOrders').findOne({_id:graph.so._id}));
+  });
+  await t.test('unknown collection and missing/private fields fail closed',async()=>{
+    await h.db.collection('unknownBusinessAuthority').insertOne({_id:randomUUID(),...ownFilter});
+    await assert.rejects(api.export(scope,input(6)),{code:'TENANT_UNKNOWN_COLLECTION'});
+    await h.db.collection('unknownBusinessAuthority').drop();
+    await h.db.collection('accounts').updateOne({_id:graph.account._id},{$set:{secretKey:'do not export'}});
+    await assert.rejects(api.export(scope,input(6)),{code:'TENANT_PRIVATE_FIELD'});
+    await h.db.collection('accounts').updateOne({_id:graph.account._id},{$unset:{secretKey:''},$set:{unknownSchemaField:true}});
+    await assert.rejects(api.export(scope,input(6)),{code:'TENANT_SCHEMA_UNKNOWN_FIELD'});
+    await h.db.collection('accounts').updateOne({_id:graph.account._id},{$unset:{unknownSchemaField:''}});
+    const unscoped=randomUUID();await h.db.collection('accounts').insertOne({_id:unscoped,name:'Missing tenant'});
+    await assert.rejects(api.export(scope,input(6)),{code:'TENANT_SCHEMA_MISSING_SCOPE'});
+    await h.db.collection('accounts').deleteOne({_id:unscoped});
+  });
+  await t.test('oversize, role, forged scope and restore collisions fail closed',async()=>{
+    const tiny=createTenantLifecycle({...h.runtime,domainPort:createMongoTenantDataPort({...h.runtime,maxResources:1})});
+    await assert.rejects(tiny.export(scope,input(6)),{code:'TENANT_EXPORT_TOO_LARGE'});
+    await h.setRoles(beta,['saasOperator']);
+    const betaScope=await h.scopeOf(h.beta);await assert.rejects(api.export(betaScope,{...input(0),plantId:beta.plantId}),{code:'TENANT_WIDE_SAAS_GRANT_REQUIRED'});
+    await assert.rejects(boundedTransaction(h.client,session=>port.snapshot({scope:{...scope},grant:{...alpha},session})),{code:'SCOPE_DENIED'});
+    const latest=await api.export(scope,input(6));const p={archiveId:latest.data.archiveId,digest:latest.data.digest};
+    await api.delete(scope,input(7,p));
+    await h.db.collection('accounts').insertOne(before.accountId?{_id:before.accountId,...ownFilter,name:'collision',version:1}:{_id:randomUUID(),...ownFilter,name:'collision',version:1});
+    await assert.rejects(api.restore(scope,input(8,p)),{code:'TENANT_RESTORE_COLLISION'});
+  });
+});

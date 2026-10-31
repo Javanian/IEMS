@@ -125,7 +125,9 @@ export function installManufacturing(app, runtime, { fail, guard, id, fields }) 
       }
       if (sourceOrderId) await requireUnboundSalesOrder(runtime.db, req.filter, await find('salesOrders', req, sourceOrderId, session), session);
       const prior = await c('manufacturingKeys').findOne({ ...req.filter, key }, { session });
-      if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+      if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+      await runtime.saasAdmission.effect({ scope: req.scope, session, namespace: 'manufacturingKeys', key, action: req.manufacturingAction, aggregateId: req.params.id, payloadHash, replayed: Boolean(prior) });
+      if (prior) return prior.result;
       const result = await effect(session);
       const event = { ...base(req), kind, subjectId: result._id || result.workOrderId, subjectVersion: result.version ?? result.workOrderVersion, executionMode: 'OPERATOR_RECORDED' };
       await c('manufacturingAudit').insertOne(event, { session });

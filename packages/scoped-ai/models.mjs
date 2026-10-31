@@ -12,11 +12,11 @@ const modelShape = model => model && Object.keys(model).every(k => ['name', 'ver
 const strict = (input, keys) => {
   if (!input || Object.getPrototypeOf(input) !== Object.prototype || Object.keys(input).some(k => !keys.includes(k)) || !uuid(input.plantId)) fail('AI_INVALID_MODEL_REQUEST');
 };
-export function createModelWorkflow({ client, db, foundation, features = null, modelPort = null, featureKeys = [], clock = () => new Date() }) {
+export function createModelWorkflow({ client, db, foundation, saasAdmission, features = null, modelPort = null, featureKeys = [], clock = () => new Date() }) {
   const deployments = db.collection('aiModelSelections'), history = db.collection('aiModelSelectionHistory');
   const filter = grant => ({ tenantId: grant.tenantId, plantId: grant.plantId, legalEntityId: grant.legalEntityId });
   const auth = (scope, plantId, action, session) => foundation.authorizeInTransaction(scope, scopeTarget(scope, plantId, action), { session });
-  const commands = createCommandExecutor({ client, db, foundation });
+  const commands = createCommandExecutor({ client, db, admission: saasAdmission?.effect, foundation });
   const scorer = modelPort ? createPinnedModelScorer({ modelPort }) : null;
   return Object.freeze({
     async initialize() { await commands.initialize(); await deployments.createIndex({ tenantId: 1, plantId: 1 }, { unique: true });

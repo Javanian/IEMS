@@ -65,7 +65,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
   const tx = async (req, kind, effect) => {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
-      await guard(runtime, req, session, req.commercialAction);
+      await guard(runtime, req, session, req.commercialAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
       const result = await effect(session);
       if (!result.replay) {
         const event = { ...req.filter, userId: req.scope.userId, kind, subjectId: result._id, version: result.version, occurredAt: new Date() };
@@ -124,7 +124,7 @@ export function installCommercial(app, runtime, { fail, guard, id, fields }) {
       if (typed) revision = await bindQuoteRevision(runtime.db, req.filter, revision, input.map(line => line.selector), session);
       const row = { _id: randomUUID(), ...req.filter, accountId, version: 1, status: 'DRAFT', revisions: [{ ...revision, number: 1 }], createdAt: new Date(), updatedAt: new Date(), ...(typed ? { schema: catalogQuoteSchema, ownerLegalEntityId: revision.lines[0].catalogBinding.ownerLegalEntityId } : {}) };
       if (req.body.opportunityId !== undefined) {
-        await guard(runtime, req, session, 'crm.write');
+        await guard(runtime, req, session, 'crm.write'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
         const opportunity = await c('opportunities').findOne({ ...req.filter, _id: id(req.body.opportunityId) }, { session });
         if (!opportunity) fail(404, 'NOT_FOUND');
         if (opportunity.accountId !== accountId) fail(409, 'ACCOUNT_CONFLICT');

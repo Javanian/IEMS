@@ -129,7 +129,7 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
     const session = runtime.client.startSession();
     try {
       const data = await session.withTransaction(async () => {
-        await guard(runtime, req, session, 'fulfillment.deliver');
+        await guard(runtime, req, session, 'fulfillment.deliver'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
         const original = await source(req, session), delivered = await state(req, original, session), current = await returns(req, original, delivered, session);
         const prior = await c('fulfillmentReturnKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session });
         if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
@@ -170,7 +170,7 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
       const session = runtime.client.startSession();
       try {
         data = await session.withTransaction(async () => {
-          await guard(runtime, req, session, 'fulfillment.deliver');
+          await guard(runtime, req, session, 'fulfillment.deliver'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
           const prior = await c('deliveryKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session });
           if (prior) {
             if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');

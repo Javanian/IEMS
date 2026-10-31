@@ -48,12 +48,12 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     const payloadHash = createHash('sha256').update(JSON.stringify(canonical({ kind, id: req.params.id || null, body }))).digest('hex');
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
-      await guard(runtime, req, session, req.repairAction);
+      await guard(runtime, req, session, req.repairAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
       if (req.repairAction.startsWith('repair.spare-')) {
-        await guard(runtime, req, session, 'catalog.stock.read');
+        await guard(runtime, req, session, 'catalog.stock.read'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
         const current = await c('repairCases').findOne({ ...req.filter, _id: id(req.params.id) }, { session });
         if (!current) fail(404, 'NOT_FOUND');
-        if (req.body.sourceKind === 'COMPANY_OUTPUT' || current.spareMaterials?.some(m => m.sourceKind === 'COMPANY_OUTPUT')) await guard(runtime, req, session, req.repairAction === 'repair.spare-authorize' ? 'company.stock.read' : ['repair.spare-reserve','repair.spare-release'].includes(req.repairAction) ? 'company.stock.reserve' : 'company.stock.issue');
+        if (req.body.sourceKind === 'COMPANY_OUTPUT' || current.spareMaterials?.some(m => m.sourceKind === 'COMPANY_OUTPUT')) await guard(runtime, req, session, req.repairAction === 'repair.spare-authorize' ? 'company.stock.read' : ['repair.spare-reserve','repair.spare-release'].includes(req.repairAction) ? 'company.stock.reserve' : 'company.stock.issue'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
       }
       const prior = await c('repairKeys').findOne({ ...req.filter, key }, { session });
       if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); if (req.repairAction.startsWith('repair.spare-')) { const current = await c('repairCases').findOne({ ...req.filter, _id: id(req.params.id) }, { session }); await recheckRepairStockSources(runtime.db, req.filter, current, session); } return prior.result; }

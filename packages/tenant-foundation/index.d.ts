@@ -10,7 +10,8 @@ export class CommandError extends Error { code: string; status: number; construc
 export function canonicalJson(value: unknown): string;
 export function contentHash(value: unknown): string;
 export function boundedTransaction<T>(client: { startSession: (...args: any[]) => any }, effect: (session: { inTransaction(): boolean; [key: string]: any }) => Promise<T>, options?: { attempts?: number; commitAttempts?: number }): Promise<T>;
-export function createCommandExecutor(options: { client: { startSession: (...args: any[]) => any }; db: { collection: (...args: any[]) => any }; foundation: TenantFoundation }): {
+export type CommandAdmission = (descriptor: { scope: VerifiedScope; grant: Grant; session: { inTransaction(): boolean; [key: string]: any }; namespace: string; key: string; action: string; aggregateId: string; payloadHash: string; replayed: boolean }) => Promise<unknown>;
+export function createCommandExecutor(options: { client: { startSession: (...args: any[]) => any }; db: { collection: (...args: any[]) => any }; foundation: TenantFoundation; admission?: CommandAdmission }): {
   initialize(): Promise<void>;
   execute(scope: VerifiedScope, command: FoundationCommand, effect: (context: { session: { inTransaction(): boolean; [key: string]: any }; grant: Grant; aggregateId: UUID; expectedRevision: number; input: unknown }) => Promise<CommandOutput>): Promise<{ data: unknown; revision: number; commandId: UUID; replayed: boolean }>;
   readResource(scope: VerifiedScope, target: Target & { collection: 'files' | 'jobs' | 'exports' | 'readModels'; resourceId: string }): Promise<Record<string, unknown>>;

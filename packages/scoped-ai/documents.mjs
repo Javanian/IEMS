@@ -13,9 +13,9 @@ export function textChunks(text) {
   return Array.from({ length: Math.ceil(normalized.length / 2000) }, (_, i) => normalized.slice(i * 2000, (i + 1) * 2000));
 }
 
-export function createAiDocuments({ client, db, foundation, issuedSource = null }) {
+export function createAiDocuments({ client, db, foundation, saasAdmission, issuedSource = null }) {
   const documents = db.collection('aiDocuments');
-  const commands = createCommandExecutor({ client, db, foundation });
+  const commands = createCommandExecutor({ client, db, admission: saasAdmission?.effect, foundation });
   const target = (scope, plantId, action, session) => foundation.authorizeInTransaction(scope, scopeTarget(scope, plantId, action), { session });
   const filterFor = grant => ({ tenantId: grant.tenantId, plantId: grant.plantId, legalEntityId: grant.legalEntityId });
   const source = Object.freeze({ async readAuthorized({ scope, grant, resourceId, session }) {
@@ -47,7 +47,7 @@ export function createAiDocuments({ client, db, foundation, issuedSource = null 
       if (input.sourceReference) validateApprovedOrderReference(input.sourceReference);
       let chunks = input.sourceReference ? [] : textChunks(input.text), title = input.title.trim();
       const allowedUserIds = [...input.allowedUserIds].sort();
-      const publisher = input.sourceReference ? createCommandExecutor({ client, db, foundation: {
+      const publisher = input.sourceReference ? createCommandExecutor({ client, db, admission: saasAdmission?.effect, foundation: {
         async authorizeInTransaction(s, target, { session }) {
           const grant = await foundation.authorizeInTransaction(s, target, { session });
           if (!issuedSource) fail('AI_ISSUED_SOURCE_UNAVAILABLE', 503);

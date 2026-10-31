@@ -60,7 +60,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
   };
   const tx = async (req, action, effect) => {
     const session = runtime.client.startSession();
-    try { return await session.withTransaction(async () => { await auth(req, action, session); return effect(session); }); }
+    try { return await session.withTransaction(async () => { await auth(req, action, session); await runtime.saasAdmission.unsupported(req.scope, {plantId:req.scope.selectedPlantId,session}); return effect(session); }); }
     finally { await session.endSession(); }
   };
   const audit = async (req, session, action, entityId, result, extra = {}) => {
@@ -218,6 +218,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     try {
       await session.withTransaction(async () => {
         const grant = await auth(req, 'cs.automation.admin', session);
+        await runtime.saasAdmission.unsupported(req.scope,{plantId:req.scope.selectedPlantId,session});
         const plant = await c(runtime, 'plants').findOne({ _id: req.scope.selectedPlantId, tenantId: req.scope.tenantId, active: true }, { session });
         if (!plant || plant.legalEntityId !== grant.legalEntityId) fail(404, 'NOT_FOUND');
         await c(runtime, 'users').insertOne({ _id: userId, active: true, version: 1 }, { session });
@@ -432,7 +433,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     const engineSession = await c(runtime, 'sessions').findOne({ tokenHash: hashText(configured), automationService: true });
     if (!engineSession) fail(503, 'ENGINE_SERVICE_NOT_CONFIGURED');
     const row = { _id: randomUUID(), ...scope(req), workflowId: wf.id, executionId: null, startedAt: new Date(), observedAt: new Date(), state: 'IN_PROGRESS' };
-    await c(runtime, 'automation_engine_runs').insertOne(row);
+    await tx(req, 'cs.automation.execute', session => c(runtime, 'automation_engine_runs').insertOne(row,{session}));
     let response;
     try { response = await fetch(`${url}/webhook/${wf.path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-iems-webhook-token': token }, body: JSON.stringify({ ...req.body, correlationId: row._id }), signal: AbortSignal.timeout(20000), redirect: 'error' }); }
     catch {
@@ -453,7 +454,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     if (!req.automationService) fail(403, 'SERVICE_IDENTITY_REQUIRED');
     const workflowId = text(req.body.workflowId, 100), executionId = text(String(req.body.executionId), 100);
     const row = { _id: randomUUID(), ...scope(req), workflowId, executionId, state: 'FAILED', error: 'N8N_EXECUTION_FAILED', completedAt: new Date(), observedAt: new Date() };
-    await c(runtime, 'automation_engine_runs').insertOne(row);
+    await tx(req, 'cs.automation.execute', session => c(runtime, 'automation_engine_runs').insertOne(row,{session}));
     res.status(201).json({ data: { runId: row._id, workflowId, executionId, state: row.state } });
   });
   app.post('/api/cs/automation/whatsapp-handoff', async (req, res) => { await auth(req, 'cs.automation.execute'); fail(409, 'USE_AUTHORITATIVE_HANDOFF', 'Use the customer service conversation handoff operation; WhatsApp remains preview only'); });

@@ -41,10 +41,10 @@ export async function readSource(source, grant, resourceId, session, scope) {
   return { ...value, hash: contentHash(value) };
 }
 
-export function createScopedIndex({ client, db, foundation, source, vectors, embeddings, clock = () => new Date() }) {
+export function createScopedIndex({ client, db, foundation, saasAdmission, source, vectors, embeddings, clock = () => new Date() }) {
   if (!source?.readAuthorized || !vectors?.upsert || !vectors?.search || !embeddings?.embed ||
       !modelId(embeddings.model) || !positive(embeddings.dimensions) || embeddings.dimensions > 4096) fail('AI_ADAPTER_CONFIGURATION', 500);
-  const commands = createCommandExecutor({ client, db, foundation });
+  const commands = createCommandExecutor({ client, db, admission: saasAdmission?.effect, foundation });
   const indexes = db.collection('aiIndexes');
   const authorize = (scope, plantId, action, session) => foundation.authorizeInTransaction(scope, scopeTarget(scope, plantId, action), { session });
   const validateRequest = input => {
@@ -78,6 +78,7 @@ export function createScopedIndex({ client, db, foundation, source, vectors, emb
       if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0 || typeof input.key !== 'string') fail('AI_INVALID_COMMAND');
       const snapshot = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.index', session);
+        await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
         return { grant, source: await readSource(source, grant, input.resourceId, session, scope) };
       });
       const generation = randomUUID();
@@ -129,6 +130,7 @@ export function createScopedIndex({ client, db, foundation, source, vectors, emb
       if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 1 || typeof input.key !== 'string') fail('AI_INVALID_COMMAND');
       const retired = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.index', session);
+        await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
         const row = await indexes.findOne({ tenantId: grant.tenantId, plantId: grant.plantId, resourceId: input.resourceId }, { session });
         // A newer revision may be our own committed cleanup; receipt lookup below reconciles the same key.
         if (!row || row.revision !== input.expectedRevision) return [];

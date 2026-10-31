@@ -1,3 +1,8 @@
+> Historical handoff below is preserved. The returned PLAT-038 gaps now have a
+> bounded implementation described in packages/tenant-lifecycle/INTEGRATION.md
+> and ops/pilot/PLAT-038-V5-HANDOFF.md. Their final feature SHA/checks are in the
+> current TPR-148 implementation-result ledger. Earlier UNWIRED/done statements
+> below do not describe the current receipt profile or full-endpoint acceptance.
 # TPR-148 pilot, cloud and SaaS implementation handoff
 
 Implementasi lokal selesai dalam supported scope di bawah; IMPLEMENTED_QA_PENDING,

@@ -21,7 +21,7 @@ export function installDocuments(app, runtime, { fail, guard, id }) {
   const tx = async (req, actions, effect) => {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
-      for (const action of actions) await guard(runtime, req, session, action);
+      for (const action of actions) await guard(runtime, req, session, action); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
       const plant = await c('plants').findOne({ _id: req.filter.plantId, tenantId: req.filter.tenantId }, { session });
       const scope = { ...req.filter, legalEntityId: plant.legalEntityId };
       return effect(session, scope);
@@ -130,7 +130,7 @@ export function installDocuments(app, runtime, { fail, guard, id }) {
   const read = async req => tx(req, ['document.read'], async (session, scope) => {
     const intent = await c('documentIntents').findOne({ ...scope, _id: id(req.params.id), state: 'READY' }, { session });
     if (!intent) fail(404, 'NOT_FOUND');
-    await guard(runtime, req, session, kinds[intent.kind][1]);
+    await guard(runtime, req, session, kinds[intent.kind][1]); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
     const stored = await runtime.documents.read(scope, intent.rendererId);
     if (!stored) fail(500, 'ARTIFACT_INTEGRITY');
     return { record: checkedReceipt(intent, stored.record), pdf: stored.pdf };

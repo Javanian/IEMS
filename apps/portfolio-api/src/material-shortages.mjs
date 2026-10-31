@@ -115,7 +115,7 @@ export async function claimShortage(db, filter, input, actor, session) {
 export function installMaterialShortages(app, runtime, { guard, fields, id }) {
   const db = runtime.db, root = '/api/procurement/material-shortages';
   const authorize = async (req, session, read = false) => {
-    for (const action of read ? ['procurement.read', 'manufacturing.read', 'catalog.stock.read'] : ['procurement.write', 'manufacturing.plan', 'catalog.stock.read', 'catalog.write']) await guard(runtime, req, session, action);
+    for (const action of read ? ['procurement.read', 'manufacturing.read', 'catalog.stock.read'] : ['procurement.write', 'manufacturing.plan', 'catalog.stock.read', 'catalog.write']) await guard(runtime, req, session, action); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
   };
   const command = async (req, operation, effect) => {
     const key = keyOf(req.body.idempotencyKey), reason = reasonOf(req.body.reason), payloadHash = hash({ operation, resource: req.params.sourceId || null, body: { ...req.body, reason } });

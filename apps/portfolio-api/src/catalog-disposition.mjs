@@ -84,7 +84,7 @@ export function installCatalogDisposition(app, runtime, { guard, fields, id }) {
     for (let attempt = 0; ; attempt++) {
       const session = runtime.client.startSession();
       try { return await session.withTransaction(async () => {
-        await guard(runtime, req, session, req.dispositionAction);
+        await guard(runtime, req, session, req.dispositionAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
         const prior = await c('catalogDispositionKeys').findOne({ ...req.filter, key }, { session }); if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
         const current = await context(req, session);
         if ((current.head?.version || 1) !== body.expectedVersion || current.receipt.version !== body.expectedReceiptVersion) fail(409, 'VERSION_CONFLICT');

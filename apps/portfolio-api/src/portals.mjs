@@ -163,7 +163,7 @@ export function installPortals(app, runtime) {
 
 export function createVendorResponseService(runtime) {
   return Object.freeze({
-    async initialize() { await createCommandExecutor(runtime).initialize(); },
+    async initialize() { await createCommandExecutor({ ...runtime, admission: runtime.saasAdmission?.effect }).initialize(); },
     async respond(scope, input) {
       const keys = ['plantId', 'vendorId', 'orderId', 'responseId', 'cohort', 'documentRevision', 'sourceHash', 'decision', 'promises', 'commandKey'];
       if (!input || Object.getPrototypeOf(input) !== Object.prototype || Object.keys(input).some(key => !keys.includes(key))) fail(400, 'INVALID_VENDOR_RESPONSE');
@@ -179,7 +179,7 @@ export function createVendorResponseService(runtime) {
       promises = structuredClone(promises);
       let source;
       // This authorization hook runs before the executor's receipt lookup, including replay.
-      const commands = createCommandExecutor({ ...runtime, foundation: {
+      const commands = createCommandExecutor({ ...runtime, admission: runtime.saasAdmission?.effect, foundation: {
         async authorizeInTransaction(receivedScope, target, { session }) {
           const actor = await authorizePortalParty(runtime, receivedScope, {
             plantId, partyId: vendorId, kind: 'VENDOR', action: 'portal.vendor.respond',
@@ -213,7 +213,7 @@ export function createVendorResponseService(runtime) {
 }
 
 export function createPortalAccessService(runtime) {
-  const commands = createCommandExecutor(runtime);
+  const commands = createCommandExecutor({ ...runtime, admission: runtime.saasAdmission?.effect });
   return Object.freeze({
     async initialize() {
       await commands.initialize();

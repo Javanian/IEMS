@@ -30,7 +30,9 @@ export function scopedModule(app, runtime, root, prefix, helpers) {
     try { return await session.withTransaction(async () => {
       await guard(runtime, req, session, req.domainAction);
       const prior = await db.collection(`${prefix}Keys`).findOne({ ...scope(req), key }, { session });
-      if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+      if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+      await runtime.saasAdmission.effect({ scope: req.scope, session, namespace: `${prefix}Keys`, key, action: req.domainAction, aggregateId: req.params.id, payloadHash, replayed: Boolean(prior) });
+      if (prior) return prior.result;
       const result = await effect(session), event = { ...scope(req), kind: req.domainAction, resourceId: result.resourceId, subjectId: result._id, subjectVersion: result.version, recordedBy: req.scope.userId, recordedAt: businessNow(runtime) };
       await db.collection(`${prefix}Audit`).insertOne({ _id: randomUUID(), ...event }, { session });
       await db.collection(`${prefix}Outbox`).insertOne({ _id: randomUUID(), ...event, state: 'PENDING' }, { session });

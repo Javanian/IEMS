@@ -169,7 +169,7 @@ export function installCatalogProcurement(app, runtime, { guard, fields, id }) {
     for (let attempt = 0; ; attempt++) {
       const session = runtime.client.startSession();
       try { return await session.withTransaction(async () => {
-        await guard(runtime, req, session, req.catalogAction);
+        await guard(runtime, req, session, req.catalogAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
         const prior = await c('catalogKeys').findOne({ ...req.filter, key }, { session });
         if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
         const result = await effect(session, reason.trim(), await owner(req, session));

@@ -18,7 +18,7 @@ const referenceOf = source => ({ cohort: source.cohort, vendorId: source.vendorI
 const sourceInput = reference => Object.fromEntries(Object.entries(reference).filter(([k]) => k !== 'sourceHash'));
 const same = (a, b) => contentHash(a) === contentHash(b);
 
-export function createVendorDrafts({ client, db, foundation, authority, transport = null, clock = () => new Date(), timeoutMs = 3000 }) {
+export function createVendorDrafts({ client, db, foundation, saasAdmission, authority, transport = null, clock = () => new Date(), timeoutMs = 3000 }) {
   if (!authority?.source || !authority?.recipient || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5000 ||
       transport !== null && (transport.mode !== 'LOCAL_SIMULATED' || !transport.send || !transport.reconcile || !transport.id)) fail('AI_ADAPTER_CONFIGURATION', 500);
   const drafts = db.collection('aiVendorDrafts'), revisions = db.collection('aiVendorDraftRevisions'), approvals = db.collection('aiVendorApprovals');
@@ -43,7 +43,7 @@ export function createVendorDrafts({ client, db, foundation, authority, transpor
     return recipient;
   };
   const command = async (scope, input, action, effect) => {
-    const commands = createCommandExecutor({ client, db, foundation: {
+    const commands = createCommandExecutor({ client, db, admission: saasAdmission?.effect, foundation: {
       async authorizeInTransaction(s, target, { session }) {
         const grant = await foundation.authorizeInTransaction(s, target, { session });
         // Replay always checks present source access, even though it never repeats effects.
@@ -75,7 +75,7 @@ export function createVendorDrafts({ client, db, foundation, authority, transpor
   const base = ['plantId', 'draftId', 'expectedRevision', 'key'];
   return Object.freeze({
     async initialize() {
-      await createCommandExecutor({ client, db, foundation }).initialize();
+      await createCommandExecutor({ client, db, admission: saasAdmission?.effect, foundation }).initialize();
       await revisions.createIndex({ tenantId: 1, plantId: 1, draftId: 1, revision: 1 }, { unique: true });
       await approvals.createIndex({ tenantId: 1, plantId: 1, draftId: 1, actionId: 1 }, { unique: true });
       await attempts.createIndex({ tenantId: 1, plantId: 1, draftId: 1, deliveryKey: 1 }, { unique: true });
@@ -167,6 +167,7 @@ export function createVendorDrafts({ client, db, foundation, authority, transpor
       const owner = randomUUID();
       const claimed = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.vendor.deliver', session);
+        await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
         const row = await find(grant, input.draftId, session);
         if (row.state !== 'PENDING' || row.revoked || row.attemptId !== input.attemptId) fail('AI_VENDOR_RECONCILE_REQUIRED', 409);
         await checkSource(scope, grant, row.source, session); await checkRecipient(grant, row, session);
@@ -192,6 +193,7 @@ export function createVendorDrafts({ client, db, foundation, authority, transpor
       if (!uuid(input.attemptId) || !transport) fail('AI_LIVE_DELIVERY_DISABLED', 409);
       const attempt = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.vendor.reconcile', session);
+        await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
         const row = await find(grant, input.draftId, session);
         if (row.attemptId !== input.attemptId) fail('AI_VENDOR_RECONCILE_REQUIRED', 409);
         await checkSource(scope, grant, row.source, session, false);
@@ -216,6 +218,7 @@ export function createVendorDrafts({ client, db, foundation, authority, transpor
     const state = matched && ['CONFIRMED', 'ACCEPTED', 'NOT_PERFORMED'].includes(receipt.state) ? receipt.state : 'UNKNOWN';
     return boundedTransaction(client, async session => {
       const grant = await authorize(scope, input.plantId, 'ai.vendor.reconcile', session);
+      await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
       const row = await find(grant, input.draftId, session);
       const predicate = { ...filter(grant, input.attemptId), draftId: input.draftId, owner };
       const current = await attempts.findOne(predicate, { session });

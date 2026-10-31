@@ -80,6 +80,11 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await initializePurchasedFulfillment(db);
   await db.collection('credentials').createIndex({ username: 1 }, { unique: true });
   runtime.foundation = foundation;
+  const { verifyAdmissionSources } = await import('../../../packages/tenant-lifecycle/admission-registry.mjs');
+  await verifyAdmissionSources();
+  const { createMongoTenantDataPort } = await import('../../../packages/tenant-lifecycle/domain-port.mjs');
+  const { createSaasAdmission, admissionProfile } = await import('../../../packages/tenant-lifecycle/admission.mjs');
+  runtime.saasAdmission = createSaasAdmission({ ...runtime, coverage: integrations.tenantLifecycle?.admissionCoverage ?? admissionProfile });
   runtime.commands = await initializeFoundationRuntime(runtime);
   await initializeReportingSnapshots(db);
   runtime.platform = await initializePlatformRuntime(runtime, { ...integrations.platform, roleActions });
@@ -95,11 +100,12 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await runtime.rag.initialize();
   runtime.assistants = createAssistantRuntime(runtime);
   runtime.intent = createIntentRuntime(runtime, integrations.intent);
-  runtime.vendorDrafts = createVendorDraftRuntime(runtime, integrations.vendorDrafts);
+  runtime.vendorDrafts = createVendorDraftRuntime(runtime, { ...integrations.vendorDrafts, saasAdmission: runtime.saasAdmission });
   await runtime.vendorDrafts.initialize();
-  runtime.predictions = createPredictionRuntime(runtime, integrations.predictions);
+  runtime.predictions = createPredictionRuntime(runtime, { ...integrations.predictions, saasAdmission: runtime.saasAdmission });
   await runtime.predictions.initialize();
-  runtime.tenantLifecycle = createTenantLifecycleRuntime(runtime, integrations.tenantLifecycle);
+  runtime.tenantLifecycle = createTenantLifecycleRuntime(runtime, { ...integrations.tenantLifecycle,
+    domainPort: createMongoTenantDataPort(runtime), enrollmentGuard: runtime.saasAdmission.enrollmentGuard });
   await runtime.tenantLifecycle.initialize();
   return runtime;
 }
@@ -215,6 +221,7 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   installVendorDrafts(app, runtime.vendorDrafts);
   installPredictions(app, runtime.predictions);
   installTenantLifecycle(app, runtime.tenantLifecycle);
+  runtime.saasAdmission.validateHost(app);
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } }));
   app.use((error, req, res, next) => {
     const status = error.status || (error.code === 'SCOPE_DENIED' ? 403 : 500);
@@ -251,6 +258,7 @@ async function guard(runtime, req, session, action = 'crm.write') {
       if (!entity || (!m.tenantWide && !m.legalEntityIds.includes(entity._id))) fail(403, 'SCOPE_DENIED');
     }
   }
+  await runtime.saasAdmission.authorize(s, { plantId:s.selectedPlantId, session, action });
 }
 function installCrm(app, runtime) {
   app.use('/api/crm', async (req, res, next) => {
@@ -271,6 +279,7 @@ function installCrm(app, runtime) {
     try {
       return await session.withTransaction(async () => {
         await guard(runtime, req, session);
+        await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
         const result = await effect(session);
         const event = { ...req.filter, userId: req.scope.userId, kind, subjectId: result._id, version: result.version, occurredAt: businessNow(runtime) };
         await c(runtime, 'crmAudit').insertOne({ _id: randomUUID(), ...event }, { session });

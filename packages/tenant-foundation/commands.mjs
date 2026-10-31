@@ -46,7 +46,8 @@ export async function boundedTransaction(client, effect, { attempts = 3, commitA
   } finally { await session.endSession(); }
 }
 
-export function createCommandExecutor({ client, db, foundation }) {
+export function createCommandExecutor({ client, db, foundation, admission }) {
+  if (admission !== undefined && typeof admission !== 'function') throw new TypeError('admission must be a function');
   const results = db.collection('foundationCommandResults');
   return Object.freeze({
     async initialize() {
@@ -63,10 +64,14 @@ export function createCommandExecutor({ client, db, foundation }) {
         const grant = await foundation.authorizeInTransaction(scope, { tenantId, plantId, action }, { session });
         const filter = { tenantId: grant.tenantId, plantId: grant.plantId, userId: grant.userId, action, key };
         const previous = await results.findOne(filter, { session });
+        if (previous && previous.inputHash !== digest) throw new CommandError('IDEMPOTENCY_CONFLICT', 409);
+        if (!admission && await db.collection('saasSubscriptions').findOne({ tenantId: grant.tenantId }, { session })) throw new CommandError('SAAS_ADMISSION_PORT_REQUIRED', 503);
         if (previous) {
           if (previous.inputHash !== digest) throw new CommandError('IDEMPOTENCY_CONFLICT', 409);
+          await admission?.({ scope, grant, session, namespace: 'foundationCommandResults', key, action, aggregateId, payloadHash: digest, replayed: true });
           return { ...previous.response, replayed: true };
         }
+        await admission?.({ scope, grant, session, namespace: 'foundationCommandResults', key, action, aggregateId, payloadHash: digest, replayed: false });
         // The registered handler performs revision/CAS checks and only database writes using this session.
         const output = await effect({ session, grant, aggregateId, expectedRevision, input });
         if (!output || output.revision !== expectedRevision + 1 || !Array.isArray(output.events) || output.events.length > 100) throw new CommandError('INVALID_COMMAND_RESULT', 500);

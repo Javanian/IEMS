@@ -56,7 +56,7 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
   const tx = async (req, kind, effect) => {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
-      await guard(runtime, req, session, req.procurementAction);
+      await guard(runtime, req, session, req.procurementAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
       const result = await effect(session);
       if (!result.replay) {
         const event = { ...req.filter, kind, subjectId: result._id, version: result.version, userId: req.scope.userId, occurredAt: new Date() };
@@ -100,7 +100,7 @@ export function installProcurement(app, runtime, { fail, guard, id, fields }) {
   app.get('/api/procurement/orders/:id/document-revisions/:revision', async (req, res) => {
     const session = runtime.client.startSession();
     try { res.json({ data: await session.withTransaction(async () => {
-      await guard(runtime, req, session, 'procurement.read');
+      await guard(runtime, req, session, 'procurement.read'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
       const row = await find('purchaseOrders', req, req.params.id, session);
       return readApprovedOrderRevision(runtime.db, req.filter, 'LEGACY', row, Number(req.params.revision), session);
     }) }); } finally { await session.endSession(); }

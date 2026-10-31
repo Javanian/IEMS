@@ -50,6 +50,7 @@ export function installWorkforce(app, runtime, helpers, { pepper, devices = {}, 
     const inputHash = digest(contentHash({ path: req.path, body: b }));
     return boundedTransaction(runtime.client, async session => {
       await authorize(req, session); await subject(runtime, req.filter, operatorId, session);
+      await runtime.saasAdmission.unsupported(req.scope, {plantId:req.scope.selectedPlantId,session});
       await beforeReplay(session, operatorId);
       const key = { ...req.filter, actorId: req.scope.userId, key: b.idempotencyKey };
       const previous = await db.collection('workforceResults').findOne(key, { session });

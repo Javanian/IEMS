@@ -102,7 +102,7 @@ export function parseInboundText(raw) {
   return { op: 'UNKNOWN_COMMAND' };
 }
 
-export function createCustomerService({ client, db, foundation, now = () => new Date(), draftTtlMs = 24 * HOUR, ackTtlMs = 24 * HOUR, botReplyTtlMs = 15 * 60000, maxSendAttempts = 3, orderReader, orderReaderTimeoutMs = 2000, orderMaxStaleMs = 60000, allowSyntheticOrders = false, previewDispatcher = false, faultInjector = async () => {}, partyDirectory = null, firstResponseSlaMinutes = 240 }) {
+export function createCustomerService({ client, db, foundation, saasAdmission, now = () => new Date(), draftTtlMs = 24 * HOUR, ackTtlMs = 24 * HOUR, botReplyTtlMs = 15 * 60000, maxSendAttempts = 3, orderReader, orderReaderTimeoutMs = 2000, orderMaxStaleMs = 60000, allowSyntheticOrders = false, previewDispatcher = false, faultInjector = async () => {}, partyDirectory = null, firstResponseSlaMinutes = 240 }) {
   if (!client || !db || !foundation) throw new TypeError('client, db and foundation are required');
   const c = name => db.collection(name);
   const principals = new WeakMap();
@@ -125,6 +125,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
     c('cs_audit').insertOne({ _id: randomUUID(), tenantId, action, subjectId, actor, at: now() }, { session });
 
   async function idempotent(session, { tenantId, scope, owner, key: k, request, conflictCode = 'IDEMPOTENCY_CONFLICT' }, compute) {
+    await saasAdmission?.unsupportedTenant({tenantId,session});
     const hash = requestHash(request);
     const found = await c('cs_idempotency').findOne({ tenantId, scope, owner, key: k }, { session });
     if (found) return found.requestHash === hash ? found.result : fail(conflictCode);
@@ -140,6 +141,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
   async function operatorTx(scope, plantId, action, fn) {
     return tx(async session => {
       const grant = await operator(scope, plantId, action);
+      if(!['cs.ticket.read','cs.binding.read'].includes(action)) await saasAdmission?.unsupported(scope,{plantId,session});
       return fn(session, grant);
     });
   }
@@ -156,6 +158,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
     if (!ref) fail('DENIED');
     const binding = await c('cs_contact_bindings').findOne({ _id: ref.bindingId, tenantId: ref.tenantId, status: 'ACTIVE', version: ref.bindingVersion, ...unexpired() }, { session });
     if (!binding) fail('DENIED');
+    if(session) await saasAdmission?.unsupportedTenant({tenantId:binding.tenantId,session});
     if (session) {
       await faultInjector('bindingSnapshot');
       const fenced = await c('cs_contact_bindings').updateOne({ _id: binding._id, tenantId: binding.tenantId, status: 'ACTIVE', version: binding.version }, { $inc: { commandFence: 1 } }, { session });
@@ -856,6 +859,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
       if (previewDispatcher && channelAccountId !== SIMULATED_CHANNEL_ACCOUNT) fail('DENIED');
       if (deliveryIds !== undefined && (!Array.isArray(deliveryIds) || deliveryIds.length > 100 || !deliveryIds.every(x => typeof x === 'string' && UUID_RE.test(x)))) fail('INVALID_INPUT');
       return tx(async session => {
+        await saasAdmission?.unsupportedTenant({tenantId,session});
         const at = now();
         const candidates = await c('cs_outbox').find({ tenantId, channelAccountId, state: 'QUEUED', nextAttemptAt: { $lte: at }, ...(deliveryIds === undefined ? {} : { _id: { $in: deliveryIds } }) }, { session }).sort({ seq: 1 }).limit(20).toArray();
         const blocked = new Set();
@@ -892,6 +896,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
       if (previewDispatcher && outcome === 'SENT') fail('DENIED');
       if (outcome === 'SENT') key(providerMessageId);
       return tx(async session => {
+        await saasAdmission?.unsupportedTenant({tenantId,session});
         const d = await c('cs_outbox').findOne({ _id: deliveryId, tenantId }, { session });
         if (!d) fail('NOT_FOUND');
         if (previewDispatcher && d.channelAccountId !== SIMULATED_CHANNEL_ACCOUNT) fail('DENIED');
@@ -915,6 +920,7 @@ export function createCustomerService({ client, db, foundation, now = () => new 
     async reconcileExpiredSending({ tenantId }) {
       uuid(tenantId);
       return tx(async session => {
+        await saasAdmission?.unsupportedTenant({tenantId,session});
         const at = now();
         const rows = await c('cs_outbox').find({ tenantId, state: 'SENDING', leaseUntil: { $lte: at } }, { session, projection: { _id: 1 } }).toArray();
         if (rows.length) await c('cs_outbox').updateMany({ _id: { $in: rows.map(r => r._id) }, state: 'SENDING' }, { $set: { state: 'UNKNOWN', lastError: 'LEASE_EXPIRED', leaseOwner: null, leaseUntil: null, updatedAt: at }, $push: { history: { state: 'UNKNOWN', reason: 'LEASE_EXPIRED', at } } }, { session });
