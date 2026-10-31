@@ -44,5 +44,5 @@ test('v12 real automation local receipts and read-only SLA',{timeout:180000},asy
   await db.collection('sessions').updateOne({_id:service.data.sessionId},{$set:{revoked:true}});assert.equal((await call('/digest/dispatch',body,k,cookie)).status,401);assert.equal(await usage(),String(BigInt(before)+1n));
  });
  assert.equal(await db.collection('automation_tasks').countDocuments({tenantId:a.tenantId,ticketId:escalation.ticketId,state:'COMPLETED'}),1);assert.equal(transportCalls,0);
- await t.test('separate worker and human approval remain explicitly unsupported enrolled',async()=>{assert.equal((await call('/reconcile',{})).status,403);assert.equal((await call(`/resolution-drafts/${legacyDraft.data.draftId}/approve`,{expectedVersion:2})).status,403);assert.equal(transportCalls,0);});
+ await t.test('separate worker and human approval remain explicitly unsupported enrolled',async()=>{assert.equal((await call('/reconcile',{})).status,403);assert.equal((await call(`/resolution-drafts/${legacyDraft.data.draftId}/approve`,{expectedVersion:2})).status,409);assert.equal(transportCalls,0);});
 });

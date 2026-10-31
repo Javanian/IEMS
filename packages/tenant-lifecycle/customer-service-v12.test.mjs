@@ -50,9 +50,9 @@ test('v12 real CS private principal and receipt admission smoke',{timeout:120000
   }
   if(!['inbound.command','complaint.confirm','conversation.handoff_request','ticket.customer_comment'].includes(namespace)){await db.collection('memberships').updateOne({_id:a.membershipId},{$set:{roles:roles.filter(r=>r.role!=='owner')}});try{await assert.rejects(invoke());}finally{await db.collection('memberships').updateOne({_id:a.membershipId},{$set:{roles}});}}
  });
- await t.test('private reads exclude notes; nonreceipted writes stay unsupported; committed lost acknowledgement reconciles',async()=>{
+ await t.test('private reads exclude notes; new root receipt and committed lost acknowledgement reconcile',async()=>{
   const view=await cs.getTicketForCustomer(principal,{ticketNumber:first.ticketNumber});assert.ok(!JSON.stringify(view).includes('PRIVATE_INTERNAL_V12_SENTINEL'));
-  const before=(await sub()).usage.apiCalls;await assert.rejects(cs.startComplaintDraft(principal,{requestKey:randomUUID()}));assert.equal((await sub()).usage.apiCalls,before);
+  const root=await cs.startComplaintDraft(principal,{requestKey:randomUUID()});assert.ok(root.draftId);const before=(await sub()).usage.apiCalls;
   const cmd={inboundKey:randomUUID(),text:'MENU',command:{op:'MENU'}};loseAck=true;await assert.rejects(cs.handleInboundCommand(principal,cmd),/Owned lost commit acknowledgement/);assert.equal((await sub()).usage.apiCalls,String(BigInt(before)+1n));await cs.handleInboundCommand(principal,cmd);assert.equal((await sub()).usage.apiCalls,String(BigInt(before)+1n));
  });
 

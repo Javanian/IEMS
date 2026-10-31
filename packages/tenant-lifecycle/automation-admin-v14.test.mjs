@@ -21,6 +21,6 @@ test('v14 BC human admin receipts and one-time credential recovery',{timeout:150
   assert.equal((await db.collection('sessions').findOne({_id:issued.sessionId})).revoked,true);const next=await call('/service-credentials',{label:'Owned replacement',ttlMinutes:10});assert.equal(next.status,201);assert.notEqual(next.data.sessionId,issued.sessionId);assert.equal(typeof next.data.token,'string');
   for(const{name}of await db.listCollections({},{nameOnly:true}).toArray()){const data=JSON.stringify(await db.collection(name).find({}).toArray());assert.ok(!data.includes(issuedToken),'secret absence '+name);assert.ok(!data.includes(next.data.token),'replacement secret absence '+name);}
   const state=await sub(),archive=await h.ok('/saas/export',{key:randomUUID(),expectedRevision:state.revision,reason:'Owned secret absence archive'});const snapshot=await h.ok('/saas/download',{archiveId:archive.data.archiveId});assert.ok(!JSON.stringify(snapshot).includes(issuedToken));assert.ok(!JSON.stringify(snapshot).includes(next.data.token));
-  assert.equal((await call('/service-credentials',{label:'Bad expiry',ttlMinutes:1441})).status,400);
+  assert.equal((await call('/service-credentials',{label:'Bad expiry',ttlMinutes:1441})).status,400);assert.equal((await call('/service-credentials',{label:'Zero expiry',ttlMinutes:0})).status,400);
  });
 });

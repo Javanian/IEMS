@@ -12,7 +12,9 @@ test('v14 A four immutable CS roots actual private authority',{timeout:120000},a
   const result=await invoke(),charged=(await sub()).usage.apiCalls;assert.equal(charged,String(BigInt(original.usage.apiCalls)+1n));
   if(result.deliveryId)await db.collection('cs_outbox').updateOne({_id:result.deliveryId},{$set:{state:'PREVIEWED'}});
   if(name==='complaint.start')await cs.updateComplaintDraft(principal,{draftId:result.draftId,expectedVersion:result.version,action:{type:'GENERAL_INQUIRY'},commandKey:randomUUID()});
-  const usage=(await sub()).usage.apiCalls;assert.deepEqual(await invoke(),result);assert.equal((await sub()).usage.apiCalls,usage);
+  const usage=(await sub()).usage.apiCalls;
+  if(result.deliveryId){const row=await db.collection('cs_outbox').findOne({_id:result.deliveryId});await db.collection('cs_outbox').deleteOne({_id:row._id});try{await assert.rejects(invoke());}finally{await db.collection('cs_outbox').insertOne(row);}assert.equal((await sub()).usage.apiCalls,usage);}
+assert.deepEqual(await invoke(),result);assert.equal((await sub()).usage.apiCalls,usage);
   const receipt=await db.collection('cs_idempotency').findOne({scope:name,key:k});await db.collection('cs_idempotency').updateOne({_id:receipt._id},{$set:{requestHash:'f'.repeat(64)}});try{await assert.rejects(invoke(),{code:'IDEMPOTENCY_CONFLICT'});}finally{await db.collection('cs_idempotency').replaceOne({_id:receipt._id},receipt);}
   const binding=await db.collection('cs_contact_bindings').findOne({_id:bindingId});await db.collection('cs_contact_bindings').updateOne({_id:bindingId},{$set:{status:'REVOKED'}});try{await assert.rejects(invoke());}finally{await db.collection('cs_contact_bindings').replaceOne({_id:bindingId},binding);}assert.equal((await sub()).usage.apiCalls,usage);
  });

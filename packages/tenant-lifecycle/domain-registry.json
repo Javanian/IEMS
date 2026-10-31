@@ -327,7 +327,7 @@
       ]
     },
     "apps/portfolio-api/src/automation.mjs": {
-      "sha256": "0892457b521faf4315885500e76fcfa6df05034c81cc6e08275dfb1bea0e89ec",
+      "sha256": "1aa28d03ce78a484427193b75cb5a18de7053bfa9667513607317c1e876097d1",
       "fields": [
         "ABANDON",
         "ACCEPTED_LOCAL",
@@ -11897,7 +11897,7 @@
       ]
     },
     "packages/customer-service/index.mjs": {
-      "sha256": "f792d66232af2f26e30defbd782f6e6948ccbe447556625816ce5721a6703356",
+      "sha256": "29df7033874ffe7d932a1f2f929f796b645b9e5acba9122cf57abf5fd6cd28f6",
       "fields": [
         "ABANDON",
         "ACCEPTED",
@@ -11918,6 +11918,7 @@
         "CANCELLED",
         "CATEGORY",
         "CLOSED",
+        "COMMAND_KEY_REQUIRED",
         "COMPLAINT",
         "CONFIRM",
         "CONFIRMED",

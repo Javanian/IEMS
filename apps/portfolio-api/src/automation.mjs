@@ -342,7 +342,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
 
   app.post('/api/cs/automation/service-credentials', async (req, res) => {
     await human(req, 'cs.automation.admin'); fields(req.body, ['label', 'ttlMinutes']);
-    const label = text(req.body.label || 'n8n local orchestrator', 80), ttlMinutes = Number(req.body.ttlMinutes || 60);
+    const label = text(req.body.label || 'n8n local orchestrator', 80), ttlMinutes = Number(req.body.ttlMinutes ?? 60);
     if (!Number.isSafeInteger(ttlMinutes) || ttlMinutes < 1 || ttlMinutes > 1440) fail(400, 'INVALID_EXPIRY');
     let secret;
     const out=await adminOperation(req,'SERVICE_CREDENTIAL_ISSUE','service-credential:create',{label,ttlMinutes},async session=>{

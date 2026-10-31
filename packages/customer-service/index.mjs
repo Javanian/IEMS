@@ -24,7 +24,7 @@ const TICKET_TRANSITIONS = Object.freeze({
 });
 const DRAFT_BACK = Object.freeze({ CATEGORY: 'ORDER_SELECTION', DESCRIPTION: 'CATEGORY', PREVIEW: 'DESCRIPTION' });
 const OPEN_DRAFT = ['ORDER_SELECTION', 'CATEGORY', 'DESCRIPTION', 'PREVIEW'];
-const STATUS = { DENIED: 403, NOT_FOUND: 404, INVALID_INPUT: 400, INVALID_TRANSITION: 409, VERSION_CONFLICT: 409, IDEMPOTENCY_CONFLICT: 409, DRAFT_EXPIRED: 410, STALE_FENCE: 409, STATUS_UNAVAILABLE: 503, VALIDATION: 400, BINDING_REVOKED: 409, BINDING_CONFLICT: 409, IDEMPOTENCY_KEY_REUSED: 409, HISTORICAL_RESULT_RECEIPT_REQUIRED:409, SYNTHETIC_ADDRESS_REQUIRED: 422 };
+const STATUS = { DENIED: 403, NOT_FOUND: 404, INVALID_INPUT: 400, INVALID_TRANSITION: 409, VERSION_CONFLICT: 409, IDEMPOTENCY_CONFLICT: 409, DRAFT_EXPIRED: 410, STALE_FENCE: 409, STATUS_UNAVAILABLE: 503, VALIDATION: 400, BINDING_REVOKED: 409, BINDING_CONFLICT: 409, IDEMPOTENCY_KEY_REUSED: 409, HISTORICAL_RESULT_RECEIPT_REQUIRED:409, COMMAND_KEY_REQUIRED:400, SYNTHETIC_ADDRESS_REQUIRED: 422 };
 export const BINDING_CHANNELS = Object.freeze(['SIMULATED']);
 export const SIMULATED_CHANNEL_ACCOUNT = 'SIMULATED';
 export const SYNTHETIC_ADDRESS = /^\+62000\d{6,9}$/;
@@ -156,7 +156,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
 
   async function immutableRoot(session,descriptor,compute,historical) {
     if(descriptor.principal&&transactionContext.getStore()?.admission)return compute();
-    if(descriptor.key===undefined){await unreceiptedCustomer(session,await loadCustomerContext(descriptor.principal,session));return compute();}
+    if(descriptor.key===undefined){if(await c('saasSubscriptions').findOne({tenantId:descriptor.tenantId},{session}))fail('COMMAND_KEY_REQUIRED');await unreceiptedCustomer(session,await loadCustomerContext(descriptor.principal,session));return compute();}
     key(descriptor.key);
     const prior=await c('cs_idempotency').findOne({tenantId:descriptor.tenantId,scope:descriptor.scope,owner:descriptor.owner,key:descriptor.key},{session});
     if(!prior&&historical){const result=await historical();if(result){if(await c('saasSubscriptions').findOne({tenantId:descriptor.tenantId},{session}))fail('HISTORICAL_RESULT_RECEIPT_REQUIRED');if(!descriptor.principal)await recheckReceiptSources(session,transactionContext.getStore(),descriptor.scope,descriptor.request,result);return result;}}
@@ -230,11 +230,12 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     if(['complaint.start','complaint.update'].includes(namespace)) {
       if(!binding)fail('DENIED');const draftId=namespace==='complaint.update'?request.draftId:result?.draftId;
       if(draftId){const draft=await loadOwnDraft(session,binding,draftId);if(draft.orderNumber)await ownSnapshot(session,binding,draft.orderNumber);}
+      if(namespace==='complaint.update'&&request.action?.type==='SELECT_ORDER')await ownSnapshot(session,binding,request.action.orderNumber);
     }
     if(namespace==='conversation.bot_reply') {
       if(!binding)fail('DENIED');const conv=await c('cs_conversations').findOne({...scoped,bindingId:binding._id},{session});
       if(result&&(!conv||(result.state==='SUPPRESSED'?conv.mode!==result.mode:conv.mode!=='BOT_ACTIVE')))fail('DENIED');
-      if(result?.deliveryId){const d=await c('cs_outbox').findOne({...scoped,_id:result.deliveryId,bindingId:binding._id,conversationId:conv._id},{session});if(!d||d.payloadHash!==requestHash(request))fail('DENIED');}
+      if(result?.deliveryId){const d=await c('cs_outbox').findOne({...scoped,_id:result.deliveryId,bindingId:binding._id,conversationId:conv._id},{session});if(!d||d.bindingVersion!==binding.version||d.payloadHash!==requestHash(request))fail('DENIED');}
     }
     if(namespace==='complaint.confirm') {if(!binding)fail('DENIED');const draft=await loadOwnDraft(session,binding,request.draftId);if(draft.orderNumber)await ownSnapshot(session,binding,draft.orderNumber);}
     if(namespace==='inbound.command') {
@@ -249,7 +250,8 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
       const conv=await c('cs_conversations').findOneAndUpdate({...scoped,_id:request.conversationId},{$inc:{admissionSourceFence:1}},{session,returnDocument:'after'});if(!conv)fail('NOT_FOUND');
       if(namespace==='conversation.operator_reply'&&(conv.mode!=='HUMAN_ACTIVE'||conv.assigneeId!==g.userId))fail('DENIED');
       if(namespace==='conversation.mode'&&conv.assigneeId&&conv.assigneeId!==g.userId)fail('DENIED');
-      if(!await c('cs_contact_bindings').findOne({...scoped,_id:conv.bindingId,customerId:conv.customerId,status:'ACTIVE',...unexpired()},{session}))fail('DENIED');
+      const source=await c('cs_contact_bindings').findOneAndUpdate({...scoped,_id:conv.bindingId,customerId:conv.customerId,status:'ACTIVE',...unexpired()},{$inc:{commandFence:1}},{session,returnDocument:'after'});if(!source)fail('DENIED');
+      if(namespace==='conversation.operator_reply'&&result?.deliveryId){const delivery=await c('cs_outbox').findOne({...scoped,_id:result.deliveryId,conversationId:conv._id,bindingId:source._id,bindingVersion:source.version,actorUserId:g.userId},{session});if(!delivery||delivery.payloadHash!==requestHash({template:'operator_text',text:request.text}))fail('DENIED');}
     }
     if(namespace==='binding.create') {
       if(!await partyDirectory?.verifyCustomerContact({...scoped,accountId:request.accountId,contactId:request.contactId},{session}))fail('NOT_FOUND');
@@ -271,6 +273,9 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     if(ids&&rows.length!==ids.length)fail('NOT_FOUND');
     if(rows.length>25)fail('INVALID_INPUT');
     for(const d of rows){
+      if(!d.payload||d.payload.templateVersion!==1||typeof d.actionKey!=='string'||d.providerMessageId)fail('DENIED');
+      const sourcePayload=d.actionKey.startsWith('inbound:')?d.payload:Object.fromEntries(Object.entries(d.payload).filter(([k])=>k!=='templateVersion'));
+      if(d.payloadHash!==requestHash(sourcePayload))fail('DENIED');
       if(!['QUEUED','PREVIEWED'].includes(d.state)||d.leaseOwner||d.leaseUntil||d.expiresAt<=at||d.nextAttemptAt>at)fail('DENIED');
       if(await c('cs_outbox').findOne({tenantId:g.tenantId,conversationId:d.conversationId,state:{$in:['SENDING','UNKNOWN']}},{session}))fail('DENIED');
       const b=await c('cs_contact_bindings').findOneAndUpdate({_id:d.bindingId,tenantId:g.tenantId,plantId:g.plantId,channel: 'SIMULATED',channelAccountId:SIMULATED_CHANNEL_ACCOUNT,status:'ACTIVE',version:d.bindingVersion,...unexpired()},{$inc:{previewFence:1}},{session,returnDocument:'after'});
@@ -754,6 +759,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, c
     async enqueueBotReply(principal, { inboundKey, template, params = {} }) {
       key(inboundKey); oneOf(template, BOT_TEMPLATES);
       if (!params || typeof params !== 'object' || Array.isArray(params) || Object.keys(params).length > 10 || !Object.values(params).every(v => typeof v === 'string' && v.length <= 200)) fail('INVALID_INPUT');
+      params={...params};
       return tx(async session => {
         const b = await customerContext(principal, session);
         return immutableRoot(session,{tenantId:b.tenantId,scope:'conversation.bot_reply',owner:b._id,key:inboundKey,request:{template,params},principal},async()=>{
