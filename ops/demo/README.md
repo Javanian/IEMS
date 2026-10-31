@@ -65,4 +65,3 @@ never delete unrelated locks, databases or processes.
 Current SaaS profile boundaries and remaining local caller/service/job contracts
 are recorded in `ops/pilot/PLAT-038-V15-HANDOFF.md` and its coverage inventory. A demo run on an unenrolled
 synthetic tenant does not prove those remaining enrolled workflows complete.
-
