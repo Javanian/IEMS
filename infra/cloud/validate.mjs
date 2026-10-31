@@ -9,4 +9,5 @@ assert.match(tf,/version\s*=\s*"6\.33\.0"/);assert.match(tf,/force_destroy\s*=\s
 assert.match(tf,/block_public_acls\s*=\s*true/);assert.match(tf,/"s3:prefix"/);
 for(const line of tf.split('\n').filter(x=>/http/.test(x)))assert.match(line,/http:\/\/127\.0\.0\.1:9/);
 const atlas=await read('../terraform/pilot/atlas/main.tf');assert.match(atlas,/aws_iam_type\s*=\s*"ROLE"/);assert.match(atlas,/database_name\s*=\s*"iems_/);assert.doesNotMatch(atlas,/password\s*=/);
+const data=await read('../terraform/pilot/data.tf');assert.match(data,/publicly_accessible\s*=\s*false/);assert.match(data,/max_capacity\s*=\s*8/);assert.match(data,/manage_admin_password\s*=\s*true/);assert.doesNotMatch(data,/0\.0\.0\.0\/0|::\/0/);
 console.log('PASS offline release, pinned provider, storage protection and scoped Atlas source contracts. Terraform/provider semantics NOT_RUN by this check.');
