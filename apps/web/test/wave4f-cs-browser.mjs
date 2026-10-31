@@ -192,13 +192,16 @@ export async function csOnboardingJourney(ctx) {
   await fillIn(CREATE, 'address', '+6200012345102'); await clickIn(CREATE, 'Create binding');
   await wait(`document.querySelector('${SIM} [name=simulatorText]') && document.querySelector('h1')?.textContent.includes('+6200012345102')`, 'recovery binding created');
   const recoveryId = await evaluate(`location.pathname.split('/').at(-1)`);
-  const reader = ctx.runtime.orderReader;
-  ctx.runtime.orderReader = { async readCustomerOrder() { await new Promise(resolve => setTimeout(resolve, 2200)); return null; } };
+  const reader = ctx.runtime.customerServiceOrderReader;
+  assert.equal(typeof reader?.readCustomerOrder, 'function');
+  let timeoutReads = 0;
+  ctx.runtime.customerServiceOrderReader = { async readCustomerOrder() { timeoutReads++; await new Promise(resolve => setTimeout(resolve, 2200)); return null; } };
   try {
     const unavailable = await send(`IEMS ORDER ${so.orderNumber}`);
     assert.match(unavailable.text, /Status unavailable/i);
     assert.doesNotMatch(unavailable.body || '', new RegExp(so.orderNumber));
-  } finally { ctx.runtime.orderReader = reader; }
+    assert.ok(timeoutReads > 0, 'The currently registered reader must exercise the timeout');
+  } finally { ctx.runtime.customerServiceOrderReader = reader; }
   const recovered = await send(`IEMS ORDER ${so.orderNumber}`);
   assert.equal(recovered.state, 'PREVIEWED'); assert.ok(recovered.body.includes(so.orderNumber));
   check('W4F-C7 native reader timeout returns unavailable with no order disclosure; separate new inquiry after reader recovery renders actual manufacture preview');
