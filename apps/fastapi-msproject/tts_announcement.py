@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 import uuid
 import wave
+import hashlib
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -379,3 +381,52 @@ def generate_announcement_mp3(
         **piper_log,
         **merge_log,
     }
+
+
+def generate_zone_announcement_mp3(
+    text: str,
+    output_path: str | Path,
+    *,
+    expected_model_sha256: str,
+    expected_config_sha256: str,
+) -> dict:
+    """Generate owned zone audio only with the pinned local Piper model."""
+    if not isinstance(text, str) or not text.strip() or len(text) > 1000:
+        raise TtsGenerationError("Invalid zone announcement text", status_code=400)
+
+    def model_proof() -> tuple[str, str]:
+        ensure_piper_model_available()
+        proof = tuple(hashlib.sha256(path.read_bytes()).hexdigest() for path in (PIPER_MODEL_PATH, PIPER_CONFIG_PATH))
+        if proof != (expected_model_sha256, expected_config_sha256):
+            raise TtsGenerationError("Pinned voice model does not match", status_code=503)
+        return proof
+
+    output = Path(output_path)
+    if output.exists():
+        raise TtsGenerationError("Audio artifact already exists", status_code=409)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    body = None
+    started = time.perf_counter()
+    model_proof()
+    try:
+        with tempfile.NamedTemporaryFile(prefix="zone_body_", suffix=".wav", delete=False, dir=output.parent) as handle:
+            body = Path(handle.name)
+        generate_body_audio_with_piper(text, body)
+        merge = merge_announcement_audio(body, output)
+        model_proof()
+        if not output.is_file() or output.stat().st_size == 0:
+            raise TtsGenerationError("Voice artifact is empty")
+        return {
+            "engine": "piper",
+            "model_sha256": expected_model_sha256,
+            "config_sha256": expected_config_sha256,
+            "audio_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+            "generation_ms": max(1, round((time.perf_counter() - started) * 1000)),
+            "duration_ms": merge["duration_ms"],
+        }
+    except Exception:
+        output.unlink(missing_ok=True)
+        raise
+    finally:
+        if body:
+            body.unlink(missing_ok=True)

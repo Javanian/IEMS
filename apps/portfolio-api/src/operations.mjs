@@ -1,4 +1,8 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import { readFile, stat } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { businessNow } from './business-clock.mjs';
 import { scopedModule } from './quality.mjs';
 import { maintenanceCapacity } from './maintenance.mjs';
@@ -9,7 +13,17 @@ import { validateInvoicePosting } from './purchased-billing-state.mjs';
 
 export const operationsActions = ['operations.read', 'operations.sample'];
 export const operationsRoles = { operationsRead: ['operations.read'], operationsTelemetry: operationsActions };
+export const voiceActions = ['operations.configure', 'operations.enqueue', 'operations.claim', 'operations.generated', 'operations.publish', 'operations.lease', 'operations.started', 'operations.played', 'operations.failed', 'operations.recover', 'operations.cancel'];
+export const voiceRoles = { voiceOperator: ['operations.read', 'operations.enqueue', 'operations.publish', 'operations.recover', 'operations.cancel'], voiceAdministrator: ['operations.read', 'operations.configure'], voiceGenerator: ['operations.read', 'operations.claim', 'operations.generated', 'operations.failed'], voicePlayer: ['operations.read', 'operations.lease', 'operations.started', 'operations.played', 'operations.failed'] };
 export const reject = (status, code) => { throw Object.assign(new Error(code), { status, code }); };
+function actorScopedTransaction(run) {
+  return async (req,effect)=>{
+    const body=req.body;
+    if(typeof body?.idempotencyKey!=='string' || !/^[A-Za-z0-9_-]{8,100}$/.test(body.idempotencyKey))reject(400,'INVALID_IDEMPOTENCY_KEY');
+    req.body={...body,idempotencyKey:contentHash({actorId:req.scope.userId,key:body.idempotencyKey})};
+    try{return await run(req,effect);}finally{req.body=body;}
+  };
+}
 const sources = Object.freeze({
   orders: { collection: 'salesOrders', action: 'quote.read', route: 'orders' },
   production: { collection: 'manufacturingWorkOrders', action: 'manufacturing.read', route: 'manufacturing/work-orders' },
@@ -108,7 +122,7 @@ export async function legacySnapshot(adapter, { filter, now, session, scope, clo
   return { status: samples.length ? 'AVAILABLE' : 'NO_DATA', completeness: result.completeness, observationFreshness:freshness(result.observedAt,checkedAt), freshness: freshness(latest, checkedAt), samples };
 }
 export function installOperations(app, runtime, helpers, { legacyAdapters = [], telemetryMappings = {} } = {}) {
-  const root = '/api/operations', { id, fields, transaction } = scopedModule(app, runtime, root, 'operations', { ...helpers, guard: async (rt, req, session, action) => {
+  const root = '/api/operations', { id, fields, transaction:runTransaction } = scopedModule(app, runtime, root, 'operations', { ...helpers, guard: async (rt, req, session, action) => {
     await helpers.guard(rt, req, session, action);
     if (action === 'operations.sample') {
       const mapping = telemetryMappings[req.body.mapping];
@@ -118,6 +132,7 @@ export function installOperations(app, runtime, helpers, { legacyAdapters = [], 
       if (!sample || ['value','uom','sampleAt','windowFrom','windowUntil','sourceRevision'].some(k=>sample[k]!==req.body[k])) reject(409, 'TELEMETRY_SOURCE_MISMATCH');
     }
   } });
+  const transaction=actorScopedTransaction(runTransaction);
   app.get(`${root}/dashboard`, async (req, res) => {
     const data = await boundedTransaction(runtime.client, async session => {
       await grant(runtime, req, 'operations.read', session);
@@ -236,4 +251,199 @@ export function createLegacyReadAdapters({ pool, authorize, resolveBindings, win
     } catch (error) { await connection.query('ROLLBACK').catch(()=>{}); if(error.status)throw error;reject(502,'LEGACY_READ_UNAVAILABLE'); }
     finally { connection.release(); }
   } }));
+}
+
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+const runFile = promisify(execFile);
+export async function createVoiceFileStore({ directory, modelPath, configPath, modelId, modelSha256, configSha256, ffprobe = 'ffprobe' }) {
+  if (!/^[A-Za-z0-9_.-]{1,100}$/.test(modelId) || !/^[a-f0-9]{64}$/.test(modelSha256) || !/^[a-f0-9]{64}$/.test(configSha256)) throw new Error('PINNED_REAL_MODEL_REQUIRED');
+  const verifyModel = async () => {
+    if (sha256(await readFile(modelPath)) !== modelSha256 || sha256(await readFile(configPath)) !== configSha256) throw new Error('MODEL_MANIFEST_MISMATCH');
+  };
+  await verifyModel();
+  const file = id => { if (!uuid.test(id)) reject(400, 'INVALID_ARTIFACT_ID'); return resolve(directory, `${id}.mp3`); };
+  const inspect = async id => {
+    await verifyModel(); const path = file(id), info = await stat(path);
+    if (!info.isFile() || info.size < 1 || info.size > 32 * 1024 * 1024) reject(409, 'INVALID_AUDIO_ARTIFACT');
+    const { stdout } = await runFile(ffprobe, ['-v', 'error', '-show_entries', 'format=duration:stream=codec_name,codec_type', '-of', 'json', path], { timeout: 10000, maxBuffer: 65536 });
+    const probe = JSON.parse(stdout), durationMs = Math.ceil(Number(probe.format?.duration) * 1000);
+    if (!Number.isFinite(durationMs) || durationMs <= 0 || durationMs > 120000 || !probe.streams?.some(s => s.codec_type === 'audio' && s.codec_name === 'mp3')) reject(409, 'INVALID_AUDIO_FORMAT_OR_DURATION');
+    const bytes = await readFile(path);
+    return { artifactId: id, sha256: sha256(bytes), byteLength: bytes.length, durationMs, engine: 'piper', modelId, modelSha256, configSha256 };
+  };
+  return { inspect, read: async id => readFile(file(id)), verifyModel, model: { engine: 'piper', modelId, modelSha256, configSha256 } };
+}
+export async function initializeVoice(db) {
+  await db.collection('voiceZones').createIndex({ tenantId: 1, plantId: 1, resourceId: 1 }, { unique: true });
+  await db.collection('voiceJobs').createIndex({ tenantId: 1, plantId: 1, zoneId: 1, status: 1, createdAt: 1 });
+  await db.collection('voiceJobs').createIndex({ tenantId: 1, plantId: 1, resourceId: 1 }, { unique: true });
+  await db.collection('voiceJobRevisions').createIndex({ tenantId: 1, plantId: 1, resourceId: 1, version: 1 }, { unique: true });
+  await db.collection('operationsKeys').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
+}
+const publicZone = z => ({ resourceId: z.resourceId, label: z.label, active: z.active, version: z.version, updatedAt: z.updatedAt, playback: z.playback ? { jobId: z.playback.jobId, playerId: z.playback.playerId, expiresAt: z.playback.expiresAt, startedAt: z.playback.startedAt ?? null } : null });
+const publicJob = j => ({ resourceId: j.resourceId, zoneId: j.zoneId, version: j.version, status: j.status, text: j.text, source: j.source, attempts: j.attempts, playerAttempts: j.playerAttempts ?? 0, createdAt: j.createdAt, updatedAt: j.updatedAt, generationLatencyMs: j.generationLatencyMs ?? null, playerLatencyMs: j.playerLatencyMs ?? null, durationMs: j.audio?.durationMs ?? null, error: j.error ?? null, modelId: j.audio?.modelId ?? null });
+export function installVoice(app, runtime, helpers, { store, players = {}, workerAuthorize } = {}) {
+  const root = '/api/operations/voice', db = runtime.db;
+  const available = Boolean(store?.inspect && store?.read && store?.verifyModel && store?.model?.engine === 'piper');
+  const { id, fields, transaction:runTransaction } = scopedModule(app, runtime, root, 'operations', { ...helpers, guard: async (rt, req, session, action) => {
+    await helpers.guard(rt, req, session, action);
+    if (action === 'operations.enqueue') await grant(runtime, req, 'manufacturing.read', session);
+    if (['operations.claim', 'operations.generated'].includes(action) || (action === 'operations.failed' && req.body.workerToken)) {
+      if (!available || typeof workerAuthorize !== 'function') reject(503, 'REAL_MODEL_WORKER_NOT_CONFIGURED');
+      await workerAuthorize({ scope: req.scope, filter: req.filter, session });
+      try { await store.verifyModel(); } catch { reject(503, 'REAL_MODEL_UNAVAILABLE'); }
+    }
+    if (['operations.lease', 'operations.started', 'operations.played'].includes(action) || (action === 'operations.failed' && req.body.playerId)) {
+      const player = players[req.body.playerId]; if (typeof player?.authorize !== 'function') reject(403, 'PLAYER_NOT_REGISTERED');
+      await player.authorize({ scope: req.scope, filter: req.filter, zoneId: req.params.id, session });
+    }
+  } });
+  const transaction=actorScopedTransaction(runTransaction);
+  const zone = async (req, session, required = true) => {
+    const z = await db.collection('voiceZones').findOne({ ...req.filter, resourceId: id(req.params.id) }, { session });
+    if (required && !z) reject(404, 'ZONE_NOT_FOUND'); return z;
+  };
+  const job = async (req, session) => {
+    const j = await db.collection('voiceJobs').findOne({ ...req.filter, resourceId: id(req.params.id) }, { session }); if (!j) reject(404, 'VOICE_JOB_NOT_FOUND'); return j;
+  };
+  const saveZone = async (req, z, expected, session) => {
+    z.version++; z.updatedAt = businessNow(runtime).toISOString(); const r = await db.collection('voiceZones').replaceOne({ ...req.filter, resourceId: z.resourceId, version: expected }, z, { session }); if (r.matchedCount !== 1) reject(409, 'ZONE_VERSION_CONFLICT');
+  };
+  const saveJob = async (req, j, expected, session) => {
+    j.version++; j.updatedAt = businessNow(runtime).toISOString(); const r = await db.collection('voiceJobs').replaceOne({ ...req.filter, resourceId: j.resourceId, version: expected }, j, { session }); if (r.matchedCount !== 1) reject(409, 'VOICE_VERSION_CONFLICT');
+    await db.collection('voiceJobRevisions').insertOne({ _id: randomUUID(), ...req.filter, ...publicJob(j) }, { session });
+  };
+  const currentWarning = async (req, j, session) => {
+    const source = await db.collection('manufacturingWorkOrders').findOneAndUpdate({ ...req.filter, _id: j.source.resourceId, version: j.source.businessRevision, status: { $in: ['PLANNED', 'RELEASED', 'IN_PROGRESS', 'QUARANTINED'] } }, { $inc: { useFence: 1 } }, { session, returnDocument: 'after' });
+    if (!source) reject(409, 'EWS_SOURCE_CHANGED_CANCEL_ANNOUNCEMENT');
+  };
+  app.get(`${root}/zones`, async (req, res) => res.json({ data: (await db.collection('voiceZones').find(req.filter).sort({ resourceId: 1 }).limit(100).toArray()).map(publicZone), capabilities: { realModelConfigured: available } }));
+  app.get(`${root}/zones/:id`, async (req, res) => {
+    const z = await zone(req), jobs = await db.collection('voiceJobs').find({ ...req.filter, zoneId: z.resourceId }).sort({ createdAt: -1, resourceId: 1 }).limit(100).toArray();
+    res.json({ data: { ...publicZone(z), jobs: jobs.map(publicJob), realModelConfigured: available } });
+  });
+  app.get(`${root}/generation`, async (req, res) => {
+    await runtime.foundation.authorize(req.scope, { ...req.filter, action: 'operations.claim' });
+    res.json({ data: (await db.collection('voiceJobs').find({ ...req.filter, status: 'QUEUED' }).sort({ createdAt: 1, resourceId: 1 }).limit(20).toArray()).map(publicJob) });
+  });
+  app.post(`${root}/zones/:id/configure`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey', 'label', 'active']); const b = req.body;
+    if (typeof b.label !== 'string' || !b.label.trim() || b.label.length > 100 || typeof b.active !== 'boolean') reject(400, 'INVALID_ZONE');
+    const data = await transaction(req, async session => {
+      let z = await zone(req, session, false);
+      if ((z?.version ?? 0) !== b.expectedVersion) reject(409, 'ZONE_VERSION_CONFLICT');
+      if (z?.playback) reject(409, 'PLAYBACK_ACTIVE_RECOVER_FIRST');
+      if (!z) { z = { _id: randomUUID(), ...req.filter, resourceId: id(req.params.id), label: b.label.trim(), active: b.active, playback: null, version: 1, updatedAt: businessNow(runtime).toISOString() }; await db.collection('voiceZones').insertOne(z, { session }); }
+      else { z.label = b.label.trim(); z.active = b.active; await saveZone(req, z, b.expectedVersion, session); }
+      return publicZone(z);
+    }); res.json({ data });
+  });
+  app.post(`${root}/zones/:id/enqueue`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey', 'workOrderId', 'sourceVersion']); const b = req.body; id(b.workOrderId);
+    const data = await transaction(req, async session => {
+      const z = await zone(req, session); if (!z.active || z.version !== b.expectedVersion) reject(409, 'ZONE_CHANGED_OR_DISABLED');
+      await grant(runtime, req, 'manufacturing.read', session);
+      const source = await db.collection('manufacturingWorkOrders').findOneAndUpdate({ ...req.filter, _id: b.workOrderId, version:b.sourceVersion }, { $inc:{useFence:1} }, { session, returnDocument:'after' });
+      if (!source || source.version !== b.sourceVersion || !['PLANNED', 'RELEASED', 'IN_PROGRESS', 'QUARANTINED'].includes(source.status)) reject(409, 'EWS_SOURCE_CHANGED');
+      const at = source.updatedAt || source.createdAt, now = businessNow(runtime);
+      if (!at || !Number.isFinite(new Date(at).getTime()) || now - new Date(at) < 7 * 86400000) reject(409, 'EWS_WARNING_NOT_ACTIVE');
+      const j = { _id: randomUUID(), ...req.filter, resourceId: randomUUID(), zoneId: z.resourceId, version: 1, status: 'QUEUED', source: { kind: 'PRODUCTION_AGING', resourceId: source._id, businessRevision: source.version, observedAt: now.toISOString() }, text: `Attention. Work order ${source._id} is ${source.status.replaceAll('_', ' ').toLowerCase()} and has no recorded update for seven days. Please review its next action.`, attempts: 0, createdAt: now.toISOString(), updatedAt: now.toISOString() };
+      z.lastQueuedJobId = j.resourceId; await saveZone(req, z, b.expectedVersion, session);
+      await db.collection('voiceJobs').insertOne(j, { session }); return publicJob(j);
+    }); res.json({ data });
+  });
+  app.post(`${root}/jobs/:id/claim`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey']);
+    const data = await transaction(req, async session => {
+      const j = await job(req, session), z = await db.collection('voiceZones').findOne({ ...req.filter, resourceId: j.zoneId, active: true }, { session });
+      if (!z || j.version !== req.body.expectedVersion || j.status !== 'QUEUED' || j.attempts >= 3) reject(409, 'GENERATION_NOT_CLAIMABLE');
+      const now = businessNow(runtime); j.status = 'GENERATING'; j.attempts++; j.worker = { actorId: req.scope.userId, token: randomUUID(), artifactId: randomUUID(), startedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 120000).toISOString() };
+      await saveJob(req, j, req.body.expectedVersion, session); return { ...publicJob(j), workerToken: j.worker.token, artifactId: j.worker.artifactId, leaseExpiresAt: j.worker.expiresAt, model: store.model };
+    }); res.json({ data });
+  });
+  app.post(`${root}/jobs/:id/generated`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey', 'workerToken', 'artifactId', 'modelSha256', 'configSha256', 'generationMs']);
+    const data = await transaction(req, async session => {
+      const j = await job(req, session), b = req.body, now = businessNow(runtime);
+      if (j.version !== b.expectedVersion || j.status !== 'GENERATING' || j.worker?.token !== b.workerToken || j.worker.actorId !== req.scope.userId || j.worker.artifactId !== b.artifactId || j.worker.expiresAt <= now.toISOString()) reject(409, 'GENERATION_LEASE_LOST');
+      if (b.modelSha256 !== store.model.modelSha256 || b.configSha256 !== store.model.configSha256) reject(409, 'MODEL_ATTESTATION_MISMATCH');
+      const turnaround = now - new Date(j.worker.startedAt);
+      if (!Number.isSafeInteger(b.generationMs) || b.generationMs < 1 || b.generationMs > turnaround + 1000) reject(400, 'INVALID_GENERATION_MEASUREMENT');
+      j.audio = await store.inspect(b.artifactId); j.status = 'READY'; j.generationLatencyMs = b.generationMs; j.generationTurnaroundMs = turnaround; j.worker = null;
+      await saveJob(req, j, b.expectedVersion, session); return publicJob(j);
+    }); res.json({ data });
+  });
+  app.post(`${root}/jobs/:id/publish`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey']);
+    const data = await transaction(req, async session => {
+      if (!available) reject(503, 'REAL_MODEL_NOT_CONFIGURED');
+      const j = await job(req, session), z = await db.collection('voiceZones').findOneAndUpdate({ ...req.filter, resourceId: j.zoneId, active: true }, { $inc: { useFence: 1 } }, { session, returnDocument: 'after' });
+      if (!z || j.version !== req.body.expectedVersion || j.status !== 'READY') reject(409, 'VOICE_NOT_READY');
+      await grant(runtime, req, 'manufacturing.read', session); await currentWarning(req, j, session);
+      const proof = await store.inspect(j.audio.artifactId); if (proof.sha256 !== j.audio.sha256) reject(409, 'AUDIO_CHANGED');
+      j.status = 'PUBLISHED'; j.publishedAt = businessNow(runtime).toISOString(); await saveJob(req, j, req.body.expectedVersion, session); return publicJob(j);
+    }); res.json({ data });
+  });
+  app.post(`${root}/zones/:id/lease`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey', 'playerId']);
+    const data = await transaction(req, async session => {
+      const z = await zone(req, session), b = req.body, now = businessNow(runtime);
+      if (!z.active || z.version !== b.expectedVersion || z.playback) reject(409, 'ZONE_BUSY_OR_CHANGED');
+      const j = await db.collection('voiceJobs').findOne({ ...req.filter, zoneId: z.resourceId, status: 'PUBLISHED' }, { session, sort: { createdAt: 1, resourceId: 1 } });
+      if (!j) reject(404, 'NO_PUBLISHED_AUDIO');
+      await currentWarning(req, j, session);
+      if (!available || (await store.inspect(j.audio.artifactId)).sha256 !== j.audio.sha256) reject(409, 'AUDIO_NOT_VERIFIED');
+      z.playback = { jobId: j.resourceId, playerId: b.playerId, actorId: req.scope.userId, token: randomUUID(), requestedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 150000).toISOString() };
+      j.status = 'PLAYING'; j.playerAttempts = (j.playerAttempts || 0) + 1;
+      await saveJob(req, j, j.version, session); await saveZone(req, z, b.expectedVersion, session);
+      return { ...publicZone(z), playbackToken: z.playback.token, job: publicJob(j), streamUrl: `${root}/zones/${z.resourceId}/audio/${j.resourceId}` };
+    }); res.json({ data });
+  });
+  for (const action of ['started', 'played', 'failed', 'recover']) app.post(`${root}/zones/:id/${action}`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey', ...(action === 'recover' ? [] : ['playerId', 'playbackToken'])]);
+    const data = await transaction(req, async session => {
+      const z = await zone(req, session), b = req.body, lease = z.playback, now = businessNow(runtime);
+      if (z.version !== b.expectedVersion || !lease) reject(409, 'PLAYBACK_LEASE_LOST');
+      if (action === 'recover') { if (lease.expiresAt > now.toISOString()) reject(409, 'PLAYBACK_LEASE_ACTIVE'); }
+      else if (!z.active || lease.playerId !== b.playerId || lease.actorId !== req.scope.userId || lease.token !== b.playbackToken || lease.expiresAt <= now.toISOString()) reject(409, 'PLAYBACK_LEASE_LOST');
+      const j = await db.collection('voiceJobs').findOne({ ...req.filter, resourceId: lease.jobId, status: 'PLAYING' }, { session }); if (!j) reject(409, 'VOICE_STATE_CONFLICT');
+      if (action === 'started') { if (lease.startedAt) reject(409, 'ALREADY_STARTED'); lease.startedAt = now.toISOString(); j.playerLatencyMs = now - new Date(lease.requestedAt); }
+      else {
+        if (action === 'played' && !lease.startedAt) reject(409, 'PLAYBACK_NOT_STARTED');
+        if (action === 'played' && now - new Date(lease.startedAt) < Math.max(0, j.audio.durationMs - 250)) reject(409, 'PLAYBACK_DURATION_NOT_ELAPSED');
+        j.status = action === 'played' ? 'PLAYED' : j.playerAttempts >= 3 ? 'ERROR' : 'PUBLISHED'; j.error = action === 'played' ? null : action === 'recover' ? 'PLAYER_LEASE_EXPIRED' : 'PLAYER_REPORTED_FAILURE'; z.playback = null;
+      }
+      await saveJob(req, j, j.version, session); await saveZone(req, z, b.expectedVersion, session); return publicZone(z);
+    }); res.json({ data });
+  });
+  for (const action of ['failed', 'recover']) app.post(`${root}/jobs/:id/${action}`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey', ...(action === 'failed' ? ['workerToken'] : [])]);
+    const data = await transaction(req, async session => {
+      const j = await job(req, session), b = req.body, now = businessNow(runtime);
+      if (j.version !== b.expectedVersion || j.status !== 'GENERATING' || !j.worker) reject(409, 'GENERATION_LEASE_LOST');
+      if (action === 'failed' ? j.worker.token !== b.workerToken || j.worker.actorId !== req.scope.userId : j.worker.expiresAt > now.toISOString()) reject(409, 'GENERATION_LEASE_ACTIVE_OR_LOST');
+      j.status = action === 'recover' && j.attempts < 3 ? 'QUEUED' : 'ERROR'; j.worker = null; j.error = action === 'failed' ? 'GENERATOR_FAILED' : 'GENERATOR_LEASE_EXPIRED'; await saveJob(req, j, b.expectedVersion, session); return publicJob(j);
+    }); res.json({ data });
+  });
+  app.post(`${root}/jobs/:id/cancel`, async (req, res) => {
+    fields(req.body, ['expectedVersion', 'idempotencyKey']);
+    const data = await transaction(req, async session => {
+      const j = await job(req, session); if (j.version !== req.body.expectedVersion || ['PLAYING','PLAYED','CANCELLED'].includes(j.status)) reject(409, 'VOICE_STATE_CONFLICT');
+      j.status = 'CANCELLED'; j.worker = null; await saveJob(req, j, req.body.expectedVersion, session); return publicJob(j);
+    }); res.json({ data });
+  });
+  app.get(`${root}/zones/:id/audio/:jobId`, async (req, res) => {
+    if (!available) reject(503, 'REAL_MODEL_NOT_CONFIGURED');
+    const playerId = req.query.playerId, token = req.headers['x-playback-token'];
+    const data = await boundedTransaction(runtime.client, async session => {
+      await grant(runtime, req, 'operations.lease', session);
+      const player = players[playerId]; if (typeof player?.authorize !== 'function') reject(403, 'PLAYER_NOT_REGISTERED');
+      await player.authorize({ scope: req.scope, filter: req.filter, zoneId: req.params.id, session });
+      const z = await zone(req, session), lease = z.playback;
+      if (!z.active || !lease || lease.jobId !== id(req.params.jobId) || lease.playerId !== playerId || lease.actorId !== req.scope.userId || lease.token !== token || lease.expiresAt <= businessNow(runtime).toISOString()) reject(403, 'PLAYBACK_LEASE_LOST');
+      const j = await db.collection('voiceJobs').findOne({ ...req.filter, resourceId: lease.jobId, status: 'PLAYING' }, { session }); if (!j?.audio) reject(404, 'AUDIO_NOT_FOUND'); await currentWarning(req, j, session); return j.audio;
+    });
+    const bytes = await store.read(data.artifactId); if (sha256(bytes) !== data.sha256) reject(409, 'AUDIO_CHANGED');
+    res.set({ 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'Content-Length': String(bytes.length) }).send(bytes);
+  });
 }

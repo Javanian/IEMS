@@ -34,15 +34,17 @@ try {
   else if(path.includes('/drilldown/'))data=metric;
   else if(path.endsWith('/capabilities'))data={configured:true,faceVerification:false};
   else if(path.includes('/operators/'))data={resourceId:subject,version:1,pinConfigured:true,nfcConfigured:false,consent:{active:false},updatedAt:record.updatedAt};
-  else if(path.endsWith('/voice/zones'))data=[];
+  else if(path.endsWith('/voice/zones'))data=[{resourceId:subject,label:'Synthetic inspection zone',active:true,version:1,playback:null}];
+  else if(path.endsWith(`/voice/zones/${subject}`))data={resourceId:subject,label:'Synthetic inspection zone',active:true,version:1,playback:null,realModelConfigured:false,jobs:[]};
   else data={};
-  await route.fulfill({contentType:'application/json',body:JSON.stringify({data})});
+  await route.fulfill({contentType:'application/json',body:JSON.stringify({data,capabilities:{realModelConfigured:false}})});
  });
  for(const width of [1440,375]) {
   await page.setViewportSize({width,height:1000});await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__operations_inspection`);
   await page.getByRole('heading',{level:1}).waitFor();
   if(workspace==='Workforce'){await page.getByLabel(/^Operator ID/).fill(subject);await page.getByRole('button',{name:'Open operator',exact:true}).click();await page.getByRole('heading',{name:'Operator verification',exact:true}).waitFor();}
   if(workspace==='Operations') await page.getByRole('table',{name:'Production records',exact:true}).waitFor();
+  if(workspace==='Voice'){await page.getByRole('button',{name:'Synthetic inspection zone',exact:true}).click();await page.getByRole('heading',{name:'Synthetic inspection zone',exact:true}).waitFor();}
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.getByRole('button').first().focus();assert(await page.evaluate(()=>document.activeElement.tagName==='BUTTON'));
   await page.screenshot({path:resolve(output,`${workspace}-${width}.png`),fullPage:true});observations.push({workspace,width,noDocumentOverflow:true,buttonKeyboardFocus:true,fixture:'SYNTHETIC_UI_ONLY'});
