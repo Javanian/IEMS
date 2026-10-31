@@ -1,18 +1,31 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
+import { initializeRepairComponents, recordComponentCustody } from './repair-components.mjs';
+import { initializeRepairStock, repairSpareCommand, saveRepairStockAuthority, validateRepairCaseAuthority, recheckRepairStockSources, requireRepairInstallations } from './repair-stock.mjs';
+import { businessNow } from './business-clock.mjs';
+import { initializeQuality, installQuality, qualityActions, qualityRoles, requireQualityGates } from './quality.mjs';
+import { initializeMaintenance, installMaintenance, maintenanceActions, maintenanceRoles } from './maintenance.mjs';
 
-const verbs = ['read', 'intake', 'diagnostic-authorize', 'teardown', 'scope', 'decide', 'deposit', 'start', 'execute', 'test', 'rework', 'qc', 'hold', 'return', 'bill', 'settle'];
-export const repairActions = verbs.map(v => `repair.${v}`);
-export const repairRoles = Object.fromEntries(verbs.map(v => [`repair${v.split('-').map(s => s[0].toUpperCase() + s.slice(1)).join('')}`, [...new Set(['repair.read', `repair.${v}`])]]));
+const verbs = ['read', 'intake', 'diagnostic-authorize', 'teardown', 'scope', 'decide', 'deposit', 'start', 'execute', 'test', 'test-plan', 'rework', 'qc', 'hold', 'return', 'bill', 'settle', 'warranty', 'warranty-claim', 'warranty-void', 'component-remove', 'component-dispose', 'spare-authorize', 'spare-reserve', 'spare-release', 'spare-issue', 'spare-install'];
+export const repairActions = [...verbs.map(v => `repair.${v}`), ...qualityActions, ...maintenanceActions];
+export const repairRoles = { ...Object.fromEntries(verbs.map(v => [`repair${v.split('-').map(s => s[0].toUpperCase() + s.slice(1)).join('')}`, [...new Set(['repair.read', `repair.${v}`])]])), ...qualityRoles, ...maintenanceRoles };
+for (const [role, action] of [['repairSpareAuthorize','company.stock.read'],['repairSpareReserve','company.stock.reserve'],['repairSpareRelease','company.stock.reserve'],['repairSpareIssue','company.stock.issue'],['repairSpareInstall','company.stock.issue']]) repairRoles[role].push('catalog.stock.read', action);
+repairRoles.repairSpareAuthorize.push('master.read');
 // Public customer-facing repair number: stable, unique per tenant+plant, never the raw case UUID.
 export const repairNumberFor = ({ tenantId, plantId }, caseId) => `RP-${createHash('sha256').update(`repair:${tenantId}:${plantId}:${caseId}`).digest('hex').slice(0, 16).toUpperCase()}`;
 export async function initializeRepair(db) {
+  await initializeQuality(db);
+  await initializeRepairComponents(db);
+  await initializeRepairStock(db);
+  await initializeMaintenance(db);
   await db.collection('repairCases').createIndex({ tenantId: 1, plantId: 1, caseNumber: 1 }, { unique: true, partialFilterExpression: { caseNumber: { $type: 'string' } } });
   await db.collection('repairInvoices').createIndex({ tenantId: 1, plantId: 1, caseId: 1, kind: 1 }, { unique: true });
   await db.collection('repairPayments').createIndex({ tenantId: 1, plantId: 1, reference: 1 }, { unique: true });
   await db.collection('repairKeys').createIndex({ tenantId: 1, plantId: 1, key: 1 }, { unique: true });
 }
 export function installRepair(app, runtime, { fail, guard, id, fields }) {
+  installQuality(app, runtime, { fail, guard, id, fields });
+  installMaintenance(app, runtime, { fail, guard, id, fields });
   const c = name => runtime.db.collection(name);
   const text = value => { if (typeof value !== 'string' || !value.trim() || value.length > 1000) fail(400, 'INVALID_TEXT'); return value.trim(); };
   const base = req => ({ _id: randomUUID(), ...req.filter, version: 1, createdBy: req.scope.userId, createdAt: new Date() });
@@ -36,8 +49,14 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
       await guard(runtime, req, session, req.repairAction);
+      if (req.repairAction.startsWith('repair.spare-')) {
+        await guard(runtime, req, session, 'catalog.stock.read');
+        const current = await c('repairCases').findOne({ ...req.filter, _id: id(req.params.id) }, { session });
+        if (!current) fail(404, 'NOT_FOUND');
+        if (req.body.sourceKind === 'COMPANY_OUTPUT' || current.spareMaterials?.some(m => m.sourceKind === 'COMPANY_OUTPUT')) await guard(runtime, req, session, req.repairAction === 'repair.spare-authorize' ? 'company.stock.read' : ['repair.spare-reserve','repair.spare-release'].includes(req.repairAction) ? 'company.stock.reserve' : 'company.stock.issue');
+      }
       const prior = await c('repairKeys').findOne({ ...req.filter, key }, { session });
-      if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+      if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); if (req.repairAction.startsWith('repair.spare-')) { const current = await c('repairCases').findOne({ ...req.filter, _id: id(req.params.id) }, { session }); await recheckRepairStockSources(runtime.db, req.filter, current, session); } return prior.result; }
       const result = await effect(session);
       const event = { ...base(req), kind, subjectId: result._id, subjectVersion: result.version };
       await c('repairAudit').insertOne(event, { session });
@@ -60,7 +79,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     if (new Set(rows.map(v => v.component)).size !== rows.length) fail(400, 'INVALID_DISPOSITIONS'); return rows;
   };
   for (const action of verbs.filter(v => !['read', 'intake', 'settle'].includes(v))) app.post(`/api/repair/cases/:id/${action}`, async (req, res) => {
-    const allowed = { 'diagnostic-authorize': ['feeCap', 'evidence'], teardown: ['findings', 'evidence'], scope: ['quoteId', 'revision', 'depositRequired', 'evidence'], decide: ['decision', 'revision', 'diagnosticFee', 'evidence'], deposit: ['amount', 'currency', 'reference'], start: [], execute: ['dispositions', 'evidence'], test: ['result', 'evidence'], rework: ['evidence'], qc: ['evidence'], hold: ['active', 'evidence'], return: ['evidence'], bill: [] }[action];
+    const allowed = { 'diagnostic-authorize': ['feeCap', 'evidence'], teardown: ['findings', 'evidence'], scope: ['quoteId', 'revision', 'depositRequired', 'evidence'], decide: ['decision', 'revision', 'diagnosticFee', 'evidence'], deposit: ['amount', 'currency', 'reference'], start: [], execute: ['dispositions', 'evidence'], test: ['result', 'evidence'], 'test-plan': ['equipmentId', 'operation', 'evidence'], rework: ['evidence'], qc: ['evidence'], hold: ['active', 'evidence'], return: ['evidence'], bill: [], warranty: ['days', 'terms', 'evidence'], 'warranty-claim': ['condition', 'evidence'], 'warranty-void': ['evidence'], 'component-remove': ['component', 'serial', 'condition', 'evidence'], 'component-dispose': ['componentId', 'disposition', 'evidence'], 'spare-authorize': ['component','sourceKind','itemId','itemVersion','itemRevision','quantity','uom','evidence'], 'spare-reserve': ['materialLineId','sourceId','expectedStockVersion','expectedReceiptVersion','quantity','serials','units','evidence'], 'spare-release': ['materialLineId','reservationId','expectedReservationVersion','expectedStockVersion','expectedReceiptVersion','evidence'], 'spare-issue': ['materialLineId','reservationId','expectedReservationVersion','expectedStockVersion','expectedReceiptVersion','evidence'], 'spare-install': ['materialLineId','reservationId','expectedReservationVersion','expectedStockVersion','expectedReceiptVersion','removedComponentId','evidence'] }[action];
     fields(req.body, ['expectedVersion', 'idempotencyKey', ...allowed]);
     const b = req.body;
     if (!Number.isSafeInteger(b.expectedVersion) || b.expectedVersion < 1) fail(400, 'INVALID_VERSION');
@@ -68,13 +87,18 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     const data = await tx(req, `repair.${action}`, async session => {
       const row = await find('repairCases', req, req.params.id, session);
       if (row.version !== b.expectedVersion) fail(409, 'VERSION_CONFLICT');
+      if (row.spareMaterials) await validateRepairCaseAuthority(runtime.db, req.filter, row._id, session);
+      if (['execute','test','rework','qc','return'].includes(action)) { requireRepairInstallations(row); await recheckRepairStockSources(runtime.db, req.filter, row, session); }
+      if (['start','execute','test','rework','qc','return','warranty','warranty-claim','component-remove','component-dispose'].includes(action)) await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'REPAIR_CASE', resourceId: row._id }], session, { at: businessNow(runtime) });
       const requireState = (...states) => { if (!states.includes(row.status)) fail(409, 'STATE_CONFLICT'); };
       if (row.decision?.decision === 'ACCEPT') {
         const deposits = await c('repairDeposits').find({ ...req.filter, caseId: row._id, accountId: row.ownerAccountId, currency: row.currency }, { session }).toArray();
         if (deposits.reduce((sum, d) => sum + money(d.amount, row.currency), 0n) > money(row.scopes.at(-1).snapshot.total, row.currency)) fail(409, 'DEPOSIT_EXCEEDED');
       }
       const record = kind => evidence(req, kind, b.evidence);
-      if (action === 'diagnostic-authorize') {
+      if (action.startsWith('spare-')) {
+        await repairSpareCommand(runtime.db, req.filter, row, action, b, req.scope.userId, session, businessNow(runtime));
+      } else if (action === 'diagnostic-authorize') {
         requireState('INTAKE'); money(b.feeCap, row.currency);
         row.diagnosticAuthorization = { ...record('DIAGNOSTIC_AUTHORIZED'), feeCap: b.feeCap }; row.status = 'DIAGNOSIS_AUTHORIZED';
       } else if (action === 'teardown') {
@@ -123,16 +147,24 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
         const sort = values => JSON.stringify([...values].sort((a, b) => a.component.localeCompare(b.component)));
         if (sort(actual) !== sort(row.scopes.at(-1).findings)) fail(409, 'DISPOSITION_CONFLICT');
         row.execution = { ...record('EXECUTED'), dispositions: actual }; row.status = 'TESTING';
+      } else if (action === 'test-plan') {
+        requireState('TEARDOWN', 'SCOPE_QUOTED', 'AUTHORIZED', 'IN_PROGRESS', 'TESTING', 'REWORK');
+        row.testPlan = { ...record('TEST_PLAN'), equipmentId: id(b.equipmentId), operation: text(b.operation) };
       } else if (action === 'test') {
-        requireState('TESTING'); if (!['PASS', 'FAIL'].includes(b.result)) fail(400, 'INVALID_TEST');
-        row.tests.push({ ...record('TEST'), result: b.result, run: row.tests.length + 1 }); row.status = b.result === 'FAIL' ? 'REWORK' : 'TEST_PASSED';
+        requireState('TESTING');
+        const qualityGates = row.testPlan ? await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'EQUIPMENT', resourceId: row.testPlan.equipmentId, requireCalibration: true }, { resourceType: 'OPERATOR', resourceId: req.scope.userId, operation: row.testPlan.operation }], session, { at: businessNow(runtime) }) : [];
+        if (!['PASS', 'FAIL'].includes(b.result)) fail(400, 'INVALID_TEST');
+        row.tests.push({ ...record('TEST'), result: b.result, run: row.tests.length + 1, ...(row.testPlan ? { testPlan: structuredClone(row.testPlan), qualityGates } : {}) }); row.status = b.result === 'FAIL' ? 'REWORK' : 'TEST_PASSED';
       } else if (action === 'rework') {
         requireState('REWORK'); row.reworks.push({ ...record('REWORK'), failedRun: row.tests.at(-1).run }); row.status = 'TESTING';
       } else if (action === 'hold') {
         if (row.status === 'RETURNED' || typeof b.active !== 'boolean') fail(409, 'STATE_CONFLICT');
         row.holds.push({ ...record('HOLD'), active: b.active }); row.holdActive = b.active;
       } else if (action === 'qc') {
-        requireState('TEST_PASSED'); if (row.holdActive || row.tests.at(-1)?.result !== 'PASS') fail(409, 'QC_BLOCKED');
+        requireState('TEST_PASSED');
+        if (row.testPlan) await requireQualityGates(runtime.db, req.filter, [{ resourceType: 'EQUIPMENT', resourceId: row.testPlan.equipmentId, requireCalibration: true }, { resourceType: 'OPERATOR', resourceId: row.tests.at(-1).recordedBy, operation: row.testPlan.operation }], session, { at: businessNow(runtime) });
+        if (row.holdActive || row.tests.at(-1)?.result !== 'PASS') fail(409, 'QC_BLOCKED');
+        if (row.spareMaterials) row.replacementFreeze = { frozenAt: businessNow(runtime), replacements: structuredClone(row.replacements || []), manufacturedGenealogy: structuredClone(row.manufacturedSpareGenealogy || []) };
         row.qc = { ...record('QC_RELEASED'), testRun: row.tests.at(-1).run }; row.status = 'READY_FOR_RETURN'; row.custodyState = 'RELEASED_FOR_RETURN'; row.custody.push(record('REASSEMBLED'));
       } else if (action === 'bill') {
         requireState('READY_FOR_RETURN', 'RETURNED');
@@ -150,9 +182,33 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
         row.finalInvoiceId = invoice._id;
       } else if (action === 'return') {
         requireState('READY_FOR_RETURN', 'REJECTED'); if (row.holdActive) fail(409, 'QC_BLOCKED');
+        row.returnedAt = businessNow(runtime);
         row.custodyState = row.status === 'REJECTED' ? 'RETURNED_UNREPAIRED_TO_CUSTOMER' : 'RETURNED_TO_CUSTOMER'; row.custody.push(record(row.custodyState)); row.status = 'RETURNED';
+      } else if (['component-remove', 'component-dispose'].includes(action)) {
+        if (action === 'component-dispose') id(b.componentId);
+        await recordComponentCustody(runtime.db, req.filter, row, action, b, req.scope.userId, session, businessNow(runtime));
+      } else if (action === 'warranty') {
+        requireState('RETURNED');
+        if (row.decision?.decision !== 'ACCEPT' || !row.qc || row.holdActive || row.warranty || !row.returnedAt) fail(409, 'WARRANTY_CONFLICT');
+        if (!Number.isSafeInteger(b.days) || b.days < 1 || b.days > 3650) fail(400, 'INVALID_WARRANTY_PERIOD');
+        const startsAt = new Date(row.returnedAt), expiresAt = new Date(startsAt.getTime() + b.days * 86400000);
+        if (expiresAt <= businessNow(runtime)) fail(409, 'WARRANTY_EXPIRED');
+        row.warranty = { ...record('WARRANTY_ISSUED'), _id: randomUUID(), status: 'ACTIVE', startsAt, expiresAt, days: b.days, terms: text(b.terms), scopeRevision: row.decision.revision, serial: row.serial, accountId: row.ownerAccountId };
+      } else if (action === 'warranty-void') {
+        requireState('RETURNED'); if (row.warranty?.status !== 'ACTIVE') fail(409, 'WARRANTY_CONFLICT');
+        row.warranty = { ...row.warranty, status: 'VOID', voided: record('WARRANTY_VOIDED') };
+      } else if (action === 'warranty-claim') {
+        requireState('RETURNED');
+        const now = businessNow(runtime), warranty = row.warranty;
+        if (row.holdActive || warranty?.status !== 'ACTIVE' || new Date(warranty.startsAt) > now || new Date(warranty.expiresAt) <= now) fail(409, 'WARRANTY_UNAVAILABLE');
+        if ((row.warrantyClaims?.length || 0) >= 100) fail(409, 'WARRANTY_HISTORY_LIMIT');
+        const caseId = randomUUID(), condition = text(b.condition);
+        const claim = { ...base(req), _id: caseId, caseNumber: repairNumberFor(req.filter, caseId), ownerAccountId: row.ownerAccountId, serial: row.serial, initialCondition: condition, currency: row.currency, replacementPolicy: 'CANONICAL_SPARES_V1', status: 'INTAKE', custodyState: 'IN_CUSTODY', custody: [evidence(req, 'WARRANTY_RECEIVED', condition)], history: [], scopes: [], deposits: [], tests: [], reworks: [], holds: [], warrantyOrigin: { caseId: row._id, warrantyId: warranty._id, warranty: structuredClone(warranty), claim: record('WARRANTY_CLAIM') } };
+        await c('repairCases').insertOne(claim, { session });
+        row.warrantyClaims = [...(row.warrantyClaims || []), { caseId, caseNumber: claim.caseNumber, ...record('WARRANTY_CLAIM') }];
       }
       row.history.push({ ...base(req), action, fromVersion: row.version, status: row.status }); row.version++; row.updatedAt = new Date();
+      await saveRepairStockAuthority(runtime.db, req.filter, row, req.scope.userId, action, session);
       const saved = await c('repairCases').replaceOne({ ...req.filter, _id: row._id, version: b.expectedVersion }, row, { session }); if (!saved.matchedCount) fail(409, 'VERSION_CONFLICT'); return row;
     }); res.json({ data });
   });
@@ -202,7 +258,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
     const data = await tx(req, 'repair.intake', async session => {
       await find('accounts', req, accountId, session);
       const caseId = randomUUID();
-      const row = { ...base(req), _id: caseId, caseNumber: repairNumberFor(req.filter, caseId), ownerAccountId: accountId, serial: text(serial), initialCondition: text(condition), currency, status: 'INTAKE', custodyState: 'IN_CUSTODY', custody: [evidence(req, 'RECEIVED', condition)], history: [], scopes: [], deposits: [], tests: [], reworks: [], holds: [] };
+      const row = { ...base(req), _id: caseId, caseNumber: repairNumberFor(req.filter, caseId), ownerAccountId: accountId, serial: text(serial), initialCondition: text(condition), currency, replacementPolicy: 'CANONICAL_SPARES_V1', status: 'INTAKE', custodyState: 'IN_CUSTODY', custody: [evidence(req, 'RECEIVED', condition)], history: [], scopes: [], deposits: [], tests: [], reworks: [], holds: [] };
       await c('repairCases').insertOne(row, { session }); return row;
     }); res.status(201).json({ data });
   });
