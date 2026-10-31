@@ -122,7 +122,7 @@ export function installCustomerService(app, runtime, { fail, id, fields }) {
     let remaining = deliveryIds ? [...deliveryIds] : null;
     for (let i = 0; i < 25 && (remaining === null || remaining.length > 0); i++) {
       if(runtime.separateEffects?.supports('cs.local-preview')){const managed=await runtime.db.collection('cs_outbox').find({tenantId,channelAccountId:SIMULATED_CHANNEL_ACCOUNT,state:'QUEUED',controlCommandId:{$type:'string'},...(remaining?{_id:{$in:remaining}}:{})}).sort({seq:1}).limit(1).next();if(managed){const result=await runtime.separateEffects.run(managed.controlCommandId,managed._id);if(result.state!=='PREVIEWED')break;done.push(managed._id);if(remaining)remaining = remaining.filter(id => id !== managed._id);continue;}}
-      const claim = await preview.claimNextDelivery({ tenantId, channelAccountId: SIMULATED_CHANNEL_ACCOUNT, leaseOwner: 'portfolio-api.simulator', deliveryIds: remaining });
+      const claim = await preview.claimNextDelivery({ tenantId, channelAccountId: SIMULATED_CHANNEL_ACCOUNT, leaseOwner: 'portfolio-api.simulator', deliveryIds: remaining ?? undefined });
       if (!claim) break;
       await preview.recordDeliveryResult({ tenantId, deliveryId: claim.deliveryId, fence: claim.fence, outcome: 'PREVIEWED', error: 'PREVIEW_ONLY_NO_PROVIDER' });
       done.push(claim.deliveryId);

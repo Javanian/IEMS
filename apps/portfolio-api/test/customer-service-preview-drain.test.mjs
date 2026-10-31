@@ -13,8 +13,9 @@ function harness({ ids = [], queued = [], managed = false, state = 'PREVIEWED', 
     },
     customerServicePreview: {
       claimNextDelivery: async input => {
+        assert.notEqual(input.deliveryIds, null, 'Unscoped package contract requires undefined');
         claims.push(structuredClone(input));
-        const id = queued.find(id => input.deliveryIds === null || input.deliveryIds.includes(id));
+        const id = queued.find(id => input.deliveryIds === undefined || input.deliveryIds.includes(id));
         return id ? { deliveryId: id, fence: 'original-fence' } : null;
       },
       recordDeliveryResult: async input => { results.push(input); queued = queued.filter(id => id !== input.deliveryId); },
