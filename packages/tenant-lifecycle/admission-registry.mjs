@@ -8,7 +8,12 @@ export function registeredRoutes(app) {
   return app.router.stack.filter(layer=>layer.route).flatMap(layer=>Object.keys(layer.route.methods).map(method=>`${method.toUpperCase()} ${layer.route.path}`)).sort();
 }
 export function validateAdmissionRoutes(app) {
-  if(JSON.stringify(registeredRoutes(app))!==JSON.stringify(admissionRegistry.routes.map(row=>row.route))) throw new CommandError('SAAS_HOST_ROUTES_UNREGISTERED',503);
+  const actualRoutes=registeredRoutes(app);
+  if(JSON.stringify(actualRoutes)!==JSON.stringify(admissionRegistry.routes.map(row=>row.route))) {
+    const error=new CommandError('SAAS_HOST_ROUTES_UNREGISTERED',503);
+    Object.defineProperty(error,'actualRoutes',{value:Object.freeze(actualRoutes)});
+    throw error;
+  }
 }
 export async function verifyAdmissionSources() {
   for(const [path,digest] of Object.entries(admissionRegistry.sources)) {

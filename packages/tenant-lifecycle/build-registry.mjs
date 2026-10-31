@@ -22,10 +22,17 @@ async function walk(dir){for(const e of await readdir(resolve(root,dir),{withFil
   sources[path]={sha256:createHash('sha256').update(text).digest('hex'),fields:[...fields].sort(),...(path.endsWith('/app.mjs')?{section:'function installCrm('}:{})};
 }}
 for(const dir of roots)await walk(dir);
+{
+  const path='packages/tenant-lifecycle/local-commands.mjs',text=(await readFile(resolve(root,path),'utf8')).replaceAll('\r\n','\n');
+  const fields=new Set(['_id','tenantId','plantId','userId','action','key','resourceId','inputHash','result','schemaVersion','occurredAt']);
+  for(const re of [/\b([A-Za-z_][A-Za-z0-9_]*)\s*:/g,/\.([A-Za-z_][A-Za-z0-9_]*)\b/g,/['"]([A-Za-z_][A-Za-z0-9_]*)['"]/g])for(const m of text.matchAll(re))fields.add(m[1]);
+  sources[path]={sha256:createHash('sha256').update(text).digest('hex'),fields:[...fields].sort()};
+}
 const names=new Set(Object.values(inventory).flat());
 for(const n of ['catalogPurchaseRequests','purchasedFulfillmentAudit','purchasedFulfillmentOutbox','qualityAudit','qualityOutbox','maintenanceAudit','maintenanceOutbox','operationsAudit','operationsOutbox','catalogOptionSearch','files','exports','readModels','saasSubscriptions','saasLifecycleArchives'])names.add(n);
 const protectedNames=new Set(['credentials','sessions','memberships','users','tenants','plants','legalEntities','audit','outbox','foundationCommandResults','jobs','platformRateLimits','ownedRun','files','exports','readModels','analyticsHeads','analyticsReceipts','saasSubscriptions','saasLifecycleArchives','reportingSourceCoverage','reportingSourceQuarantine','catalogOptionSearch']);
 const collections={};
+for(const name of ['crmCommandResults','legacyQuoteCommandResults','procurementCommandResults'])names.add(name);
 for(const name of [...names].sort()){
   const retained=protectedNames.has(name)||/^cs_|^automation_|^portal_|^workforce|^voice|^aiVendor|^aiDocument|^aiIndex/.test(name)||/Outbox$/.test(name);
   collections[name]={disposition:retained?'RETAIN_PRIVATE_OR_TECHNICAL':'BUSINESS',schema:retained?null:'PINNED_BSON_BUSINESS_V1',sources:Object.entries(inventory).filter(([,v])=>v.includes(name)).map(([p])=>p),
@@ -34,8 +41,16 @@ for(const name of [...names].sort()){
 for(const [name,paths]of Object.entries({catalogPurchaseRequests:['apps/portfolio-api/src/catalog-procurement.mjs'],
   purchasedFulfillmentAudit:['apps/portfolio-api/src/purchased-fulfillment.mjs'],
   qualityAudit:['apps/portfolio-api/src/quality.mjs'],maintenanceAudit:['apps/portfolio-api/src/quality.mjs','apps/portfolio-api/src/maintenance.mjs'],operationsAudit:['apps/portfolio-api/src/quality.mjs','apps/portfolio-api/src/operations.mjs']}))collections[name].sources=paths;
+collections.repairInvoices.businessAuthorizationPaths=['authorization'];
+collections.repairKeys.businessAuthorizationPaths=['result.authorization'];
+collections.quotes.sources.push('apps/portfolio-api/src/repair.mjs');
+for(const name of ['repairSalesOrders','repairWorkOrders']) collections[name].sources=['apps/portfolio-api/src/repair-orders.mjs','apps/portfolio-api/src/fixture-tax.mjs','apps/portfolio-api/src/repair.mjs'];
 collections.accounts.fields=['_id','tenantId','plantId','ownerId','version','createdAt','updatedAt','name','useFence','documentFence'];
 collections.contacts.fields=['_id','tenantId','plantId','ownerId','version','createdAt','updatedAt','name','email','accountId','useFence'];
-const result={schema:'IEMS_BUSINESS_ARCHIVE_REGISTRY_V1',base:'55766c6a87e5b81a2b9f267a451b3c2cce2d242f',coverageScope:'REGISTERED_MONGO_BUSINESS_GRAPH_V1',sources,collections};
+for(const [name,path]of Object.entries({crmCommandResults:'apps/portfolio-api/src/app.mjs',legacyQuoteCommandResults:'apps/portfolio-api/src/commercial.mjs',procurementCommandResults:'apps/portfolio-api/src/procurement.mjs'})) {
+  collections[name].sources=[path,'packages/tenant-lifecycle/local-commands.mjs'];
+  collections[name].fields=['_id','tenantId','plantId','userId','action','key','resourceId','inputHash','result','schemaVersion','occurredAt'];
+}
+const result={schema:'IEMS_BUSINESS_ARCHIVE_REGISTRY_V1',base:'78e0ce89a4f88bab0dfd9c116be04b984933f351',provenance:{data:'55766c6a87e5b81a2b9f267a451b3c2cce2d242f',admission:'a87e593abe0476bae34275d1f19c78441c6a4b10',repairSource:'78e0ce89a4f88bab0dfd9c116be04b984933f351',pins:'Normalized actual source hashes in this registry; final feature SHA is recorded in handoff ledger'},coverageScope:'REGISTERED_MONGO_BUSINESS_GRAPH_V1',sources,collections};
 await writeFile(new URL('./domain-registry.json',import.meta.url),JSON.stringify(result,null,2)+'\n');
 console.log(`Reviewed source inventory candidate: ${Object.keys(collections).length} collections, ${Object.keys(sources).length} pinned source schemas. ${relative(root,fileURLToPath(new URL('./domain-registry.json',import.meta.url)))}`);

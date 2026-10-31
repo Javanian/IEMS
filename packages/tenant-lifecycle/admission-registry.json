@@ -1,7 +1,13 @@
 {
   "schema": "SAAS_ADMISSION_REGISTRY_V1",
   "profile": "RECEIPTED_COMMANDS_V1",
-  "base": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
+  "base": "78e0ce89a4f88bab0dfd9c116be04b984933f351",
+  "provenance": {
+    "data": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
+    "admission": "a87e593abe0476bae34275d1f19c78441c6a4b10",
+    "repairSource": "78e0ce89a4f88bab0dfd9c116be04b984933f351",
+    "pins": "Normalized actual source hashes in this registry; final feature SHA is recorded in handoff ledger"
+  },
   "fullEndpointCoverage": false,
   "unit": "command-count",
   "storageBytes": "Cumulative explicitly admitted bytes; not measured disk occupancy or invoice billing",
@@ -80,6 +86,356 @@
       "hook": "apps/portfolio-api/src/quality.mjs",
       "replay": "current host/helper source authorization",
       "nested": "one scopedModule receipt including voice; no independently charged child"
+    },
+    "repairKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify(canonical({kind,id,bodyWithoutKey})))",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/repair.mjs",
+      "replay": "current scoped case; invoice-settle resolves scoped invoice.caseId; typed REPAIR_SERVICE_V1 invokes exported service source/quality/order/dispatch/POD/warranty validator; spare stock recheck retained",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "internalPlanningKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({kind,resource,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/internal-production.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "internalExecutionKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({kind,resource,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/internal-execution.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "stockHoldKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify(canonical({operation,subjectId,request})))",
+      "hashField": "requestHash",
+      "response": "status/body",
+      "hook": "apps/portfolio-api/src/stock-holds.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "inquiryKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "create:SHA256(JSON.stringify(body));change:SHA256(JSON.stringify({operation,id,body}))",
+      "hashField": "payloadHash",
+      "response": "data",
+      "hook": "apps/portfolio-api/src/inquiries.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "materialShortageKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({operation,resource,bodyWithTrimmedReason})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/material-shortages.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "catalogKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({kind,resource,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/catalog-procurement.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "catalogDispositionKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({kind,resource,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/catalog-disposition.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "purchasedFulfillmentKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({kind,orderId,body})",
+      "hashField": "payloadHash",
+      "response": "result (domain command proof)",
+      "hook": "apps/portfolio-api/src/purchased-fulfillment.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "deliveryKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({path,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/delivery.mjs",
+      "replay": "current persisted shipment and repair-return authority detector; typed/purchased/catalog source+state+historical event+view verification before original result; zero charge",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "fulfillmentReturnKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({shipmentId,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/delivery.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "workforceResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "actorId",
+        "key"
+      ],
+      "actorId": "grant.userId",
+      "hash": "HMAC-SHA256(existing pepper,contentHash({path,body}))",
+      "hashField": "inputHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/workforce.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "purchaseOrderAmendmentKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "cohort",
+        "key"
+      ],
+      "cohort": "LEGACY",
+      "hash": "SHA256(JSON.stringify([operation,params,input]))",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "procurementRfqKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify([operation,id,body]))",
+      "hashField": "payloadHash",
+      "response": "data",
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "procurementPromiseKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify([id,expectedVersion,vendorId,promisedAt,reference,reason]))",
+      "hashField": "payloadHash",
+      "response": "data",
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "procurementConversions": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify({requestId,expectedVersion}))",
+      "hashField": "payloadHash",
+      "response": "orderId -> scoped purchaseOrders",
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "quoteCatalogKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "existing quoteCatalogPayloadHash({kind,quoteId?,body})",
+      "hashField": "payloadHash",
+      "response": "result/resultHash -> quoteCatalogReplay",
+      "hook": "apps/portfolio-api/src/commercial.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "quoteConversions": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify({quoteId,expectedVersion,revision}))",
+      "hashField": "payloadHash",
+      "response": "orderId -> scoped salesOrders",
+      "hook": "apps/portfolio-api/src/commercial.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "companyStockKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({action,companyReceiptId,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/company-stock.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "crmCommandResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "key"
+      ],
+      "hash": "foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})",
+      "hashField": "inputHash",
+      "response": "exact original result snapshot",
+      "actions": {
+        "account.created": "crm.write",
+        "contact.created": "crm.write",
+        "opportunity.created": "crm.write",
+        "opportunity.stage": "crm.write"
+      },
+      "hook": "apps/portfolio-api/src/app.mjs",
+      "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
+      "meter": "ONE_COMMAND"
+    },
+    "legacyQuoteCommandResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "key"
+      ],
+      "hash": "foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})",
+      "hashField": "inputHash",
+      "response": "exact original result snapshot",
+      "actions": {
+        "quote.created": "quote.write",
+        "quote.revisions": "quote.write",
+        "quote.approve": "quote.approve",
+        "quote.accept": "quote.accept"
+      },
+      "hook": "apps/portfolio-api/src/commercial.mjs",
+      "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
+      "meter": "ONE_COMMAND"
+    },
+    "procurementCommandResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "key"
+      ],
+      "hash": "foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})",
+      "hashField": "inputHash",
+      "response": "exact original result snapshot",
+      "actions": {
+        "vendor.created": "procurement.write",
+        "purchaseRequest.created": "procurement.write",
+        "purchaseRequest.approve": "procurement.approve",
+        "purchaseOrder.issue": "procurement.issue",
+        "purchaseOrder.vendor-confirmation": "procurement.confirm"
+      },
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
+      "meter": "ONE_COMMAND"
+    },
+    "documentIssues": {
+      "filter": [
+        "tenantId",
+        "legalEntityId",
+        "plantId",
+        "kind",
+        "sourceId",
+        "sourceVersion"
+      ],
+      "hash": "existing renderer snapshot.contentHash",
+      "hashField": "contentHash",
+      "hook": "renderer.issueInTransaction + documents.mjs caller transaction",
+      "replay": "current source permissions/snapshot plus existing artifact/READY integrity",
+      "meter": "ONE_COMMAND",
+      "response": "original public READY intent ID and renderer record mapping"
     }
   },
   "constructors": [
@@ -95,32 +451,32 @@
   "externalEnrollment": "Any automation_engine_runs history blocks enrollment until authoritative quiescence/reconciliation is designed; an engine HTTP ACK does not prove effects stopped.",
   "sources": {
     "apps/portfolio-api/src/analytics.mjs": "321a9a29dc738b64cac746d7b4123f9cfcaece1c1af643c7b159aac53b007833",
-    "apps/portfolio-api/src/app.mjs": "0bbc2ebee9c685087d3036522f340cd5c9141524ca3ced9a33c225a29a43f60e",
+    "apps/portfolio-api/src/app.mjs": "4cf21acce04e1de8ca283334e7cfe19eb75958f910ad4e27abac9f5c77badddb",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
     "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
     "apps/portfolio-api/src/automation.mjs": "cc99bcaef8bbbab846a36ea8edaa5e785e0373b86f9cb1c33077b021ff9f7fc5",
     "apps/portfolio-api/src/business-clock.mjs": "75ac403414331887f6df0e944a7f6f6a0415aa62c4ae62b76124c28adb8f2188",
     "apps/portfolio-api/src/catalog-disposition-state.mjs": "14bdaae9188d604a15ea90ef63b2adf025600b26b3a4af58364ee24f4d99f875",
-    "apps/portfolio-api/src/catalog-disposition.mjs": "96b52d42cc23cd755295efb3619aed46732201a451f56f132848ac8c813817f1",
+    "apps/portfolio-api/src/catalog-disposition.mjs": "1835a7e3235460873335e53979a409360f3ffea0d8814e6737317f7ef3dbb49f",
     "apps/portfolio-api/src/catalog-option-index.mjs": "2fea88fac04ee815c01040b5f9436789916cbcad2e382c63e9b5f12252d3b182",
     "apps/portfolio-api/src/catalog-options.mjs": "f850c7d24b03f6c7834bc49e479375c3b92e59fa12f18ae8bb4257c6d5deb061",
-    "apps/portfolio-api/src/catalog-procurement.mjs": "c6598a34e2aad85ae989d7e754bacf080098973ed5aafb5dfcff8d6bac4f86c5",
+    "apps/portfolio-api/src/catalog-procurement.mjs": "2aa34072bff34e19e528c0c388cf3932d6bb4490dee03df687d86e20293ed2ee",
     "apps/portfolio-api/src/catalog-stock-use-state.mjs": "01551ffca55baca6cb71d0b5a61f42c4bb5e17727aef7dae6745a45486b82882",
     "apps/portfolio-api/src/catalog-stock-values.mjs": "0c0a3b57fba41de58d6ed01ae3a704e4c0b86e203e1f48a87893eb3152a3d3af",
     "apps/portfolio-api/src/catalog-stock.mjs": "537e6db06cda3aea617f650f55fe793d2ccd7eee3b90d46764021082a06340a2",
-    "apps/portfolio-api/src/commercial.mjs": "cefcd5e15590b29ec0335e9c0250bfe67c2fb0135635cb53077b76618650c22b",
+    "apps/portfolio-api/src/commercial.mjs": "3116ed921aea6d42809142ea571ba6cf6b66bfa9335227feeda2c0421aec442a",
     "apps/portfolio-api/src/company-stock-capacity.mjs": "74a9ae580adbc8bec6a4fe4b19d721fec2568d91816d06ac30f4cee7bf462dcd",
     "apps/portfolio-api/src/company-stock-state.mjs": "096ccadc741a4d82e678e9dca22f38047b30262e8ee74a3db5af936548167d90",
     "apps/portfolio-api/src/company-stock-trace.mjs": "ca7f00e6aecc16b66c530cc374c6a2a09fda13d1f6377baf32198a4574766f16",
-    "apps/portfolio-api/src/company-stock.mjs": "7277fa6f57ecea892f220268157ec85107dec8c80ee18d18a52c153f0c2f2efa",
+    "apps/portfolio-api/src/company-stock.mjs": "dd94c1c600bee1f95affb60cdb2ad5a3c9e66cf7a90b63e8a04887cbc8fc63b4",
     "apps/portfolio-api/src/component-installation.mjs": "e7110fb21426588fba8eef2460b984f8a24cff20e679991354b10e9a149d680e",
     "apps/portfolio-api/src/config.mjs": "68d37bb07eeef69f3b0179992f94e7b7c1c158a81c57b2ce80a1230d2e0be15a",
     "apps/portfolio-api/src/crm.mjs": "fc42fe7a9ed0a483154c5c5b02507516ca1f6bad58d54a37b5e26183cd6c72b3",
     "apps/portfolio-api/src/cs-intent.mjs": "8a3f8597044b9ec4b900aea6daeaf0d03df347d62ea5ea0953f0d609941ec0f7",
     "apps/portfolio-api/src/customer-service.mjs": "4044ab34ce59a64b38d6a48859b788eed5158209d45b7aacd19043402ece86ea",
-    "apps/portfolio-api/src/delivery.mjs": "afaea1877bf1db8310c477d8ff1ab105a4c970474dd9d04a36ee7b3a568b20f9",
+    "apps/portfolio-api/src/delivery.mjs": "ac6c9e63567df966e0b5ae2f58eb121c095a93a430b9e82494e1c14afd26910f",
     "apps/portfolio-api/src/descendant-freeze.mjs": "ff470bb795c5667f871b239a2ecb86191294cdd2eff30b4f07ecec5626a6f0a7",
-    "apps/portfolio-api/src/documents.mjs": "95f1c5665f05af4ca3f4f9945866fc37a5bb6b4bd722348bac73cd3798307da0",
+    "apps/portfolio-api/src/documents.mjs": "b21fd75da76bf8688204161bab07ad52e5d08dc52cbe30452a99a6a9036e666f",
     "apps/portfolio-api/src/engineering.mjs": "bb9d9b6f87405dfd8c59fd1a9bced4c4163e1597e79fe4689b83791238e027b1",
     "apps/portfolio-api/src/fixture-tax.mjs": "bf5aaf8a1acfb9d5b5f5b50743584fe81a683d8eae886579aee220b7d2c16d1d",
     "apps/portfolio-api/src/foundation-connection.mjs": "4ffcb2944caa009497b35f49a68b77d7d681499fe479fb841f350fc4ec849bd8",
@@ -128,39 +484,41 @@
     "apps/portfolio-api/src/foundation-runtime.mjs": "ba7e57f158718d0655db6b53e532cfc534ffe15632184e3c6ff310ba6b98cd48",
     "apps/portfolio-api/src/fulfillment.mjs": "749c384d32729053a24f865a9d7d757b70cb7c7dd832d33ae7629d80dabef8ae",
     "apps/portfolio-api/src/genealogy.mjs": "dadaf91f25d888b3052d3154fb86dd0b0190bbded45254c061af4b77235a4c44",
-    "apps/portfolio-api/src/inquiries.mjs": "89f3af926a33ca191eddad1af196571799849a3a7b60f703b00035e13419421e",
+    "apps/portfolio-api/src/inquiries.mjs": "39d9f6f338a370bb11e2fd9d1f48d3ca0d356629da8c9fe9729a8597ffe01911",
     "apps/portfolio-api/src/internal-execution-state.mjs": "759fa04db7afb5773d4ad437590f24c25fe629caeb6f339f0439a8ead3873c57",
-    "apps/portfolio-api/src/internal-execution.mjs": "080cfa31d508d35b38131082baa5a1fcb9f5f9fed59e4f7746018c16d7e9948c",
-    "apps/portfolio-api/src/internal-production.mjs": "80d337974cd5e0b3fd00a0c4c3aeada412d653eebcb058823fe2fb79b2809aa0",
+    "apps/portfolio-api/src/internal-execution.mjs": "e8d0538e66463b508d2379ead7e4b2e50e50195a7fcdc4a532e92b3bfdcbc7ea",
+    "apps/portfolio-api/src/internal-production.mjs": "c93829a43865f6db4a3d29035ae67080000937e238bac1dd287e57c16d23ff44",
     "apps/portfolio-api/src/labor.mjs": "78a99758d8e394298d8d3a541f4048193aa214c87e20c2ad5f8636068ea2e206",
     "apps/portfolio-api/src/maintenance.mjs": "4709b660d9d3ede2c0e6f665c972fd9a083e9306e2ab04610e07a4a88bb8ddd2",
     "apps/portfolio-api/src/manufactured-dispatch.mjs": "0feba439fd186855aa3304aab61ab2506bc41391f96bb52307d701cd52fb8bf2",
     "apps/portfolio-api/src/manufacturing.mjs": "57637ac8a93a5ec90fdc1c6c0d7bc297c39ead3f8e8f1861ceea94a156ee01d6",
-    "apps/portfolio-api/src/material-shortages.mjs": "5b259e8fdf5a0891e49d03c22ff51ff105939f2b4c567a3d2cff3930dae07f09",
+    "apps/portfolio-api/src/material-shortages.mjs": "5ef56c62350a6a3c4fb9505b21199b42614a753ea81aefcf060fca38792bea46",
     "apps/portfolio-api/src/operations.mjs": "1a9f37d823cbff3f43866c9bacf7f94e5ecbeb5bcf586694d35bd369a057e576",
     "apps/portfolio-api/src/order-reader.mjs": "9ca47db201d530885ce082c7096a38ab41b2847582081fca2cd619483100b766",
     "apps/portfolio-api/src/platform-runtime.mjs": "4242fd9213d1e6887cda424fc2db073747a557d129636d5f368a734fa0d6646d",
     "apps/portfolio-api/src/portals.mjs": "1ad40ed75e6c4ae24755d54ebdbfd50121b9b2d2f36ad5464b0ae78ad85f52d6",
     "apps/portfolio-api/src/predictions.mjs": "b37f4349817be74824c96cc4487508528694feedd49cb4e36f82da883ce0b40e",
     "apps/portfolio-api/src/procurement-commitments.mjs": "e933db2f068fad2c010566b0465ce43fc73f22121116e975c45a7e6d7dbbece3",
-    "apps/portfolio-api/src/procurement.mjs": "7ad4f6eeddf5de593e0e1fd20d6872309b0d7597f75bf5a0897e408e57a53fd2",
+    "apps/portfolio-api/src/procurement.mjs": "a717d4fa99cb54c20bae01b8c27a8a1274514ad13222b2032e395efa256162f8",
     "apps/portfolio-api/src/purchased-billing-state.mjs": "be5bf4143a7a8bac0e6223e3b20c8207512cbff6d1d15224b1a40b746a58e839",
     "apps/portfolio-api/src/purchased-financial.mjs": "5c6937431ea286e66717677235fef3befef7976f953513d089ee93bc8d80a740",
-    "apps/portfolio-api/src/purchased-fulfillment.mjs": "a18b7473d6a6b9bd670f21fab300c613d56ae3a66332a4720ec1ee1993c6f7be",
+    "apps/portfolio-api/src/purchased-fulfillment.mjs": "d4a77d7c6ba12ebfa332991f58e29e5cceffe5cd53bf4b16f4122071f4cae75c",
     "apps/portfolio-api/src/purchased-stock-proof.mjs": "2694da90e35c11e35437e5cb18d8039e803526ed760fa66f88aa1f729ab7a932",
     "apps/portfolio-api/src/quality.mjs": "2e26e5fd98493efba7c43e174084eed385115974fc54f73e29dce3466711abe8",
     "apps/portfolio-api/src/quote-catalog.mjs": "f6da9627dcac48822639aad42b059ca32718ecbaa4bd1775f567f868b8cbe129",
     "apps/portfolio-api/src/rag.mjs": "5ea97c46d382b77f60e424d61b587cccd1c765e1827bdf471be2d7a35d88e3ed",
     "apps/portfolio-api/src/receipt-origin.mjs": "9c8fe6accc3928ac8e2759aeb2b88f78b184fbac6792f96afd25992bf18c75dd",
     "apps/portfolio-api/src/repair-components.mjs": "226cbcce033a787a33f524d32be0aa76690374a6e1905d57848122d1b194508d",
+    "apps/portfolio-api/src/repair-orders.mjs": "85f28ed5fef7542b4a5a230e8a205331b3958c11eb5ef67d1a30fd3b4e5e7306",
+    "apps/portfolio-api/src/repair-return.mjs": "b0cd75dc63b8ab40453fe626b6d09a6bad9389f9ec3f4fe59831ba5ce0d7c021",
     "apps/portfolio-api/src/repair-stock.mjs": "28c58dfb3878a790f03d38dc265d6e1ad0e2d35afc85a985dc2d60efb97eb75d",
-    "apps/portfolio-api/src/repair.mjs": "29500089876b20aa6dd28b70461f58a83d974acfdf248b92d4b4dd8675a9f199",
+    "apps/portfolio-api/src/repair.mjs": "68bf83976f85d2a193774569e7735678c68886f0d136bcb046ad4afb80e79257",
     "apps/portfolio-api/src/reporting-source.mjs": "4e4d834f2fed11f11cefcfd11544dec583a8b7548f6100c253d44fddf7343e90",
     "apps/portfolio-api/src/serial-custody.mjs": "0ca09720c49e011e9bec55124304cae418250a95fec896f758316cea28aaba87",
-    "apps/portfolio-api/src/stock-holds.mjs": "36ff268b14b0f390ac9027e4d59849bbf2d0d45f1545dec0d765b1456079109d",
+    "apps/portfolio-api/src/stock-holds.mjs": "fe0179862ca3a39ba65635e326e2340d8212e5ad3aa73a1a3c753e339d4cdd42",
     "apps/portfolio-api/src/vendor-drafts.mjs": "dafa76e24ab6c39f3e370458aecebbd711c2f430d5fafd82db4b78922059a29f",
     "apps/portfolio-api/src/warehouse.mjs": "66b18738ca8ab02ab4e058f4e7e4a33b82308e6ddf78916260686f6c6a260aa7",
-    "apps/portfolio-api/src/workforce.mjs": "81b2f37a0bd1e213a565691fdb8cc9a765a0688bc2bd444cef2c65353f8c1c5e",
+    "apps/portfolio-api/src/workforce.mjs": "203e15d5da11452c4fd991442c29b3c43037ce5b506fecf50f9eb412282b674e",
     "packages/contracts/src/domains/commercial/purchase-orders.mjs": "a39898b88377f27044bcb9ec2e2294e6c628e05435da406739afedcc29d7bd3d",
     "packages/contracts/src/domains/engineering-repair/gates.mjs": "4d250c6bafc99853bdb25d69655d20c68159c9d0518c05c8129b0287c2daf3e3",
     "packages/contracts/src/domains/logistics-billing/values.mjs": "91d85580045284e070a5395a75b0875c1b7e91aaff5b9f5326794272fc335c20",
@@ -185,7 +543,7 @@
     "packages/domain-events/index.mjs": "5d7ff3466006e1846aa6062f2f9a85e8d56d9745332bfe731f875d3b8f83ad5c",
     "packages/domain-events/snapshot-source.mjs": "2f7d436cf26ff032380d1370557f30cb3c9986bd3b892f43b44b59b35b8f7dfd",
     "packages/domain-events/source-bindings.mjs": "ffe4c0ac645697765a0dccf1418ebb7a498987024e3c31f4d7d658f75c992f16",
-    "packages/document-rendering/src/index.mjs": "db999751488f024a560a76fe8c23164d6da66e121d3c5a61b18a2da38ef78e1e",
+    "packages/document-rendering/src/index.mjs": "0234008355edfbd31ab1c82da7cb3d182f352155ec9bc43d0a9b09272f570484",
     "packages/document-rendering/src/layout-v2.mjs": "e98de60e265be5dcd733408825fe5e767180f824fe23e169a66d35ebd6badb1a",
     "packages/document-rendering/src/layout-v3.mjs": "0e0e91a3144a4228a3d508d6fca17c3bc4ded113b0f64857b0034220778ebbd1",
     "packages/document-rendering/src/vat.mjs": "e93a8befa29812a3f3f578e555183859e5b4509812e89053b4df261f31b45d4e",
@@ -195,10 +553,11 @@
     "packages/durable-jobs/index.mjs": "ddc174521d4d74bf674fca23c939a9a63634fb969ad5256f58df00e54878a943",
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "43c28983915b21465ad9f5761ac1930afe95e33d05ac1c5870e2e2840e5c5bdc",
-    "packages/tenant-lifecycle/admission.mjs": "c1ed8d9987188bd921c33dd54659eb7cf1671afb1d87d0d03269bcc4562cdfab",
-    "packages/tenant-lifecycle/index.mjs": "19fdf4ed4b0028a57139a0107f74c7b02afcab9c84da3ab0b00c528f459e4570",
-    "packages/tenant-lifecycle/domain-port.mjs": "360ebbd148166a92367387a7c2a276d5ca5f22e259a20c450f642d0c817d5fbe",
-    "packages/tenant-lifecycle/admission-registry.mjs": "7ef6a1ce3fe0f93e9f564ca5740b0eb7ef93cb1c4df86f0bd6acfc7b5b4fa601"
+    "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
+    "packages/tenant-lifecycle/admission.mjs": "c86001a8fdec87454bcd1a4e77f76d801fe5d6993b4fdf2b4931785b0c372879",
+    "packages/tenant-lifecycle/index.mjs": "5d6ee25d2175b489332a9236efdc23fa8b2bffa7561e2eabed04422c911401c4",
+    "packages/tenant-lifecycle/domain-port.mjs": "48787a3e8928573328259a0bfef8bdf05ef183c4dd813a0175dff62c70131a36",
+    "packages/tenant-lifecycle/admission-registry.mjs": "292fefe68375039b69c04cf3850e3413eb26934f02308e0e67fd8208cdbe1ca6"
   },
   "routes": [
     {
@@ -488,7 +847,7 @@
     },
     {
       "route": "GET /api/cs/automation/sla-breaches",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
       "note": "GET schedules automation tasks in the existing transaction; rejects enrolled tenants."
     },
@@ -978,6 +1337,26 @@
       "meter": "NONE"
     },
     {
+      "route": "GET /api/repair/sales-orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/sales-orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/work-orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/work-orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
       "route": "GET /api/saas/status",
       "state": "CONTROL_PLANE",
       "meter": "SEPARATE_ADMIN_RECEIPT"
@@ -1175,369 +1554,417 @@
     },
     {
       "route": "POST /api/catalog-disposition/receipts/:id/approve",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogDispositionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-disposition/receipts/:id/inspections",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogDispositionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-disposition/receipts/:id/putaway",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogDispositionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/orders/:id/amendments",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/orders/:id/amendments/:amendmentId/approve",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/orders/:id/amendments/:amendmentId/issue",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/orders/:id/issue",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/orders/:id/vendor-promise",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/receipts",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/requests",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/requests/:id/approve",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/requests/:id/convert",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/requests/:id/revisions",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/requests/:id/rfq",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/catalog-procurement/requests/:id/rfq-response",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/commercial/inquiries",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/commercial/inquiries/:id/convert",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/commercial/inquiries/:id/revisions",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/commercial/inquiries/:id/stage",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/commercial/quotes",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
     },
     {
       "route": "POST /api/commercial/quotes/:id/accept",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
     },
     {
       "route": "POST /api/commercial/quotes/:id/approve",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
     },
     {
       "route": "POST /api/commercial/quotes/:id/convert",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "quoteConversions"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
     },
     {
       "route": "POST /api/commercial/quotes/:id/revisions",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
     },
     {
       "route": "POST /api/company-stock/receipts/:id/holds",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "companyStockKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/company-stock/receipts/:id/holds/release",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "companyStockKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/crm/accounts",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/crm/accounts/:id/contacts",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/crm/opportunities",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/crm/opportunities/:id/stage",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/cs/automation/deliveries/:id/review",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/digest/dispatch",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/digest/record",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/engine-error",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/escalate",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/pause",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/recheck",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/reconcile",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/resolution-draft",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/approve",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/cancel",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/dispatch",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/resolution-drafts/:id/reject",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/run/:workflowId",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/service-credentials",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/service-credentials/:id/revoke",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/automation/whatsapp-handoff",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/bindings",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/bindings/:id/revoke",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/conversations/:id/mode",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/conversations/:id/reply",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/conversations/:id/takeover",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/deliveries/:id/resolve",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/simulator/dispatch",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/simulator/inbound",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/tickets/:id/internal-notes",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/tickets/:id/public-update",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/cs/tickets/:id/stage",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/deliveries/shipments/:id/confirmations",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "deliveryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/deliveries/shipments/:id/returns",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentReturnKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/documents/issues",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "documentIssues",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/fulfillment/deposits",
@@ -1590,135 +2017,157 @@
     },
     {
       "route": "POST /api/internal-execution/orders",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-execution/orders/:id/allocations",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-execution/orders/:id/issue",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-execution/orders/:id/losses",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-execution/orders/:id/putaway",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-execution/orders/:id/qc",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-execution/orders/:id/records",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-execution/orders/:id/release",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-execution/orders/:id/reservations",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-execution/orders/:id/reservations/:reservationId/release",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-production/orders",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-production/orders/:id/cancel",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-production/orders/:id/engineering/approve",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-production/orders/:id/engineering/revisions",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/internal-production/orders/:id/engineering/revoke",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/inventory-master/items",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/inventory-master/items/:id/approve",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/inventory-master/items/:id/deactivate",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/inventory-master/items/:id/revisions",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/inventory-master/locations",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/inventory-master/locations/:id/deactivate",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/inventory-master/locations/:id/qualify",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/manufacturing/engineering",
@@ -1960,9 +2409,9 @@
     },
     {
       "route": "POST /api/platform/jobs",
-      "state": "UNSUPPORTED",
+      "state": "LOCAL_COVERAGE_PENDING",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "note": "Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied."
     },
     {
       "route": "POST /api/portals/grants",
@@ -1987,267 +2436,318 @@
     },
     {
       "route": "POST /api/procurement/material-shortages/:sourceId/release",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "materialShortageKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/material-shortages/refresh",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "materialShortageKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/orders/:id/amendments",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "purchaseOrderAmendmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/orders/:id/amendments/:amendmentId/approve",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "purchaseOrderAmendmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/orders/:id/amendments/:amendmentId/issue",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "purchaseOrderAmendmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/orders/:id/issue",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/orders/:id/vendor-confirmation",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/orders/:id/vendor-promise",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementPromiseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/requests",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/requests/:id/approve",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/requests/:id/convert",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementConversions",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/requests/:id/rfq",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementRfqKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/requests/:id/rfq-response",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementRfqKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/requests/from-shortage",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "materialShortageKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/procurement/vendors",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/purchased-fulfillment/orders/:id/reservations",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "purchasedFulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/purchased-fulfillment/orders/:id/reservations/:reservationId/release",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "purchasedFulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/purchased-fulfillment/orders/:id/shipments",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "purchasedFulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/bill",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/component-dispose",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/component-remove",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/decide",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/deposit",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/diagnostic-authorize",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/execute",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/hold",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/orders",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/qc",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/return",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/rework",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/scope",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/spare-authorize",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/spare-install",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/spare-issue",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/spare-release",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/spare-reserve",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/start",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/teardown",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/test",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/test-plan",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/warranty",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/warranty-claim",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/cases/:id/warranty-void",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/invoices/:id/settle",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/repair/maintenance/equipment/:id/cancel",
@@ -2371,9 +2871,10 @@
     },
     {
       "route": "POST /api/warehouse/holds/:holdId/release",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "stockHoldKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/warehouse/receipts",
@@ -2391,9 +2892,10 @@
     },
     {
       "route": "POST /api/warehouse/receipts/:id/holds",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "stockHoldKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/warehouse/receipts/:id/putaway",
@@ -2432,27 +2934,31 @@
     },
     {
       "route": "POST /api/workforce/operators/:id/challenge",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/workforce/operators/:id/configure",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/workforce/operators/:id/consent",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "POST /api/workforce/operators/:id/verify",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
     },
     {
       "route": "PUT /api/ai/documents/:id",

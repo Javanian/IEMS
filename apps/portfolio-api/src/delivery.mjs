@@ -4,6 +4,7 @@ import { requireUnboundSalesOrder } from './quote-catalog.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { businessNow } from './business-clock.mjs';
+import { validateRepairReturnShipment, repairDeliveryReferences } from './repair-return.mjs';
 
 export const deliveryActions = ['fulfillment.deliver'];
 export const deliveryRoles = { fulfillmentDelivery: ['fulfillment.read', 'fulfillment.deliver'] };
@@ -76,6 +77,8 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
   async function source(req, session) {
     const shipment = await c('fulfillmentShipments').findOne({ ...req.filter, _id: id(req.params.id) }, { session });
     if (!shipment) fail(404, 'NOT_FOUND');
+    if (shipment.sourceKind === 'CUSTOMER_ASSET_RETURN') return validateRepairReturnShipment(db, req.filter, shipment, session);
+    if (shipment.schema === 'REPAIR_RETURN_SHIPMENT_V1') invalid();
     const purchased = await validatePurchasedShipment(db, req.filter, shipment._id, session);
     if (purchased) return { shipment, serials: purchased.serials, sourceHash: hash(shipmentSemantic(shipment)) };
     if (shipment.status !== 'SHIPPED' || !positive(shipment.version) || !Array.isArray(shipment.sources) || !shipment.sources.length || shipment.stockMovementCount !== shipment.sources.length || new Set(shipment.sources.map(row => row.sourceId)).size !== shipment.sources.length) invalid();
@@ -101,9 +104,10 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
     return { shipment, serials: serials.sort(), sourceHash: await deliverySourceHash(db, req.filter, shipment, session) };
   }
   const state = (req, original, session) => readDeliveryState(db, req.filter, original, session);
-  const view = (original, current) => ({ shipmentId: original.shipment._id, shipmentVersion: original.shipment.version, shipmentReference: original.shipment.reference, salesOrderId: original.shipment.salesOrderId, accountId: original.shipment.accountId, shipmentStatus: original.shipment.status, sourceHash: original.sourceHash, version: current.head?.version || 1, status: current.head?.status || 'NOT_DELIVERED', shippedQuantity: decimal(units(original.shipment.quantity)), deliveredQuantity: current.head?.deliveredQuantity || '0', remainingQuantity: decimal(units(original.shipment.quantity) - units(current.head?.deliveredQuantity || '0')), uom: original.shipment.uom, unserializedQuantity: decimal(units(original.shipment.quantity) - BigInt(original.serials.length) * 1000000n), remainingUnserializedQuantity: decimal(units(original.shipment.quantity) - units(current.head?.deliveredQuantity || '0') - BigInt(original.serials.length - (current.head?.serials?.length || 0)) * 1000000n), serials: original.serials, deliveredSerials: current.head?.serials || [], remainingSerials: original.serials.filter(serial => !current.head?.serials.includes(serial)), confirmationCount: current.confirmations.length, canConfirm: current.head?.status !== 'DELIVERED' && current.confirmations.length < 100, confirmations: current.confirmations.map(row => without(row, ['tenantId', 'plantId'])), authorityHash: current.head?.authorityHash || null, evidenceMode: 'OPERATOR_RECORDED' });
+  const view = (original, current) => ({ ...repairDeliveryReferences(original, current), shipmentId: original.shipment._id, shipmentVersion: original.shipment.version, shipmentReference: original.shipment.reference, salesOrderId: original.shipment.sourceKind === 'CUSTOMER_ASSET_RETURN' ? (null) : original.shipment.salesOrderId, accountId: original.shipment.accountId, shipmentStatus: original.shipment.status, sourceHash: original.sourceHash, version: current.head?.version || 1, status: current.head?.status || 'NOT_DELIVERED', shippedQuantity: decimal(units(original.shipment.quantity)), deliveredQuantity: current.head?.deliveredQuantity || '0', remainingQuantity: decimal(units(original.shipment.quantity) - units(current.head?.deliveredQuantity || '0')), uom: original.shipment.uom, unserializedQuantity: decimal(units(original.shipment.quantity) - BigInt(original.serials.length) * 1000000n), remainingUnserializedQuantity: decimal(units(original.shipment.quantity) - units(current.head?.deliveredQuantity || '0') - BigInt(original.serials.length - (current.head?.serials?.length || 0)) * 1000000n), serials: original.serials, deliveredSerials: current.head?.serials || [], remainingSerials: original.serials.filter(serial => !current.head?.serials.includes(serial)), confirmationCount: current.confirmations.length, canConfirm: current.head?.status !== 'DELIVERED' && current.confirmations.length < 100, confirmations: current.confirmations.map(row => without(row, ['tenantId', 'plantId'])), authorityHash: current.head?.authorityHash || null, evidenceMode: 'OPERATOR_RECORDED' });
   const read = async effect => { const session = runtime.client.startSession(); try { return await session.withTransaction(() => effect(session), { readConcern: { level: 'snapshot' }, readPreference: 'primary' }); } finally { await session.endSession(); } };
   async function returns(req, original, delivered, session) {
+    if (original.shipment.sourceKind === 'CUSTOMER_ASSET_RETURN') fail(409, 'CUSTOMER_ASSET_RETURN_UNSUPPORTED');
     const rows = await c('fulfillmentReturns').find({ ...req.filter, shipmentId: original.shipment._id }, { session }).sort({ ordinal: 1 }).limit(101).toArray();
     if (rows.length > 100) invalid();
     let returned = 0n; const serials = [];
@@ -129,10 +133,12 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
     const session = runtime.client.startSession();
     try {
       const data = await session.withTransaction(async () => {
-        await guard(runtime, req, session, 'fulfillment.deliver'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+        await guard(runtime, req, session, 'fulfillment.deliver');
         const original = await source(req, session), delivered = await state(req, original, session), current = await returns(req, original, delivered, session);
         const prior = await c('fulfillmentReturnKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session });
-        if (prior) { if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return prior.result; }
+        if(prior && prior.payloadHash!==payloadHash) fail(409,'IDEMPOTENCY_CONFLICT');
+        await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'fulfillmentReturnKeys',key:body.idempotencyKey,action:'fulfillment.deliver',payloadHash,replayed:Boolean(prior)});
+        if(prior) return prior.result;
         if (current.version !== body.expectedVersion) fail(409, 'VERSION_CONFLICT');
         if (!current.canReturn || quantity > units(current.returnableQuantity) || body.serials.some(serial => !current.returnableSerials.includes(serial)) || quantity < BigInt(body.serials.length) * 1000000n || quantity - BigInt(body.serials.length) * 1000000n > units(current.returnableQuantity) - BigInt(current.returnableSerials.length) * 1000000n) fail(409, 'RETURN_QUANTITY_EXCEEDED');
         const changed = await c('fulfillmentShipments').updateOne({ ...req.filter, _id: original.shipment._id, version: original.shipment.version }, { $inc: { returnUseFence: 1 } }, { session });
@@ -170,19 +176,27 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
       const session = runtime.client.startSession();
       try {
         data = await session.withTransaction(async () => {
-          await guard(runtime, req, session, 'fulfillment.deliver'); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+          await guard(runtime, req, session, 'fulfillment.deliver');
           const prior = await c('deliveryKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session });
           if (prior) {
             if (prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
-            const actualShipment = await c('fulfillmentShipments').findOne({ ...req.filter, _id: req.params.id }, { session });
-            const typed = await hasPurchasedShipmentEvidence(db, req.filter, req.params.id, session) || actualShipment && await c('quoteCatalogOrders').findOne({ ...req.filter, orderId: actualShipment.salesOrderId }, { session });
+            const persistedShipment=await c('fulfillmentShipments').findOne({...req.filter,_id:req.params.id},{session});
+            const returnEvidence=await c('repairReturnAuthorities').findOne({...req.filter,shipmentId:req.params.id},{session});
+            const repairReturn=persistedShipment?.sourceKind==='CUSTOMER_ASSET_RETURN' || persistedShipment?.schema==='REPAIR_RETURN_SHIPMENT_V1' || Boolean(returnEvidence);
+            if(repairReturn && (persistedShipment?.sourceKind!=='CUSTOMER_ASSET_RETURN' || persistedShipment?.schema!=='REPAIR_RETURN_SHIPMENT_V1' || !returnEvidence || persistedShipment.authorityId!==returnEvidence._id)) invalid();
+            const original = await source(req, session), current = await state(req, original, session);
+            const actualShipment = original.shipment;
+            const typed = repairReturn || await hasPurchasedShipmentEvidence(db, req.filter, req.params.id, session) || actualShipment && await c('quoteCatalogOrders').findOne({ ...req.filter, orderId: actualShipment.salesOrderId }, { session });
             if (typed) {
-              const original = await source(req, session), current = await state(req, original, session);
               const event = await c('deliveryEvents').findOne({ ...req.filter, shipmentId: req.params.id, version: prior.result?.version }, { session });
               if (!event) invalid();
               const historical = { head: { ...event.snapshot, authorityHash: event.contentHash, eventId: event._id }, confirmations: current.confirmations.slice(0, event.version - 1) };
-              if (hash(prior.result) !== hash(view(original, historical))) invalid();
+              const expected=view(original,historical);
+              // Existing Mongo receipts encode the absent generic order ID as null for customer property.
+              if(repairReturn && expected.salesOrderId===undefined && prior.result.salesOrderId===null) expected.salesOrderId=null;
+              if (hash(prior.result) !== hash(expected)) invalid();
             }
+            await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'deliveryKeys',key:body.idempotencyKey,action:'fulfillment.deliver',payloadHash,replayed:true});
             return prior.result;
           }
           const original = await source(req, session), current = await state(req, original, session), before = view(original, current);
@@ -194,6 +208,7 @@ export function installDelivery(app, runtime, { guard, fields, id }) {
           if (original.serials.length) {
             if (!Array.isArray(serials) || serials.length > 1000 || new Set(serials).size !== serials.length || BigInt(serials.length) * 1000000n > quantity || serials.some(serial => !before.remainingSerials.includes(serial)) || quantity - BigInt(serials.length) * 1000000n > units(before.remainingQuantity) - BigInt(before.remainingSerials.length) * 1000000n) fail(400, 'INVALID_DELIVERY_SERIALS');
           } else if (Object.hasOwn(body, 'serials')) fail(400, 'INVALID_DELIVERY_SERIALS');
+          await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'deliveryKeys',key:body.idempotencyKey,action:'fulfillment.deliver',payloadHash,replayed:false});
           const fence = await c('fulfillmentShipments').updateOne({ ...req.filter, _id: original.shipment._id, version: original.shipment.version }, { $inc: { deliveryUseFence: 1 } }, { session }); if (fence.matchedCount !== 1) fail(409, 'VERSION_CONFLICT');
           const confirmation = stamped({ _id: randomUUID(), ...req.filter, shipmentId: original.shipment._id, sourceHash: original.sourceHash, ordinal: current.confirmations.length + 1, quantity: decimal(quantity), ...(original.serials.length ? { serials: [...serials].sort() } : {}), deliveredAt: new Date(body.deliveredAt).toISOString(), ...evidence, recordedBy: req.scope.userId, recordedAt: new Date(), evidenceMode: 'OPERATOR_RECORDED' });
           await c('deliveryConfirmations').insertOne(confirmation, { session });

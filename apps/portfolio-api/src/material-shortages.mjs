@@ -115,7 +115,7 @@ export async function claimShortage(db, filter, input, actor, session) {
 export function installMaterialShortages(app, runtime, { guard, fields, id }) {
   const db = runtime.db, root = '/api/procurement/material-shortages';
   const authorize = async (req, session, read = false) => {
-    for (const action of read ? ['procurement.read', 'manufacturing.read', 'catalog.stock.read'] : ['procurement.write', 'manufacturing.plan', 'catalog.stock.read', 'catalog.write']) await guard(runtime, req, session, action); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+    for (const action of read ? ['procurement.read', 'manufacturing.read', 'catalog.stock.read'] : ['procurement.write', 'manufacturing.plan', 'catalog.stock.read', 'catalog.write']) await guard(runtime, req, session, action);
   };
   const command = async (req, operation, effect) => {
     const key = keyOf(req.body.idempotencyKey), reason = reasonOf(req.body.reason), payloadHash = hash({ operation, resource: req.params.sourceId || null, body: { ...req.body, reason } });
@@ -132,8 +132,10 @@ export function installMaterialShortages(app, runtime, { guard, fields, id }) {
           const source = verify(sourceHead.snapshot);
           if (materialDemandKind(source.demandKind) === 'SALES_ORDER_WORK_ORDER') await demandFor(db, req.filter, { demandKind: source.demandKind, demandId: source.demandId, expectedDemandVersion: source.demandVersion, engineeringRevision: source.engineeringRevision }, session);
         }
+        await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'materialShortageKeys',key:key,action:'procurement.write',payloadHash:payloadHash,replayed:true});
         return previous.result;
       }
+      await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'materialShortageKeys',key:key,action:'procurement.write',payloadHash:payloadHash,replayed:false});
       const result = await effect(session, { ...req.body, reason });
       const event = { _id: randomUUID(), ...req.filter, kind: `materialShortage.${operation}`, result, userId: req.scope.userId, occurredAt: new Date() };
       await db.collection('procurementAudit').insertOne(event, { session });

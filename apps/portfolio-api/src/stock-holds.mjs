@@ -131,9 +131,12 @@ export function installStockHolds(app, runtime, { guard }) {
       const session = runtime.client.startSession();
       try {
         const out = await session.withTransaction(async () => {
-          try { await guard(runtime, req, session, req.warehouseAction); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session }); } catch (e) { throw forbidden(e); }
+          try { await guard(runtime, req, session, req.warehouseAction); } catch (e) { throw forbidden(e); }
           const prior = await c('stockHoldKeys').findOne({ ...filter, key }, { session });
-          if (prior) { if (prior.requestHash !== requestHash) throw err(409, 'IDEMPOTENCY_KEY_REUSED', 'Idempotency-Key was used with a different request'); return { status: prior.status, body: prior.body, replayed: true }; }
+          if (prior && prior.requestHash !== requestHash) throw err(409, 'IDEMPOTENCY_KEY_REUSED', 'Idempotency-Key was used with a different request');
+          if(prior && !await c('warehouseReceipts').findOne({...filter,_id:prior.body?.receipt?.id},{session})) throw err(404,'NOT_FOUND');
+          await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'stockHoldKeys',key:key,action:req.warehouseAction,payloadHash:requestHash,replayed:Boolean(prior)});
+          if(prior) return {status:prior.status,body:prior.body,replayed:true};
           const result = await effect(session, filter);
           const occurredAt = new Date();
           const event = { ...filter, kind: result.event, subjectId: result.hold.id, receiptId: result.receipt.id, version: result.hold.version, receiptVersion: result.receipt.version, userId: req.scope.userId, occurredAt, payload: { reasonCode: result.hold.status === 'RELEASED' ? result.hold.releaseReasonCode : result.hold.reasonCode, holdStatus: result.hold.status, activeHoldIds: result.receipt.hold.activeHoldIds } };

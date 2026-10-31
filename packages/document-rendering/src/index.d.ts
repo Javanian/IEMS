@@ -1,4 +1,4 @@
-import type { MongoClient, Db } from 'mongodb';
+import type { MongoClient, Db, ClientSession } from 'mongodb';
 export type Kind = 'quote' | 'purchaseRequest' | 'purchaseOrder' | 'catalogPurchaseRequest' | 'catalogPurchaseOrder' | 'invoice' | 'shipment';
 export interface Scope { tenantId: string; legalEntityId: string; plantId: string }
 export type Currency = 'USD' | 'EUR' | 'GBP' | 'IDR' | 'JPY' | 'KWD';
@@ -20,7 +20,15 @@ export function createSnapshot(kind: 'shipment', scope: Scope, source: ShipmentS
 export function contentHash(value: unknown): string;
 export function renderPdf(snapshot: Snapshot): Promise<Buffer>;
 export interface IssueRecord extends Scope { _id: string; kind: Kind; sourceId: string; sourceVersion: number; contentHash: string; pdfHash: string; template: Template; issuedAt: Date; snapshot: Snapshot }
-export interface Issuer { issue(scope: Scope, snapshot: Snapshot): Promise<IssueRecord>; read(scope: Scope, issueId: string): Promise<{ record: IssueRecord; pdf: Buffer } | null> }
+declare const preparedIssueBrand: unique symbol;
+export interface PreparedIssue { readonly [preparedIssueBrand]: true; readonly contentHash: string; readonly pdfHash: string; readonly pdf: Buffer }
+export interface IssueAdmission { namespace: 'documentIssues'; identity: Scope & { kind: Kind; sourceId: string; sourceVersion: number }; payloadHash: string; replayed: boolean }
+export interface Issuer {
+  prepare(scope: Scope, snapshot: Snapshot): Promise<PreparedIssue>;
+  issueInTransaction(options: { scope: Scope; snapshot: Snapshot; prepared: PreparedIssue; session: ClientSession; admission?: (descriptor: IssueAdmission) => Promise<unknown> }): Promise<IssueRecord>;
+  issue(scope: Scope, snapshot: Snapshot): Promise<IssueRecord>;
+  read(scope: Scope, issueId: string, options?: { session?: ClientSession }): Promise<{ record: IssueRecord; pdf: Buffer } | null>;
+}
 export function createIssuer(options: { client: MongoClient; db: Db }): Promise<Issuer>;
 export interface VatAmounts { netAmount: string; taxAmount: string; grossAmount: string }
 export interface VatPolicy { taxPolicy: 'FIXTURE_VAT_11_V1'; taxPolicyVersion: 1; taxRate: '0.11' }

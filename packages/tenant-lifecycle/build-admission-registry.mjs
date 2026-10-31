@@ -1,3 +1,4 @@
+import { localCommandPolicies } from './local-commands.mjs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url));
@@ -12,11 +13,16 @@ const wrappers={
   fulfillmentKeys:{filter:['tenantId','plantId','key'],hash:'existing canonical({kind,payload}) SHA256',hook:'apps/portfolio-api/src/fulfillment.mjs',replay:'purchased/manufactured/deposit/invoice posting validators retained before admission'},
 };
 for(const prefix of ['quality','maintenance','operations']) wrappers[`${prefix}Keys`]={filter:['tenantId','plantId','key'],hash:'existing stockHash({action,params,body}); operations retains original actor-to-key contentHash',hook:'apps/portfolio-api/src/quality.mjs',replay:'current host/helper source authorization',nested:'one scopedModule receipt including voice; no independently charged child'};
+Object.assign(wrappers,JSON.parse(await readFile(new URL('./receipt-contracts-v6.json',import.meta.url),'utf8')));
+for(const [namespace,actions]of Object.entries(localCommandPolicies))wrappers[namespace]={filter:['tenantId','plantId','userId','action','key'],hash:'foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})',hashField:'inputHash',response:'exact original result snapshot',actions,hook:namespace==='crmCommandResults'?'apps/portfolio-api/src/app.mjs':namespace==='legacyQuoteCommandResults'?'apps/portfolio-api/src/commercial.mjs':'apps/portfolio-api/src/procurement.mjs',replay:'current actor/source scope, no new-effect CAS/state/expiry replay',meter:'ONE_COMMAND'};
+wrappers.repairKeys.replay='current scoped case; invoice-settle resolves scoped invoice.caseId; typed REPAIR_SERVICE_V1 invokes exported service source/quality/order/dispatch/POD/warranty validator; spare stock recheck retained';
+wrappers.deliveryKeys.replay='current persisted shipment and repair-return authority detector; typed/purchased/catalog source+state+historical event+view verification before original result; zero charge';
+wrappers.documentIssues={filter:['tenantId','legalEntityId','plantId','kind','sourceId','sourceVersion'],hash:'existing renderer snapshot.contentHash',hashField:'contentHash',hook:'renderer.issueInTransaction + documents.mjs caller transaction',replay:'current source permissions/snapshot plus existing artifact/READY integrity',meter:'ONE_COMMAND',response:'original public READY intent ID and renderer record mapping'};
 function classify(route) {
  const [method,path]=route.split(' ');
  if(path.startsWith('/api/session/'))return {state:'AUTH_RECOVERY',meter:'NONE'};
  if(path.startsWith('/api/saas/'))return {state:'CONTROL_PLANE',meter:'SEPARATE_ADMIN_RECEIPT'};
- if(path==='/api/cs/automation/sla-breaches')return {state:'UNSUPPORTED',meter:'NONE',note:'GET schedules automation tasks in the existing transaction; rejects enrolled tenants.'};
+ if(path==='/api/cs/automation/sla-breaches')return {state:'LOCAL_COVERAGE_PENDING',meter:'NONE',note:'GET schedules automation tasks in the existing transaction; rejects enrolled tenants.'};
  if(method==='GET')return {state:'READ',meter:'NONE'};
  let receipt;
  if(path.startsWith('/api/manufacturing/'))receipt='manufacturingKeys';
@@ -25,11 +31,35 @@ function classify(route) {
  if(path.startsWith('/api/repair/quality/'))receipt='qualityKeys';
  if(path.startsWith('/api/repair/maintenance/'))receipt='maintenanceKeys';
  if(path.startsWith('/api/operations/'))receipt='operationsKeys';
+ if(path.startsWith('/api/repair/')&&!path.startsWith('/api/repair/quality/')&&!path.startsWith('/api/repair/maintenance/'))receipt='repairKeys';
+ if(path.startsWith('/api/inventory-master/')||path.startsWith('/api/internal-production/'))receipt='internalPlanningKeys';
+ if(path.startsWith('/api/internal-execution/'))receipt='internalExecutionKeys';
+ if(path.startsWith('/api/warehouse/')&&path.includes('/holds'))receipt='stockHoldKeys';
+ if(path.startsWith('/api/commercial/inquiries'))receipt='inquiryKeys';
+ if(path.startsWith('/api/procurement/material-shortages')||path==='/api/procurement/requests/from-shortage')receipt='materialShortageKeys';
+ if(path.startsWith('/api/catalog-procurement/'))receipt='catalogKeys';
+ if(path.startsWith('/api/catalog-disposition/'))receipt='catalogDispositionKeys';
+ if(path.startsWith('/api/purchased-fulfillment/'))receipt='purchasedFulfillmentKeys';
+ if(path.startsWith('/api/deliveries/'))receipt=path.endsWith('/returns')?'fulfillmentReturnKeys':'deliveryKeys';
+ if(path.startsWith('/api/workforce/'))receipt='workforceResults';
+ if(path.startsWith('/api/company-stock/'))receipt='companyStockKeys';
+ if(path.startsWith('/api/procurement/')) {
+  if(path.includes('/amendments'))receipt='purchaseOrderAmendmentKeys';
+  if(/\/rfq(?:-response)?$/.test(path))receipt='procurementRfqKeys';
+  if(path.endsWith('/vendor-promise'))receipt='procurementPromiseKeys';
+  if(path.endsWith('/convert')&&!path.includes('/material-shortages/'))receipt='procurementConversions';
+ }
+ if(path==='/api/documents/issues')receipt='documentIssues';
+ if(path.startsWith('/api/crm/'))receipt='crmCommandResults';
+ if(['/api/procurement/vendors','/api/procurement/requests','/api/procurement/requests/:id/approve','/api/procurement/orders/:id/issue','/api/procurement/orders/:id/vendor-confirmation'].includes(path))receipt='procurementCommandResults';
+ if(path.startsWith('/api/cs/')||path==='/api/platform/jobs')return {state:'LOCAL_COVERAGE_PENDING',meter:'NONE',note:'Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied.'};
+ if(path.startsWith('/api/commercial/quotes'))return {state:'CONDITIONAL_RECEIPTED',receipt:['quoteCatalogKeys',...(path.endsWith('/convert')?['quoteConversions']:['legacyQuoteCommandResults'])],condition:'Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.',meter:'ONE_COMMAND'};
+
  if(path.startsWith('/api/portals/')||['/api/ai/documents/:id','/api/ai/documents/:id/publish','/api/ai/documents/:id/revoke','/api/ai/documents/:id/index/revoke','/api/ai/models/select'].includes(path)||/^\/api\/ai\/vendor-drafts\/[^/]+\/(create|preview|approve|revoke|intent)$/.test(path))receipt='foundationCommandResults';
  if(['/api/ai/retrieve','/api/ai/predictions','/api/ai/cs-intent','/api/ai/assistant'].includes(path))return {state:'ADVISORY_READ',meter:'NONE',note:'No business write; source/authorization fences retained. Provider availability/cost separately gated.'};
  return receipt?{state:'RECEIPTED',receipt,meter:'ONE_COMMAND',nested:'Children inherit wrapper session; separately committed foundation command is independent'}:{state:'UNSUPPORTED',meter:'NONE',note:'No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier.'};
 }
-const registry={schema:'SAAS_ADMISSION_REGISTRY_V1',profile:'RECEIPTED_COMMANDS_V1',base:'55766c6a87e5b81a2b9f267a451b3c2cce2d242f',fullEndpointCoverage:false,
+const registry={schema:'SAAS_ADMISSION_REGISTRY_V1',profile:'RECEIPTED_COMMANDS_V1',base:'78e0ce89a4f88bab0dfd9c116be04b984933f351',provenance:{data:'55766c6a87e5b81a2b9f267a451b3c2cce2d242f',admission:'a87e593abe0476bae34275d1f19c78441c6a4b10',repairSource:'78e0ce89a4f88bab0dfd9c116be04b984933f351',pins:'Normalized actual source hashes in this registry; final feature SHA is recorded in handoff ledger'},fullEndpointCoverage:false,
   unit:'command-count',storageBytes:'Cumulative explicitly admitted bytes; not measured disk occupancy or invoice billing',wrappers,
   constructors:paths.filter(path=>/foundation-runtime|portals|customer-service\/index|scoped-ai\/(documents|indexing|models|vendor-drafts)/.test(path)),
   system:'Private reporting relay, authorization/source/read fences, internal job retries and init/index creation are not independent billable user commands. Public job ingress is unsupported.',

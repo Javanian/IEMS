@@ -159,19 +159,21 @@ export function installPurchasedFulfillment(app, runtime, { guard, fields, id })
     for (let attempt = 1; ; attempt++) {
     const session = runtime.client.startSession();
     try { return await session.withTransaction(async () => {
-      for (const action of req.purchasedActions) await guard(runtime, req, session, action); if (req.method !== 'GET') await runtime.saasAdmission.unsupported(req.scope, { plantId: req.scope.selectedPlantId, session });
+      for (const action of req.purchasedActions) await guard(runtime, req, session, action);
       const prior = await db.collection('purchasedFulfillmentKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session });
       if (prior && prior.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
       const current = await purchasedFulfillmentContext(db, req.filter, orderId, session);
       if (prior) {
         const event = current.events.find(event => event.snapshot.commandProof.key === body.idempotencyKey);
         if (!event || event.snapshot.commandProof.resultHash !== hash(prior.result)) purchasedInvalid();
-        if (kind === 'SHIPMENT_POSTED') { const shipment = current.shipments.find(row => row._id === prior.result.shipmentId); if (!shipment || hash(shipment) !== prior.result.shipmentHash) purchasedInvalid(); return shipment; }
+        if (kind === 'SHIPMENT_POSTED') { const shipment = current.shipments.find(row => row._id === prior.result.shipmentId); if (!shipment || hash(shipment) !== prior.result.shipmentHash) purchasedInvalid(); await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'purchasedFulfillmentKeys',key:body.idempotencyKey,action:req.purchasedActions[0],payloadHash,replayed:true}); return shipment; }
+        await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'purchasedFulfillmentKeys',key:body.idempotencyKey,action:req.purchasedActions[0],payloadHash,replayed:true});
         return { ...await view(db, req.filter, current, session), commandReceipt: prior.result };
       }
       if (await db.collection('fulfillmentKeys').findOne({ ...req.filter, key: body.idempotencyKey }, { session })) fail(409, 'IDEMPOTENCY_CONFLICT');
       if (current.version !== body.expectedVersion) fail(409, 'VERSION_CONFLICT');
       if (current.version >= 401) fail(409, 'FULFILLMENT_HISTORY_LIMIT');
+      await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'purchasedFulfillmentKeys',key:body.idempotencyKey,action:req.purchasedActions[0],payloadHash,replayed:false});
       const result = await effect(current, session);
       const receipt = kind === 'SHIPMENT_POSTED' ? { kind, salesOrderId: orderId, version: current.version + 1, shipmentId: result._id, shipmentHash: hash(shipmentSemantic(result)) } : { kind, salesOrderId: orderId, version: current.version + 1, reservationId: result._id, reservationVersion: result.version, reservationHash: result.contentHash };
       await save(db, req.filter, current, req.scope.userId, kind, reason.trim(), body.idempotencyKey, payloadHash, receipt, session);
