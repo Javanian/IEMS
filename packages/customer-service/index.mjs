@@ -878,7 +878,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, s
       const deliveries = await c('cs_outbox').find({ tenantId: g.tenantId, conversationId: conv._id }).sort({ seq: 1 }).toArray();
       return {
         conversationId: conv._id, mode: conv.mode, version: conv.version, assigneeId: conv.assigneeId, activeTicketId: conv.activeTicketId,
-        deliveries: deliveries.map(d => ({ deliveryId: d._id, kind: d.kind, origin: d.origin, state: d.state, attempt: d.attempt, cancelReason: d.cancelReason ?? null, deliveryUncertain: d.state === 'UNKNOWN' || d.state === 'SENDING' }))
+        deliveries: deliveries.map(d => ({ deliveryId: d._id, kind: d.kind, origin: d.origin, state: d.state, attempt: d.attempt, cancelReason: d.cancelReason ?? null, deliveryUncertain: d.state === 'UNKNOWN' || d.state === 'SENDING',...(d.controlCommandId?{effect:{commandId:d.controlCommandId,phase:d._id,mode:'LOCAL_SIMULATED'}}:{}) }))
       };
     },
 
@@ -1136,24 +1136,25 @@ export function createCustomerService({ client, db, foundation, saasAdmission, s
       const g = await operator(scope, plantId, 'cs.delivery.review');
       uuid(deliveryId); oneOf(resolution, ['CONFIRMED_SENT', 'CONFIRMED_NOT_SENT_REQUEUE', 'ABANDON']); const proof = text(evidence, 1000); key(commandKey);
       if (resolution === 'CONFIRMED_SENT') key(providerMessageId);
-      return operatorTx(scope, plantId, 'cs.delivery.review', async (session, g) => idempotent(session, { tenantId: g.tenantId, scope: 'delivery.review', owner: g.userId, key: commandKey, request: { deliveryId, resolution, evidence: proof, providerMessageId } }, async () => {
+      return operatorTx(scope, plantId, 'cs.delivery.review', async (session, g) => {const result=await idempotent(session, { tenantId: g.tenantId, scope: 'delivery.review', owner: g.userId, key: commandKey, request: { deliveryId, resolution, evidence: proof, providerMessageId } }, async () => {
         const d = await c('cs_outbox').findOne({ _id: deliveryId, tenantId: g.tenantId, plantId: g.plantId }, { session });
         if (!d) fail('NOT_FOUND');
         if (d.state !== 'UNKNOWN') fail('INVALID_TRANSITION');
         const at = now();
         const state = { CONFIRMED_SENT: 'SENT', CONFIRMED_NOT_SENT_REQUEUE: 'QUEUED', ABANDON: 'CANCELLED' }[resolution];
-        const set = { state, updatedAt: at, review: { userId: g.userId, resolution, evidence: proof, at } };
+        const set = { state, updatedAt: at, review: { userId: g.userId, resolution, evidence: proof, at, commandKey, providerMessageId, deliveryFence:d.fence } };
         if (state === 'SENT') set.providerMessageId = providerMessageId;
         if (state === 'QUEUED') set.nextAttemptAt = at;
         if (state === 'CANCELLED') set.cancelReason = 'REVIEW_ABANDONED';
         await c('cs_outbox').updateOne({ _id: d._id, state: 'UNKNOWN' }, { $set: set, $push: { history: { state, reason: resolution, at } } }, { session });
         await audit(session, g.tenantId, 'delivery.reviewed', d._id, { type: 'OPERATOR', userId: g.userId });
         return { deliveryId, state };
-      }));
+      });if(resolution==='CONFIRMED_NOT_SENT_REQUEUE'&&separateEffects?.reviewedRetry){const d=await c('cs_outbox').findOne({_id:deliveryId,tenantId:g.tenantId,plantId:g.plantId},{session});if(d?.controlCommandId)await separateEffects.reviewedRetry({scope,grant:g,commandId:d.controlCommandId,phase:deliveryId,reviewKey:commandKey,session});}return result;});
     }
   };
   if(previewDispatcher&&separateEffects?.hasAdapter('local.cs')&&!separateEffects.supports('cs.local-preview'))separateEffects.registerKind('cs.local-preview',{
     adapterId:'local.cs',statusAction:'cs.ticket.read',readStatus:readDeliveryStatus,phases:command=>command.plan.deliveryIds,
+    reviewRetry:async({command,attempt,grant,reviewKey,receipt,session})=>{const d=await c('cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,state:'QUEUED'},{session}),review=d?.review;if(!d||!review||review.userId!==grant.userId||review.commandKey!==reviewKey||review.resolution!=='CONFIRMED_NOT_SENT_REQUEUE'||review.deliveryFence!==attempt.input.fence||receipt.requestHash!==requestHash({deliveryId:d._id,resolution:review.resolution,evidence:review.evidence,providerMessageId:review.providerMessageId}))fail('DENIED');},
     beforeInvoke:async({command,attempt,session})=>{const row=await c('cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId,controlCommandId:command._id,fence:attempt.input.fence,payloadHash:attempt.input.payloadHash,...(attempt.input.alreadyPreviewed?{state:'PREVIEWED'}:{state:'SENDING',leaseOwner:attempt._id,leaseUntil:{$gt:now()}})},{session});if(!row)fail('STALE_FENCE');},
     rebind:async({scope,command,session})=>{const context=await managedOriginContext(scope,command,session);return deliveryOrigin(context,context.request);},
     prepare:async({command,attempt,phase,capability,session})=>{

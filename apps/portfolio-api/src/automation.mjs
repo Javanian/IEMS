@@ -83,6 +83,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     if (row.plantId !== req.scope.selectedPlantId || row.action !== action || row.targetEntity?.id !== entityId || row.payloadHash !== digest(payload)) fail(409, 'IDEMPOTENCY_CONFLICT', 'Key metadata is missing or does not match this operation');
     return { ...row.result, auditId: row._id, idempotencyKey: idem, replayed: true };
   };
+  async function reviewManagedRetry(req,session,action,result,idem){if(action!=='DELIVERY_MANUAL_REVIEW'||result?.state!=='FAILED'||!effects?.reviewedRetry)return;const delivery=await c(runtime,'cs_outbox').findOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION'},{session});if(delivery?.controlCommandId)await effects.reviewedRetry({scope:req.scope,grant:await auth(req,'cs.automation.admin',session),commandId:delivery.controlCommandId,phase:delivery._id,reviewKey:idem,session});}
   const operation = async (req, action, entityId, payload, effect, permission = 'cs.automation.execute', prepared=null) => {
     const idem = key(req);
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -93,11 +94,11 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
           await recheckOperationSources(req,session,action,entityId,payload,previous,prepared);
           const admission = admittedOperations.has(action) ? await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'automation_audit_logs',key:idem,identity:{tenantId:req.scope.tenantId,idempotencyKey:idem},action:permission,operation:action,aggregateId:entityId,payloadHash:digest(payload),replayed:Boolean(previous)}) : null;
           const mark=result=>Object.defineProperty(result,localIntent,{value:admission?.state!=='LEGACY_UNENROLLED'});
-          if (previous) return mark(previous);
+          if (previous) {await reviewManagedRetry(req,session,action,previous,idem);return mark(previous);}
           const result = await effect(session);
           if(['RESOLUTION_DISPATCH_INTENT','DIGEST_DISPATCH_INTENT'].includes(action)&&effects?.supports('automation.local-delivery'))await managedDeliveryIntent(req,session,{action,entityId,payload,idem,result});
           const row = await audit(req, session, action, entityId, result, { idempotencyKey: idem, payloadHash: digest(payload) });
-          return mark({ ...result, auditId: row._id, idempotencyKey: idem, replayed: false });
+          await reviewManagedRetry(req,session,action,result,idem);return mark({ ...result, auditId: row._id, idempotencyKey: idem, replayed: false });
         },admittedOperations.has(action)?'RECEIPTED':'UNSUPPORTED');
       } catch (error) { if (error.code !== 11000 || attempt) throw error; }
     }
@@ -430,7 +431,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
       return engineRun;
     }));
     const capturedCount = await c(runtime, 'cs_outbox').countDocuments({ ...scope(req), origin: 'AUTOMATION', state: 'SENT', deliveryState: 'ACCEPTED_LOCAL' });
-    res.json({ data: { engine: { n8n: { status: engineUp ? 'HEALTHY' : 'DOWN', url: n8nUrl, mode: 'STANDALONE_SQLITE', loopbackOnly: true }, smtpSink: { status: sinkUp ? 'HEALTHY' : 'DOWN', port: Number(cfg().smtpPort || process.env.IEMS_AUTOMATION_SMTP_PORT || 2527), httpPort: Number(new URL(sinkUrl).port), capturedCount, receiptGuarantee: 'Accepted by local mail sink' } }, workflows: workflows.map(w => { const lastRun = observed.find(r => r?.workflowId === w.id) || null; return { ...w, state: setting?.paused ? 'PAUSED' : lastRun?.state || 'NOT_OBSERVED', lastRun }; }), paused: !!setting?.paused, policy: { ...policy(), label: policy().minutes < 15 ? 'Demo SLA' : 'Unassigned SLA' }, metrics: { openTicketsCount: open, totalAutomationsExecuted: audits, successfulAutomations: success, digestsGenerated: digests, pendingDraftsCount: pending } } });
+    res.json({ data: { separateEffects:{engine:effects?.supports('automation.engine')===true,recovery:effects?.supports('automation.recovery')===true,mode:effects?.supports('automation.engine')?'LOCAL_SIMULATED':'LEGACY_UNMANAGED'},engine: { n8n: { status: engineUp ? 'HEALTHY' : 'DOWN', url: n8nUrl, mode: 'STANDALONE_SQLITE', loopbackOnly: true }, smtpSink: { status: sinkUp ? 'HEALTHY' : 'DOWN', port: Number(cfg().smtpPort || process.env.IEMS_AUTOMATION_SMTP_PORT || 2527), httpPort: Number(new URL(sinkUrl).port), capturedCount, receiptGuarantee: 'Accepted by local mail sink' } }, workflows: workflows.map(w => { const lastRun = observed.find(r => r?.workflowId === w.id) || null; return { ...w, state: setting?.paused ? 'PAUSED' : lastRun?.state || 'NOT_OBSERVED', lastRun }; }), paused: !!setting?.paused, policy: { ...policy(), label: policy().minutes < 15 ? 'Demo SLA' : 'Unassigned SLA' }, metrics: { openTicketsCount: open, totalAutomationsExecuted: audits, successfulAutomations: success, digestsGenerated: digests, pendingDraftsCount: pending } } });
   });
   app.post('/api/cs/automation/pause', async (req, res) => {
     await human(req, 'cs.automation.admin'); fields(req.body, ['paused']);
@@ -592,7 +593,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
       const row = await c(runtime, 'cs_outbox').findOne({ ...scope(req), _id: id(req.params.id), origin: 'AUTOMATION', state: 'UNKNOWN' }, { session });
       if (!row) fail(409, 'UNKNOWN_DELIVERY_REQUIRED');
       const state = req.body.decision === 'ABANDON' ? 'CANCELLED' : 'FAILED';
-      await c(runtime, 'cs_outbox').updateOne({ _id: row._id, state: 'UNKNOWN' }, { $set: { state, deliveryState: state, manualReview: { userId: req.scope.userId, decision: req.body.decision, evidence, at: new Date() } } }, { session });
+      await c(runtime, 'cs_outbox').updateOne({ _id: row._id, state: 'UNKNOWN' }, { $set: { state, deliveryState: state, manualReview: { userId: req.scope.userId, decision: req.body.decision, evidence, at: new Date(), idempotencyKey:req.headers['idempotency-key']??null, deliveryFence:row.fence } } }, { session });
       if (row.draftId) await c(runtime, 'cs_resolution_drafts').updateOne({ _id: row.draftId, ...scope(req) }, { $set: { status: state, deliveryState: state }, $inc: { version: 1 } }, { session });
       await audit(req, session, row.kind === 'DIGEST' ? 'DIGEST_UNKNOWN_REVIEW' : 'RESOLUTION_UNKNOWN_REVIEW', row._id, { deliveryId: row._id, state, decision: req.body.decision });
       return { deliveryId: row._id, state };
@@ -627,10 +628,11 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
   if(effects?.hasAdapter('local.cs')&&!effects.supports('automation.local-delivery'))effects.registerKind('automation.local-delivery',{
     adapterId:'local.cs',statusAction:'cs.automation.read',readStatus:async({scope:actorScope,command,session})=>validateDeliverySource({scope:actorScope},command,session,true),phases:command=>command.plan.deliveryIds,rebind:async({scope:actorScope,command})=>deliveryOrigin(actorScope,command.plan),
     prepare:async({command,attempt,phase,session,context})=>{
-      const request={scope:context.scope},d=await c(runtime,'cs_outbox').findOne({_id:phase,tenantId:command.tenantId,plantId:command.plantId,origin:'AUTOMATION',controlCommandId:command._id},{session});if(!d)fail(404,'NOT_FOUND');
-      if(d.state==='PREVIEWED')return {deliveryId:d._id,fence:d.fence,contentHash:d.contentHash,payloadHash:d.payloadHash,alreadyPreviewed:true};if(d.state!=='QUEUED'||d.nextAttemptAt>new Date()||d.attempt>=3)fail(409,'DELIVERY_RECONCILIATION_REQUIRED');
+      const request={scope:context.scope};let d=await c(runtime,'cs_outbox').findOne({_id:phase,tenantId:command.tenantId,plantId:command.plantId,origin:'AUTOMATION',controlCommandId:command._id},{session});if(!d)fail(404,'NOT_FOUND');
+      if(d.state==='FAILED'&&attempt.retryOf?.review){if(d.manualReview?.decision!=='CONFIRMED_NOT_SUBMITTED'||d.manualReview.idempotencyKey!==attempt.retryOf.review.identity.idempotencyKey)fail(403,'RETRY_REVIEW_INVALID');const queued=await c(runtime,'cs_outbox').findOneAndUpdate({_id:d._id,...scope(request),controlCommandId:command._id,state:'FAILED',fence:d.fence},{$set:{state:'QUEUED',deliveryState:'QUEUED',nextAttemptAt:new Date()}},{session,returnDocument:'after'});if(!queued)fail(409,'RETRY_REVIEW_CHANGED');d=queued;}if(d.state==='PREVIEWED')return {deliveryId:d._id,fence:d.fence,contentHash:d.contentHash,payloadHash:d.payloadHash,alreadyPreviewed:true};if(d.state!=='QUEUED'||d.nextAttemptAt>new Date()||d.attempt>=3)fail(409,'DELIVERY_RECONCILIATION_REQUIRED');
       const at=new Date(),claimed=await c(runtime,'cs_outbox').findOneAndUpdate({_id:d._id,...scope(request),origin:'AUTOMATION',state:'QUEUED',fence:d.fence,controlCommandId:command._id},{$set:{state:'SENDING',deliveryState:'SENDING',leaseOwner:attempt._id,leaseUntil:new Date(at.getTime()+Number(cfg().leaseMs||30000)),updatedAt:at},$inc:{attempt:1,fence:1},$push:{history:{state:'SENDING',at}}},{session,returnDocument:'after'});if(!claimed)fail(409,'DELIVERY_ALREADY_CLAIMED');return {deliveryId:claimed._id,fence:claimed.fence,contentHash:claimed.contentHash,payloadHash:claimed.payloadHash,alreadyPreviewed:false};
     },
+    reviewRetry:async({command,attempt,grant,reviewKey,receipt,session})=>{const row=await c(runtime,'cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,origin:'AUTOMATION',state:'FAILED'},{session}),review=row?.manualReview;if(!review||review.userId!==grant.userId||review.idempotencyKey!==reviewKey||review.decision!=='CONFIRMED_NOT_SUBMITTED'||review.deliveryFence!==attempt.input.fence||receipt.payloadHash!==digest({decision:review.decision,evidence:review.evidence}))fail(403,'RETRY_REVIEW_INVALID');},
     beforeInvoke:async({command,attempt,session})=>{if(!await c(runtime,'cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,fence:attempt.input.fence,contentHash:attempt.input.contentHash,payloadHash:attempt.input.payloadHash,...(attempt.input.alreadyPreviewed?{state:'PREVIEWED'}:{state:'SENDING',leaseOwner:attempt._id,leaseUntil:{$gt:new Date()}})},{session}))fail(409,'STALE_DELIVERY_FENCE');},
     invoke:async({command,attempt})=>{await runtime.integrations.effects.transport?.execute?.({commandId:command._id,deliveryId:attempt.phase,contentHash:attempt.input.contentHash,payloadHash:attempt.input.payloadHash,providerKey:attempt.providerKey});return {deliveryId:attempt.phase,fence:attempt.input.fence,contentHash:attempt.input.contentHash,payloadHash:attempt.input.payloadHash,state:'PREVIEWED',mode:'LOCAL_SIMULATED'};},
     publish:async({command,attempt,observation,session,context})=>{
