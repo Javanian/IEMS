@@ -88,13 +88,15 @@ export async function initialize({ client, db, customerService = {}, businessClo
   const { createSaasAdmission, admissionProfile } = await import('../../../packages/tenant-lifecycle/admission.mjs');
   const { createSeparateEffects } = await import('../../../packages/tenant-lifecycle/effects.mjs');
   const { createControlledLocalAdapter } = await import('../../../packages/tenant-lifecycle/local-effects-adapter.mjs');
+  const { isControlledLocalAiProvider } = await import('../../../packages/tenant-lifecycle/local-ai-provider.mjs');
   runtime.separateEffects=createSeparateEffects({...runtime,admission:descriptor=>runtime.saasAdmission.effect(descriptor),fault:integrations.effects?.controlFault});
   await runtime.separateEffects.initialize();
   if(integrations.effects){
     if(integrations.effects.mode!=='LOCAL_SIMULATED'||!/^portfolio_(owned|test)_/.test(db.databaseName)||!await db.collection('ownedRun').findOne({}))fail(503,'EFFECT_LOCAL_OWNED_DATABASE_REQUIRED');
     for(const id of ['local.engine','local.cs','local.ai-index','local.vendor'])runtime.separateEffects.registerAdapter(createControlledLocalAdapter({...runtime,id,fault:integrations.effects.adapterFault}));
   }
-  runtime.saasAdmission = createSaasAdmission({ ...runtime, coverage: integrations.tenantLifecycle?.admissionCoverage ?? admissionProfile });
+  runtime.saasAdmission = createSaasAdmission({ ...runtime, coverage: integrations.tenantLifecycle?.admissionCoverage ?? admissionProfile,
+    controlledIndexReady:()=>isControlledLocalAiProvider(runtime.localAiProvider)&&runtime.separateEffects.supports('ai.index.rebuild')&&runtime.separateEffects.supports('ai.index.cleanup') });
   runtime.localCommands = createLocalCommandReceipts(runtime);
   runtime.commands = await initializeFoundationRuntime(runtime);
   await initializeReportingSnapshots(db);
@@ -107,7 +109,12 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await initializeWorkforce(db);
   runtime.documents = await initializeDocuments(runtime);
   runtime.customerService = await initializeCustomerService(runtime, customerService);
-  runtime.rag = createRagRuntime(runtime, integrations.rag);
+  if(integrations.effects?.ai){
+    if(integrations.rag?.embeddings||integrations.rag?.vectors)fail(503,'AI_EFFECT_ADAPTER_AMBIGUOUS');
+    const {createControlledLocalAiProvider}=await import('../../../packages/tenant-lifecycle/local-ai-provider.mjs');
+    runtime.localAiProvider=await createControlledLocalAiProvider({...integrations.effects.ai,client,applicationDb:db});
+  }
+  runtime.rag = createRagRuntime(runtime, runtime.localAiProvider?{embeddings:runtime.localAiProvider.embeddings,vectors:runtime.localAiProvider.vectors}:integrations.rag);
   await runtime.rag.initialize();
   runtime.assistants = createAssistantRuntime(runtime);
   runtime.intent = createIntentRuntime(runtime, integrations.intent);

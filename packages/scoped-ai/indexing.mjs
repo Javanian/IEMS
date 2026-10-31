@@ -1,3 +1,5 @@
+import {createManagedIndexBoundary} from '../tenant-lifecycle/indexing-effects.mjs';
+import {controlledIndexProvider} from '../tenant-lifecycle/local-ai-provider.mjs';
 import { randomUUID } from 'node:crypto';
 import { boundedTransaction, createCommandExecutor, contentHash, CommandError } from '../tenant-foundation/commands.mjs';
 
@@ -41,7 +43,7 @@ export async function readSource(source, grant, resourceId, session, scope) {
   return { ...value, hash: contentHash(value) };
 }
 
-export function createScopedIndex({ client, db, foundation, saasAdmission, source, vectors, embeddings, clock = () => new Date() }) {
+export function createScopedIndex({ client, db, foundation, saasAdmission, source, vectors, embeddings, separateEffects, clock = () => new Date() }) {
   if (!source?.readAuthorized || !vectors?.upsert || !vectors?.search || !embeddings?.embed ||
       !modelId(embeddings.model) || !positive(embeddings.dimensions) || embeddings.dimensions > 4096) fail('AI_ADAPTER_CONFIGURATION', 500);
   const commands = createCommandExecutor({ client, db, admission: saasAdmission?.effect, foundation });
@@ -50,6 +52,38 @@ export function createScopedIndex({ client, db, foundation, saasAdmission, sourc
   const validateRequest = input => {
     if (!input || !uuid(input.plantId) || !uuid(input.resourceId)) fail('AI_INVALID_RESOURCE');
   };
+  const publishRebuild = async ({session,grant,expectedRevision,scope,input,snapshot,generation,points}) => {
+        const currentSource = await readSource(source, grant, input.resourceId, session, scope);
+        if (currentSource.hash !== snapshot.source.hash) fail('AI_SOURCE_CHANGED', 409);
+        const filter = { tenantId: grant.tenantId, plantId: grant.plantId, resourceId: input.resourceId };
+        const previous = await indexes.findOne(filter, { session });
+        if ((previous?.revision ?? 0) !== expectedRevision) fail('REVISION_CONFLICT', 409);
+        const revision = expectedRevision + 1;
+        const retiredPoints = [...new Set([...(previous?.retiredPoints ?? []), ...(previous?.points ?? [])])];
+        if (retiredPoints.length > 1000) fail('AI_INDEX_CLEANUP_REQUIRED', 409);
+        const row = { ...filter, revision, generation, model: embeddings.model, dimensions: embeddings.dimensions,
+          sourceRevision: currentSource.revision, aclRevision: currentSource.aclRevision,
+          sourceHash: currentSource.hash, active: true, indexedAt: clock(), points: points.map(p => p.id), retiredPoints };
+        if (previous) {
+          const write = await indexes.replaceOne({ ...filter, revision: expectedRevision }, { _id: previous._id, ...row }, { session });
+          if (write.matchedCount !== 1) fail('REVISION_CONFLICT', 409);
+        } else await indexes.insertOne({ _id: randomUUID(), ...row }, { session });
+        return { revision, data: { resourceId: input.resourceId, revision, sourceRevision: currentSource.revision, model: embeddings.model },
+          events: [{ type: 'ai.index.published', version: 1, data: { resourceId: input.resourceId, revision } }] };
+  };
+  const publishCleanup = async ({session,grant,expectedRevision,input,retired}) => {
+        const filter = { tenantId: grant.tenantId, plantId: grant.plantId, resourceId: input.resourceId, revision: expectedRevision };
+        const row = await indexes.findOne(filter, { session });
+        if (!row || row.active && row.points.some(id => retired.includes(id))) fail('REVISION_CONFLICT', 409);
+        const retiredPoints = (row.retiredPoints ?? []).filter(id => !retired.includes(id));
+        const points = row.active ? row.points : row.points.filter(id => !retired.includes(id));
+        const write = await indexes.updateOne(filter, { $set: { retiredPoints, points }, $inc: { revision: 1 } }, { session });
+        if (write.matchedCount !== 1) fail('REVISION_CONFLICT', 409);
+        return { revision: expectedRevision + 1, data: { resourceId: input.resourceId, removed: retired.length,
+          remaining: retiredPoints.length + (!row.active ? points.length : 0) },
+          events: [{ type: 'ai.index.cleaned', version: 1, data: { resourceId: input.resourceId, removed: retired.length } }] };
+  };
+  const managed = controlledIndexProvider(embeddings,vectors) ? createManagedIndexBoundary({client,db,foundation,saasAdmission,source,vectors,embeddings,separateEffects,clock,readSource,validateVector,readSnapshot:async(args)=>{if(typeof source.readSnapshot!=='function')fail('AI_SOURCE_OBSERVATION_UNAVAILABLE',503);const value=sourceShape(await source.readSnapshot(args));if(value.resourceId!==args.resourceId)fail('AI_SOURCE_MISMATCH',409);return {...value,hash:contentHash(value)};},publishRebuild,publishCleanup}) : null;
   return Object.freeze({
     async initialize() {
       await commands.initialize();
@@ -57,6 +91,7 @@ export function createScopedIndex({ client, db, foundation, saasAdmission, sourc
     },
     async status(scope, input) {
       validateRequest(input);
+      if(managed)return managed.status(scope,input);
       return boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.index', session);
         const current = await readSource(source, grant, input.resourceId, session, scope);
@@ -76,6 +111,7 @@ export function createScopedIndex({ client, db, foundation, saasAdmission, sourc
     async rebuild(scope, input) {
       validateRequest(input);
       if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0 || typeof input.key !== 'string') fail('AI_INVALID_COMMAND');
+      if(managed)return managed.accept(scope,input,'rebuild');
       const snapshot = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.index', session);
         await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
@@ -93,23 +129,7 @@ export function createScopedIndex({ client, db, foundation, saasAdmission, sourc
       return commands.execute(scope, { ...scopeTarget(scope, input.plantId, 'ai.index'), key: input.key,
         aggregateId: input.resourceId, expectedRevision: input.expectedRevision,
         input: { sourceHash: snapshot.source.hash, model: embeddings.model } }, async ({ session, grant, expectedRevision }) => {
-        const currentSource = await readSource(source, grant, input.resourceId, session, scope);
-        if (currentSource.hash !== snapshot.source.hash) fail('AI_SOURCE_CHANGED', 409);
-        const filter = { tenantId: grant.tenantId, plantId: grant.plantId, resourceId: input.resourceId };
-        const previous = await indexes.findOne(filter, { session });
-        if ((previous?.revision ?? 0) !== expectedRevision) fail('REVISION_CONFLICT', 409);
-        const revision = expectedRevision + 1;
-        const retiredPoints = [...new Set([...(previous?.retiredPoints ?? []), ...(previous?.points ?? [])])];
-        if (retiredPoints.length > 1000) fail('AI_INDEX_CLEANUP_REQUIRED', 409);
-        const row = { ...filter, revision, generation, model: embeddings.model, dimensions: embeddings.dimensions,
-          sourceRevision: currentSource.revision, aclRevision: currentSource.aclRevision,
-          sourceHash: currentSource.hash, active: true, indexedAt: clock(), points: points.map(p => p.id), retiredPoints };
-        if (previous) {
-          const write = await indexes.replaceOne({ ...filter, revision: expectedRevision }, { _id: previous._id, ...row }, { session });
-          if (write.matchedCount !== 1) fail('REVISION_CONFLICT', 409);
-        } else await indexes.insertOne({ _id: randomUUID(), ...row }, { session });
-        return { revision, data: { resourceId: input.resourceId, revision, sourceRevision: currentSource.revision, model: embeddings.model },
-          events: [{ type: 'ai.index.published', version: 1, data: { resourceId: input.resourceId, revision } }] };
+        return publishRebuild({session,grant,expectedRevision,scope,input,snapshot,generation,points});
       });
     },
     async revoke(scope, input) {
@@ -128,6 +148,7 @@ export function createScopedIndex({ client, db, foundation, saasAdmission, sourc
       validateRequest(input);
       if (!vectors.deletePoints) fail('AI_INDEX_CLEANUP_UNAVAILABLE', 503);
       if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 1 || typeof input.key !== 'string') fail('AI_INVALID_COMMAND');
+      if(managed)return managed.accept(scope,input,'cleanup');
       const retired = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.index', session);
         await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
@@ -141,16 +162,7 @@ export function createScopedIndex({ client, db, foundation, saasAdmission, sourc
       return commands.execute(scope, { ...scopeTarget(scope, input.plantId, 'ai.index'), key: input.key,
         aggregateId: input.resourceId, expectedRevision: input.expectedRevision, input: { operation: 'CLEANUP' } },
       async ({ session, grant, expectedRevision }) => {
-        const filter = { tenantId: grant.tenantId, plantId: grant.plantId, resourceId: input.resourceId, revision: expectedRevision };
-        const row = await indexes.findOne(filter, { session });
-        if (!row || row.active && row.points.some(id => retired.includes(id))) fail('REVISION_CONFLICT', 409);
-        const retiredPoints = (row.retiredPoints ?? []).filter(id => !retired.includes(id));
-        const points = row.active ? row.points : row.points.filter(id => !retired.includes(id));
-        const write = await indexes.updateOne(filter, { $set: { retiredPoints, points }, $inc: { revision: 1 } }, { session });
-        if (write.matchedCount !== 1) fail('REVISION_CONFLICT', 409);
-        return { revision: expectedRevision + 1, data: { resourceId: input.resourceId, removed: retired.length,
-          remaining: retiredPoints.length + (!row.active ? points.length : 0) },
-          events: [{ type: 'ai.index.cleaned', version: 1, data: { resourceId: input.resourceId, removed: retired.length } }] };
+        return publishCleanup({session,grant,expectedRevision,input,retired});
       });
     },
     async retrieve(scope, { plantId, query, limit = 5 }) {

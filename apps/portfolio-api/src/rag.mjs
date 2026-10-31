@@ -25,7 +25,7 @@ export function installRag(app, rag) {
     return checked.plantId;
   };
   const resource = req => { if (!uuid(req.params.id)) fail('AI_INVALID_RESOURCE'); return req.params.id; };
-  const respond = (res, data) => res.set('Cache-Control', 'no-store').json({ data });
+  const respond = (res, data) => {if(data?.accepted===true)res.status(202);return res.set('Cache-Control', 'no-store').json({ data });};
   app.get('/api/ai/documents', async (req, res) => respond(res, await rag.documents.list(req.scope, plant(req))));
   app.get('/api/ai/documents/:id/index', async (req, res) => {
     const plantId = plant(req), resourceId = resource(req);
