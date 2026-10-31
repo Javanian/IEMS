@@ -128,8 +128,8 @@
   {
     "adapter": "SaaS admission policy",
     "path": "packages/tenant-lifecycle/admission.mjs",
-    "lastSourceCommit": "d00884a3eb6327963143dfb12e03cd3201044ae4",
-    "blob": "8d0241526b6dd8f5c3e12ea9c04e1c529a5193a6",
+    "lastSourceCommit": "1d73181f1bcb73d9ba010a5b587049cb82501368",
+    "blob": "8abc3c32b07243459a14af4beb3119668d0264e2",
     "acceptance": "NOT_RUN"
   }
 ]

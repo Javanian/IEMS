@@ -220,3 +220,34 @@ d00884a3eb6327963143dfb12e03cd3201044ae4|feat(PLAT-038): reconcile bounded local
 7dcdc904b98b51ec9ac07cbf5e6a5e6bb4b7bcc5|merge(TPR-149): adopt validated repair reporting coexistence
 5167f297b2b52954e177782f0a504618d2ab7f7c|merge(TPR-149): integrate local admission callers and v14 service contracts
 fb27134cafed7c335cb7856687383993bdc01912|fix(PLAT-019): launch web from app cwd and verify compiled portfolio CSS
+d9485e9cef72c3b275cec57b1bd0cdf1090f0f4d|docs(PLAT-040): publish verified linked demo and exact remaining runtime coverage
+8d21b6b47f8f6f88d742b6887abd0c43d6b4906a|feat(PLAT-038): persist separate-effect claims, local receipts and drain barriers
+78ff1364f4f1da8cc63eb82d0d9d9df4a3be561c|PLAT-038 v15 fence lifecycle stop and authorized effect phases
+41e7124d1786023fa47c72d61cad4410d16b8030|PLAT-038 v15 receipt engine acceptance and correlated error observation
+e9cf6cd9f6f7d7ee499fa2e61d3c49e27d4c2127|PLAT-038 v15 bind private CS workers to original receipts and local phases
+1e70b0c3fbe721a26d27bcb678cbf57d4810a796|PLAT-038 v15 inventory implemented engine and CS phase boundaries
+848ee4c39ad213f2037501d65d5aeaa45d419094|PLAT-038 v15 reauthorize provider BEGIN and bind child transactions to parent proof
+d2f01fb1f2879638204c4d0726b18b38ab93dad9|PLAT-038 v15 preserve automation intent receipts through controlled local delivery
+6d7da9fc03951b48a87d7bf2be40f5c45bec8654|PLAT-038 v15 pin parent and local transport boundaries
+baf3ec3ec6389a98b80e740f4cd6606158798bf2|PLAT-038 v15 receipt bounded recovery with original parent child authority
+ebf3799aae24044ef25c5da98b906fb0f7f77eed|PLAT-038 v15 record bounded recovery and phase retry coverage
+cff53c9062b5e88dc78f05162d5e35fae2a69ecb|PLAT-038 v15 keep authorized status projections read only and bind CS payload proofs
+e1b9cd0d5da3e877df8ae5316a6429cd4cc2a0ce|PLAT-038 v15 pin read-only status and immutable CS source proof
+1668c6541409614289f1604be5211f9cc3321c07|PLAT-038 v15 prove local native provider receipts and accepted AI root metering
+4a617e4e5d68bc7b729fffb7eca3e0ced87ff09c|PLAT-038 v15 register native fixture source and bounded AI root primitive
+36d57b33a8564c5143b260142580c5d3ab0ae355|PLAT-038 v16 add authenticated read-only AI source ports
+bc94620f177a13f893e99f317fed3074843eed7b|PLAT-038 v16 pin read-only AI source authority
+0621dd466b7b005eeeae3c71998756aef68c4a59|PLAT-038 v15 implement controlled indexing phases and original receipt publication
+3124491af4de05c905f357ec4f5482bd70b74fac|PLAT-038 v15 register controlled indexing routes and native proofs
+1d73181f1bcb73d9ba010a5b587049cb82501368|PLAT-038 v15 bind vendor phases to original intent and native local receipts
+71ed33ed3f5b2d08bf529f07f9caacaa3d4e1636|PLAT-038 v15 register vendor continuation and observation coverage
+c8b7c8eb1da727d732a6ad96a0e10fc5193e94af|PLAT-038 v15 fence reviewed pre-provider retries and expose scoped intent status
+fe11404148de13e1ea86ef195c80538b30e28608|PLAT-038 v15 reconcile legacy index receipts before provider work
+6be0f385d0981a1ba40c73de7ec140aa46f36343|PLAT-038 v15 retain caller intents and explicit phase recovery across five workspaces
+39d2d8764206dfaa78a29e70471e7498a6ae234a|PLAT-038 v15 record tested caller/retry coverage and exact cleanup authority gap
+86779d95b5facfd60d1922985a259161d40f6f11|PLAT-038 preserve observed provider results after publication CAS denial
+36b4598a68390400e78c8352080e3f22339f8384|PLAT-038 pin publication conflict observation boundary
+ee350cb4f893be5df8c741f82f575be0c197fb50|feat(PLAT-038): authorize bounded metadata cleanup for inactive sources
+c9634a7de8f6a74181a7e68b636cbc6311397895|feat(PLAT-038): expose scoped cleanup recovery with stable caller intent
+d7fbc4b394ec7e852ab859a84aaf6cea264b001e|docs(PLAT-038): hand off v15-v17 phase coverage and reviewed source registry
+33005312187236d9aba6b91bb68ba73b9c11ab90|merge(TPR-149): integrate v15-v17 managed effect and cleanup handoff

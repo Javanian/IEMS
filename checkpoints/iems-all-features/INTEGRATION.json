@@ -1,12 +1,11 @@
 {
   "independentQA": "NOT_RUN",
-  "mergedHead": "fb27134cafed7c335cb7856687383993bdc01912",
-  "status": "LOCAL_DEMO_VERIFIED_FINAL_QA_WITHHELD",
+  "mergedHead": "33005312187236d9aba6b91bb68ba73b9c11ab90",
+  "status": "IMPLEMENTED_QA_PENDING",
   "base": "0ad4248af46adad2762763438efb27aaace932b4",
   "schema": "IEMS_INTEGRATION_V1",
   "unresolved": [
-    "TPR-153 exact remaining engine/private worker/AI separate-effect admission and quiescence allocation; v14 whole PLAT-038 incomplete",
-    "implementation handoff for remaining local coverage before immutable final QA candidate"
+    "Independent final QA150/152 NOT_RUN; historical unmanaged/PREPARED recovery remains gated, actual provider/cloud/live evidence external"
   ],
   "publication": "LOCAL_ONLY",
   "integratedHandoffs": {
@@ -21,18 +20,11 @@
     "TPR-145": "a517790418d59488d0f8fb37ad81ad4a95cd2479",
     "TPR-146": "147a7917d468854fca4d1b75988bd338c5172e9f",
     "TPR-147": "ee687f3b041f86195d299fff13e9bd2550228e5b",
-    "TPR-148": "6adac5bf8601383f5d8bcc9820c1f31cbf954d91"
+    "TPR-148": "d7fbc4b394ec7e852ab859a84aaf6cea264b001e"
   },
   "checks": {
-    "apiSyntax": "PASS exit0 on5167f29; v14-api-check.log",
-    "webBuild": "PASS exit0 on5167f29; v14-web-build.log; bundle warning retained",
-    "sourcePins": "PASS direct verifiers on5167f29 andfb27134",
-    "linkedE01": "PASS actual mounted owned HTTP/Mongo onfb27134",
-    "linkedE02": "PASS accepted/rejected actual mounted owned HTTP/Mongo onfb27134",
-    "linkedReporting": "PASS5 registered snapshots,2 validated unsupported repair returns; INCOMPLETE/trustedZero=false",
-    "linkedWeb": "PASS_HTML_CSS_AND_AUTHENTICATED_PROXY onfb27134; browser NOT_RUN",
-    "cleanup": "PASS_MARKER_VERIFIED",
-    "warnings": "dependency scan canceled during close; Mongo ECONNRESET retained; earlier root-cwd CSS failure corrected",
+    "record": "/TPR/issues/TPR-149#document-integration-result",
+    "contract": "Final minimum compile/source-pin/linked-smoke results are recorded against the immutable candidate SHA in the issue evidence; this manifest does not assert tests not run.",
     "independentQA": "NOT_RUN"
   }
 }
