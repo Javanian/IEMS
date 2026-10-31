@@ -6,7 +6,7 @@ const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const scope = Object.freeze({});
 const input = { plantId: id(2), grantId: id(4), expectedRevision: 1, commandKey: 'revoke-1' };
 function fixture() {
-  let state = { portal_party_grants: [{ _id: id(4), tenantId: id(1), plantId: id(2), revision: 1, active: true }], foundationCommandResults: [], audit: [], outbox: [] };
+  let state = { portal_party_grants: [{ _id: id(4), tenantId: id(1), plantId: id(2), revision: 1, active: true }], foundationCommandResults: [], audit: [], outbox: [], saasSubscriptions: [] };
   let pending, active = false;
   const control = { denied: false, auditFailure: false, authorizations: 0 };
   const session = {
@@ -28,7 +28,11 @@ function fixture() {
       return { tenantId: id(1), plantId: id(2), userId: id(3) };
     } },
     db: { collection(name) { return {
-      async findOne(filter) { return pending[name].find(row => match(row, filter)); },
+      async findOne(filter, options) {
+        assert.equal(options.session, session);
+        if (name === 'saasSubscriptions') assert.deepEqual(filter, { tenantId: id(1) });
+        return pending[name].find(row => match(row, filter));
+      },
       async findOneAndUpdate(filter, update, options) {
         assert.equal(options.session, session);
         const row = pending[name].find(row => match(row, filter));
@@ -73,6 +77,14 @@ test('audit failure aborts revocation and does not leave a result or event', asy
   assert.equal(f.state().portal_party_grants[0].active, true);
   assert.equal(f.state().foundationCommandResults.length, 0);
   assert.equal(f.state().outbox.length, 0);
+});
+
+test('enrolled tenant requires admission even on revocation replay', async () => {
+  const f = fixture(); await f.service.revoke(scope, input);
+  f.state().saasSubscriptions.push({ tenantId: id(1) });
+  const before = structuredClone(f.state());
+  await assert.rejects(f.service.revoke(scope, input), { code: 'SAAS_ADMISSION_PORT_REQUIRED' });
+  assert.deepEqual(f.state(), before);
 });
 
 test('wrong plant, grant, stale revision and malformed fields cannot mutate grants', async () => {

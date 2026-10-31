@@ -9,7 +9,7 @@ const input = () => ({ plantId: id(2), grantId: id(4), userId: id(5), partyId: i
 function fixture() {
   let state = { memberships: [{ _id: id(7), tenantId: id(1), userId: id(5), active: true, version: 1, plantIds: [id(2)], legalEntityIds: [id(8)] }],
     users: [{ _id: id(5), active: true }], vendors: [{ _id: id(6), tenantId: id(1), plantId: id(2) }], accounts: [],
-    portal_party_grants: [], foundationCommandResults: [], audit: [], outbox: [] };
+    portal_party_grants: [], foundationCommandResults: [], audit: [], outbox: [], saasSubscriptions: [] };
   let pending, active = false;
   const control = { denied: false, auditFailure: false, authorizations: 0, indexes: [] };
   const session = {
@@ -26,7 +26,11 @@ function fixture() {
     } },
     db: { collection(name) { return {
       async createIndex(keys, options) { control.indexes.push({ name, keys, options }); },
-      async findOne(filter) { return pending[name].find(row => match(row, filter)); },
+      async findOne(filter, options) {
+        assert.equal(options.session, session);
+        if (name === 'saasSubscriptions') assert.deepEqual(filter, { tenantId: id(1) });
+        return pending[name].find(row => match(row, filter));
+      },
       async updateOne(filter, update, options) {
         assert.equal(options.session, session);
         const row = pending[name].find(row => match(row, filter));
@@ -76,6 +80,13 @@ test('target disabled, wrong plant/entity/tenant or absent party denies creation
     assert.equal(f.state().foundationCommandResults.length, 0);
     assert.equal(f.state().memberships[0].authorizationFence, undefined);
   }
+});
+
+test('enrolled tenant requires admission before provisioning any grant', async () => {
+  const f = fixture(); f.state().saasSubscriptions.push({ tenantId: id(1) });
+  const before = structuredClone(f.state());
+  await assert.rejects(f.service.provision(scope, input()), { code: 'SAAS_ADMISSION_PORT_REQUIRED' });
+  assert.deepEqual(f.state(), before);
 });
 
 test('audit failure rolls back grant and recipient fences', async () => {
