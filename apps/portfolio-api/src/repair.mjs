@@ -229,6 +229,7 @@ export function installRepair(app, runtime, { fail, guard, id, fields }) {
         if ((row.warrantyClaims?.length || 0) >= 100) fail(409, 'WARRANTY_HISTORY_LIMIT');
         const caseId = randomUUID(), condition = text(b.condition);
         const claim = { ...base(req), _id: caseId, caseNumber: repairNumberFor(req.filter, caseId), ownerAccountId: row.ownerAccountId, serial: row.serial, initialCondition: condition, currency: row.currency, replacementPolicy: 'CANONICAL_SPARES_V1', status: 'INTAKE', custodyState: 'IN_CUSTODY', custody: [evidence(req, 'WARRANTY_RECEIVED', condition)], history: [], scopes: [], deposits: [], tests: [], reworks: [], holds: [], warrantyOrigin: { caseId: row._id, warrantyId: warranty._id, warranty: structuredClone(warranty), claim: record('WARRANTY_CLAIM') } };
+        if (row.serviceProfile === 'REPAIR_SERVICE_V1') Object.assign(claim, { serviceProfile: row.serviceProfile, assetId: row.assetId });
         await c('repairCases').insertOne(claim, { session });
         row.warrantyClaims = [...(row.warrantyClaims || []), { caseId, caseNumber: claim.caseNumber, ...record('WARRANTY_CLAIM') }];
       }

@@ -48,6 +48,8 @@ export async function readRepairOrders(db, filter, row, session) {
     if (!order || !plant || order.ownerLegalEntityId !== plant.legalEntityId || hash(immutable(order)) !== order.contentHash || order.caseId !== row._id || order.accountId !== row.ownerAccountId || order.assetId !== row.assetId || order.serial !== row.serial || order.scopeHash !== hash(row.scopes.at(-1)) || order.decisionHash !== hash(row.decision)) invalid();
     const revision = await db.collection('repairOrderRevisions').findOne({ ...filter, orderId: order._id, version: order.version }, { session });
     if (!revision || revision.contentHash !== order.contentHash || !isDeepStrictEqual(revision.snapshot, immutable(order))) invalid();
+    const fenced = await db.collection(order.schema === 'REPAIR_SERVICE_SO_V1' ? 'repairSalesOrders' : 'repairWorkOrders').updateOne({ ...filter, _id: order._id, version: order.version, contentHash: order.contentHash }, { $inc: { useFence: 1 } }, { session });
+    if (!fenced.matchedCount) fail(409, 'VERSION_CONFLICT');
   }
   if (so.workOrderId !== wo._id || wo.salesOrderId !== so._id || so.schema !== 'REPAIR_SERVICE_SO_V1' || wo.schema !== 'REPAIR_SERVICE_WO_V1' || row.serviceOrders.salesOrderHash !== so.contentHash || row.serviceOrders.workOrderHash !== wo.contentHash) invalid();
   return { so, wo };

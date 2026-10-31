@@ -89,6 +89,8 @@ export async function issuePodWarranty(db, filter, row, body, actor, now, sessio
   const invoice = await db.collection('repairInvoices').findOne({ ...filter, _id: body.invoiceId, caseId: row._id, kind: 'FINAL' }, { session });
   const shipment = await db.collection('fulfillmentShipments').findOne({ ...filter, _id: body.shipmentId }, { session });
   if (!invoice || !shipment || body.repairWorkOrderId !== wo._id || wo.status !== 'COMPLETED' || invoice._id !== row.finalInvoiceId || invoice.accountId !== row.ownerAccountId || invoice.repairWorkOrderId !== wo._id || invoice.repairSalesOrderId !== so._id || invoice.currency !== row.currency || hash(invoice.snapshot) !== hash(row.scopes.at(-1).snapshot)) fail(409, 'WARRANTY_SOURCE_CONFLICT');
+  const fenced = await db.collection('repairInvoices').updateOne({ ...filter, _id: invoice._id, version: invoice.version }, { $inc: { warrantyUseFence: 1 } }, { session });
+  if (!fenced.matchedCount) fail(409, 'VERSION_CONFLICT');
   const original = await validateRepairReturnShipment(db, filter, shipment, session), delivery = await readDeliveryState(db, filter, original, session);
   const confirmation = delivery.confirmations.find(value => value._id === body.confirmationId);
   if (shipment.caseId !== row._id || delivery.head?.status !== 'DELIVERED' || delivery.confirmations.length !== 1 || !confirmation || confirmation.quantity !== '1' || confirmation.serials?.length !== 1 || confirmation.serials[0] !== row.serial || new Date(confirmation.deliveredAt) > now || new Date(confirmation.deliveredAt) < new Date(shipment.shippedAt)) fail(409, 'WARRANTY_POD_REQUIRED');
