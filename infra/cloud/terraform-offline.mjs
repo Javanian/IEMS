@@ -17,7 +17,10 @@ const run=(args,cwd)=>{
   const p=spawnSync('terraform',args,{cwd,env,encoding:'utf8',timeout:120000,windowsHide:true});
   result.checks.push({command:['terraform',...args],cwd,exit:p.status,error:p.error?.code,stdout:p.stdout,stderr:p.stderr});return !p.error&&p.status===0;
 };
-if(!run(['version','-json'],target))result.reason='Terraform unavailable or version command failed';
+if(!run(['version','-json'],target)) {
+  if(result.checks.at(-1).error==='ENOENT')result.reason='Terraform executable unavailable';
+  else {result.status='FAIL';result.reason='Terraform version command failed';}
+}
 else if(!run(['fmt','-check','-recursive'],target))result.status='FAIL';
 else if(!mirror||!existsSync(mirror))result.reason='Installed offline provider mirror required';
 else {
