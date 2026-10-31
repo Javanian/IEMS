@@ -63,14 +63,17 @@ test('warehouse real owned Mongo HTTP receipt to reservation', async t => {
     }
     assert.equal((await post('/warehouse/receipts', b)).status, 201);
   });
-  await t.test('distinct keys contend on PO remaining quantity without changing procurement shape', async () => {
+  await t.test('distinct keys contend on PO remaining quantity with exactly one receipt fence per committed receipt', async () => {
     const next = await po(), original = await db.collection('purchaseOrders').findOne({ _id: next._id });
     const b = { ...body, purchaseOrderId: next._id, quantity: '1' };
     const results = await Promise.all([1, 2, 3].map(() => post('/warehouse/receipts', { ...b, idempotencyKey: randomUUID() })));
     assert.deepEqual(results.map(r => r.status).sort(), [201, 409, 409]);
-    assert.deepEqual(await db.collection('purchaseOrders').findOne({ _id: next._id }), original);
+    assert.deepEqual(await db.collection('purchaseOrders').findOne({ _id: next._id }), { ...original, receiptFence: (original.receiptFence || 0) + 1 });
     assert.equal((await post('/warehouse/receipts', { ...b, quantity: '0.250', idempotencyKey: randomUUID() })).status, 201);
+    const completed = await db.collection('purchaseOrders').findOne({ _id: next._id });
+    assert.deepEqual(completed, { ...original, receiptFence: (original.receiptFence || 0) + 2 });
     assert.equal((await post('/warehouse/receipts', { ...b, quantity: '0.000001', idempotencyKey: randomUUID() })).status, 409);
+    assert.deepEqual(await db.collection('purchaseOrders').findOne({ _id: next._id }), completed);
   });
   await t.test('serials are unique in scope and count matches exact received quantity', async () => {
     const a = await po(), b = await po();
