@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { submitLocalMail, verifiedSinkReceipt, localUrl, hashText } from './automation-transport.mjs';
+import { effectHash, effectTransaction } from '../../../packages/tenant-lifecycle/effects.mjs';
 
 export const automationRoles = {
   automationViewer: ['cs.automation.read'],
@@ -549,10 +550,53 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     });
     res.json({ data: out });
   });
+  const effects=runtime.separateEffects;
+  const engineSources=async(userScope,payload,session)=>{
+    const request={scope:userScope},proof={};
+    if(payload.ticketId){const ticket=await c(runtime,'cs_tickets').findOneAndUpdate({...scope(request),_id:payload.ticketId},{$inc:{automationFence:1}},{session,returnDocument:'after'});if(!ticket)fail(404,'NOT_FOUND');const binding=await sourceBinding(request,ticket,session);proof.ticket={id:ticket._id,version:ticket.version,bindingId:binding._id,bindingVersion:binding.version};}
+    if(payload.draftId){const draft=await getDraft(request,payload.draftId,session);if(!draft.approvedBy||!draft.approvalHash)fail(409,'APPROVAL_REQUIRED');await checkSource(request,draft,session,true);proof.draft={id:draft._id,approvalHash:draft.approvalHash,sourceVersion:draft.expectedTicketVersion};}
+    return digest(proof);
+  };
+  const engineOrigin=(userScope,plan)=>({authorize:async({session,observation})=>{
+    const grant=await runtime.foundation.authorizeInTransaction(userScope,{tenantId:userScope.tenantId,plantId:userScope.selectedPlantId,action:'cs.automation.execute'},{session});
+    const humanSession=await c(runtime,'sessions').findOne({userId:grant.userId,membershipId:grant.membershipId,tenantId:grant.tenantId,automationService:true,revoked:false},{session});if(humanSession?.automationService)fail(403,'HUMAN_APPROVAL_REQUIRED');
+    const configured=cfg().serviceToken||process.env.IEMS_AUTOMATION_SERVICE_TOKEN;if(!configured)fail(503,'ENGINE_SERVICE_NOT_CONFIGURED');
+    let serviceScope;try{serviceScope=await runtime.foundation.authenticate(configured);}catch{fail(403,'ENGINE_SERVICE_CREDENTIAL_EXPIRED');}
+    const serviceGrant=await runtime.foundation.authorizeInTransaction(serviceScope,{tenantId:grant.tenantId,plantId:grant.plantId,action:'cs.automation.execute'},{session});
+    const service=await c(runtime,'sessions').findOne({_id:plan.serviceSessionId,tokenHash:hashText(configured),automationService:true,tenantId:grant.tenantId},{session});
+    if(!service||serviceScope.selectedPlantId!==grant.plantId||serviceGrant.legalEntityId!==grant.legalEntityId)fail(403,'ENGINE_SCOPE_DENIED');
+    if(await engineSources(userScope,plan.payload,session)!==plan.sourceHash)fail(409,'ENGINE_SOURCE_CHANGED');
+    if(!observation){if((await c(runtime,'automation_settings').findOne({_id:`${grant.tenantId}:${grant.plantId}`},{session}))?.paused)fail(409,'AUTOMATION_PAUSED');await runtime.saasAdmission.authorize(userScope,{plantId:grant.plantId,session});}
+    return grant;
+  }});
+  if(effects?.hasAdapter('local.engine')&&!effects.supports('automation.engine'))effects.registerKind('automation.engine',{
+    adapterId:'local.engine',statusAction:'cs.automation.read',rebind:async({scope:actorScope,command})=>engineOrigin(actorScope,command.plan),
+    childEvents:['ENGINE_ERROR_OBSERVED'],authorizeChild:async({scope:serviceScope,command,attempt,session})=>{const grant=await runtime.foundation.authorizeInTransaction(serviceScope,{tenantId:command.tenantId,plantId:command.plantId,action:'cs.automation.execute'},{session});const service=await c(runtime,'sessions').findOne({_id:command.plan.serviceSessionId,tenantId:command.tenantId,userId:grant.userId,membershipId:grant.membershipId,automationService:true,revoked:false,expiresAt:{$gt:new Date()}},{session});if(!service||attempt.input.executionId!==command.plan.executionId)fail(403,'ENGINE_ERROR_UNCORRELATED');return grant;},
+    prepare:async({command})=>({runId:command.plan.runId,executionId:command.plan.executionId,sourceHash:command.plan.sourceHash}),
+    invoke:async({command,attempt})=>{const configured=runtime.integrations.effects.engine;if(configured?.execute)await configured.execute({runId:command.plan.runId,executionId:command.plan.executionId,workflowId:command.plan.workflowId,payload:command.plan.payload,providerKey:attempt.providerKey});else await new Promise(resolve=>setImmediate(resolve));return {runId:command.plan.runId,executionId:command.plan.executionId,outcome:'COMPLETED_LOCAL'};},
+    publish:async({command,observation,session})=>{const result={runId:command.plan.runId,executionId:command.plan.executionId,state:'COMPLETED_LOCAL'};const changed=await c(runtime,'automation_engine_runs').updateOne({_id:command.plan.runId,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,state:'ACCEPTED'},{$set:{...result,providerReceiptHash:observation.proofHash,observedAt:new Date(),completedAt:new Date()}},{session});if(changed.matchedCount!==1)fail(409,'ENGINE_RUN_SOURCE_CHANGED');return result;}
+  });
+  const acceptEngine=async(req,wf)=>effectTransaction(runtime.client,async session=>{
+    const grant=await human(req,'cs.automation.execute',session),idem=key(req),payload={...req.body},previous=await replay(req,session,'AUTOMATION_ENGINE_RUN',wf.id,payload,idem),identity={tenantId:grant.tenantId,idempotencyKey:idem};
+    if(previous){const command=await effects.managed('automation_audit_logs',identity,{session});if(!command)fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');await effects.accept({session,grant,actor:command.actor,owner:command.owner,kind:command.kind,plan:command.plan,accepted:command.acceptedResult,origin:engineOrigin(req.scope,command.plan)});await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'automation_audit_logs',identity,key:idem,action:'cs.automation.execute',operation:'AUTOMATION_ENGINE_RUN',aggregateId:wf.id,payloadHash:digest(payload),replayed:true});return {result:previous,commandId:command._id};}
+    if(!effects?.supports('automation.engine'))fail(503,'EFFECT_ADAPTER_UNPROVEN');
+    const configured=cfg().serviceToken||process.env.IEMS_AUTOMATION_SERVICE_TOKEN;if(!configured)fail(503,'ENGINE_SERVICE_NOT_CONFIGURED');
+    const service=await c(runtime,'sessions').findOne({tenantId:grant.tenantId,tokenHash:hashText(configured),automationService:true},{session});if(!service)fail(403,'ENGINE_SERVICE_CREDENTIAL_EXPIRED');
+    const runId=randomUUID(),plan={runId,workflowId:wf.id,executionId:`local:${runId}`,payload,serviceSessionId:service._id,sourceHash:await engineSources(req.scope,payload,session)},result={runId,state:'ACCEPTED'};
+    await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'automation_audit_logs',identity,key:idem,action:'cs.automation.execute',operation:'AUTOMATION_ENGINE_RUN',aggregateId:wf.id,payloadHash:digest(payload),replayed:false});
+    const command=await effects.accept({session,id:runId,grant,actor:{type:'USER',userId:grant.userId,membershipId:grant.membershipId},owner:{namespace:'automation_audit_logs',identity,hashField:'payloadHash',payloadHash:digest(payload),resultPath:'result',resultHash:effectHash(result)},kind:'automation.engine',plan,accepted:result,origin:engineOrigin(req.scope,plan)});
+    await c(runtime,'automation_engine_runs').insertOne({_id:runId,...scope(req),workflowId:wf.id,executionId:plan.executionId,state:'ACCEPTED',startedAt:new Date(),observedAt:new Date(),controlCommandId:command._id,serviceSessionId:plan.serviceSessionId},{session});
+    const row=await audit(req,session,'AUTOMATION_ENGINE_RUN',wf.id,result,{idempotencyKey:idem,payloadHash:digest(payload)});return {result:{...result,auditId:row._id,idempotencyKey:idem,replayed:false},commandId:command._id};
+  });
   app.post('/api/cs/automation/run/:workflowId', async (req, res) => {
     await human(req, 'cs.automation.execute'); fields(req.body, ['draftId', 'mode', 'ticketId', 'periodKey']);
     const wf = [...workflows, { id: 'wf-automation-recovery', path: 'iems-automation-recovery' }].find(w => w.id === req.params.workflowId);
     if (!wf) fail(404, 'NOT_FOUND');
+    const enrolled=await tx(req,'cs.automation.execute',session=>c(runtime,'saasSubscriptions').findOne({tenantId:req.scope.tenantId},{session}),'READ');
+    if(enrolled||effects?.supports('automation.engine')){
+      for(const name of ['draftId','ticketId'])if(req.body[name]!==undefined)id(req.body[name]);for(const name of ['mode','periodKey'])if(req.body[name]!==undefined&&text(req.body[name],100)!==req.body[name])fail(400,'INVALID_TEXT');
+      const accepted=await acceptEngine(req,wf);return res.status(202).set('Cache-Control','no-store').json({data:accepted.result,effect:{commandId:accepted.commandId,mode:'LOCAL_SIMULATED'}});
+    }
     const url = localUrl(cfg().n8nUrl || process.env.IEMS_AUTOMATION_N8N_URL, 'http://127.0.0.1:5687'), token = cfg().webhookToken || process.env.IEMS_AUTOMATION_WEBHOOK_TOKEN;
     if (!token) fail(503, 'ENGINE_NOT_CONFIGURED');
     const setting = await c(runtime, 'automation_settings').findOne({ _id: `${req.scope.tenantId}:${req.scope.selectedPlantId}` });
@@ -581,8 +625,19 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     res.json({ data: { ...row, ...observed } });
   });
   app.post('/api/cs/automation/engine-error', async (req, res) => {
-    await auth(req, 'cs.automation.execute'); fields(req.body, ['workflowId', 'executionId', 'message']);
+    await auth(req, 'cs.automation.execute'); fields(req.body, ['workflowId', 'executionId', 'message','runId']);
     if (!req.automationService) fail(403, 'SERVICE_IDENTITY_REQUIRED');
+    if(req.body.runId!==undefined){
+      const runId=id(req.body.runId),workflowId=text(req.body.workflowId,100),executionId=text(String(req.body.executionId),100),errorDescriptorHash=digest({message:text(req.body.message,500)}),payload={runId,workflowId,executionId,errorDescriptorHash},idem=key(req);
+      const result=await effectTransaction(runtime.client,async session=>{
+        await auth(req,'cs.automation.execute',session);const previous=await replay(req,session,'AUTOMATION_ENGINE_ERROR',runId,payload,idem);
+        const run=await c(runtime,'automation_engine_runs').findOne({...scope(req),_id:runId,controlCommandId:runId,workflowId,executionId},{session});if(!run)fail(403,'ENGINE_ERROR_UNCORRELATED');
+        const correlatedSession=await c(runtime,'sessions').findOne({_id:run.serviceSessionId,tenantId:req.scope.tenantId,userId:req.scope.userId,membershipId:req.scope.membershipId,tokenHash:hashText(req.token),automationService:true,revoked:false,expiresAt:{$gt:new Date()}},{session});if(!correlatedSession)fail(403,'ENGINE_ERROR_UNCORRELATED');const cap=await effects.childCapability(req.scope,runId,'EFFECT',{session});if(previous)return previous;
+        await effects.recordChild(cap,{session,kind:'ENGINE_ERROR_OBSERVED',proof:{runId,workflowId,executionId,errorDescriptorHash}});
+        await c(runtime,'automation_engine_runs').updateOne({_id:runId,...scope(req),controlCommandId:runId},{$set:{engineErrorObserved:{executionId,errorDescriptorHash,observedAt:new Date()}}},{session});
+        const value={runId,workflowId,executionId,state:'ERROR_OBSERVED'},row=await audit(req,session,'AUTOMATION_ENGINE_ERROR',runId,value,{idempotencyKey:idem,payloadHash:digest(payload)});return {...value,auditId:row._id,idempotencyKey:idem,replayed:false};
+      });return res.status(201).set('Cache-Control','no-store').json({data:result});
+    }
     const workflowId = text(req.body.workflowId, 100), executionId = text(String(req.body.executionId), 100);
     const row = { _id: randomUUID(), ...scope(req), workflowId, executionId, state: 'FAILED', error: 'N8N_EXECUTION_FAILED', completedAt: new Date(), observedAt: new Date() };
     await tx(req, 'cs.automation.execute', session => c(runtime, 'automation_engine_runs').insertOne(row,{session}));
