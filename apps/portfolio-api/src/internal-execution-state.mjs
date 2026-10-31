@@ -1,11 +1,15 @@
 import { stockHash as hash, stockHashless as hashless, stockSemantic as semantic, stockUnits as units } from './catalog-stock-use-state.mjs';
 import { validateCompanyStockUse } from './company-stock-state.mjs';
+import { manufacturedTraversal, visitManufacturedNode, consumedManufacturedAncestry } from '../../../packages/contracts/src/domains/planning-execution/manufactured-graph.mjs';
 
 export const executionInvalid = () => { throw Object.assign(new Error('INTERNAL_EXECUTION_SOURCE_INVALID'), { status: 409, code: 'INTERNAL_EXECUTION_SOURCE_INVALID' }); };
 const positive = value => Number.isSafeInteger(value) && value > 0;
 const scope = row => ({ tenantId: row.tenantId, plantId: row.plantId });
 const partition = (head, rows) => { const all = [...head.qc.acceptedSerials, ...head.qc.rejectedSerials]; return all.length === rows.length && new Set(all).size === all.length && all.every(serial => rows.some(unit => unit.serial === serial)); };
-export async function validateInternalExecution(db, filter, executionId, session) {
+export async function validateInternalExecution(db, filter, executionId, session, walk = manufacturedTraversal()) {
+  return visitManufacturedNode(walk, executionId, () => validateExecutionNode(db, filter, executionId, session, walk));
+}
+async function validateExecutionNode(db, filter, executionId, session, walk) {
   const head = await db.collection('internalExecutions').findOne({ ...filter, _id: executionId }, { session });
   if (!head) throw Object.assign(new Error('NOT_FOUND'), { status: 404, code: 'NOT_FOUND' });
   const options = { session }, event = await db.collection('internalExecutionEvents').findOne({ ...filter, _id: head.eventId, executionId }, options);
@@ -18,7 +22,18 @@ export async function validateInternalExecution(db, filter, executionId, session
   if (head.schema === 'INTERNAL_EXECUTION_V1' ? companyReservations.length || Object.hasOwn(head, 'companySourceReceiptIds') : !Array.isArray(head.companySourceReceiptIds) || hash([...head.companySourceReceiptIds].sort()) !== hash([...new Set(companyReservations.map(row => row.companyReceiptId))].sort()) || head.materials.some(material => material.sourceKind !== (material.itemSnapshot.content.kind === 'PURCHASED' ? 'CATALOG_RECEIPT' : 'COMPANY_OUTPUT') || (material.sourceKind === 'COMPANY_OUTPUT' && (material.itemSnapshot.content.kind !== 'MANUFACTURED' || material.itemSnapshot.content.trackingPolicy !== 'SERIAL')))) executionInvalid();
   for (const row of reservations) if (head.schema === 'INTERNAL_EXECUTION_V2' && row.sourceKind !== head.materials.find(material => material.lineId === row.materialLineId)?.sourceKind) executionInvalid();
   const companyProducers = new Map();
-  for (const row of companyReservations) { let producer = companyProducers.get(row.companyReceiptId); if (!producer) { const receipt = await db.collection('internalCompanyStockReceipts').findOne({ ...filter, _id: row.companyReceiptId }, options); if (!receipt) executionInvalid(); const producerHead = await db.collection('internalExecutions').findOne({ ...filter, _id: receipt.executionId }, options); if (producerHead?.schema !== 'INTERNAL_EXECUTION_V1') executionInvalid(); producer = await validateInternalExecution(db, filter, receipt.executionId, session); if (producer.head.status !== 'STORED' || producer.companyReceipt?._id !== row.companyReceiptId || producer.head.materials.some(material => material.itemSnapshot.content.kind !== 'PURCHASED')) executionInvalid(); await validateCompanyStockUse(db, filter, producer, session); companyProducers.set(row.companyReceiptId, producer); } if (row.openingHash !== producer.companyReceipt.contentHash || hash(row.sourceSnapshot.consumedReceiptIds) !== hash(producer.companyReceipt.consumedReceiptIds) || row.sourceSnapshot.producerExecutionId !== producer.head._id || row.sourceSnapshot.provenanceHash !== producer.head.attributionHash) executionInvalid(); }
+  for (const row of companyReservations) {
+    let producer = companyProducers.get(row.companyReceiptId);
+    if (!producer) {
+      const receipt = await db.collection('internalCompanyStockReceipts').findOne({ ...filter, _id: row.companyReceiptId }, options);
+      if (!receipt) executionInvalid();
+      producer = await validateInternalExecution(db, filter, receipt.executionId, session, walk);
+      if (producer.head.status !== 'STORED' || producer.companyReceipt?._id !== row.companyReceiptId || producer.head.ownerLegalEntityId !== head.ownerLegalEntityId || (producer.head.schema !== 'INTERNAL_EXECUTION_V1' && producer.companyReceipt.sourcePolicy !== 'MULTI_GENERATION_SOURCE')) executionInvalid();
+      await validateCompanyStockUse(db, filter, producer, session);
+      companyProducers.set(row.companyReceiptId, producer);
+    }
+    if (row.openingHash !== producer.companyReceipt.contentHash || hash(row.sourceSnapshot.consumedReceiptIds) !== hash(producer.companyReceipt.consumedReceiptIds) || hash(row.sourceSnapshot.consumedAncestryReceiptIds) !== hash(producer.companyReceipt.sourcePolicy === 'MULTI_GENERATION_SOURCE' ? producer.companyReceipt.consumedAncestryReceiptIds : undefined) || row.sourceSnapshot.producerExecutionId !== producer.head._id || row.sourceSnapshot.provenanceHash !== producer.head.attributionHash) executionInvalid();
+  }
   for (const row of reservations) { const ref = head.reservations.find(ref => ref.reservationId === row._id), material = head.materials.find(material => material.lineId === row.materialLineId); if (!ref || ref.version !== row.version || ref.contentHash !== row.contentHash || hash(hashless(row)) !== row.contentHash || !material || row.itemId !== material.itemId || row.itemRevision !== material.itemRevision || row.uom !== material.uom || row.ownerLegalEntityId !== head.ownerLegalEntityId) executionInvalid(); }
   if (head.status !== 'PLANNED') for (const material of head.materials) { const own = reservations.filter(row => row.materialLineId === material.lineId && row.status !== 'RELEASED'); if (own.reduce((sum, row) => sum + units(row.quantity), 0n) !== units(material.requiredQuantity)) executionInvalid(); }
   const requiredStatus = ['ISSUED', 'IN_PROGRESS', 'QUARANTINED', 'QC_RELEASED', 'STORED'].includes(head.status) ? head.records.length ? 'CONSUMED' : 'ISSUED' : 'RESERVED';
@@ -45,7 +60,8 @@ export async function validateInternalExecution(db, filter, executionId, session
   if (head.status === 'STORED') {
     const company = companyRows[0];
     const consumedReceiptIds = catalogReservations.filter(row => row.status === 'CONSUMED').map(row => row.receiptId).sort();
-    if (head.schema === 'INTERNAL_EXECUTION_V2') { const ancestry = [...new Set([...consumedReceiptIds, ...companyReservations.filter(row => row.status === 'CONSUMED').flatMap(row => companyProducers.get(row.companyReceiptId).companyReceipt.consumedReceiptIds)])].sort(); if (company.sourcePolicy !== 'LEAF_ONLY' || hash(company.companySourceReceiptIds) !== hash(head.companySourceReceiptIds) || hash(company.consumedAncestryReceiptIds) !== hash(ancestry)) executionInvalid(); }
+    if (!company) executionInvalid();
+    if (head.schema === 'INTERNAL_EXECUTION_V2') { const ancestry = consumedManufacturedAncestry(companyReservations.filter(row => row.status === 'CONSUMED').map(row => companyProducers.get(row.companyReceiptId).companyReceipt), consumedReceiptIds); if (!['LEAF_ONLY', 'MULTI_GENERATION_SOURCE'].includes(company.sourcePolicy) || hash(company.companySourceReceiptIds) !== hash(head.companySourceReceiptIds) || hash(company.consumedAncestryReceiptIds) !== hash(ancestry)) executionInvalid(); }
     if (companyRows.length !== 1 || !head.companyStock || hash(hashless(company)) !== company.contentHash || company.contentHash !== head.companyStock.contentHash || company._id !== head.companyStock.receiptId || company.quantity !== String(head.qc.acceptedSerials.length) || hash([...company.serials].sort()) !== hash([...head.qc.acceptedSerials].sort()) || companyUnits.length !== head.qc.acceptedSerials.length || company.valuation !== 'UNVALUED') executionInvalid();
     if (!Array.isArray(head.companyStock.unitHashes) || head.companyStock.unitHashes.length !== companyUnits.length || new Set(head.companyStock.unitHashes.map(ref => ref.unitId)).size !== companyUnits.length || new Set(companyUnits.map(unit => unit.outputUnitId)).size !== companyUnits.length || new Set(companyUnits.map(unit => unit.serial)).size !== companyUnits.length || company.itemId !== head.sourceDemand.itemSnapshot._id || company.itemRevision !== head.sourceDemand.itemSnapshot.currentRevision || company.uom !== head.uom || company.ownerLegalEntityId !== head.ownerLegalEntityId || hash(company.sourceReceiptIds) !== hash(head.sourceReceiptIds) || hash(company.consumedReceiptIds) !== hash(consumedReceiptIds) || company.provenanceHash !== head.attributionHash || hash(company.qc) !== hash(head.qc)) executionInvalid();
     for (const unit of companyUnits) {
@@ -53,7 +69,9 @@ export async function validateInternalExecution(db, filter, executionId, session
       if (!ref || ref.contentHash !== unit.contentHash || hash(hashless(unit)) !== unit.contentHash || !output || output.serial !== unit.serial || !head.qc.acceptedSerials.includes(output.serial) || unit.itemId !== company.itemId || unit.itemRevision !== company.itemRevision || unit.uom !== company.uom || hash(unit.sourceReceiptIds) !== hash(head.sourceReceiptIds) || hash(unit.consumedReceiptIds) !== hash(consumedReceiptIds) || unit.companyReceiptId !== company._id || !company.serials.includes(unit.serial) || unit.status !== 'AVAILABLE' || unit.ownerLegalEntityId !== head.ownerLegalEntityId || hash(unit.locationSnapshot) !== hash(company.locationSnapshot)) executionInvalid();
     }
   } else if (head.companyStock !== null || companyRows.length || companyUnits.length) executionInvalid();
-  return { head, reservations, outputs, companyReceipt: companyRows[0] || null, companyUnits };
+  reconcileInternalAttribution(head, reservations, outputs, ['QC_RELEASED', 'STORED'].includes(head.status));
+  return { head, reservations, outputs, companyReceipt: companyRows[0] || null, companyUnits,
+    ancestryExecutionIds: [...new Set([executionId, ...[...companyProducers.values()].flatMap(producer => producer.ancestryExecutionIds)])] };
 }
 
 export function reconcileInternalAttribution(head, reservations, outputs, complete = false) {

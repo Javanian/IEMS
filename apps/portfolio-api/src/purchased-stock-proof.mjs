@@ -6,7 +6,7 @@ export const customerClaimSchema = 'CATALOG_CUSTOMER_RESERVATION_V1';
 export const purchasedInvalid = () => { throw Object.assign(new Error('PURCHASED_FULFILLMENT_SOURCE_INVALID'), { status: 409, code: 'PURCHASED_FULFILLMENT_SOURCE_INVALID' }); };
 const positive = value => Number.isSafeInteger(value) && value > 0;
 const scope = value => ({ tenantId: value.tenantId, plantId: value.plantId });
-export const shipmentSemantic = value => Object.fromEntries(Object.entries(value).filter(([key]) => !['documentFence', 'deliveryUseFence'].includes(key)));
+export const shipmentSemantic = value => Object.fromEntries(Object.entries(value).filter(([key]) => !['documentFence', 'deliveryUseFence', 'returnUseFence'].includes(key)));
 export const invoiceSemantic = value => Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'documentFence'));
 const idsEqual = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && new Set(a).size === a.length && hash([...a].sort()) === hash([...b].sort());
 
@@ -19,7 +19,8 @@ export async function purchasedHeadProof(db, filter, salesOrderId, session) {
   const events = await db.collection('purchasedFulfillmentEvents').find({ ...filter, salesOrderId }, options).sort({ version: 1 }).limit(402).toArray();
   if (!head) {
     if (events.length || await db.collection('purchasedFulfillmentHeads').findOne({ ...filter, salesOrderId }, options)) purchasedInvalid();
-    for (const name of ['purchasedFulfillmentKeys', 'purchasedFulfillmentAudit', 'purchasedFulfillmentOutbox', 'catalogMaterialReservations', 'catalogCustomerShipments', 'purchasedShipmentProofs', 'purchasedInvoiceProofs', 'purchasedPaymentProofs', 'fulfillmentShipments', 'fulfillmentInvoices', 'fulfillmentPayments', 'fulfillmentKeys']) if (await db.collection(name).findOne({ ...filter, salesOrderId }, options)) purchasedInvalid();
+    for (const name of ['purchasedFulfillmentKeys', 'purchasedFulfillmentAudit', 'purchasedFulfillmentOutbox', 'catalogMaterialReservations', 'catalogCustomerShipments', 'purchasedShipmentProofs']) if (await db.collection(name).findOne({ ...filter, salesOrderId }, options)) purchasedInvalid();
+    if (await db.collection('fulfillmentShipments').findOne({ ...filter, salesOrderId, schema: { $ne: 'MANUFACTURED_SHIPMENT_V1' } }, options)) purchasedInvalid();
     return { order, orderProof, head: null, version: 1, events: [] };
   }
   if (head.schema !== purchasedSchema || head.salesOrderId !== salesOrderId || head.orderHash !== orderProof.orderHash || head.ownerLegalEntityId !== order.ownerLegalEntityId || !positive(head.version) || head.version < 2 || head.version > 401 || events.length !== head.version - 1 || !Array.isArray(head.refs) || head.refs.length > 100 || new Set(head.refs.map(ref => ref.reservationId)).size !== head.refs.length || !Array.isArray(head.shipmentRefs) || head.shipmentRefs.length > 100 || new Set(head.shipmentRefs.map(ref => ref.shipmentId)).size !== head.shipmentRefs.length) purchasedInvalid();

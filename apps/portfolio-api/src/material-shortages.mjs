@@ -10,7 +10,12 @@ const options = { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majori
 const checked = value => { try { return units(value); } catch { fail(400, 'INVALID_QUANTITY'); } };
 const keyOf = value => { if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(value)) fail(400, 'INVALID_IDEMPOTENCY_KEY'); return value; };
 const reasonOf = value => { if (typeof value !== 'string' || value.trim().length < 3 || value.length > 500) fail(400, 'INVALID_REASON'); return value.trim(); };
-const identity = row => ({ tenantId: row.tenantId, plantId: row.plantId, ownerLegalEntityId: row.ownerLegalEntityId, demandKind: 'INTERNAL_PRODUCTION', demandId: row.demandId, materialLineId: row.materialLineId });
+export const materialDemandKind = value => {
+  if (value === undefined) return 'INTERNAL_PRODUCTION';
+  if (!['INTERNAL_PRODUCTION', 'SALES_ORDER_WORK_ORDER'].includes(value)) fail(400, 'INVALID_DEMAND_KIND');
+  return value;
+};
+const identity = row => ({ tenantId: row.tenantId, plantId: row.plantId, ownerLegalEntityId: row.ownerLegalEntityId, demandKind: materialDemandKind(row.demandKind), demandId: row.demandId, materialLineId: row.materialLineId });
 function verify(snapshot) {
   const { authorityHash, ...body } = snapshot;
   if (authorityHash !== hash(body)) fail(409, 'SHORTAGE_SOURCE_INVALID');
@@ -53,11 +58,17 @@ async function observe(db, filter, demand, line, sourceId, revision, session, fe
     active += checked(claim.quantity);
   }
   const required = checked(line.requiredQuantity), uncovered = required - eligible - active;
-  const snapshot = { schema: 'MATERIAL_SHORTAGE_V1', ...filter, sourceId, revision, ownerLegalEntityId: demand.ownerLegalEntityId, demandKind: 'INTERNAL_PRODUCTION', demandId: demand._id, demandVersion: demand.version, engineeringRevision: demand.engineering.currentRevision, materialLineId: line.lineId, itemId: line.itemId, itemVersion: line.itemVersion, itemRevision: line.itemRevision, itemContentHash: item.contentHash, uom: line.uom, requiredQuantity: decimal(required), eligibleQuantity: decimal(eligible), activeClaimQuantity: decimal(active), shortageQuantity: decimal(uncovered > 0n ? uncovered : 0n), stockEvidence: stockEvidence.sort((a, b) => a.receiptId.localeCompare(b.receiptId)), observedAt: new Date() };
+  const snapshot = { schema: 'MATERIAL_SHORTAGE_V1', ...filter, sourceId, revision, ownerLegalEntityId: demand.ownerLegalEntityId, demandKind: materialDemandKind(demand.demandKind), demandId: demand._id, demandVersion: demand.version, engineeringRevision: demand.engineering.currentRevision, materialLineId: line.lineId, itemId: line.itemId, itemVersion: line.itemVersion, itemRevision: line.itemRevision, itemContentHash: item.contentHash, uom: line.uom, requiredQuantity: decimal(required), eligibleQuantity: decimal(eligible), activeClaimQuantity: decimal(active), shortageQuantity: decimal(uncovered > 0n ? uncovered : 0n), stockEvidence: stockEvidence.sort((a, b) => a.receiptId.localeCompare(b.receiptId)), observedAt: new Date() };
   return { ...snapshot, authorityHash: hash(snapshot) };
 }
 async function demandFor(db, filter, input, session) {
-  return requireApprovedInternalDemand(db, filter, input.demandId, input.expectedDemandVersion, input.engineeringRevision, await owner(db, filter, session), session, true);
+  const kind = materialDemandKind(input.demandKind), legalEntityId = await owner(db, filter, session);
+  if (kind === 'SALES_ORDER_WORK_ORDER') {
+    const { requireApprovedSalesOrderWorkOrderDemand } = await import('./manufacturing.mjs');
+    return requireApprovedSalesOrderWorkOrderDemand(db, filter, input.demandId, input.expectedDemandVersion, input.engineeringRevision, legalEntityId, session, true);
+  }
+  const demand = await requireApprovedInternalDemand(db, filter, input.demandId, input.expectedDemandVersion, input.engineeringRevision, legalEntityId, session, true);
+  return { ...demand, demandKind: kind };
 }
 export async function refreshShortage(db, filter, input, actor, session) {
   if (!session?.inTransaction?.()) throw new Error('ACTIVE_CALLER_TRANSACTION_REQUIRED');
@@ -67,7 +78,7 @@ export async function refreshShortage(db, filter, input, actor, session) {
   if (input.materialLineId && !materials.length) fail(404, 'MATERIAL_LINE_NOT_FOUND');
   for (const line of materials) {
     if (line.sourceKind === 'COMPANY_OUTPUT' || line.itemSnapshot.content.kind !== 'PURCHASED') continue;
-    const demandKey = identity({ ...filter, ownerLegalEntityId: demand.ownerLegalEntityId, demandId: demand._id, materialLineId: line.lineId });
+    const demandKey = identity({ ...filter, ownerLegalEntityId: demand.ownerLegalEntityId, demandKind: demand.demandKind, demandId: demand._id, materialLineId: line.lineId });
     const head = await db.collection('materialShortageHeads').findOne(demandKey, { session });
     if ((head?.revision || 0) !== input.expectedShortageRevision) fail(409, 'SHORTAGE_REVISION_CONFLICT');
     if (head) verify(head.snapshot);
@@ -87,7 +98,7 @@ export async function claimShortage(db, filter, input, actor, session) {
   const source = verify(head.snapshot), amount = checked(input.quantity);
   if (source.revision !== input.sourceRevision || source.authorityHash !== input.sourceHash || source.materialLineId !== input.materialLineId) fail(409, 'SHORTAGE_REVISION_CONFLICT');
   if (amount <= 0n || amount > checked(source.shortageQuantity)) fail(409, 'QUANTITY_EXCEEDED');
-  const demand = await demandFor(db, filter, { demandId: source.demandId, expectedDemandVersion: source.demandVersion, engineeringRevision: source.engineeringRevision }, session);
+  const demand = await demandFor(db, filter, { demandKind: source.demandKind, demandId: source.demandId, expectedDemandVersion: source.demandVersion, engineeringRevision: source.engineeringRevision }, session);
   const line = demand.engineering.content.materials.find(row => row.lineId === source.materialLineId);
   if (!line) fail(409, 'INTERNAL_DEMAND_CHANGED');
   const current = await observe(db, filter, demand, line, source.sourceId, source.revision, session, true);
@@ -112,7 +123,17 @@ export function installMaterialShortages(app, runtime, { guard, fields, id }) {
     try { return await session.withTransaction(async () => {
       await authorize(req, session);
       const previous = await db.collection('materialShortageKeys').findOne({ ...req.filter, key }, { session });
-      if (previous) { if (previous.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT'); return previous.result; }
+      if (previous) {
+        if (previous.payloadHash !== payloadHash) fail(409, 'IDEMPOTENCY_CONFLICT');
+        if (operation === 'refreshed' && materialDemandKind(req.body.demandKind) === 'SALES_ORDER_WORK_ORDER') await demandFor(db, req.filter, req.body, session);
+        if (operation === 'claimed') {
+          const sourceHead = await db.collection('materialShortageHeads').findOne({ ...req.filter, _id: req.body.sourceId }, { session });
+          if (!sourceHead) fail(409, 'SHORTAGE_SOURCE_INVALID');
+          const source = verify(sourceHead.snapshot);
+          if (materialDemandKind(source.demandKind) === 'SALES_ORDER_WORK_ORDER') await demandFor(db, req.filter, { demandKind: source.demandKind, demandId: source.demandId, expectedDemandVersion: source.demandVersion, engineeringRevision: source.engineeringRevision }, session);
+        }
+        return previous.result;
+      }
       const result = await effect(session, { ...req.body, reason });
       const event = { _id: randomUUID(), ...req.filter, kind: `materialShortage.${operation}`, result, userId: req.scope.userId, occurredAt: new Date() };
       await db.collection('procurementAudit').insertOne(event, { session });
@@ -122,7 +143,7 @@ export function installMaterialShortages(app, runtime, { guard, fields, id }) {
     }, options); } finally { await session.endSession(); }
   };
   app.post(`${root}/refresh`, async (req, res) => {
-    fields(req.body, ['demandId', 'expectedDemandVersion', 'engineeringRevision', 'expectedShortageRevision', 'materialLineId', 'reason', 'idempotencyKey']); id(req.body.demandId);
+    fields(req.body, ['demandKind', 'demandId', 'expectedDemandVersion', 'engineeringRevision', 'expectedShortageRevision', 'materialLineId', 'reason', 'idempotencyKey']); id(req.body.demandId); materialDemandKind(req.body.demandKind);
     if (req.body.materialLineId !== undefined) id(req.body.materialLineId);
     res.json({ data: await command(req, 'refreshed', (session, input) => refreshShortage(db, req.filter, input, req.scope.userId, session)) });
   });
