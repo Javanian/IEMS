@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Resource, useResource } from './PortfolioWorkspace.jsx';
 import Field from '../../components/forms/WorkspaceField.jsx';
 import Table from '../../components/tables/WorkspaceTable.jsx';
@@ -7,7 +8,7 @@ import { operationsRoot, showTime, showValue } from './operations.mjs';
 
 const names = { orders: 'Sales orders', production: 'Production', shipments: 'Shipments', invoices: 'Invoices', receipts: 'Warehouse receipts' };
 const columns = [
-  { key: 'id', label: 'Record' }, { key: 'status', label: 'Stage' },
+  { key: 'id', label: 'Record', render:r=>r.href?<Link to={r.href}>{r.id}</Link>:r.id }, { key: 'status', label: 'Stage' },
   { key: 'quantity', label: 'Quantity', numeric: true, render: r => showValue(r.quantity, r.uom) },
   { key: 'orderAmount', label: 'Order total', numeric: true, render: r => showValue(r.orderAmount, r.currency) },
   { key: 'outstandingAmount', label: 'Invoice outstanding', numeric: true, render: r => showValue(r.outstandingAmount, r.currency) },

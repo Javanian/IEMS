@@ -11,7 +11,7 @@ export const operationsActions = ['operations.read', 'operations.sample'];
 export const operationsRoles = { operationsRead: ['operations.read'], operationsTelemetry: operationsActions };
 export const reject = (status, code) => { throw Object.assign(new Error(code), { status, code }); };
 const sources = Object.freeze({
-  orders: { collection: 'salesOrders', action: 'quote.read', route: 'sales-orders' },
+  orders: { collection: 'salesOrders', action: 'quote.read', route: 'orders' },
   production: { collection: 'manufacturingWorkOrders', action: 'manufacturing.read', route: 'manufacturing/work-orders' },
   shipments: { collection: 'fulfillmentShipments', action: 'fulfillment.read', route: 'fulfillment/shipments' },
   invoices: { collection: 'fulfillmentInvoices', action: 'fulfillment.read', route: 'fulfillment/invoices' },
@@ -46,10 +46,11 @@ export function quantityBuckets(rows, select) {
 function summary(row, kind, now) {
   const candidate = row.updatedAt || row.createdAt, at = candidate && Number.isFinite(new Date(candidate).getTime()) ? candidate : null;
   const age = at && Number.isFinite(new Date(at).getTime()) && new Date(at) <= now ? Math.floor((now - new Date(at)) / 86400000) : null;
-  const stageAt = kind === 'production' ? ({ PLANNED: row.createdAt, RELEASED: row.routing?.releasedAt, IN_PROGRESS: row.records?.[0]?.recordedAt, QUARANTINED: row.records?.at(-1)?.recordedAt, QC_COMPLETED: row.qc?.recordedAt })[row.status] : null;
+  const stageCandidate = kind === 'production' ? ({ PLANNED: row.createdAt, RELEASED: row.routing?.releasedAt, IN_PROGRESS: row.records?.[0]?.recordedAt, QUARANTINED: row.records?.at(-1)?.recordedAt, QC_COMPLETED: row.qc?.recordedAt })[row.status] : null;
+  const stageAt=stageCandidate && Number.isFinite(new Date(stageCandidate).getTime())?stageCandidate:null;
   const stageAgeDays = stageAt && Number.isFinite(new Date(stageAt).getTime()) && new Date(stageAt) <= now ? Math.floor((now - new Date(stageAt)) / 86400000) : null;
   return { id: row._id, version: row.version ?? null, status: row.status ?? 'UNKNOWN', updatedAt: at ? new Date(at).toISOString() : null,
-    ageDays: age, agingBasis: 'LAST_RECORDED_UPDATE', stageEnteredAt: stageAt ? new Date(stageAt).toISOString() : null, stageAgeDays,
+    ageDays: age, agingBasis: 'LAST_RECORDED_UPDATE', stageEnteredAt: stageAt ? new Date(stageAt).toISOString() : null, stageAgeDays, href:`/portfolio/${sources[kind].route}/${encodeURIComponent(row._id)}`,
     quantity: row.quantity ?? null, uom: row.uom ?? null,
     ...(kind === 'orders' ? { currency: row.snapshot?.currency ?? null, orderAmount: row.snapshot?.total ?? null } : {}),
     ...(kind === 'invoices' ? { currency: row.currency ?? null, outstandingAmount: row.outstandingAmount ?? null, dueAt: row.dueAt ?? null } : {}) };
@@ -138,7 +139,7 @@ export function installOperations(app, runtime, helpers, { legacyAdapters = [], 
       } else if (!metrics.orders.records.length && metrics.orders.status!=='ACCESS_DENIED') balances={status:'NO_DATA',rows:[]};
       return { schema: 'OPERATIONS_DASHBOARD_V1', observedAt: now.toISOString(), metrics, legacy, balances, telemetry: { status: samples.length ? 'AVAILABLE' : 'NO_DATA', completeness: 'BOUNDED_LATEST_100', samples: samples.map(s=>({ resourceId:s.resourceId,version:s.version,mapping:s.mapping,value:s.value,uom:s.uom,sampleAt:s.sampleAt,windowFrom:s.windowFrom,windowUntil:s.windowUntil,sourceRevision:s.sourceRevision,freshness:freshness(s.sampleAt,now) })) },
         reportingCoverage: coverage ? { status: 'AVAILABLE', observedAt: coverage.observedAt ?? null, manifestId: coverage._id, baseline:coverage.baseline===true, completeness:coverage.coverage, sourceHighWater:{salesOrders:coverage.sourceHighWater?.salesOrders??null,fulfillmentKeys:coverage.sourceHighWater?.fulfillmentKeys??null}, freshness: freshness(coverage.observedAt, now) } : { status: 'NO_DATA', reason: 'RECONCILED_MANIFEST_NOT_AVAILABLE' },
-        warnings: Object.entries(metrics).flatMap(([source, m]) => m.stages?.filter(s => s.oldestDaysSinceUpdate >= 7 && !['COMPLETED', 'CANCELLED', 'CLOSED', 'SHIPPED', 'PAID'].includes(s.stage)).map(s => ({ id: `${source}:${s.stage}`, source, stage: s.stage, reason: 'NO_RECORDED_UPDATE_FOR_7_DAYS', days: s.oldestDaysSinceUpdate })) || []) };
+        warnings: Object.entries(metrics).flatMap(([source, m]) => m.stages?.filter(s => s.oldestDaysSinceUpdate >= 7 && !['COMPLETED', 'QC_COMPLETED', 'CANCELLED', 'CLOSED', 'SHIPPED', 'PAID', 'CREDITED', 'CONSUMED', 'STORED'].includes(s.stage)).map(s => ({ id: `${source}:${s.stage}`, source, stage: s.stage, reason: 'NO_RECORDED_UPDATE_FOR_7_DAYS', days: s.oldestDaysSinceUpdate })) || []) };
     }); res.json({ data });
   });
   app.get(`${root}/drilldown/:source`, async (req, res) => {
