@@ -69,7 +69,7 @@ test('company unit trace validates exact upstream evidence and bounded reverse u
     consumer = await f.mutate(consumer, 'records', { operationIndex: 1, inputQuantity: '1', goodQuantity: '1', scrapQuantity: '0', laborMinutes: '1', machineMinutes: '1', evidence: 'Actual completed serialized descendant', outputSerials: ['OWNER-TRACE-LEAF-1'] });
     assert.equal((await trace(selected)).uses.consumedUnattributed.length, 1);
   });
-  await t.test('partial selected-unit output and explicit process loss precede QC and stored leaf evidence', async () => {
+  await t.test('partial selected-unit output and explicit process loss precede QC and reusable multi-generation evidence', async () => {
     consumer = await f.mutate(consumer, 'allocations', { outputUnitId: consumer.outputUnits[0]._id, sources: [{ sourceKind: 'COMPANY_OUTPUT', companyReceiptId: source._id, quantity: '1', companyUnitIds: [selected._id] }, { sourceKind: 'CATALOG_RECEIPT', receiptId: f.directReceipt._id, quantity: '1.25' }] });
     let result = await trace(selected); assert.equal(result.uses.outputs.length, 1); assert.equal(result.uses.outputs[0].output.status, 'QUARANTINED'); assert.equal(result.uses.outputs[0].output.qcDisposition, null); assert.equal(result.uses.consumedUnattributed.length, 0); assert.equal((await trace(lossUnit)).uses.consumedUnattributed.length, 1);
     consumer = await f.mutate(consumer, 'losses', { sources: [{ sourceKind: 'COMPANY_OUTPUT', companyReceiptId: source._id, quantity: '1', companyUnitIds: [lossUnit._id] }, { sourceKind: 'CATALOG_RECEIPT', receiptId: f.directReceipt._id, quantity: '1.25' }] });
@@ -79,7 +79,8 @@ test('company unit trace validates exact upstream evidence and bounded reverse u
     consumer = await f.mutate(consumer, 'putaway', { locationId: f.location._id, expectedLocationVersion: f.location.version });
     result = await trace(selected); assert.equal(result.uses.outputs[0].output.status, 'STORED'); assert.equal(result.uses.outputs[0].output.companyReceiptId, consumer.companyStock._id);
     const leafUnit = consumer.companyStock.units[0], before = await snapshot(), leaf = await ok(`/company-stock/receipts/${consumer.companyStock._id}/units/${leafUnit._id}/trace`);
-    assert.deepEqual(await snapshot(), before); assert.equal(leaf.sourcePolicy, 'LEAF_ONLY'); assert.equal(leaf.current.eligible, false); assert.deepEqual(leaf.ancestry.purchasedSources.map(row => row.receiptId), [f.directReceipt._id]);
+    assert.deepEqual(await snapshot(), before); assert.equal(leaf.sourcePolicy, 'MULTI_GENERATION_SOURCE'); assert.equal(leaf.current.eligible, true); assert.deepEqual(leaf.current.blockers, []); assert.deepEqual(leaf.ancestry.purchasedSources.map(row => row.receiptId), [f.directReceipt._id]);
+    assert.equal(leaf.schema, 'COMPANY_UNIT_TRACE_V2'); assert.equal(leaf.completeness.oneGeneration, false); assert.equal(leaf.completeness.multiGeneration, true);
     assert.equal(leaf.ancestry.companySources.length, 1); assert.equal(leaf.ancestry.companySources[0].companyUnitId, selected._id); assert.deepEqual(leaf.ancestry.companySources[0].purchasedSources.find(row => row.receiptId === f.serialReceipt._id).serials, f.incomingSerials.slice(0, 2));
     assert.deepEqual(leaf.holdPolicy.receiptIds, [f.directReceipt._id, f.rawReceipt._id, f.serialReceipt._id].sort());
   });
