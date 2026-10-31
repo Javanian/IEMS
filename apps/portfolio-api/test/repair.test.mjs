@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { startOwned } from './support/owned-mongo.mjs';
+import { companyOwnerFixture } from './support/company-stock-owner-fixture.mjs';
 
 const command = values => ({ idempotencyKey: randomUUID(), ...values });
-const collections = ['repairCases', 'repairInvoices', 'repairDeposits', 'repairPayments', 'repairKeys', 'repairAudit', 'repairOutbox'];
+const collections = ['repairCases', 'repairCaseEvents', 'repairInvoices', 'repairDeposits', 'repairPayments', 'repairKeys', 'repairAudit', 'repairOutbox', 'companyStockUseHeads', 'companyStockUseUnits', 'companyStockUseEvents', 'companyMaterialReservations', 'companyMaterialReservationRevisions', 'companyMaterialIssues', 'companyMaterialConsumptions', 'manufacturedGenealogySnapshots', 'manufacturedGenealogyAudit', 'manufacturedGenealogyOutbox'];
 async function verifiedMutation(h, path, body, status = 200) {
   const snapshot = () => Promise.all(collections.map(n => h.db.collection(n).find().sort({ _id: 1 }).toArray()));
   const before = await snapshot();
@@ -16,7 +17,7 @@ async function verifiedMutation(h, path, body, status = 200) {
   assert.deepEqual(await snapshot(), before);
   for (const name of ['repairAudit', 'repairOutbox']) {
     await h.db.command({ collMod: name, validator: { forbidden: { $exists: true } } });
-    try { assert.equal((await h.req(path, body, h.alpha)).status, 500); assert.deepEqual(await snapshot(), before); }
+    try { const result = await h.req(path, body, h.alpha); assert.equal(result.status, 500, JSON.stringify({ path, result })); assert.deepEqual(await snapshot(), before); }
     finally { await h.db.command({ collMod: name, validator: {} }); }
   }
   const results = await Promise.all([1, 2, 3].map(() => h.req(path, body, h.alpha)));
@@ -111,6 +112,7 @@ test('repair rejected diagnostic invoice stays in custody until evidenced return
 
  test('repair execution failed test requires rework, latest pass and hold-free QC before return', { timeout: 120000 }, async t => {
   const h = await startOwned(t);
+  const stockFixture = await companyOwnerFixture(h);
   console.log(JSON.stringify({ ownedDatabase: h.db.databaseName, marker: (await h.db.collection('ownedRun').findOne())._id, cleanup: 'marker-verified dropDatabase and replica stop registered in t.after' }));
   const account = await h.ok('/crm/accounts', { name: 'Synthetic execution' }, 201);
   let row = await h.ok('/repair/cases', command({ accountId: account._id, serial: 'EXEC-UNIT', condition: 'Broken', currency: 'USD' }), 201);
@@ -127,6 +129,21 @@ test('repair rejected diagnostic invoice stays in custody until evidenced return
   await step('deposit', { amount: '0.02', currency: 'USD', reference: 'Billing deposit 2' });
   await step('start');
   assert.equal((await denied('qc', { evidence: 'Premature' })).status, 409);
+  const beforeReplacement = await Promise.all(collections.map(name => h.db.collection(name).find().sort({ _id: 1 }).toArray()));
+  assert.equal((await denied('execute', { evidence: 'Missing seal installation', dispositions: row.scopes[0].findings })).error.code, 'REPLACEMENT_REQUIRED');
+  assert.deepEqual(await Promise.all(collections.map(name => h.db.collection(name).find().sort({ _id: 1 }).toArray())), beforeReplacement);
+  await step('spare-authorize', { component: 'Seal', sourceKind: 'COMPANY_OUTPUT', itemId: stockFixture.component._id, itemVersion: stockFixture.component.version, itemRevision: 1, quantity: '1', uom: 'UN', evidence: 'Approved replacement seal' });
+  await step('component-remove', { component: 'Seal', serial: 'FAILED-SEAL', condition: 'Leaking', evidence: 'Customer component quarantined' });
+  let stock = await stockFixture.company();
+  const selected = stock.units.find(unit => unit.status === 'AVAILABLE'), material = row.spareMaterials[0];
+  await step('spare-reserve', { materialLineId: material.lineId, sourceId: stock._id, expectedStockVersion: stock.version, quantity: '1', units: [{ companyUnitId: selected._id, expectedUnitVersion: selected.version }], evidence: 'Reserve actual replacement' });
+  const transition = async action => {
+    stock = await stockFixture.company(); const claim = row.spareClaims[0];
+    return step(action, { materialLineId: material.lineId, reservationId: claim.reservationId, expectedReservationVersion: claim.version, expectedStockVersion: stock.version, ...(action === 'spare-install' ? { removedComponentId: row.componentRemovals[0].componentId } : {}), evidence: 'Actual replacement stock transition' });
+  };
+  await transition('spare-issue'); await transition('spare-install');
+  assert.equal((await stockFixture.company()).consumedQuantity, '1');
+  assert.equal(row.replacements[0].serials[0], selected.serial); assert.equal(row.componentRemovals[0].status, 'QUARANTINED');
   await step('execute', { evidence: 'Repaired shaft; replaced seal', dispositions: [{ component: 'Shaft', disposition: 'REPAIR' }, { component: 'Seal', disposition: 'REPLACE' }] });
   await step('test', { result: 'FAIL', evidence: 'Leak at seal' });
   assert.equal((await denied('test', { result: 'PASS', evidence: 'Cannot bypass rework' })).status, 409);
