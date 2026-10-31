@@ -123,14 +123,18 @@ try {
   manifest.stages.web.status = 'RUNNING'; await save();
   const { createServer: createVite } = await import('../../apps/web/node_modules/vite/dist/node/index.js');
   const webRoot = join(root, 'apps/web');
+  process.chdir(webRoot); // Tailwind resolves its existing config/content paths from the app cwd.
   vite = await createVite({ root: webRoot, define: { 'import.meta.env.VITE_PORTFOLIO_API_BASE': JSON.stringify('/portfolio-api') }, server: {
     host: '127.0.0.1', port: webPort, strictPort: true, fs: { allow: [root, await realpath(join(webRoot, 'node_modules'))] },
     proxy: { '/portfolio-api': { target: apiOrigin, changeOrigin: false, rewrite: path => path.replace(/^\/portfolio-api/, '') } } } });
   await vite.listen();
   assert.equal((await fetch(`${origin}/portfolio`)).status, 200);
+  const stylesheet = await fetch(`${origin}/src/features/portfolio/portfolio.css?direct`);
+  assert.equal(stylesheet.status, 200, 'Portfolio stylesheet must compile with the existing theme');
+  assert.ok((await stylesheet.text()).includes('var(--canvas)'), 'Portfolio canvas token missing from compiled CSS');
   const proxy = await fetch(`${origin}/portfolio-api/api/session/me`, { headers: { origin, cookie: alpha } });
   assert.equal(proxy.status, 200); assert.equal((await proxy.json()).data.user.username, 'alpha.owner');
-  manifest.stages.web = { status: 'PASS_HTML_AND_AUTHENTICATED_PROXY', browser: 'NOT_RUN' };
+  manifest.stages.web = { status: 'PASS_HTML_CSS_AND_AUTHENTICATED_PROXY', browser: 'NOT_RUN' };
   manifest.links = { order: `${origin}/portfolio/orders/${e01.so._id}`, repair: `${origin}/portfolio/repair/cases/${e02.case._id}`, rejectedRepair: `${origin}/portfolio/repair/cases/${e02.rejection.case._id}` };
   manifest.status = 'PASS_BOUNDED_DEMO'; await save();
   if (smoke) { await close(); console.log(JSON.stringify({ status: manifest.status, output, cleanup: manifest.cleanup })); }

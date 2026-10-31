@@ -63,5 +63,5 @@ a crash, verify recorded process/marker ownership before any manual recovery;
 never delete unrelated locks, databases or processes.
 
 Current SaaS profile boundaries and remaining local caller/service/job contracts
-are recorded in `ops/pilot/PLAT-038-V9-HANDOFF.md`. A demo run on an unenrolled
+are recorded in `ops/pilot/PLAT-038-V14-HANDOFF.md` and its coverage inventory. A demo run on an unenrolled
 synthetic tenant does not prove those remaining enrolled workflows complete.
