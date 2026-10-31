@@ -16,6 +16,7 @@ export const admissionReceipts = Object.freeze(Object.fromEntries([
   ['procurementConversions','payloadHash'], ['quoteCatalogKeys','payloadHash'], ['quoteConversions','payloadHash'], ['companyStockKeys','payloadHash'],
   ['automation_audit_logs','payloadHash'], ['cs_idempotency','requestHash'], ['documentIssues','contentHash'], ['crmCommandResults','inputHash'], ['legacyQuoteCommandResults','inputHash'], ['procurementCommandResults','inputHash'],
 ].map(([collection,hashField]) => [collection,Object.freeze({collection,hashField})])));
+export const automationReceiptPolicies=Object.freeze({TICKET_ESCALATE:'cs.automation.execute',RESOLUTION_DRAFT_CREATE:'cs.automation.execute',RESOLUTION_DISPATCH_INTENT:'cs.automation.execute',DIGEST_DISPATCH_INTENT:'cs.automation.execute',AUTOMATION_PAUSE:'cs.automation.admin',RESOLUTION_APPROVE:'cs.ticket.write',RESOLUTION_REJECT:'cs.ticket.write',RESOLUTION_CANCEL:'cs.ticket.write',DELIVERY_MANUAL_REVIEW:'cs.automation.admin',SERVICE_CREDENTIAL_ISSUE:'cs.automation.admin',SERVICE_CREDENTIAL_REVOKE:'cs.automation.admin'});
 export const csReceiptPolicies=Object.freeze({
  'complaint.start':{customer:true},'complaint.update':{customer:true},'conversation.bot_reply':{customer:true},'conversation.operator_reply':{permission:'cs.reply',owner:'user'},
  'inbound.command':{customer:true},'complaint.confirm':{customer:true},'ticket.customer_comment':{customer:true},'conversation.handoff_request':{customer:true},
@@ -74,7 +75,7 @@ export function createSaasAdmission({db,foundation,integrations={},clock=()=>new
     let filter={tenantId:grant.tenantId,plantId:grant.plantId,...(namespace==='foundationCommandResults'||local?{userId:grant.userId,action}:{}),
       ...(namespace==='workforceResults'?{actorId:grant.userId}:{}),...(namespace==='purchaseOrderAmendmentKeys'?{cohort:'LEGACY'}:{}),key};
     if(namespace==='automation_audit_logs') {
-      if(!identity||Object.keys(identity).sort().join(',')!=='idempotencyKey,tenantId'||identity.tenantId!==grant.tenantId||identity.idempotencyKey!==key||action!=='cs.automation.execute'||!['TICKET_ESCALATE','RESOLUTION_DRAFT_CREATE','RESOLUTION_DISPATCH_INTENT','DIGEST_DISPATCH_INTENT'].includes(operation))fail('SAAS_ADMISSION_IDENTITY_REQUIRED',400);
+      if(!identity||Object.keys(identity).sort().join(',')!=='idempotencyKey,tenantId'||identity.tenantId!==grant.tenantId||identity.idempotencyKey!==key||action!==automationReceiptPolicies[operation]||!Object.hasOwn(automationReceiptPolicies,operation))fail('SAAS_ADMISSION_IDENTITY_REQUIRED',400);
       filter={...identity};
       const receipt=await db.collection(namespace).findOne(filter,{session});
       if(receipt&&(receipt.plantId!==grant.plantId||receipt.action!==operation||receipt.targetEntity?.id!==aggregateId))fail('IDEMPOTENCY_CONFLICT');
