@@ -76,20 +76,25 @@ test('wave3c repair financial source is immutable across settlement with strict 
     try { assert.equal((await h.req('/documents/issues', body, h.alpha)).status, 403); }
     finally { await restore(); }
     await h.db.command({ collMod: 'documentIntents', validator: { state: { $ne: 'READY' } } });
-    try { assert.equal((await h.req('/documents/issues', body, h.alpha)).status, 500); }
+    const names = ['repairInvoices', 'documentIntents', 'documentIssues', 'documentArtifacts', 'documentAudit', 'documentOutbox'];
+    const snapshot = () => Promise.all(names.map(name => h.db.collection(name).find().sort({ _id: 1 }).toArray()));
+    const before = await snapshot();
+    try { assert.equal((await h.req('/documents/issues', body, h.alpha)).status, 500); assert.deepEqual(await snapshot(), before); }
     finally { await h.db.command({ collMod: 'documentIntents', validator: {} }); }
-    const intent = await h.db.collection('documentIntents').findOne({ sourceId: invoice._id });
-    assert.equal(intent.state, 'PREPARED');
-    assert.equal((await h.req(`/documents/issues/${intent._id}`, undefined, h.alpha)).status, 404);
+    assert.equal(await h.db.collection('documentIntents').countDocuments({ sourceId: invoice._id }), 0);
     await h.ok(`/repair/invoices/${invoice._id}/settle`, { expectedVersion: 1, amount: '0.50', currency: 'USD', reference: key(), idempotencyKey: key() });
     assert.deepEqual(await h.ok(sourcePath), source);
     const denied = await h.setRoles(h.seeded[0], ['documentReader', 'repairRead']);
-    try { assert.equal((await h.req('/documents/issues', body, h.alpha)).status, 403); }
+    const afterSettlement = await snapshot();
+    try { assert.equal((await h.req('/documents/issues', body, h.alpha)).status, 403); assert.deepEqual(await snapshot(), afterSettlement); }
     finally { await denied(); }
     const results = await Promise.all([1, 2, 3].map(() => h.req('/documents/issues', body, h.alpha)));
     assert.deepEqual(results.map(r => r.status), [200, 200, 200], JSON.stringify(results));
     assert.deepEqual(results[0].data, results[1].data); assert.deepEqual(results[0].data, results[2].data);
-    assert.equal(results[0].data._id, intent._id);
+    const intent = await h.db.collection('documentIntents').findOne({ sourceId: invoice._id });
+    assert.equal(intent.state, 'READY'); assert.equal(results[0].data._id, intent._id);
+    assert.deepEqual(results[0].data.snapshot, source);
+    assert.equal(await h.db.collection('documentIssues').countDocuments({ sourceId: invoice._id }), 1);
     assert.equal(await h.db.collection('documentAudit').countDocuments({ sourceId: invoice._id }), 1);
     assert.equal(await h.db.collection('documentOutbox').countDocuments({ sourceId: invoice._id }), 1);
     const pdf = await h.raw(`/documents/issues/${intent._id}/pdf`);

@@ -40,28 +40,42 @@ test('document HTTP builds only approved server snapshots and publishes one auth
   finally { await restoreReader(); }
 });
 
-test('document finalization failure remains private and authorized replay repairs one audit/outbox', { timeout: 120000 }, async t => {
+test('document finalization rolls back every publication and authorized retry issues once', { timeout: 120000 }, async t => {
   const h = await startOwned(t), q = await quote(h);
   await h.ok(`/commercial/quotes/${q._id}/approve`, { expectedVersion: 1, revision: 1 });
   const body = { kind: 'quote', sourceId: q._id, sourceVersion: 1 };
+  const collections = ['quotes', 'documentIntents', 'documentIssues', 'documentArtifacts', 'documentAudit', 'documentOutbox'];
+  const snapshot = () => Promise.all(collections.map(name => h.db.collection(name).find().sort({ _id: 1 }).toArray()));
   await h.db.createCollection('documentOutbox', { validator: { forbidden: { $exists: true } } });
+  const before = await snapshot();
   assert.equal((await h.req('/documents/issues', body, h.alpha)).status, 500);
-  const intent = await h.db.collection('documentIntents').findOne();
-  assert.equal(intent.state, 'PREPARED');
-  assert.equal(await h.db.collection('documentAudit').countDocuments(), 0);
-  assert.equal((await h.req(`/documents/issues/${intent._id}`, undefined, h.alpha)).status, 404);
+  assert.deepEqual(await snapshot(), before, 'source fence, renderer PDF, receipt, audit and outbox roll back together');
   await h.db.command({ collMod: 'documentOutbox', validator: {} });
   const restore = await h.setRoles(h.seeded[0], ['documentReader', 'quoteReader']);
   try {
     assert.equal((await h.req('/documents/issues', body, h.alpha)).status, 403);
-    assert.equal((await h.req(`/documents/issues/${intent._id}`, undefined, h.alpha)).status, 404);
-    assert.equal(await h.db.collection('documentAudit').countDocuments(), 0);
+    assert.deepEqual(await snapshot(), before, 'retry still requires current issue and source grants');
   } finally { await restore(); }
   const results = await Promise.all(Array.from({ length: 4 }, () => h.req('/documents/issues', body, h.alpha)));
   assert.deepEqual(results.map(r => r.status), [200, 200, 200, 200], JSON.stringify(results));
-  assert.equal(results[0].data._id, intent._id);
+  for (const result of results) assert.deepEqual(result.data, results[0].data);
+  for (const name of collections.slice(1)) assert.equal(await h.db.collection(name).countDocuments(), 1, name);
+  const record = results[0].data;
+  assert.deepEqual(await h.ok(`/documents/issues/${record._id}`), record);
+  const pdf = await h.raw(`/documents/issues/${record._id}/pdf`);
+  assert.equal(pdf.status, 200);
+  assert.equal(Buffer.from(await pdf.arrayBuffer()).subarray(0, 4).toString(), '%PDF');
   assert.equal(await h.db.collection('documentAudit').countDocuments(), 1);
   assert.equal(await h.db.collection('documentOutbox').countDocuments(), 1);
+  const intent = await h.db.collection('documentIntents').findOne({ _id: record._id });
+  await h.db.collection('documentIntents').updateOne({ _id: intent._id }, { $set: { state: 'PREPARED' } });
+  try {
+    const historical = await snapshot(), denied = await h.req('/documents/issues', body, h.alpha);
+    assert.equal(denied.status, 409, JSON.stringify(denied));
+    assert.equal(denied.error.code, 'DOCUMENT_HISTORY_RECONCILIATION_REQUIRED');
+    assert.equal((await h.raw(`/documents/issues/${intent._id}/pdf`)).status, 404);
+    assert.deepEqual(await snapshot(), historical, 'historical PREPARED evidence stays private and is never resealed');
+  } finally { await h.db.collection('documentIntents').replaceOne({ _id: intent._id }, intent); }
 });
 
 test('document session revocation races real issue commits without unauthorized replay or orphan publication', { timeout: 120000 }, async t => {
