@@ -168,11 +168,14 @@ test('wave4f stock hold lifecycle, separation of duties and eligibility on owned
 
   await t.test('QC receipt release and stock-hold release are independent', async () => {
     const f = await orderWithStock(h, { reserve: null });
-    // A fresh quarantined receipt from the same PO line.
-    const po = await db.collection('purchaseOrders').findOne({ _id: f.receipt.purchaseOrderId });
+    // New receipts require their own approved quantity, not a mutable snapshot override.
+    const originalPo = await db.collection('purchaseOrders').findOne({ _id: f.receipt.purchaseOrderId });
+    const pr = await ok('/procurement/requests', { vendorId: originalPo.vendorId, taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP', lines: [{ description: 'Synthetic QC hold stock', quantity: '3', uom: 'KG', unitPrice: '0.05', currency: 'USD' }] }, 201);
+    await ok(`/procurement/requests/${pr._id}/approve`, { expectedVersion: 1 });
+    let po = await ok(`/procurement/requests/${pr._id}/convert`, { expectedVersion: 2, idempotencyKey: key() });
+    po = await ok(`/procurement/orders/${po._id}/issue`, { expectedVersion: 1 });
     const q = await db.collection('warehouseReceipts').findOne({ _id: f.receipt._id });
     assert.equal(q.status, 'STORED');
-    await db.collection('purchaseOrders').updateOne({ _id: po._id }, { $set: { 'snapshot.lines.0.quantity': '10' } });
     const fresh = await ok('/warehouse/receipts', { purchaseOrderId: po._id, expectedVersion: po.version, vendorId: po.vendorId, lineIndex: 0, quantity: '2', uom: 'KG', idempotencyKey: key() }, 201);
     const held = (await post(`/warehouse/receipts/${fresh._id}/holds`, apply(fresh), inspector)).data;
     assert.equal(held.receipt.status, 'QUARANTINED');
@@ -182,6 +185,10 @@ test('wave4f stock hold lifecycle, separation of duties and eligibility on owned
     const stored = await ok(`/warehouse/receipts/${fresh._id}/putaway`, { expectedVersion: qc.version, location: 'QC-BIN', idempotencyKey: key() });
     assert.equal((await h.req(`/warehouse/receipts/${fresh._id}/reserve`, { expectedVersion: stored.version, salesOrderId: f.so._id, accountId: f.account._id, lineIndex: 0, quantity: '0.1', uom: 'KG', idempotencyKey: key() }, alpha)).error.code, 'STOCK_ENCUMBERED');
     const quarantined = await ok('/warehouse/receipts', { purchaseOrderId: po._id, expectedVersion: po.version, vendorId: po.vendorId, lineIndex: 0, quantity: '1', uom: 'KG', idempotencyKey: key() }, 201);
+    const receivedBefore = await db.collection('warehouseReceipts').find().sort({ _id: 1 }).toArray();
+    const excess = await h.req('/warehouse/receipts', { purchaseOrderId: po._id, expectedVersion: po.version, vendorId: po.vendorId, lineIndex: 0, quantity: '0.000001', uom: 'KG', idempotencyKey: key() }, alpha);
+    assert.deepEqual([excess.status, excess.error.code], [409, 'QUANTITY_EXCEEDED']);
+    assert.deepEqual(await db.collection('warehouseReceipts').find().sort({ _id: 1 }).toArray(), receivedBefore);
     const h2 = (await post(`/warehouse/receipts/${quarantined._id}/holds`, apply(quarantined), quality)).data;
     const freed = (await post(`/warehouse/holds/${h2.hold.id}/release`, release(h2.hold), quality)).data;
     assert.deepEqual([freed.receipt.status, freed.receipt.hold.active], ['QUARANTINED', false]);
