@@ -34,6 +34,7 @@ export async function initializeAutomation(db) {
 
 export function installAutomation(app, runtime, { fail, id, fields }) {
   const cfg = () => runtime.automation || {};
+  const effects=runtime.separateEffects;
   const auth = async (req, action = 'cs.automation.read', session) => session
     ? runtime.foundation.authorizeInTransaction(req.scope, { ...scope(req), action }, { session })
     : runtime.foundation.authorize(req.scope, { ...scope(req), action });
@@ -93,6 +94,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
           const mark=result=>Object.defineProperty(result,localIntent,{value:admission?.state!=='LEGACY_UNENROLLED'});
           if (previous) return mark(previous);
           const result = await effect(session);
+          if(['RESOLUTION_DISPATCH_INTENT','DIGEST_DISPATCH_INTENT'].includes(action)&&effects?.supports('automation.local-delivery'))await managedDeliveryIntent(req,session,{action,entityId,payload,idem,result});
           const row = await audit(req, session, action, entityId, result, { idempotencyKey: idem, payloadHash: digest(payload) });
           return mark({ ...result, auditId: row._id, idempotencyKey: idem, replayed: false });
         },admittedOperations.has(action)?'RECEIPTED':'UNSUPPORTED');
@@ -142,7 +144,17 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     }
     return ticket;
   };
-  const deliveryView = row => ({ deliveryId: row._id, draftId: row.draftId, ticketId: row.ticketId, kind: row.kind, recipient: row.recipient, subject: row.subject, body: row.body, state: row.state, deliveryState: row.deliveryState || row.state, receiptStatus: row.receiptStatus || null, sinkMessageId: row.providerMessageId || null, lastError: row.lastError || null, leaseUntil: row.leaseUntil, attempt: row.attempt, createdAt: row.createdAt, updatedAt: row.updatedAt });
+  const deliveryOrigin=(actorScope,plan)=>({context:{scope:actorScope},authorize:async({command,session,observation})=>{
+    const request={scope:actorScope},grant=await auth(request,'cs.automation.execute',session);if(!observation){await runtime.saasAdmission.authorize(actorScope,{plantId:grant.plantId,session});if((await c(runtime,'automation_settings').findOne({_id:`${grant.tenantId}:${grant.plantId}`},{session}))?.paused)fail(409,'AUTOMATION_PAUSED');}
+    await recheckOperationSources(request,session,plan.action,plan.entityId,plan.payload,command.acceptedResult);
+    for(const deliveryId of plan.deliveryIds){await recheckDelivery(request,session,deliveryId,{});const delivery=await c(runtime,'cs_outbox').findOne({...scope(request),_id:deliveryId,origin:'AUTOMATION'},{session}),proof=plan.proofs[deliveryId];if(!proof||proof.contentHash!==delivery.contentHash||proof.payloadHash!==delivery.payloadHash||proof.recipientHash!==hashText(delivery.recipient)||proof.messageId!==delivery.messageId||delivery.controlCommandId&&delivery.controlCommandId!==command._id)fail(409,'DELIVERY_RECEIPT_SOURCE_CHANGED');if(delivery.draftId){const draft=await getDraft(request,delivery.draftId,session);if(draft.approvalHash!==proof.approvalHash)fail(409,'APPROVAL_CONTENT_CHANGED');await checkSource(request,draft,session,true);}else if(delivery.kind!=='DIGEST'||delivery.recipient!=='reports@iems.local')fail(409,'SOURCE_BINDING_CHANGED');}
+    return grant;
+  }});
+  async function managedDeliveryIntent(req,session,{action,entityId,payload,idem,result}){
+    const grant=await auth(req,'cs.automation.execute',session),identity={tenantId:grant.tenantId,idempotencyKey:idem},delivery=await c(runtime,'cs_outbox').findOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION'},{session});if(!delivery)fail(409,'DELIVERY_RECEIPT_SOURCE_CHANGED');const approvalHash=delivery.draftId?(await getDraft(req,delivery.draftId,session)).approvalHash:null,plan={action,entityId,payload,deliveryIds:[result.deliveryId],proofs:{[result.deliveryId]:{contentHash:delivery.contentHash,payloadHash:delivery.payloadHash,recipientHash:hashText(delivery.recipient),messageId:delivery.messageId,approvalHash}}},command=await effects.accept({session,grant,actor:{type:'USER',userId:grant.userId,membershipId:grant.membershipId},owner:{namespace:'automation_audit_logs',identity,hashField:'payloadHash',payloadHash:digest(payload),resultPath:'result',resultHash:effectHash(result)},kind:'automation.local-delivery',plan,accepted:result,origin:deliveryOrigin(req.scope,plan)});
+    const changed=await c(runtime,'cs_outbox').updateOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION',controlCommandId:{$exists:false}},{$set:{controlCommandId:command._id}},{session});if(changed.matchedCount!==1)fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');
+  }
+  const deliveryView = row => ({ deliveryId: row._id, draftId: row.draftId, ticketId: row.ticketId, kind: row.kind, recipient: row.recipient, subject: row.subject, body: row.body, state: row.state, deliveryState: row.deliveryState || row.state, receiptStatus: row.receiptStatus || null, sinkMessageId: row.providerMessageId || null, lastError: row.lastError || null, leaseUntil: row.leaseUntil, attempt: row.attempt, createdAt: row.createdAt, updatedAt: row.updatedAt,...(row.controlCommandId?{effect:{commandId:row.controlCommandId,phase:row._id,mode:'LOCAL_SIMULATED'}}:{}) });
   const enqueue = async (req, session, { actionKey, kind, draft, recipient: to, subject, body, summary }) => {
     const existing = await c(runtime, 'cs_outbox').findOne({ tenantId: req.scope.tenantId, actionKey }, { session });
     if (existing) return existing;
@@ -153,7 +165,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
   };
   const finish = async (req, delivery, state, receipt = null, error = null) => tx(req, 'cs.automation.execute', async session => {
     const now = new Date(), display = state === 'SENT' ? 'ACCEPTED_LOCAL' : state;
-    const update = await c(runtime, 'cs_outbox').updateOne({ ...scope(req), _id: delivery._id, origin: 'AUTOMATION', state: { $in: ['SENDING', 'UNKNOWN'] }, fence: delivery.fence }, { $set: { state, deliveryState: display, providerMessageId: receipt?.id || null, receiptStatus: receipt ? 'Accepted by local mail sink' : null, lastError: error, leaseUntil: null, updatedAt: now }, $push: { history: { state, at: now, reason: error, sinkMessageId: receipt?.id || null } } }, { session });
+    const update = await c(runtime, 'cs_outbox').updateOne({ ...scope(req), _id: delivery._id, origin: 'AUTOMATION',controlCommandId:{$exists:false}, state: { $in: ['SENDING', 'UNKNOWN'] }, fence: delivery.fence }, { $set: { state, deliveryState: display, providerMessageId: receipt?.id || null, receiptStatus: receipt ? 'Accepted by local mail sink' : null, lastError: error, leaseUntil: null, updatedAt: now }, $push: { history: { state, at: now, reason: error, sinkMessageId: receipt?.id || null } } }, { session });
     if (update.matchedCount !== 1) fail(409, 'STALE_DELIVERY_FENCE');
     if (delivery.draftId) await c(runtime, 'cs_resolution_drafts').updateOne({ ...scope(req), _id: delivery.draftId }, { $set: { status: state === 'SENT' || state === 'PREVIEWED' ? 'DISPATCHED' : state, deliveryState: display, deliveryProof: receipt?.id || null, updatedAt: now }, $inc: { version: 1 } }, { session });
     await audit(req, session, delivery.kind === 'DIGEST' ? 'DIGEST_DELIVERY_RESULT' : 'RESOLUTION_DELIVERY_RESULT', delivery._id, { deliveryId: delivery._id, deliveryState: display, sinkMessageId: receipt?.id || null, error });
@@ -163,6 +175,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     const delivery = await tx(req, 'cs.automation.execute', async session => {
       const d = await c(runtime, 'cs_outbox').findOne({ ...scope(req), _id: deliveryId, origin: 'AUTOMATION' }, { session });
       if (!d) fail(404, 'NOT_FOUND');
+      if(d.controlCommandId)fail(403,'EFFECT_WORKER_CAPABILITY_REQUIRED');
       if (!['QUEUED', 'FAILED'].includes(d.state)) return d;
       if (d.attempt >= 3) fail(409, 'DELIVERY_ATTEMPTS_EXHAUSTED', 'Three known-unsent attempts failed; operator review is required');
       const settingId = `${req.scope.tenantId}:${req.scope.selectedPlantId}`;
@@ -194,7 +207,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     }
   };
   const publishIntent=async(req,result)=>{
-    if(!result[localIntent])return dispatch(req,result.deliveryId);
+    if(!result[localIntent]){const row=await c(runtime,'cs_outbox').findOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION'});if(row?.controlCommandId){await effects.run(row.controlCommandId,row._id);return deliveryView(await c(runtime,'cs_outbox').findOne({_id:row._id,...scope(req)}));}return dispatch(req,result.deliveryId);}
     const row=await c(runtime,'cs_outbox').findOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION'});
     if(!row)fail(409,'DELIVERY_RECEIPT_SOURCE_MISSING');
     return deliveryView(row);
@@ -550,7 +563,6 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     });
     res.json({ data: out });
   });
-  const effects=runtime.separateEffects;
   const engineSources=async(userScope,payload,session)=>{
     const request={scope:userScope},proof={};
     if(payload.ticketId){const ticket=await c(runtime,'cs_tickets').findOneAndUpdate({...scope(request),_id:payload.ticketId},{$inc:{automationFence:1}},{session,returnDocument:'after'});if(!ticket)fail(404,'NOT_FOUND');const binding=await sourceBinding(request,ticket,session);proof.ticket={id:ticket._id,version:ticket.version,bindingId:binding._id,bindingVersion:binding.version};}
@@ -575,6 +587,20 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     prepare:async({command})=>({runId:command.plan.runId,executionId:command.plan.executionId,sourceHash:command.plan.sourceHash}),
     invoke:async({command,attempt})=>{const configured=runtime.integrations.effects.engine;if(configured?.execute)await configured.execute({runId:command.plan.runId,executionId:command.plan.executionId,workflowId:command.plan.workflowId,payload:command.plan.payload,providerKey:attempt.providerKey});else await new Promise(resolve=>setImmediate(resolve));return {runId:command.plan.runId,executionId:command.plan.executionId,outcome:'COMPLETED_LOCAL'};},
     publish:async({command,observation,session})=>{const result={runId:command.plan.runId,executionId:command.plan.executionId,state:'COMPLETED_LOCAL'};const changed=await c(runtime,'automation_engine_runs').updateOne({_id:command.plan.runId,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,state:'ACCEPTED'},{$set:{...result,providerReceiptHash:observation.proofHash,observedAt:new Date(),completedAt:new Date()}},{session});if(changed.matchedCount!==1)fail(409,'ENGINE_RUN_SOURCE_CHANGED');return result;}
+  });
+  if(effects?.hasAdapter('local.cs')&&!effects.supports('automation.local-delivery'))effects.registerKind('automation.local-delivery',{
+    adapterId:'local.cs',statusAction:'cs.automation.read',phases:command=>command.plan.deliveryIds,rebind:async({scope:actorScope,command})=>deliveryOrigin(actorScope,command.plan),
+    prepare:async({command,attempt,phase,session,context})=>{
+      const request={scope:context.scope},d=await c(runtime,'cs_outbox').findOne({_id:phase,tenantId:command.tenantId,plantId:command.plantId,origin:'AUTOMATION',controlCommandId:command._id},{session});if(!d)fail(404,'NOT_FOUND');
+      if(d.state==='PREVIEWED')return {deliveryId:d._id,fence:d.fence,contentHash:d.contentHash,payloadHash:d.payloadHash,alreadyPreviewed:true};if(d.state!=='QUEUED'||d.nextAttemptAt>new Date()||d.attempt>=3)fail(409,'DELIVERY_RECONCILIATION_REQUIRED');
+      const at=new Date(),claimed=await c(runtime,'cs_outbox').findOneAndUpdate({_id:d._id,...scope(request),origin:'AUTOMATION',state:'QUEUED',fence:d.fence,controlCommandId:command._id},{$set:{state:'SENDING',deliveryState:'SENDING',leaseOwner:attempt._id,leaseUntil:new Date(at.getTime()+Number(cfg().leaseMs||30000)),updatedAt:at},$inc:{attempt:1,fence:1},$push:{history:{state:'SENDING',at}}},{session,returnDocument:'after'});if(!claimed)fail(409,'DELIVERY_ALREADY_CLAIMED');return {deliveryId:claimed._id,fence:claimed.fence,contentHash:claimed.contentHash,payloadHash:claimed.payloadHash,alreadyPreviewed:false};
+    },
+    beforeInvoke:async({command,attempt,session})=>{if(!await c(runtime,'cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,fence:attempt.input.fence,contentHash:attempt.input.contentHash,payloadHash:attempt.input.payloadHash,...(attempt.input.alreadyPreviewed?{state:'PREVIEWED'}:{state:'SENDING',leaseOwner:attempt._id,leaseUntil:{$gt:new Date()}})},{session}))fail(409,'STALE_DELIVERY_FENCE');},
+    invoke:async({command,attempt})=>{await runtime.integrations.effects.transport?.execute?.({commandId:command._id,deliveryId:attempt.phase,contentHash:attempt.input.contentHash,payloadHash:attempt.input.payloadHash,providerKey:attempt.providerKey});return {deliveryId:attempt.phase,fence:attempt.input.fence,contentHash:attempt.input.contentHash,payloadHash:attempt.input.payloadHash,state:'PREVIEWED',mode:'LOCAL_SIMULATED'};},
+    publish:async({command,attempt,observation,session,context})=>{
+      const result={deliveryId:attempt.phase,state:'PREVIEWED',deliveryState:'PREVIEWED',mode:'LOCAL_SIMULATED',proofHash:observation.proofHash};if(attempt.input.alreadyPreviewed)return result;const at=new Date(),changed=await c(runtime,'cs_outbox').updateOne({_id:attempt.phase,tenantId:command.tenantId,plantId:command.plantId,origin:'AUTOMATION',controlCommandId:command._id,state:{$in:['SENDING','UNKNOWN']},fence:attempt.input.fence},{$set:{state:'PREVIEWED',deliveryState:'PREVIEWED',receiptStatus:'Local simulation only; no message sent',providerMessageId:null,leaseUntil:null,leaseOwner:null,updatedAt:at},$push:{history:{state:'PREVIEWED',mode:'LOCAL_SIMULATED',proofHash:observation.proofHash,at}}},{session});if(changed.matchedCount!==1)fail(409,'STALE_DELIVERY_FENCE');
+      const d=await c(runtime,'cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId},{session});if(d.draftId){const draft=await getDraft({scope:context.scope},d.draftId,session),update=await c(runtime,'cs_resolution_drafts').updateOne({_id:d.draftId,tenantId:command.tenantId,plantId:command.plantId,version:draft.version},{$set:{status:'DISPATCHED',deliveryState:'PREVIEWED',updatedAt:at},$inc:{version:1}},{session});if(update.matchedCount!==1)fail(409,'STALE_DRAFT');}await audit({scope:context.scope,headers:{}},session,d.kind==='DIGEST'?'DIGEST_DELIVERY_RESULT':'RESOLUTION_DELIVERY_RESULT',d._id,result);return result;
+    }
   });
   const acceptEngine=async(req,wf)=>effectTransaction(runtime.client,async session=>{
     const grant=await human(req,'cs.automation.execute',session),idem=key(req),payload={...req.body},previous=await replay(req,session,'AUTOMATION_ENGINE_RUN',wf.id,payload,idem),identity={tenantId:grant.tenantId,idempotencyKey:idem};
