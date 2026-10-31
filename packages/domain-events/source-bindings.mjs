@@ -25,6 +25,7 @@ export function validateSnapshot(p) {
 export function validateSource(source) {
   if (!source || !['salesOrders', 'fulfillmentKeys', 'fulfillmentPayments', 'fulfillmentShipments'].includes(source.collection) || !uuid.test(source.id) || !['string', 'number'].includes(typeof source.version) || !String(source.version).length || !/^[a-f0-9]{64}$/.test(source.hash) || !Array.isArray(source.eventIds) || !source.eventIds.every(id => uuid.test(id))) throw new Error('INVALID_SOURCE_EVIDENCE');
   if (source.sourceOccurredAt !== null && (typeof source.sourceOccurredAt !== 'string' || !source.sourceOccurredAt.endsWith('Z') || !Number.isFinite(Date.parse(source.sourceOccurredAt)))) throw new Error('INVALID_SOURCE_TIME');
+  if ((typeof source.version === 'number' && (!Number.isSafeInteger(source.version) || source.version < 0)) || String(source.version).length > 128 || source.eventIds.length > 100) throw new Error('INVALID_SOURCE_VERSION_OR_EVENT_BOUND');
   return source;
 }
 export function sourceHash(value) { return contentHash(value); }
