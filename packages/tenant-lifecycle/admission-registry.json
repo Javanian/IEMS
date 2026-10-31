@@ -610,6 +610,14 @@
     },
     "disposition": "RETAIN_PRIVATE_OR_TECHNICAL",
     "kinds": {
+      "ai.vendor.delivery": {
+        "owner": "Original foundationCommandResults ai.vendor.deliver + aiVendorDeliveryAttempts exact deliveryKey/content/approval/source/recipient/provider",
+        "phases": [
+          "VENDOR"
+        ],
+        "meter": "INHERITS_ORIGINAL_INTENT",
+        "proof": "Actual private native local receipt, current actor/approver/recipient/source fences, terminal immutable result, late revoke retains observation without recall/publication"
+      },
       "ai.index.rebuild": {
         "owner": "saasEffectCommands AI_INDEX_ROOT_V1",
         "phases": [
@@ -657,14 +665,13 @@
       "LOCAL_SIMULATED_OWNED_MARKER_DATABASE_ONLY"
     ],
     "pending": [
-      "AI vendor dispatch/reconcile phases",
       "caller status UI"
     ],
     "providerEvidence": "NOT_RUN"
   },
   "sources": {
     "apps/portfolio-api/src/analytics.mjs": "321a9a29dc738b64cac746d7b4123f9cfcaece1c1af643c7b159aac53b007833",
-    "apps/portfolio-api/src/app.mjs": "a72c06281522365915c7a09e4b3c3b422fe7b46f8d8142e0ebbdc4395844b5a6",
+    "apps/portfolio-api/src/app.mjs": "04f5d429ba15f4ac70d393eb23c7de9be4bb3a02a595db142eca0441bea899ae",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
     "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
     "apps/portfolio-api/src/automation.mjs": "79d40500bccbd6d8fa16fab8e7bd1c46c00a0dac72e9f063913875d8d1c30645",
@@ -751,7 +758,7 @@
     "packages/scoped-ai/models.mjs": "0b4034f193360a974db4688b69f2a1256a7e81029473cda62d0c8300408f525c",
     "packages/scoped-ai/qdrant.mjs": "dd6e982855c3d4074a295196e8927453be6a387a7d84c83b37eca779781c1704",
     "packages/scoped-ai/temporal.mjs": "9b8b7e642d2daf4b1aaaef192d77704d5452338c7c74ba0aacfb2ae36a4a5534",
-    "packages/scoped-ai/vendor-drafts.mjs": "e23ea24fe9422e61868e4d0e429840178d6d90602f26b836532a3cd3f542a513",
+    "packages/scoped-ai/vendor-drafts.mjs": "ddff2047346250913b5a77707def3466a22aa520c2476af1234fab1b5415edf5",
     "packages/scoped-ai/vendor-source.mjs": "2b3c91a878b4fe9c22d9619f6c7af60e047a6cf43a739981e51b4e9df61cff8c",
     "packages/domain-events/index.mjs": "5d7ff3466006e1846aa6062f2f9a85e8d56d9745332bfe731f875d3b8f83ad5c",
     "packages/domain-events/snapshot-source.mjs": "2f7d436cf26ff032380d1370557f30cb3c9986bd3b892f43b44b59b35b8f7dfd",
@@ -767,12 +774,13 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/effects.mjs": "53022f65ad57cf8bc4de99fb35a3c5aa16b23e038b3583215cb8fd2d05cb1c38",
-    "packages/tenant-lifecycle/local-effects-adapter.mjs": "ec10a47e70e8af85f8d5c05b7c069924668db8abe26f3aadb3e12085c39af918",
+    "packages/tenant-lifecycle/effects.mjs": "8610c745ec05a5ea5023f20cb73ab21df08add5aa9d00d8a1377379f2fe5c458",
+    "packages/tenant-lifecycle/local-effects-adapter.mjs": "3203b873403b1c57e9e446142b943328c993b49d721aadf057ebb4fd90a294e8",
     "packages/tenant-lifecycle/effect-primitives.mjs": "7c528a2602f3b46fc2d0d94dc782ebf5d0fecec9f867618bc5397d871d4fbb6f",
-    "packages/tenant-lifecycle/local-ai-provider.mjs": "a0120981316bd57b73af9e398603de7dded6358a98dda2ddb94a92b3ca1a7a96",
+    "packages/tenant-lifecycle/local-ai-provider.mjs": "77a0b820116c978c5fc7b9a1bd0a210244fea23a2abc72818296dfb30063115b",
     "packages/tenant-lifecycle/indexing-effects.mjs": "69c04f5cb9e9add18f7f5a13670632b937ef8a195f4cb62674535c5821e83277",
-    "packages/tenant-lifecycle/admission.mjs": "7b78272f740437988a1cdd94025ee77732ee2884b71a63dd33ebe0a9bc2c47db",
+    "packages/tenant-lifecycle/vendor-effects.mjs": "1275ab1c8220ebc503e8cdae1d8cee97a7ec29cf6e66ee5ff19fca398f8b01d3",
+    "packages/tenant-lifecycle/admission.mjs": "0ffba815d0872a0b6402a68e12dcf00b75b51357c182d3e026b8c777a04a9b59",
     "packages/tenant-lifecycle/index.mjs": "4359aa7714debaa617c107aad3b3a0666c94a10168bc937bf7373827af922585",
     "packages/tenant-lifecycle/domain-port.mjs": "48787a3e8928573328259a0bfef8bdf05ef183c4dd813a0175dff62c70131a36",
     "packages/tenant-lifecycle/admission-registry.mjs": "292fefe68375039b69c04cf3850e3413eb26934f02308e0e67fd8208cdbe1ca6"
@@ -1747,9 +1755,10 @@
     },
     {
       "route": "POST /api/ai/vendor-drafts/:draftId/dispatch",
-      "state": "UNSUPPORTED",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "receipt": "Original foundationCommandResults ai.vendor.deliver + aiVendorDeliveryAttempts",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "condition": "Factory-issued native LOCAL_SIMULATED transport, exact original receipt/control/attempt/source/approval/recipient binding; private VENDOR claim/invoke/settle, reconcile observes same attempt without send. Legacy/unregistered transport remains gated."
     },
     {
       "route": "POST /api/ai/vendor-drafts/:draftId/intent",
@@ -1767,9 +1776,10 @@
     },
     {
       "route": "POST /api/ai/vendor-drafts/:draftId/reconcile",
-      "state": "UNSUPPORTED",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "receipt": "Original foundationCommandResults ai.vendor.deliver + aiVendorDeliveryAttempts",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "condition": "Factory-issued native LOCAL_SIMULATED transport, exact original receipt/control/attempt/source/approval/recipient binding; private VENDOR claim/invoke/settle, reconcile observes same attempt without send. Legacy/unregistered transport remains gated."
     },
     {
       "route": "POST /api/ai/vendor-drafts/:draftId/revoke",
