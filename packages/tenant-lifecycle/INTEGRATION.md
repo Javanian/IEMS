@@ -1,3 +1,9 @@
+# Current v14 handoff
+
+See ops/pilot/PLAT-038-V14-HANDOFF.md and PLAT-038-V14-COVERAGE.json for allocated immutable CS roots, administrative/one-time credential receipts, explicit human preview, bounded LOCAL_OBSERVE and caller recovery. All allocated A-E are IMPLEMENTED_QA_PENDING; reserved engine/worker/transport/full recovery remain gated. fullEndpointCoverage:false.
+
+## Prior handoffs (historical)
+
 # Current v12/v13 handoff
 
 See ops/pilot/PLAT-038-V12-HANDOFF.md and PLAT-038-V12-COVERAGE.json.
