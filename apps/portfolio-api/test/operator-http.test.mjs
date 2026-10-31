@@ -48,7 +48,9 @@ test('operator CS HTTP pagination, thread, reply and public update', async t => 
 
   await t.test('reply requires takeover, cs.reply and the assigned operator; same-key retry is one outbound', async () => {
     const body = { text: 'Synthetic operator response', commandKey: commandKey() };
-    assert.equal((await req(replyPath, body, alpha)).error.code, 'INVALID_TRANSITION');
+    const denied = await req(replyPath, body, alpha);
+    assert.deepEqual([denied.status, denied.error.code], [403, 'DENIED']);
+    assert.equal(await db.collection('cs_outbox').countDocuments({ kind: 'OPERATOR_REPLY' }), 0);
     await ok(`/cs/conversations/${one.handoff.conversationId}/takeover`, { expectedVersion: one.handoff.version, commandKey: commandKey() });
     const restore = await setRoles(a, ['csViewer']);
     try { assert.equal((await req(replyPath, body, alpha)).status, 403); } finally { await restore(); }

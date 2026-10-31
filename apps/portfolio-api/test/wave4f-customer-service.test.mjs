@@ -95,7 +95,7 @@ test('wave4f CS binding onboarding, simulator, authoritative manufacture/repair 
     assert.equal(two.reply.order.publicStage, 'PLANNING');
     assert.ok(two.reply.source.sourceVersion > r.source.sourceVersion);
     assert.deepEqual(two.reply.order.progress, { released: 0, total: 1 });
-    assert.ok(two.reply.body.includes('0 of 1 units released. Next: In production.'), two.reply.body);
+    assert.ok(two.reply.body.includes('0 of 1 work orders released. Next: In production.'), two.reply.body);
 
     // Repair order through the same reader and binding.
     await ok(`/repair/cases/${repair._id}/diagnostic-authorize`, { expectedVersion: 1, feeCap: '50.00', evidence: 'Synthetic diagnostic authorization', idempotencyKey: key() });
@@ -106,11 +106,13 @@ test('wave4f CS binding onboarding, simulator, authoritative manufacture/repair 
     assert.ok(rep.body.includes('Authoritative owned repair order.'), rep.body);
     const status = await get(`/cs/bindings/${primary.bindingId}/order-status?orderNumber=${repair.caseNumber}`);
     assert.deepEqual([status.status, status.data.kind, status.data.publicStage, status.data.liveLookup], [200, 'REPAIR', 'DIAGNOSIS', true]);
-    // Repair/manufacture miss and other-customer numbers: NOT_FOUND (HTTP 404) and an unavailable-status reply in the channel.
+    // Source receipt revalidation rejects absent and foreign orders without recording a reply.
     for (const n of ['RP-0000000000000000', otherRepair.caseNumber, 'SO-0000000000000000']) {
       assert.deepEqual([(await get(`/cs/bindings/${primary.bindingId}/order-status?orderNumber=${n}`)).status], [404], n);
-      const miss = await okSimulate(primary.bindingId, `IEMS ORDER ${n}`);
-      assert.deepEqual([miss.error, miss.reply.template.id, miss.reply.source], ['NOT_FOUND', 'status_unavailable', null], n);
+      const before = await Promise.all(['cs_inbound', 'cs_outbox', 'cs_idempotency'].map(c => db.collection(c).countDocuments()));
+      const miss = await simulate(primary.bindingId, `IEMS ORDER ${n}`);
+      assert.deepEqual([miss.status, miss.error.code], [404, 'NOT_FOUND'], n);
+      assert.deepEqual(await Promise.all(['cs_inbound', 'cs_outbox', 'cs_idempotency'].map(c => db.collection(c).countDocuments())), before);
     }
     assert.equal((await get(`/cs/bindings/${primary.bindingId}/order-status?orderNumber=${repair.caseNumber}`, beta)).status, 404);
     assert.equal(await db.collection('cs_order_snapshots').countDocuments(), 0, 'no manual snapshot rows');
@@ -250,14 +252,16 @@ test('wave4f CS binding onboarding, simulator, authoritative manufacture/repair 
       const reply = await okSimulate(primary.bindingId, 'IEMS MENU');
       assert.ok(reply.suppressed || reply.reply, 'conversation exists');
     } finally { runtime.customerServiceOrderReader = real; }
-    // A fresh binding (bot active) shows the unavailable reply in the channel during reader timeout.
+    // Source receipt revalidation rejects an unavailable source before any bot effect commits.
     const fresh = (await okPost('/cs/bindings', bindingBody(), 201)).binding;
+    const unavailableBefore = await Promise.all(['cs_inbound', 'cs_outbox', 'cs_idempotency'].map(n => db.collection(n).countDocuments()));
     try {
       runtime.customerServiceOrderReader = { readCustomerOrder: input => new Promise(r => setTimeout(() => r(real.readCustomerOrder(input)), 600)) };
-      const timed = await okSimulate(fresh.bindingId, `IEMS ORDER ${f.so.orderNumber}`);
-      assert.deepEqual([timed.error, timed.reply.template.id, timed.reply.deliveryState], ['STATUS_UNAVAILABLE', 'status_unavailable', 'PREVIEWED']);
-      assert.equal(timed.reply.body, 'IEMS preview: status cannot be confirmed right now. Send IEMS HUMAN for a team member.');
+      const timed = await simulate(fresh.bindingId, `IEMS ORDER ${f.so.orderNumber}`);
+      assert.deepEqual([timed.status, timed.error.code], [503, 'STATUS_UNAVAILABLE']);
+      assert.deepEqual(await Promise.all(['cs_inbound', 'cs_outbox', 'cs_idempotency'].map(n => db.collection(n).countDocuments())), unavailableBefore);
     } finally { runtime.customerServiceOrderReader = real; }
+    assert.equal((await okSimulate(fresh.bindingId, `IEMS ORDER ${f.so.orderNumber}`)).reply.order.publicStage, 'PLANNING');
     // Authorization revoked between the pre-check and the transaction is enforced in-transaction.
     const member = await db.collection('memberships').findOne({ _id: a.membershipId });
     const foundation = runtime.foundation;

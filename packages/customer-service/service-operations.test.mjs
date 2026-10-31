@@ -47,8 +47,22 @@ function operatorFixture({ foreign = true, denied = false } = {}) {
   }, db: { collection: name => ({
     async findOne(query, opts) {
       calls.push(name); assert.equal(opts.session, session);
+      if (name === 'saasSubscriptions') { assert.deepEqual(query, { tenantId }); return null; }
       if (name === 'cs_idempotency') return null;
       assert.equal(name, 'cs_conversations'); assert.equal(query.tenantId, tenantId); assert.equal(query.plantId, plantId);
+      return { _id: conversationId, tenantId, plantId, mode: 'HUMAN_ACTIVE', version: 2, assigneeId: foreign ? randomUUID() : userId };
+    },
+    async updateOne(query, update, opts) {
+      assert.equal(name, 'tenants'); assert.equal(opts.session, session);
+      assert.deepEqual(query, { _id: tenantId, active: true });
+      assert.deepEqual(update, { $inc: { saasEnrollmentFence: 1 } });
+      return { matchedCount: 1 };
+    },
+    async findOneAndUpdate(query, update, opts) {
+      calls.push(name); assert.equal(name, 'cs_conversations'); assert.equal(opts.session, session);
+      assert.deepEqual(query, { tenantId, plantId, _id: conversationId });
+      assert.deepEqual(update, { $inc: { admissionSourceFence: 1 } });
+      assert.equal(opts.returnDocument, 'after');
       return { _id: conversationId, tenantId, plantId, mode: 'HUMAN_ACTIVE', version: 2, assigneeId: foreign ? randomUUID() : userId };
     },
   }) } });
@@ -56,7 +70,7 @@ function operatorFixture({ foreign = true, denied = false } = {}) {
 }
 test('another agent cannot resume or cancel the assigned human conversation', async () => {
   const f = operatorFixture(); await assert.rejects(f.resume(), { code: 'DENIED' });
-  assert.deepEqual(f.calls, ['cs_idempotency', 'cs_conversations']);
+  assert.deepEqual(f.calls, ['saasSubscriptions', 'cs_idempotency', 'cs_conversations']);
 });
 test('transactional authorization denial prevents conversation reads and replay lookup', async () => {
   const f = operatorFixture({ denied: true }); await assert.rejects(f.resume(), { code: 'DENIED' }); assert.deepEqual(f.calls, []);
@@ -66,7 +80,17 @@ test('metrics source reads are plant-scoped, capped and share transactional auth
   let authorized = false, reads = 0;
   const cs = createCustomerService({ client: { startSession: () => session }, foundation: {
     authorize: async () => ({ tenantId, plantId }), authorizeInTransaction: async () => { authorized = true; return { tenantId, plantId }; },
-  }, db: { collection: name => ({ find(query, options) {
+  }, db: { collection: name => ({
+    async updateOne(query, update, options) {
+      assert.ok(authorized); assert.equal(name, 'tenants'); assert.equal(options.session, session);
+      assert.deepEqual(query, { _id: tenantId, active: true });
+      assert.deepEqual(update, { $inc: { saasEnrollmentFence: 1 } }); return { matchedCount: 1 };
+    },
+    async findOne(query, options) {
+      assert.equal(name, 'saasSubscriptions'); assert.deepEqual(query, { tenantId });
+      assert.equal(options.session, session); return null;
+    },
+    find(query, options) {
     assert.ok(authorized); assert.equal(options.session, session); assert.equal(query.tenantId, tenantId);
     if (name !== 'cs_ticket_events') assert.equal(query.plantId, plantId);
     reads++; return { sort() { return this; }, limit(n) { assert.equal(n, 10001); return this; }, toArray: async () => [] };
@@ -84,6 +108,7 @@ test('customer ticket history shares the binding transaction and excludes staff-
     calls.push(name); assert.notEqual(name, 'cs_internal_notes');
     return {
       async findOne(query, options) {
+        if (name === 'saasSubscriptions') { assert.deepEqual(query, { tenantId }); assert.equal(options.session, session); return null; }
         if (name === 'cs_contact_bindings') return binding;
         assert.equal(options.session, session); assert.equal(query.plantId, plantId); assert.equal(query.customerId, customerId);
         return { _id: randomUUID(), ticketNumber: 'CS-000001', stage: 'NEW', description: 'private-description', internalNote: 'staff-secret' };

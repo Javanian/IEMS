@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createCustomerService } from './index.mjs';
 
-function fixture({ denied = false, fence = 1, foreignPlant = false, reader } = {}) {
+function fixture({ denied = false, fence = 1, foreignPlant = false, reader, enrolled = false } = {}) {
   const tenantId = randomUUID(), plantId = randomUUID(), customerId = randomUUID(), bindingId = randomUUID();
   const binding = { _id: bindingId, tenantId, plantId, customerId, version: 2 };
   const snapshot = { ...binding, plantId: foreignPlant ? randomUUID() : plantId, orderNumber: 'RP-TEST', publicStage: 'DIAGNOSIS', source: 'SYNTHETIC_FIXTURE_SNAPSHOT', progress: null, asOf: new Date() };
@@ -13,11 +13,21 @@ function fixture({ denied = false, fence = 1, foreignPlant = false, reader } = {
     async findOne(query, options) {
       calls.push({ name, query, options });
       assert.equal(options.session, session);
+      if (name === 'saasSubscriptions') {
+        assert.deepEqual(query, { tenantId });
+        return enrolled ? { tenantId } : null;
+      }
       if (name === 'cs_contact_bindings') return binding;
       assert.equal(name, 'cs_order_snapshots');
       return Object.entries(query).every(([k, v]) => snapshot[k] === v) ? snapshot : null;
     },
     async updateOne(query, update, options) {
+      if (name === 'tenants') {
+        assert.deepEqual(query, { _id: tenantId, active: true });
+        assert.deepEqual(update, { $inc: { saasEnrollmentFence: 1 } });
+        assert.equal(options.session, session);
+        return { matchedCount: 1 };
+      }
       assert.equal(name, 'cs_contact_bindings');
       assert.equal(options.session, session);
       assert.deepEqual([query.tenantId, query.plantId, query.version], [tenantId, plantId, 2]);
@@ -48,6 +58,12 @@ test('synthetic repair status uses plant/customer scope and fences the authorize
 
 test('another plant snapshot is not visible', async () => {
   await assert.rejects(fixture({ foreignPlant: true }).read(), { code: 'NOT_FOUND' });
+});
+
+test('an enrolled tenant without its admission port cannot read source data', async () => {
+  const f = fixture({ enrolled: true });
+  await assert.rejects(f.read(), { code: 'DENIED' });
+  assert.equal(f.calls.some(c => c.name === 'cs_order_snapshots'), false);
 });
 
 test('transactional authorization denial prevents all source reads', async () => {
