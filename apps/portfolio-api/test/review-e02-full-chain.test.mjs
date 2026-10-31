@@ -13,6 +13,7 @@ test('canonical E02 accepted and rejected actual service chains through stock re
   let clock = new Date(e02Fixture.repair_case.intake_date);
   const h = await startOwned(t, { businessClock: () => clock });
   const flow = await runE02Flow(h, { setClock: date => { clock = date; } });
+  t.diagnostic(JSON.stringify({ fixtureHash, manifest: flow.manifest, rejectionManifest: flow.rejection.manifest, verification: 'Actual chain manifest; assertions and replay checks below must also pass' }));
   assert.equal(flow.manifest.status, 'COMPLETE'); assert.equal(flow.rejection.manifest.status, 'COMPLETE');
   const row = await h.ok(`/repair/cases/${flow.case._id}`), quote = await h.ok(`/commercial/quotes/${flow.quote._id}`);
   assert.equal(row.serial, e02Fixture.customer_asset.serial_no);
@@ -34,6 +35,7 @@ test('canonical E02 accepted and rejected actual service chains through stock re
   assert.equal(await h.db.collection('internalCompanyStockUnits').countDocuments({ serial: row.serial }), 0);
   const delivery = await h.ok(`/deliveries/shipments/${flow.shipment.shipmentId}`);
   assert.equal(delivery.status, 'DELIVERED'); assert.equal(delivery.custodyState, 'RETURNED_TO_CUSTOMER');
+  assert.equal(delivery.salesOrderId, null, 'Customer property has no generic stock sales order; first response and replay must match');
   assert.equal(delivery.confirmations[0].deliveredAt, '2026-06-02T11:00:00.000Z');
   assert.equal(flow.shipment.shippedAt, '2026-05-31T14:30:00.000Z');
   assert.equal(flow.invoice.netAmount, '9000.00'); assert.equal(flow.invoice.taxAmount, '990.00'); assert.equal(flow.invoice.total, '9990.00');

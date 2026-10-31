@@ -110,7 +110,7 @@ async function receiveE02Spares(h) {
   let po = await ok(`/catalog-procurement/requests/${pr._id}/convert`, cmd({ expectedVersion: pr.version }));
   po = await ok(`/catalog-procurement/orders/${po._id}/issue`, cmd({ expectedVersion: po.version }));
   for (const [index, item] of items.entries()) {
-    const receipt = await ok('/catalog-procurement/receipts', cmd({ expectedVersion: po.version, purchaseOrderId: po._id, vendorId: vendor._id, lineId: po.content.lines.find(line => line.itemId === item._id).lineId, quantity: '1.0000', lotNumber: values[index].lot }), 201);
+    const receipt = await ok('/catalog-procurement/receipts', cmd({ expectedVersion: po.version, purchaseOrderId: po._id, vendorId: vendor._id, lineId: po.content.lines.find(line => line.itemId === item._id).lineId, quantity: '1.0000', lotNumber: values[index].lot, heatNumber: `E02-SYNTHETIC-HEAT-${index + 1}` }), 201);
     const path = `/catalog-disposition/receipts/${receipt._id}`;
     let qc = await ok(path);
     qc = await ok(`${path}/inspections`, cmd({ expectedVersion: qc.version, expectedReceiptVersion: qc.receiptVersion, acceptedQuantity: '1', rejectedQuantity: '0', evidence: 'Synthetic E02 source-backed incoming lot inspection' }));
@@ -152,7 +152,7 @@ export async function runE02Flow(h, { setClock, onCheckpoint = async () => {} } 
   at(f.repair_work_order.planned_start); await step('start');
   at(f.repair_work_order.material_issues[0].posted_at);
   flow.sources = await receiveE02Spares(h);
-  flow.manifest.sourceProvisioning = 'Actual owner company-stock fixture supplies qualified location; supplemental producer stock is unrelated to customer property. Canonical purchased seal kit and backup ring use their own approved item/PO/receipt/inspection/putaway. Backup-ring lot is supplemental because original fixture specifies none.';
+  flow.manifest.sourceProvisioning = 'Actual owner company-stock fixture supplies qualified location; supplemental producer stock is unrelated to customer property. Canonical purchased seal kit and backup ring use their own approved item/PO/receipt/inspection/putaway. Heat references and backup-ring lot are supplemental synthetic evidence because original fixture specifies none.';
   const component = f.teardown.findings.find(value => value.disposition === 'REPLACE').component_name;
   const install = async (index, serial, evidence) => {
     const item = flow.sources.items[index], receipt = flow.sources.receipts[index];
@@ -241,6 +241,7 @@ export async function runE02Flow(h, { setClock, onCheckpoint = async () => {} } 
   rejection.manifest.atomicDiagnosticInvoice = 'Rejection creates the diagnostic invoice atomically with the May14 decision. Original May16 issue date is a fixture reference, not a separately persisted later issue transition.';
   flow.rejection = rejection;
   flow.manifest.notRun = []; flow.manifest.status = 'COMPLETE';
+  setClock(new Date(f.final_invoice.final_payment.received_at));
   await checkpoint('accepted and rejected mounted API chains complete');
   return flow;
 }
