@@ -1,0 +1,32 @@
+name: IEMS cloud offline contracts
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'infra/cloud/**'
+      - 'infra/terraform/pilot/**'
+      - 'ops/pilot/**'
+      - 'ops/recovery/**'
+      - 'packages/tenant-lifecycle/**'
+      - '.github/workflows/iems-cloud-offline.yml'
+permissions:
+  contents: read
+concurrency:
+  group: iems-cloud-offline-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Require supported Node runtime
+        run: node -e "if (Number(process.versions.node.split('.')[0]) < 22) process.exit(1)"
+      - name: Validate offline release contract
+        run: node infra/cloud/validate.mjs
+      - name: Run bounded synthetic checks
+        run: node --test --test-concurrency=1 ops/pilot/rehearsal.test.mjs ops/recovery/rehearsal.test.mjs packages/tenant-lifecycle/lifecycle.test.mjs infra/cloud/data-layout.test.mjs infra/cloud/databricks-evaluation.test.mjs
+      - name: Report provider validation boundary
+        run: echo "Terraform/provider tests require the reviewed offline mirror; cloud apply and credential access are disabled. This job does not establish cloud acceptance."

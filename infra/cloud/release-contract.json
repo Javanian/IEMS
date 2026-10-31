@@ -1,0 +1,14 @@
+{
+  "schema": "IEMS_CLOUD_RELEASE_V1",
+  "evidenceClass": "OFFLINE_ONLY",
+  "liveApplyEnabled": false,
+  "approvedMonthlyBudget": null,
+  "currency": "USD",
+  "requiredBeforeLive": ["human_spend_authorization", "account_and_region", "private_network_and_endpoints", "atlas_private_endpoint", "immutable_integrated_sha", "independent_QA", "reviewed_plan_hash", "cost_estimate", "backup_restore_proof", "rollback_owner"],
+  "stages": [
+    {"name": "offline", "command": "node infra/cloud/validate.mjs", "credentialAccess": false},
+    {"name": "provider_schema", "command": "node infra/cloud/terraform-offline.mjs", "credentialAccess": false},
+    {"name": "release", "state": "EXTERNAL_DEPENDENCY", "requires": "requiredBeforeLive", "command": null},
+    {"name": "rollback", "state": "EXTERNAL_DEPENDENCY", "strategy": "restore prior immutable app digest/config, preserve database and event offsets; do not terraform destroy"}
+  ]
+}
