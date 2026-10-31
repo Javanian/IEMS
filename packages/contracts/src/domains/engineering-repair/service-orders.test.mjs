@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { startOwned } from '../../../../../apps/portfolio-api/test/support/owned-mongo.mjs';
-import { runE02Flow, e02Fixture } from '../../../../../apps/portfolio-api/test/support/review-e02-flow.mjs';
+import { runE02Prefix, e02Fixture } from '../../../../../apps/portfolio-api/test/support/review-e02-flow.mjs';
 import { validateRepairSnapshot, diagnosticRepairSnapshot } from '../../../../../apps/portfolio-api/src/repair-orders.mjs';
 
 test('repair snapshot validates exact VAT rather than trusting stored totals', () => {
@@ -16,7 +16,7 @@ test('canonical accepted/rejected scope creates reciprocal service orders and gr
   let clock = new Date(e02Fixture.repair_case.intake_date);
   const h = await startOwned(t, { businessClock: () => clock }), cmd = values => ({ idempotencyKey: randomUUID(), ...values });
   for (const rejected of [false, true]) {
-    const flow = await runE02Flow(h, { setClock: date => { clock = date; } });
+    const flow = await runE02Prefix(h, { setClock: date => { clock = date; } });
     let row = flow.case, path = `/repair/cases/${row._id}`;
     if (rejected) {
       const cap = await h.req(`${path}/decide`, cmd({ expectedVersion: row.version, revision: 1, decision: 'REJECT', diagnosticFee: '1332.00', evidence: 'Cannot bill gross as diagnostic net' }), h.alpha);

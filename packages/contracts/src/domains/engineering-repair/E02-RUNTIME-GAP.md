@@ -1,4 +1,6 @@
-# Canonical E02 runtime assembly: INCOMPLETE
+# Historical canonical E02 runtime gap at19561749: INCOMPLETE
+
+V7 source continuation is documented in [E02-V7-HANDOFF.md](E02-V7-HANDOFF.md). The clock/VAT corrections and typed domains are now written; current runtime verification stops at the admission source-pin prerequisite. The409 evidence below is historical, not the current source verdict.
 
 Allocated base: `576a947d623ee12561d0a7819eb4bd3645021eba`. This is an implementation capability probe, not independent QA or a full-chain runner handoff.
 
