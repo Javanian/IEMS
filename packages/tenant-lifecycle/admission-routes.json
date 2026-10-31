@@ -1,6 +1,7 @@
 [
   "GET /api/ai/documents",
   "GET /api/ai/documents/:id/index",
+  "GET /api/ai/documents/:id/index/cleanup",
   "GET /api/ai/models",
   "GET /api/ai/vendor-drafts/:draftId",
   "GET /api/analytics/authority",

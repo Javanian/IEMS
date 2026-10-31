@@ -1,0 +1,3430 @@
+{
+  "schema": "PLAT038_V15_V17_HANDOFF_V1",
+  "sourceCommit": "c9634a7de8f6a74181a7e68b636cbc6311397895",
+  "prerequisite": "fb27134cafed7c335cb7856687383993bdc01912",
+  "preserved": [
+    "6adac5bf8601383f5d8bcc9820c1f31cbf954d91",
+    "147a7917d468854fca4d1b75988bd338c5172e9f"
+  ],
+  "allocated": "IMPLEMENTED_QA_PENDING",
+  "wholePLAT038": "INCOMPLETE",
+  "fullEndpointCoverage": false,
+  "counts": {
+    "ADVISORY_READ": 4,
+    "AUTH_RECOVERY": 3,
+    "CONDITIONAL_RECEIPTED": 9,
+    "CONTROL_PLANE": 10,
+    "PRIVATE_PARENT_CONTINUATION": 5,
+    "PRIVATE_PARENT_OBSERVATION": 1,
+    "READ": 177,
+    "RECEIPTED": 195,
+    "REJECTED_COMMAND": 2
+  },
+  "routeCount": 406,
+  "domainCollections": 270,
+  "domainSourceCount": 110,
+  "admissionSourceCount": 114,
+  "meter": "command-count",
+  "storageBytes": "Cumulative explicitly admitted bytes; not measured disk occupancy or invoice billing",
+  "wrappers": {
+    "foundationCommandResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "key"
+      ],
+      "hash": "contentHash({action,aggregateId,expectedRevision,input})",
+      "hook": "packages/tenant-foundation/commands.mjs",
+      "replay": "current domain/delegated foundation authorization before receipt lookup"
+    },
+    "manufacturingKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "existing canonical({kind,id,expectedVersion,payload}) SHA256",
+      "hook": "apps/portfolio-api/src/manufacturing.mjs",
+      "replay": "source order authority and current host authorization"
+    },
+    "warehouseKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "existing JSON.stringify({kind,id,...payload}) SHA256",
+      "hook": "apps/portfolio-api/src/warehouse.mjs",
+      "replay": "source order authority and current host authorization"
+    },
+    "fulfillmentKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "existing canonical({kind,payload}) SHA256",
+      "hook": "apps/portfolio-api/src/fulfillment.mjs",
+      "replay": "purchased/manufactured/deposit/invoice posting validators retained before admission"
+    },
+    "qualityKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "existing stockHash({action,params,body}); operations retains original actor-to-key contentHash",
+      "hook": "apps/portfolio-api/src/quality.mjs",
+      "replay": "current host/helper source authorization",
+      "nested": "one scopedModule receipt including voice; no independently charged child"
+    },
+    "maintenanceKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "existing stockHash({action,params,body}); operations retains original actor-to-key contentHash",
+      "hook": "apps/portfolio-api/src/quality.mjs",
+      "replay": "current host/helper source authorization",
+      "nested": "one scopedModule receipt including voice; no independently charged child"
+    },
+    "operationsKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "existing stockHash({action,params,body}); operations retains original actor-to-key contentHash",
+      "hook": "apps/portfolio-api/src/quality.mjs",
+      "replay": "current host/helper source authorization",
+      "nested": "one scopedModule receipt including voice; no independently charged child"
+    },
+    "repairKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify(canonical({kind,id,bodyWithoutKey})))",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/repair.mjs",
+      "replay": "current scoped case; invoice-settle resolves scoped invoice.caseId; typed REPAIR_SERVICE_V1 invokes exported service source/quality/order/dispatch/POD/warranty validator; spare stock recheck retained",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "internalPlanningKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({kind,resource,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/internal-production.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "internalExecutionKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({kind,resource,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/internal-execution.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "stockHoldKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify(canonical({operation,subjectId,request})))",
+      "hashField": "requestHash",
+      "response": "status/body",
+      "hook": "apps/portfolio-api/src/stock-holds.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "inquiryKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "create:SHA256(JSON.stringify(body));change:SHA256(JSON.stringify({operation,id,body}))",
+      "hashField": "payloadHash",
+      "response": "data",
+      "hook": "apps/portfolio-api/src/inquiries.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "materialShortageKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({operation,resource,bodyWithTrimmedReason})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/material-shortages.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "catalogKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({kind,resource,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/catalog-procurement.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "catalogDispositionKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({kind,resource,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/catalog-disposition.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "purchasedFulfillmentKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({kind,orderId,body})",
+      "hashField": "payloadHash",
+      "response": "result (domain command proof)",
+      "hook": "apps/portfolio-api/src/purchased-fulfillment.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "deliveryKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({path,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/delivery.mjs",
+      "replay": "current persisted shipment and repair-return authority detector; typed/purchased/catalog source+state+historical event+view verification before original result; zero charge",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "fulfillmentReturnKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({shipmentId,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/delivery.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "workforceResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "actorId",
+        "key"
+      ],
+      "actorId": "grant.userId",
+      "hash": "HMAC-SHA256(existing pepper,contentHash({path,body}))",
+      "hashField": "inputHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/workforce.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "purchaseOrderAmendmentKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "cohort",
+        "key"
+      ],
+      "cohort": "LEGACY",
+      "hash": "SHA256(JSON.stringify([operation,params,input]))",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "procurementRfqKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify([operation,id,body]))",
+      "hashField": "payloadHash",
+      "response": "data",
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "procurementPromiseKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify([id,expectedVersion,vendorId,promisedAt,reference,reason]))",
+      "hashField": "payloadHash",
+      "response": "data",
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "procurementConversions": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify({requestId,expectedVersion}))",
+      "hashField": "payloadHash",
+      "response": "orderId -> scoped purchaseOrders",
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "quoteCatalogKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "existing quoteCatalogPayloadHash({kind,quoteId?,body})",
+      "hashField": "payloadHash",
+      "response": "result/resultHash -> quoteCatalogReplay",
+      "hook": "apps/portfolio-api/src/commercial.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "quoteConversions": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "SHA256(JSON.stringify({quoteId,expectedVersion,revision}))",
+      "hashField": "payloadHash",
+      "response": "orderId -> scoped salesOrders",
+      "hook": "apps/portfolio-api/src/commercial.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "companyStockKeys": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "key"
+      ],
+      "hash": "stockHash({action,companyReceiptId,body})",
+      "hashField": "payloadHash",
+      "response": "result",
+      "hook": "apps/portfolio-api/src/company-stock.mjs",
+      "replay": "Existing source/scope/recipient validators retained; current source reader checks at owner boundary. Returned receipt/result unchanged.",
+      "meter": "ONE_COMMAND",
+      "nested": "Same-session child helpers inherit top-level receipt; no extra receipt invented"
+    },
+    "crmCommandResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "key"
+      ],
+      "hash": "foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})",
+      "hashField": "inputHash",
+      "response": "exact original result snapshot",
+      "actions": {
+        "account.created": "crm.write",
+        "contact.created": "crm.write",
+        "opportunity.created": "crm.write",
+        "opportunity.stage": "crm.write"
+      },
+      "hook": "apps/portfolio-api/src/app.mjs",
+      "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
+      "meter": "ONE_COMMAND"
+    },
+    "legacyQuoteCommandResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "key"
+      ],
+      "hash": "foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})",
+      "hashField": "inputHash",
+      "response": "exact original result snapshot",
+      "actions": {
+        "quote.created": "quote.write",
+        "quote.revisions": "quote.write",
+        "quote.approve": "quote.approve",
+        "quote.accept": "quote.accept"
+      },
+      "hook": "apps/portfolio-api/src/commercial.mjs",
+      "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
+      "meter": "ONE_COMMAND"
+    },
+    "procurementCommandResults": {
+      "filter": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "key"
+      ],
+      "hash": "foundation contentHash({action,resourceId,input:bodyWithoutCommandKey})",
+      "hashField": "inputHash",
+      "response": "exact original result snapshot",
+      "actions": {
+        "vendor.created": "procurement.write",
+        "purchaseRequest.created": "procurement.write",
+        "purchaseRequest.approve": "procurement.approve",
+        "purchaseOrder.issue": "procurement.issue",
+        "purchaseOrder.vendor-confirmation": "procurement.confirm"
+      },
+      "hook": "apps/portfolio-api/src/procurement.mjs",
+      "replay": "current actor/source scope, no new-effect CAS/state/expiry replay",
+      "meter": "ONE_COMMAND"
+    },
+    "automation_audit_logs": {
+      "filter": [
+        "tenantId",
+        "idempotencyKey"
+      ],
+      "hash": "existing digest(payload)",
+      "hashField": "payloadHash",
+      "hook": "apps/portfolio-api/src/automation.mjs operation/caller session",
+      "actions": {
+        "AUTOMATION_RECOVERY": "cs.automation.execute",
+        "AUTOMATION_ENGINE_RUN": "cs.automation.execute",
+        "TICKET_ESCALATE": "cs.automation.execute",
+        "RESOLUTION_DRAFT_CREATE": "cs.automation.execute",
+        "RESOLUTION_DISPATCH_INTENT": "cs.automation.execute",
+        "DIGEST_DISPATCH_INTENT": "cs.automation.execute",
+        "AUTOMATION_PAUSE": "cs.automation.admin",
+        "RESOLUTION_APPROVE": "cs.ticket.write",
+        "RESOLUTION_REJECT": "cs.ticket.write",
+        "RESOLUTION_CANCEL": "cs.ticket.write",
+        "DELIVERY_MANUAL_REVIEW": "cs.automation.admin",
+        "SERVICE_CREDENTIAL_ISSUE": "cs.automation.admin",
+        "SERVICE_CREDENTIAL_REVOKE": "cs.automation.admin",
+        "LOCAL_DELIVERY_RECONCILE": "cs.automation.execute"
+      },
+      "replay": "current scope/permission, ticket/binding/approval/recipient/outbox proof; original result; zero charge",
+      "meter": "ONE_COMMAND",
+      "separateEffect": "New managed LOCAL_SIMULATED engine and local delivery phases require original owner/current source/private capabilities; full managed recovery inherits exact parent receipts; live sender/unmanaged history remain gated"
+    },
+    "cs_idempotency": {
+      "filter": [
+        "tenantId",
+        "scope",
+        "owner",
+        "key"
+      ],
+      "hash": "existing customer-service requestHash(request)",
+      "hashField": "requestHash",
+      "hook": "packages/customer-service/index.mjs idempotent/immutable AsyncLocalStorage context",
+      "principals": {
+        "simulator.dispatch": {
+          "permission": "cs.simulator.use",
+          "owner": "user"
+        },
+        "complaint.start": {
+          "customer": true
+        },
+        "complaint.update": {
+          "customer": true
+        },
+        "conversation.bot_reply": {
+          "customer": true
+        },
+        "conversation.operator_reply": {
+          "permission": "cs.reply",
+          "owner": "user"
+        },
+        "inbound.command": {
+          "customer": true
+        },
+        "complaint.confirm": {
+          "customer": true
+        },
+        "ticket.customer_comment": {
+          "customer": true
+        },
+        "conversation.handoff_request": {
+          "customer": true
+        },
+        "ticket.transition": {
+          "permission": "cs.ticket.write",
+          "owner": "user"
+        },
+        "ticket.public_update": {
+          "permission": "cs.ticket.write",
+          "owner": "user"
+        },
+        "ticket.internal_note": {
+          "permission": "cs.note.internal",
+          "owner": "user"
+        },
+        "conversation.takeover": {
+          "permission": "cs.conversation.handoff",
+          "owner": "user"
+        },
+        "conversation.mode": {
+          "permission": "cs.conversation.handoff",
+          "owner": "user"
+        },
+        "binding.create": {
+          "permission": "cs.binding.manage",
+          "owner": "plant"
+        },
+        "binding.revoke": {
+          "permission": "cs.binding.manage",
+          "owner": "plant"
+        },
+        "delivery.review": {
+          "permission": "cs.delivery.review",
+          "owner": "user"
+        }
+      },
+      "replay": "current actor/source/ticket/customer/conversation/binding/approval rechecks; customer WeakMap resolver; parent receipt inherits once",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    "saasEffectCommands": {
+      "filter": [
+        "tenantId",
+        "ownerNamespace",
+        "ownerIdentityHash"
+      ],
+      "ownerNamespace": "AI_INDEX_ROOT_V1",
+      "rootIdentity": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "resourceId",
+        "key"
+      ],
+      "hashField": "payloadHash",
+      "hash": "contentHash({action:ai.index.rebuild|cleanup,resourceId,expectedRevision,input:{}})",
+      "actions": [
+        "ai.index.rebuild",
+        "ai.index.cleanup"
+      ],
+      "permission": "ai.index plus saas.use",
+      "hook": "packages/tenant-lifecycle/effects.mjs admitIndexRoot/accept caller session",
+      "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+      "profileState": "CONTROLLED_LOCAL_INDEX_AND_CLEANUP_METADATA_V1_QA_PENDING",
+      "finalBusinessReceipt": "Original foundationCommandResults exact filter/inputHash/response; private root capability and same-session final index CAS/audit/outbox, no second charge"
+    },
+    "documentIssues": {
+      "filter": [
+        "tenantId",
+        "legalEntityId",
+        "plantId",
+        "kind",
+        "sourceId",
+        "sourceVersion"
+      ],
+      "hash": "existing renderer snapshot.contentHash",
+      "hashField": "contentHash",
+      "hook": "renderer.issueInTransaction + documents.mjs caller transaction",
+      "replay": "current source permissions/snapshot plus existing artifact/READY integrity",
+      "meter": "ONE_COMMAND",
+      "response": "original public READY intent ID and renderer record mapping"
+    }
+  },
+  "separateEffects": {
+    "schema": "SEPARATE_EFFECTS_V1",
+    "collections": {
+      "saasEffectCommands": [
+        "tenantId",
+        "ownerNamespace",
+        "ownerIdentityHash"
+      ],
+      "saasEffectAttempts": [
+        "tenantId",
+        "commandId",
+        "phase",
+        "ordinal"
+      ],
+      "saasEffectEvents": [
+        "tenantId",
+        "commandId",
+        "version"
+      ],
+      "saasEffectBarriers": [
+        "tenantId",
+        "adapterId",
+        "instanceEpoch",
+        "stopEpoch"
+      ]
+    },
+    "disposition": "RETAIN_PRIVATE_OR_TECHNICAL",
+    "kinds": {
+      "ai.vendor.delivery": {
+        "owner": "Original foundationCommandResults ai.vendor.deliver + aiVendorDeliveryAttempts exact deliveryKey/content/approval/source/recipient/provider",
+        "phases": [
+          "VENDOR"
+        ],
+        "meter": "INHERITS_ORIGINAL_INTENT",
+        "proof": "Actual private native local receipt, current actor/approver/recipient/source fences, terminal immutable result, late revoke retains observation without recall/publication"
+      },
+      "ai.index.rebuild": {
+        "owner": "saasEffectCommands AI_INDEX_ROOT_V1",
+        "phases": [
+          "EMBED",
+          "UPSERT"
+        ],
+        "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+        "finalReceipt": "Original foundationCommandResults ai.index filter/digest/response; nonbillable private phase settlement"
+      },
+      "ai.index.cleanup": {
+        "owner": "saasEffectCommands AI_INDEX_ROOT_V1",
+        "phases": [
+          "DELETE"
+        ],
+        "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+        "proof": "Exact frozen retired/orphan IDs with verified native receipts; never delete published IDs; native deleted/requested/remaining proof distinct from original pointer result"
+      },
+      "automation.recovery": {
+        "owner": "automation_audit_logs",
+        "action": "AUTOMATION_RECOVERY",
+        "meter": "ONE_ROOT_COMMAND",
+        "children": "Existing original intent phases nonbillable; genuinely new deterministic resolution intent independently charges once; immutable frozen selection/no rescan/no resend of unknown"
+      },
+      "automation.engine": {
+        "owner": "automation_audit_logs",
+        "action": "AUTOMATION_ENGINE_RUN",
+        "phase": "EFFECT",
+        "meter": "ONE_ROOT_COMMAND",
+        "child": "AUTOMATION_ENGINE_ERROR_NONBILLABLE"
+      },
+      "automation.local-delivery": {
+        "owner": "automation_audit_logs",
+        "phase": "EXACT_DELIVERY_ID",
+        "meter": "INHERITS_ORIGINAL_ROOT",
+        "proof": "Original content/payload/recipient/approval hashes, actual local provider receipt; never SMTP SENT"
+      },
+      "cs.local-preview": {
+        "owner": "cs_idempotency",
+        "phase": "EXACT_DELIVERY_ID",
+        "meter": "INHERITS_ORIGINAL_ROOT",
+        "worker": "PRIVATE_FACTORY_CAPABILITY_ONLY"
+      }
+    },
+    "adapterModes": [
+      "LOCAL_SIMULATED_OWNED_MARKER_DATABASE_ONLY"
+    ],
+    "retryPolicy": "Original human delivery.review or DELIVERY_MANUAL_REVIEW receipt plus source fence atomically closes an attempt BEFORE provider BEGIN; new ordinal/fence binds retryOf to that immutable receipt. Begun UNKNOWN remains reconciliation-required; no ACK/timeout/human assertion as stop proof.",
+    "callers": "Five scoped UI callers retain original command/key/body on uncertainty and only public intent metadata for phase recovery; actual mounted focused proof, independent QA pending.",
+    "pending": [
+      "Historical PREPARED document recovery remains separately gated; unmanaged engine/vendor/transport history cannot be converted by local phase acceptance; real provider/model/vector/send access remains NOT_RUN and unauthorized"
+    ],
+    "providerEvidence": {
+      "local": "FOCUSED_LOCAL_SIMULATED_PROOF_QA_PENDING",
+      "external": "NOT_RUN"
+    }
+  },
+  "sourcePins": {
+    "apps/portfolio-api/src/analytics.mjs": "321a9a29dc738b64cac746d7b4123f9cfcaece1c1af643c7b159aac53b007833",
+    "apps/portfolio-api/src/app.mjs": "04f5d429ba15f4ac70d393eb23c7de9be4bb3a02a595db142eca0441bea899ae",
+    "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
+    "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
+    "apps/portfolio-api/src/automation.mjs": "60a47c27a52d76ed28b8eba44349db66f26035ac0ca1a2a74b973e0cd9c4dfa3",
+    "apps/portfolio-api/src/business-clock.mjs": "75ac403414331887f6df0e944a7f6f6a0415aa62c4ae62b76124c28adb8f2188",
+    "apps/portfolio-api/src/catalog-disposition-state.mjs": "14bdaae9188d604a15ea90ef63b2adf025600b26b3a4af58364ee24f4d99f875",
+    "apps/portfolio-api/src/catalog-disposition.mjs": "1835a7e3235460873335e53979a409360f3ffea0d8814e6737317f7ef3dbb49f",
+    "apps/portfolio-api/src/catalog-option-index.mjs": "2fea88fac04ee815c01040b5f9436789916cbcad2e382c63e9b5f12252d3b182",
+    "apps/portfolio-api/src/catalog-options.mjs": "f850c7d24b03f6c7834bc49e479375c3b92e59fa12f18ae8bb4257c6d5deb061",
+    "apps/portfolio-api/src/catalog-procurement.mjs": "2aa34072bff34e19e528c0c388cf3932d6bb4490dee03df687d86e20293ed2ee",
+    "apps/portfolio-api/src/catalog-stock-use-state.mjs": "01551ffca55baca6cb71d0b5a61f42c4bb5e17727aef7dae6745a45486b82882",
+    "apps/portfolio-api/src/catalog-stock-values.mjs": "0c0a3b57fba41de58d6ed01ae3a704e4c0b86e203e1f48a87893eb3152a3d3af",
+    "apps/portfolio-api/src/catalog-stock.mjs": "537e6db06cda3aea617f650f55fe793d2ccd7eee3b90d46764021082a06340a2",
+    "apps/portfolio-api/src/commercial.mjs": "3116ed921aea6d42809142ea571ba6cf6b66bfa9335227feeda2c0421aec442a",
+    "apps/portfolio-api/src/company-stock-capacity.mjs": "74a9ae580adbc8bec6a4fe4b19d721fec2568d91816d06ac30f4cee7bf462dcd",
+    "apps/portfolio-api/src/company-stock-state.mjs": "096ccadc741a4d82e678e9dca22f38047b30262e8ee74a3db5af936548167d90",
+    "apps/portfolio-api/src/company-stock-trace.mjs": "ca7f00e6aecc16b66c530cc374c6a2a09fda13d1f6377baf32198a4574766f16",
+    "apps/portfolio-api/src/company-stock.mjs": "dd94c1c600bee1f95affb60cdb2ad5a3c9e66cf7a90b63e8a04887cbc8fc63b4",
+    "apps/portfolio-api/src/component-installation.mjs": "e7110fb21426588fba8eef2460b984f8a24cff20e679991354b10e9a149d680e",
+    "apps/portfolio-api/src/config.mjs": "68d37bb07eeef69f3b0179992f94e7b7c1c158a81c57b2ce80a1230d2e0be15a",
+    "apps/portfolio-api/src/crm.mjs": "fc42fe7a9ed0a483154c5c5b02507516ca1f6bad58d54a37b5e26183cd6c72b3",
+    "apps/portfolio-api/src/cs-intent.mjs": "8a3f8597044b9ec4b900aea6daeaf0d03df347d62ea5ea0953f0d609941ec0f7",
+    "apps/portfolio-api/src/customer-service.mjs": "ad4423cec1df47ddbe8ffa828e0cc88928a7bd7c8f3b7600d31fbef7a6db3367",
+    "apps/portfolio-api/src/delivery.mjs": "ac6c9e63567df966e0b5ae2f58eb121c095a93a430b9e82494e1c14afd26910f",
+    "apps/portfolio-api/src/descendant-freeze.mjs": "ff470bb795c5667f871b239a2ecb86191294cdd2eff30b4f07ecec5626a6f0a7",
+    "apps/portfolio-api/src/documents.mjs": "b21fd75da76bf8688204161bab07ad52e5d08dc52cbe30452a99a6a9036e666f",
+    "apps/portfolio-api/src/engineering.mjs": "bb9d9b6f87405dfd8c59fd1a9bced4c4163e1597e79fe4689b83791238e027b1",
+    "apps/portfolio-api/src/fixture-tax.mjs": "bf5aaf8a1acfb9d5b5f5b50743584fe81a683d8eae886579aee220b7d2c16d1d",
+    "apps/portfolio-api/src/foundation-connection.mjs": "4ffcb2944caa009497b35f49a68b77d7d681499fe479fb841f350fc4ec849bd8",
+    "apps/portfolio-api/src/foundation-explain.mjs": "57e0d42590fdb4bc9f34f5c7b1f5d4d1c928e34fde803c1cbbf20f8f40b3c22d",
+    "apps/portfolio-api/src/foundation-runtime.mjs": "ba7e57f158718d0655db6b53e532cfc534ffe15632184e3c6ff310ba6b98cd48",
+    "apps/portfolio-api/src/fulfillment.mjs": "749c384d32729053a24f865a9d7d757b70cb7c7dd832d33ae7629d80dabef8ae",
+    "apps/portfolio-api/src/genealogy.mjs": "dadaf91f25d888b3052d3154fb86dd0b0190bbded45254c061af4b77235a4c44",
+    "apps/portfolio-api/src/inquiries.mjs": "39d9f6f338a370bb11e2fd9d1f48d3ca0d356629da8c9fe9729a8597ffe01911",
+    "apps/portfolio-api/src/internal-execution-state.mjs": "759fa04db7afb5773d4ad437590f24c25fe629caeb6f339f0439a8ead3873c57",
+    "apps/portfolio-api/src/internal-execution.mjs": "e8d0538e66463b508d2379ead7e4b2e50e50195a7fcdc4a532e92b3bfdcbc7ea",
+    "apps/portfolio-api/src/internal-production.mjs": "c93829a43865f6db4a3d29035ae67080000937e238bac1dd287e57c16d23ff44",
+    "apps/portfolio-api/src/labor.mjs": "78a99758d8e394298d8d3a541f4048193aa214c87e20c2ad5f8636068ea2e206",
+    "apps/portfolio-api/src/maintenance.mjs": "4709b660d9d3ede2c0e6f665c972fd9a083e9306e2ab04610e07a4a88bb8ddd2",
+    "apps/portfolio-api/src/manufactured-dispatch.mjs": "0feba439fd186855aa3304aab61ab2506bc41391f96bb52307d701cd52fb8bf2",
+    "apps/portfolio-api/src/manufacturing.mjs": "57637ac8a93a5ec90fdc1c6c0d7bc297c39ead3f8e8f1861ceea94a156ee01d6",
+    "apps/portfolio-api/src/material-shortages.mjs": "5ef56c62350a6a3c4fb9505b21199b42614a753ea81aefcf060fca38792bea46",
+    "apps/portfolio-api/src/operations.mjs": "1a9f37d823cbff3f43866c9bacf7f94e5ecbeb5bcf586694d35bd369a057e576",
+    "apps/portfolio-api/src/order-reader.mjs": "9ca47db201d530885ce082c7096a38ab41b2847582081fca2cd619483100b766",
+    "apps/portfolio-api/src/platform-runtime.mjs": "b4fdf53fe7957dacba202dd3e994f59ebe9f9083a304c987ef4a3c2622cdebec",
+    "apps/portfolio-api/src/portals.mjs": "1ad40ed75e6c4ae24755d54ebdbfd50121b9b2d2f36ad5464b0ae78ad85f52d6",
+    "apps/portfolio-api/src/predictions.mjs": "b37f4349817be74824c96cc4487508528694feedd49cb4e36f82da883ce0b40e",
+    "apps/portfolio-api/src/procurement-commitments.mjs": "e933db2f068fad2c010566b0465ce43fc73f22121116e975c45a7e6d7dbbece3",
+    "apps/portfolio-api/src/procurement.mjs": "a717d4fa99cb54c20bae01b8c27a8a1274514ad13222b2032e395efa256162f8",
+    "apps/portfolio-api/src/purchased-billing-state.mjs": "be5bf4143a7a8bac0e6223e3b20c8207512cbff6d1d15224b1a40b746a58e839",
+    "apps/portfolio-api/src/purchased-financial.mjs": "5c6937431ea286e66717677235fef3befef7976f953513d089ee93bc8d80a740",
+    "apps/portfolio-api/src/purchased-fulfillment.mjs": "d4a77d7c6ba12ebfa332991f58e29e5cceffe5cd53bf4b16f4122071f4cae75c",
+    "apps/portfolio-api/src/purchased-stock-proof.mjs": "2694da90e35c11e35437e5cb18d8039e803526ed760fa66f88aa1f729ab7a932",
+    "apps/portfolio-api/src/quality.mjs": "2e26e5fd98493efba7c43e174084eed385115974fc54f73e29dce3466711abe8",
+    "apps/portfolio-api/src/quote-catalog.mjs": "f6da9627dcac48822639aad42b059ca32718ecbaa4bd1775f567f868b8cbe129",
+    "apps/portfolio-api/src/rag.mjs": "0f247462930cdc0afc6b5ef0085e674d32b160c4d8cbfae351353d7d3339ed2f",
+    "apps/portfolio-api/src/receipt-origin.mjs": "9c8fe6accc3928ac8e2759aeb2b88f78b184fbac6792f96afd25992bf18c75dd",
+    "apps/portfolio-api/src/repair-components.mjs": "226cbcce033a787a33f524d32be0aa76690374a6e1905d57848122d1b194508d",
+    "apps/portfolio-api/src/repair-orders.mjs": "85f28ed5fef7542b4a5a230e8a205331b3958c11eb5ef67d1a30fd3b4e5e7306",
+    "apps/portfolio-api/src/repair-return.mjs": "b0cd75dc63b8ab40453fe626b6d09a6bad9389f9ec3f4fe59831ba5ce0d7c021",
+    "apps/portfolio-api/src/repair-stock.mjs": "28c58dfb3878a790f03d38dc265d6e1ad0e2d35afc85a985dc2d60efb97eb75d",
+    "apps/portfolio-api/src/repair.mjs": "68bf83976f85d2a193774569e7735678c68886f0d136bcb046ad4afb80e79257",
+    "apps/portfolio-api/src/reporting-source.mjs": "0d9c65f4df034c0417d7d39e887a07cb1120a05fe8f58351a7865ad867e88e33",
+    "apps/portfolio-api/src/serial-custody.mjs": "0ca09720c49e011e9bec55124304cae418250a95fec896f758316cea28aaba87",
+    "apps/portfolio-api/src/stock-holds.mjs": "fe0179862ca3a39ba65635e326e2340d8212e5ad3aa73a1a3c753e339d4cdd42",
+    "apps/portfolio-api/src/vendor-drafts.mjs": "dafa76e24ab6c39f3e370458aecebbd711c2f430d5fafd82db4b78922059a29f",
+    "apps/portfolio-api/src/warehouse.mjs": "66b18738ca8ab02ab4e058f4e7e4a33b82308e6ddf78916260686f6c6a260aa7",
+    "apps/portfolio-api/src/workforce.mjs": "203e15d5da11452c4fd991442c29b3c43037ce5b506fecf50f9eb412282b674e",
+    "packages/contracts/src/domains/commercial/purchase-orders.mjs": "a39898b88377f27044bcb9ec2e2294e6c628e05435da406739afedcc29d7bd3d",
+    "packages/contracts/src/domains/engineering-repair/gates.mjs": "4d250c6bafc99853bdb25d69655d20c68159c9d0518c05c8129b0287c2daf3e3",
+    "packages/contracts/src/domains/logistics-billing/values.mjs": "91d85580045284e070a5395a75b0875c1b7e91aaff5b9f5326794272fc335c20",
+    "packages/contracts/src/domains/planning-execution/manufactured-graph.mjs": "1df97ae2c4854a2be65d2ed1735b87424a2e068d61a138f316c1d09e7dae9efd",
+    "packages/customer-service/index.mjs": "de09d4217923a359f68291c8d9da8e26382aa20be9c2f2a9a461cdeed8362ef9",
+    "packages/customer-service/order-fixtures.mjs": "a6cd15176e749a31f4c8366661b0781289129f77f7731fe3a2c39f5d11b9bcc8",
+    "packages/customer-service/order-source.mjs": "140c440c8530ef772ef4bd1a29659e9285414a41f1082ae40a0cbe2ddde12aa0",
+    "packages/customer-service/service-metrics.mjs": "469cc57b2779ef6b81d907c91c052664a6d7a73ae109882a72cfdf6910cba9b4",
+    "packages/scoped-ai/assistants.mjs": "4c2205b6847e1daf46a9d2824898b1833cc80816063ba2bc56ae3e7738e25be9",
+    "packages/scoped-ai/documents.mjs": "4c956532fd305219bae990775694d942e1ec996c5e4a59f95ef0adb6952ba5fb",
+    "packages/scoped-ai/feature-manifest.mjs": "f8d308a3fccf15cb2c3007d34d1bbefe43943286d9b3f3b4328039d3450a5fec",
+    "packages/scoped-ai/indexing.mjs": "04e3539777befe3512b38025d791f0edc431ecf9df6f2b4f294a1c852853c872",
+    "packages/scoped-ai/intents.mjs": "3a0fcbae9edea8c677ba91ecb2d0734e7d48dfb6e8a05e1ceaf935ca2ee83c4d",
+    "packages/scoped-ai/issued-documents.mjs": "7517fd9c6d40ccfe0df71d02de091b271cd7561b8ee748376e97c4587da5aa81",
+    "packages/scoped-ai/local-model.mjs": "b8953a4fbf195d9cd5cd78878c6571e9c3b0f40706513eaeca9167fc0f10d5e4",
+    "packages/scoped-ai/mlflow.mjs": "1450d56af190744d8aebccba31d35fb48b79e5ab4d5db6f5f72bc2075ce8ba69",
+    "packages/scoped-ai/models.mjs": "0b4034f193360a974db4688b69f2a1256a7e81029473cda62d0c8300408f525c",
+    "packages/scoped-ai/qdrant.mjs": "dd6e982855c3d4074a295196e8927453be6a387a7d84c83b37eca779781c1704",
+    "packages/scoped-ai/temporal.mjs": "9b8b7e642d2daf4b1aaaef192d77704d5452338c7c74ba0aacfb2ae36a4a5534",
+    "packages/scoped-ai/vendor-drafts.mjs": "ddff2047346250913b5a77707def3466a22aa520c2476af1234fab1b5415edf5",
+    "packages/scoped-ai/vendor-source.mjs": "2b3c91a878b4fe9c22d9619f6c7af60e047a6cf43a739981e51b4e9df61cff8c",
+    "packages/domain-events/index.mjs": "5d7ff3466006e1846aa6062f2f9a85e8d56d9745332bfe731f875d3b8f83ad5c",
+    "packages/domain-events/snapshot-source.mjs": "2f7d436cf26ff032380d1370557f30cb3c9986bd3b892f43b44b59b35b8f7dfd",
+    "packages/domain-events/source-bindings.mjs": "ffe4c0ac645697765a0dccf1418ebb7a498987024e3c31f4d7d658f75c992f16",
+    "packages/document-rendering/src/index.mjs": "0234008355edfbd31ab1c82da7cb3d182f352155ec9bc43d0a9b09272f570484",
+    "packages/document-rendering/src/layout-v2.mjs": "e98de60e265be5dcd733408825fe5e767180f824fe23e169a66d35ebd6badb1a",
+    "packages/document-rendering/src/layout-v3.mjs": "0e0e91a3144a4228a3d508d6fca17c3bc4ded113b0f64857b0034220778ebbd1",
+    "packages/document-rendering/src/vat.mjs": "e93a8befa29812a3f3f578e555183859e5b4509812e89053b4df261f31b45d4e",
+    "packages/tenant-foundation/commands.mjs": "bdf66a20469b28ee36bc2aa174c13cb4b8a4b8f526d971077b6c7946c09b935c",
+    "packages/tenant-foundation/index.mjs": "697a149d21407ba78d2d8db0f284da74069315a50b2c8882d87a28bfba7411a1",
+    "packages/durable-jobs/authorization.mjs": "dc7e135a0fa8c278f2d94132ccebf4112e5e357458d403ccd0ac2352183ed8dc",
+    "packages/durable-jobs/index.mjs": "ddc174521d4d74bf674fca23c939a9a63634fb969ad5256f58df00e54878a943",
+    "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
+    "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
+    "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
+    "packages/tenant-lifecycle/effects.mjs": "e88f2d25583bc2c8267a2cac0b16a990efa957e8d758bfb6827592743d0058bb",
+    "packages/tenant-lifecycle/local-effects-adapter.mjs": "3203b873403b1c57e9e446142b943328c993b49d721aadf057ebb4fd90a294e8",
+    "packages/tenant-lifecycle/effect-primitives.mjs": "7c528a2602f3b46fc2d0d94dc782ebf5d0fecec9f867618bc5397d871d4fbb6f",
+    "packages/tenant-lifecycle/local-ai-provider.mjs": "77a0b820116c978c5fc7b9a1bd0a210244fea23a2abc72818296dfb30063115b",
+    "packages/tenant-lifecycle/indexing-effects.mjs": "f1b62820a930b6c258ba31f5a80566e8c28b8bfdfcc0dec6e531e2d54f66b319",
+    "packages/tenant-lifecycle/vendor-effects.mjs": "1275ab1c8220ebc503e8cdae1d8cee97a7ec29cf6e66ee5ff19fca398f8b01d3",
+    "packages/tenant-lifecycle/admission.mjs": "0ffba815d0872a0b6402a68e12dcf00b75b51357c182d3e026b8c777a04a9b59",
+    "packages/tenant-lifecycle/index.mjs": "4359aa7714debaa617c107aad3b3a0666c94a10168bc937bf7373827af922585",
+    "packages/tenant-lifecycle/domain-port.mjs": "48787a3e8928573328259a0bfef8bdf05ef183c4dd813a0175dff62c70131a36",
+    "packages/tenant-lifecycle/admission-registry.mjs": "292fefe68375039b69c04cf3850e3413eb26934f02308e0e67fd8208cdbe1ca6"
+  },
+  "routes": [
+    {
+      "route": "GET /api/ai/documents",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/ai/documents/:id/index",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/ai/documents/:id/index/cleanup",
+      "state": "READ",
+      "meter": "NONE",
+      "condition": "Named CLEANUP_METADATA_V1 snapshot; current actor/source ACL and original approved reference, no text/provider/write authority; inactive or superseded documents do not become rebuildable."
+    },
+    {
+      "route": "GET /api/ai/models",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/ai/vendor-drafts/:draftId",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/analytics/authority",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/analytics/catalog",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/analytics/datasets/:dataset",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/analytics/datasets/:dataset/export",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/analytics/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-disposition/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-disposition/receipts/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-disposition/receipts/:id/inspections",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-disposition/receipts/:id/inspections/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-disposition/receipts/:id/stock-movements",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/options/items",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/options/items/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/options/vendors",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/options/vendors/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders/:id/document-revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders/:id/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders/:id/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/receipts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/receipts/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/requests",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/requests/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/requests/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/requests/:id/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/requests/:id/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-stock/receipts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-stock/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/catalog-items",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/catalog-items/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/inquiries",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/inquiries/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/quotes",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/quotes/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/company-stock/receipts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/company-stock/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/company-stock/receipts/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/company-stock/receipts/:id/units/:unitId/trace",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/crm/accounts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/crm/accounts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/crm/accounts/:id/contacts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/crm/opportunities",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/crm/opportunities/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/audit-logs",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/deliveries",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/digest",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/resolution-drafts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/resolution-drafts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/sink-messages",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/sla-breaches",
+      "state": "READ",
+      "meter": "NONE",
+      "note": "Bounded eligibility observation; no task scheduling or business writes."
+    },
+    {
+      "route": "GET /api/cs/automation/status",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/bindings",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/bindings/:id/order-status",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/conversations",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/conversations/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/conversations/:id/thread",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/conversations/by-binding/:bindingId",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/metrics",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/tickets",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/tickets/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/tickets/:id/internal-notes",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/deliveries/shipments/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/deliveries/shipments/:id/confirmations",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/deliveries/shipments/:id/returns",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/documents/issues/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/documents/issues/:id/pdf",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/documents/sources/:kind/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/accounts/:id/ledger",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/invoices",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/invoices/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/manufactured/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/orders/:id/balances",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/orders/:id/closure",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/orders/:id/entitlement",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/orders/:id/reconciliation",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/packing",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/packing/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/payments",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/payments/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/shipments",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/shipments/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-execution/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-execution/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-execution/orders/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-production/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-production/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-production/orders/:id/engineering/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-production/orders/:id/engineering/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-production/orders/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/items",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/items/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/items/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/items/:id/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/items/:id/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/locations",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/locations/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/locations/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/engineering",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/engineering/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/engineering/:id/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/genealogy/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/genealogy",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/genealogy/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/genealogy/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/installations",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/installations/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/installations/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/installations/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/labor",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/output-units",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/serial-claims",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/serial-claims/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/capacity",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/capacity/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/dashboard",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/drilldown/:source",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/voice/generation",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/voice/zones",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/voice/zones/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/voice/zones/:id/audio/:jobId",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/platform/jobs",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/portals/customers/:customerId/orders/:orderNumber",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/portals/vendors/:vendorId/orders/:orderId",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/portals/vendors/:vendorId/orders/:orderId/responses",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/material-shortages/:sourceId",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/orders/:id/document-revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/requests",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/requests/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/vendors",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/vendors/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/purchased-fulfillment/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/purchased-fulfillment/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/purchased-fulfillment/orders/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/cases",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/cases/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/deposits",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/deposits/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/invoices",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/invoices/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/maintenance/equipment/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/maintenance/equipment/:id/capacity",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/quality/resources",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/quality/resources/:type/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/sales-orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/sales-orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/work-orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/work-orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/saas/effects/:id",
+      "state": "READ",
+      "meter": "NONE",
+      "note": "Registered kind rebinds current original actor/source; private persisted parent/attempt/fence; continue or observe never creates a new root."
+    },
+    {
+      "route": "GET /api/saas/status",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "GET /api/session/me",
+      "state": "AUTH_RECOVERY",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/bins",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/bins/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/holds",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/movements",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/movements/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts/:id/holds",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts/:id/reconciliation",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts/:id/serial-custody",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts/:id/serial-custody/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/reservations",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/reservations/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/workforce/capabilities",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/workforce/operators/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "POST /api/ai/assistant",
+      "state": "ADVISORY_READ",
+      "meter": "NONE",
+      "note": "No business write; source/authorization fences retained. Provider availability/cost separately gated."
+    },
+    {
+      "route": "POST /api/ai/cs-intent",
+      "state": "ADVISORY_READ",
+      "meter": "NONE",
+      "note": "No business write; source/authorization fences retained. Provider availability/cost separately gated."
+    },
+    {
+      "route": "POST /api/ai/documents/:id/index/cleanup",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": "saasEffectCommands",
+      "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+      "condition": "Factory-issued native local model/vector pair, persisted exact point/source/ACL/model identity, EMBED then UPSERT or bounded exact-ID DELETE with actual provider receipts; immutable202 acceptance and separate authorized status. New cleanup plans use CLEANUP_METADATA_V1 current actor/ACL and original historical source authority; old plans retain original hashes. Published points remain excluded. Raw provider adapters remain gated."
+    },
+    {
+      "route": "POST /api/ai/documents/:id/index/revoke",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/documents/:id/publish",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/documents/:id/rebuild",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": "saasEffectCommands",
+      "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+      "condition": "Factory-issued native local model/vector pair, persisted exact point/source/ACL/model identity, EMBED then UPSERT or bounded exact-ID DELETE with actual provider receipts; immutable202 acceptance and separate authorized status. New cleanup plans use CLEANUP_METADATA_V1 current actor/ACL and original historical source authority; old plans retain original hashes. Published points remain excluded. Raw provider adapters remain gated."
+    },
+    {
+      "route": "POST /api/ai/documents/:id/revoke",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/models/select",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/predictions",
+      "state": "ADVISORY_READ",
+      "meter": "NONE",
+      "note": "No business write; source/authorization fences retained. Provider availability/cost separately gated."
+    },
+    {
+      "route": "POST /api/ai/retrieve",
+      "state": "ADVISORY_READ",
+      "meter": "NONE",
+      "note": "No business write; source/authorization fences retained. Provider availability/cost separately gated."
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/approve",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/create",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/dispatch",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "receipt": "Original foundationCommandResults ai.vendor.deliver + aiVendorDeliveryAttempts",
+      "meter": "NONE",
+      "condition": "Factory-issued native LOCAL_SIMULATED transport, exact original receipt/control/attempt/source/approval/recipient binding; private VENDOR claim/invoke/settle, reconcile observes same attempt without send. Legacy/unregistered transport remains gated."
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/intent",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/preview",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/reconcile",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "receipt": "Original foundationCommandResults ai.vendor.deliver + aiVendorDeliveryAttempts",
+      "meter": "NONE",
+      "condition": "Factory-issued native LOCAL_SIMULATED transport, exact original receipt/control/attempt/source/approval/recipient binding; private VENDOR claim/invoke/settle, reconcile observes same attempt without send. Legacy/unregistered transport remains gated."
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/revoke",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-disposition/receipts/:id/approve",
+      "state": "RECEIPTED",
+      "receipt": "catalogDispositionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-disposition/receipts/:id/inspections",
+      "state": "RECEIPTED",
+      "receipt": "catalogDispositionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-disposition/receipts/:id/putaway",
+      "state": "RECEIPTED",
+      "receipt": "catalogDispositionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/orders/:id/amendments",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/orders/:id/amendments/:amendmentId/approve",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/orders/:id/amendments/:amendmentId/issue",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/orders/:id/issue",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/orders/:id/vendor-promise",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/receipts",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests/:id/approve",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests/:id/convert",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests/:id/revisions",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests/:id/rfq",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests/:id/rfq-response",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/commercial/inquiries",
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/commercial/inquiries/:id/convert",
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/commercial/inquiries/:id/revisions",
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/commercial/inquiries/:id/stage",
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/commercial/quotes",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/accept",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/approve",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/convert",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "quoteConversions"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/revisions",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/company-stock/receipts/:id/holds",
+      "state": "RECEIPTED",
+      "receipt": "companyStockKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/company-stock/receipts/:id/holds/release",
+      "state": "RECEIPTED",
+      "receipt": "companyStockKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/crm/accounts",
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/crm/accounts/:id/contacts",
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/crm/opportunities",
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/crm/opportunities/:id/stage",
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/cs/automation/deliveries/:id/review",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/digest/dispatch",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/digest/record",
+      "state": "REJECTED_COMMAND",
+      "meter": "NONE",
+      "note": "Always rejects caller delivery receipts/alternate handoff; no business effect."
+    },
+    {
+      "route": "POST /api/cs/automation/engine-error",
+      "state": "PRIVATE_PARENT_OBSERVATION",
+      "receipt": "automation_audit_logs",
+      "meter": "NONE",
+      "condition": "AUTOMATION_ENGINE_ERROR exact run/workflow/execution/error hash, actual correlated service session and already-begun registered attempt; never stop proof."
+    },
+    {
+      "route": "POST /api/cs/automation/escalate",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/pause",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/recheck",
+      "state": "READ",
+      "meter": "NONE",
+      "note": "Bounded eligibility observation; no task scheduling or business writes."
+    },
+    {
+      "route": "POST /api/cs/automation/reconcile",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "condition": "Explicit bounded LOCAL_OBSERVE_V1 or registered LOCAL_SIMULATED AUTOMATION_RECOVERY with original audit receipt/frozen selection/private parent child contexts; unmanaged legacy recovery remains gated."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-draft",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/approve",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/cancel",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/dispatch",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/reject",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/run/:workflowId",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "condition": "Managed engine LOCAL_SIMULATED adapter and real current human/service session; AUTOMATION_ENGINE_RUN keeps existing tenant/key digest and immutable accepted result; legacy engine remains separate-effect gated."
+    },
+    {
+      "route": "POST /api/cs/automation/service-credentials",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/service-credentials/:id/revoke",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/whatsapp-handoff",
+      "state": "REJECTED_COMMAND",
+      "meter": "NONE",
+      "note": "Always rejects caller delivery receipts/alternate handoff; no business effect."
+    },
+    {
+      "route": "POST /api/cs/bindings",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/bindings/:id/revoke",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/conversations/:id/mode",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/conversations/:id/reply",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/conversations/:id/takeover",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/deliveries/:id/resolve",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/simulator/dispatch",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/simulator/inbound",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND",
+      "note": "Current-session private disposition; enrolled response stays queued, no preview/worker; non-enrolled worker gates retained."
+    },
+    {
+      "route": "POST /api/cs/tickets/:id/internal-notes",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/tickets/:id/public-update",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/tickets/:id/stage",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/deliveries/shipments/:id/confirmations",
+      "state": "RECEIPTED",
+      "receipt": "deliveryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/deliveries/shipments/:id/returns",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentReturnKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/documents/issues",
+      "state": "RECEIPTED",
+      "receipt": "documentIssues",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/deposits",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/invoices",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/manufactured-shipments",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/packing",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/packing/:id/pack",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/payments",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/shipments",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/allocations",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/issue",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/losses",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/putaway",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/qc",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/records",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/release",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/reservations",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/reservations/:reservationId/release",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-production/orders",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-production/orders/:id/cancel",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-production/orders/:id/engineering/approve",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-production/orders/:id/engineering/revisions",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-production/orders/:id/engineering/revoke",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/items",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/items/:id/approve",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/items/:id/deactivate",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/items/:id/revisions",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/locations",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/locations/:id/deactivate",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/locations/:id/qualify",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/engineering",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/engineering/:id/release",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/engineering/:id/revisions",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/engineering/:id/revoke",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/genealogy/allocations",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/genealogy/finalize",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/genealogy/losses",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/installations/finalize",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/installations/losses",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/installations/record",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/installations/remove",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/labor",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/material-demand",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/qc",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/record",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/release",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/release-engineering",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/serial-claims",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/serial-claims/abandon",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/samples/:id/sample",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/cancel",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/claim",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/failed",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/generated",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/publish",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/recover",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/configure",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/enqueue",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/failed",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/lease",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/played",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/recover",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/started",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/platform/jobs",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "note": "Dedicated job executor reauthorizes handler and request; caller-session rate/new enqueue only; worker retries nonbillable"
+    },
+    {
+      "route": "POST /api/portals/grants",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/portals/grants/:grantId/revoke",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/portals/vendors/:vendorId/orders/:orderId/responses",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/material-shortages/:sourceId/release",
+      "state": "RECEIPTED",
+      "receipt": "materialShortageKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/material-shortages/refresh",
+      "state": "RECEIPTED",
+      "receipt": "materialShortageKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/amendments",
+      "state": "RECEIPTED",
+      "receipt": "purchaseOrderAmendmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/amendments/:amendmentId/approve",
+      "state": "RECEIPTED",
+      "receipt": "purchaseOrderAmendmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/amendments/:amendmentId/issue",
+      "state": "RECEIPTED",
+      "receipt": "purchaseOrderAmendmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/issue",
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/vendor-confirmation",
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/vendor-promise",
+      "state": "RECEIPTED",
+      "receipt": "procurementPromiseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests",
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests/:id/approve",
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests/:id/convert",
+      "state": "RECEIPTED",
+      "receipt": "procurementConversions",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests/:id/rfq",
+      "state": "RECEIPTED",
+      "receipt": "procurementRfqKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests/:id/rfq-response",
+      "state": "RECEIPTED",
+      "receipt": "procurementRfqKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests/from-shortage",
+      "state": "RECEIPTED",
+      "receipt": "materialShortageKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/vendors",
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/purchased-fulfillment/orders/:id/reservations",
+      "state": "RECEIPTED",
+      "receipt": "purchasedFulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/purchased-fulfillment/orders/:id/reservations/:reservationId/release",
+      "state": "RECEIPTED",
+      "receipt": "purchasedFulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/purchased-fulfillment/orders/:id/shipments",
+      "state": "RECEIPTED",
+      "receipt": "purchasedFulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/bill",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/component-dispose",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/component-remove",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/decide",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/deposit",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/diagnostic-authorize",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/execute",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/hold",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/orders",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/qc",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/return",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/rework",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/scope",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/spare-authorize",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/spare-install",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/spare-issue",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/spare-release",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/spare-reserve",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/start",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/teardown",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/test",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/test-plan",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/warranty",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/warranty-claim",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/warranty-void",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/invoices/:id/settle",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/maintenance/equipment/:id/cancel",
+      "state": "RECEIPTED",
+      "receipt": "maintenanceKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/maintenance/equipment/:id/complete",
+      "state": "RECEIPTED",
+      "receipt": "maintenanceKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/maintenance/equipment/:id/schedule",
+      "state": "RECEIPTED",
+      "receipt": "maintenanceKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/maintenance/equipment/:id/start",
+      "state": "RECEIPTED",
+      "receipt": "maintenanceKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/quality/resources/:type/:id/calibrate",
+      "state": "RECEIPTED",
+      "receipt": "qualityKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/quality/resources/:type/:id/configure",
+      "state": "RECEIPTED",
+      "receipt": "qualityKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/quality/resources/:type/:id/hold",
+      "state": "RECEIPTED",
+      "receipt": "qualityKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/quality/resources/:type/:id/qualify",
+      "state": "RECEIPTED",
+      "receipt": "qualityKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/quality/resources/:type/:id/release",
+      "state": "RECEIPTED",
+      "receipt": "qualityKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/saas/delete",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/download",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/effects/:id/children/:childId/continue",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "meter": "NONE",
+      "note": "Registered kind rebinds current original actor/source; private persisted parent/attempt/fence; continue or observe never creates a new root."
+    },
+    {
+      "route": "POST /api/saas/effects/:id/continue",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "meter": "NONE",
+      "note": "Registered kind rebinds current original actor/source; private persisted parent/attempt/fence; continue or observe never creates a new root."
+    },
+    {
+      "route": "POST /api/saas/effects/:id/observe",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "meter": "NONE",
+      "note": "Registered kind rebinds current original actor/source; private persisted parent/attempt/fence; continue or observe never creates a new root."
+    },
+    {
+      "route": "POST /api/saas/export",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/meter",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/quiesce",
+      "state": "CONTROL_PLANE",
+      "meter": "NONE",
+      "note": "Current tenant-wide saas.suspend closes the durable epoch then performs verified adapter drain; no business publication or root charge."
+    },
+    {
+      "route": "POST /api/saas/restore",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/resume",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/subscribe",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/suspend",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/session/login",
+      "state": "AUTH_RECOVERY",
+      "meter": "NONE"
+    },
+    {
+      "route": "POST /api/session/logout",
+      "state": "AUTH_RECOVERY",
+      "meter": "NONE"
+    },
+    {
+      "route": "POST /api/warehouse/bins",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/holds/:holdId/release",
+      "state": "RECEIPTED",
+      "receipt": "stockHoldKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/count",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/holds",
+      "state": "RECEIPTED",
+      "receipt": "stockHoldKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/putaway",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/release",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/reserve",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/serial-custody/adopt",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/transfer",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/workforce/operators/:id/challenge",
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/workforce/operators/:id/configure",
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/workforce/operators/:id/consent",
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/workforce/operators/:id/verify",
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "PUT /api/ai/documents/:id",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    }
+  ],
+  "commits": [
+    {
+      "sha": "8d21b6b47f8f6f88d742b6887abd0c43d6b4906a",
+      "subject": "feat(PLAT-038): persist separate-effect claims, local receipts and drain barriers"
+    },
+    {
+      "sha": "78ff1364f4f1da8cc63eb82d0d9d9df4a3be561c",
+      "subject": "PLAT-038 v15 fence lifecycle stop and authorized effect phases"
+    },
+    {
+      "sha": "41e7124d1786023fa47c72d61cad4410d16b8030",
+      "subject": "PLAT-038 v15 receipt engine acceptance and correlated error observation"
+    },
+    {
+      "sha": "e9cf6cd9f6f7d7ee499fa2e61d3c49e27d4c2127",
+      "subject": "PLAT-038 v15 bind private CS workers to original receipts and local phases"
+    },
+    {
+      "sha": "1e70b0c3fbe721a26d27bcb678cbf57d4810a796",
+      "subject": "PLAT-038 v15 inventory implemented engine and CS phase boundaries"
+    },
+    {
+      "sha": "848ee4c39ad213f2037501d65d5aeaa45d419094",
+      "subject": "PLAT-038 v15 reauthorize provider BEGIN and bind child transactions to parent proof"
+    },
+    {
+      "sha": "d2f01fb1f2879638204c4d0726b18b38ab93dad9",
+      "subject": "PLAT-038 v15 preserve automation intent receipts through controlled local delivery"
+    },
+    {
+      "sha": "6d7da9fc03951b48a87d7bf2be40f5c45bec8654",
+      "subject": "PLAT-038 v15 pin parent and local transport boundaries"
+    },
+    {
+      "sha": "baf3ec3ec6389a98b80e740f4cd6606158798bf2",
+      "subject": "PLAT-038 v15 receipt bounded recovery with original parent child authority"
+    },
+    {
+      "sha": "ebf3799aae24044ef25c5da98b906fb0f7f77eed",
+      "subject": "PLAT-038 v15 record bounded recovery and phase retry coverage"
+    },
+    {
+      "sha": "cff53c9062b5e88dc78f05162d5e35fae2a69ecb",
+      "subject": "PLAT-038 v15 keep authorized status projections read only and bind CS payload proofs"
+    },
+    {
+      "sha": "e1b9cd0d5da3e877df8ae5316a6429cd4cc2a0ce",
+      "subject": "PLAT-038 v15 pin read-only status and immutable CS source proof"
+    },
+    {
+      "sha": "1668c6541409614289f1604be5211f9cc3321c07",
+      "subject": "PLAT-038 v15 prove local native provider receipts and accepted AI root metering"
+    },
+    {
+      "sha": "4a617e4e5d68bc7b729fffb7eca3e0ced87ff09c",
+      "subject": "PLAT-038 v15 register native fixture source and bounded AI root primitive"
+    },
+    {
+      "sha": "36d57b33a8564c5143b260142580c5d3ab0ae355",
+      "subject": "PLAT-038 v16 add authenticated read-only AI source ports"
+    },
+    {
+      "sha": "bc94620f177a13f893e99f317fed3074843eed7b",
+      "subject": "PLAT-038 v16 pin read-only AI source authority"
+    },
+    {
+      "sha": "0621dd466b7b005eeeae3c71998756aef68c4a59",
+      "subject": "PLAT-038 v15 implement controlled indexing phases and original receipt publication"
+    },
+    {
+      "sha": "3124491af4de05c905f357ec4f5482bd70b74fac",
+      "subject": "PLAT-038 v15 register controlled indexing routes and native proofs"
+    },
+    {
+      "sha": "1d73181f1bcb73d9ba010a5b587049cb82501368",
+      "subject": "PLAT-038 v15 bind vendor phases to original intent and native local receipts"
+    },
+    {
+      "sha": "71ed33ed3f5b2d08bf529f07f9caacaa3d4e1636",
+      "subject": "PLAT-038 v15 register vendor continuation and observation coverage"
+    },
+    {
+      "sha": "c8b7c8eb1da727d732a6ad96a0e10fc5193e94af",
+      "subject": "PLAT-038 v15 fence reviewed pre-provider retries and expose scoped intent status"
+    },
+    {
+      "sha": "fe11404148de13e1ea86ef195c80538b30e28608",
+      "subject": "PLAT-038 v15 reconcile legacy index receipts before provider work"
+    },
+    {
+      "sha": "6be0f385d0981a1ba40c73de7ec140aa46f36343",
+      "subject": "PLAT-038 v15 retain caller intents and explicit phase recovery across five workspaces"
+    },
+    {
+      "sha": "39d2d8764206dfaa78a29e70471e7498a6ae234a",
+      "subject": "PLAT-038 v15 record tested caller/retry coverage and exact cleanup authority gap"
+    },
+    {
+      "sha": "86779d95b5facfd60d1922985a259161d40f6f11",
+      "subject": "PLAT-038 preserve observed provider results after publication CAS denial"
+    },
+    {
+      "sha": "36b4598a68390400e78c8352080e3f22339f8384",
+      "subject": "PLAT-038 pin publication conflict observation boundary"
+    },
+    {
+      "sha": "ee350cb4f893be5df8c741f82f575be0c197fb50",
+      "subject": "feat(PLAT-038): authorize bounded metadata cleanup for inactive sources"
+    },
+    {
+      "sha": "c9634a7de8f6a74181a7e68b636cbc6311397895",
+      "subject": "feat(PLAT-038): expose scoped cleanup recovery with stable caller intent"
+    }
+  ],
+  "remaining": [
+    {
+      "boundary": "Historical PREPARED document intent / partial renderer recovery",
+      "state": "LOCAL_RECONCILIATION_RESERVED",
+      "owner": "CTO153 allocation and commercial/document owner; no public admitted recovery root",
+      "needed": "Original immutable source/artifact/READY receipt integrity and explicit data reconciliation contract; never reseal, erase history or infer no old work",
+      "effect": "No automatic recovery or erasure claimed"
+    },
+    {
+      "boundary": "Legacy or unmanaged engine/vendor history and CS SENDING/UNKNOWN",
+      "state": "RECONCILIATION_REQUIRED",
+      "owner": "Operator with actual provider proof and approved source/history contract",
+      "needed": "Actual dedup/observation/stop-and-drain capability bound to historical attempt; fresh local command cannot backfill",
+      "effect": "Enrollment/archive fail closed until authoritative reconciliation"
+    },
+    {
+      "boundary": "Real engine/SMTP/vendor/embedding/vector/cloud providers",
+      "state": "EXTERNAL_DEPENDENCY",
+      "owner": "Board/provider administrator",
+      "needed": "Separate access/spend/send authorization plus authoritative adapter receipt/dedup/observation/drain proof",
+      "effect": "NOT_RUN; no live acceptance"
+    },
+    {
+      "boundary": "Final independent QA",
+      "state": "NOT_RUN",
+      "owner": "TPR-149 integration then TPR-150/152",
+      "needed": "Immutable integrated candidate and complete final QA",
+      "effect": "Local focused checks are implementation evidence only"
+    }
+  ],
+  "localModes": [
+    "LOCAL_SIMULATED owned native provider fixture",
+    "Owned loopback synthetic existing transport evidence"
+  ],
+  "external": "NOT_RUN",
+  "databricks": "PLANNED",
+  "checks": {
+    "focusedMongo": "76/76 PASS; v17-final-backend.log",
+    "scopedAiUnit": "29/29 PASS",
+    "uiHelpers": "5/5 PASS",
+    "mountedBrowser": "V14 1/1 PASS and final V15/V17 1/1 PASS; earlier combined harness interceptor recursion failure retained",
+    "webBuild": "PASS; known bundle/Browserslist warnings",
+    "csTypes": "PASS",
+    "sourceVerifiers": "PASS",
+    "visual": "1280 desktop and390 mobile actual cleanup panel captured/viewed, no page overflow",
+    "linked": "PASS_BOUNDED_DEMO: E01 PASS, E02 PASS, reporting PASS, web PASS_HTML_CSS_AND_AUTHENTICATED_PROXY, cleanup PASS_MARKER_VERIFIED; source c9634a7de8f6a74181a7e68b636cbc6311397895",
+    "independentQA": "NOT_RUN",
+    "external": "NOT_RUN"
+  },
+  "runMetadata": {
+    "adapterType": "codex_local",
+    "runId": "53aa7657-baa8-4f40-bb31-26ff09c1039e",
+    "configurationChanged": false,
+    "requestedModel": "gpt-6.1-sol",
+    "actualModel": "NOT_EXPOSED_BY_RUNNING_CONTROL_PLANE_RECORD"
+  }
+}

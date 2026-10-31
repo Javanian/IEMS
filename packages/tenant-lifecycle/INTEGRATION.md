@@ -1,4 +1,8 @@
-# Current v14 handoff
+# Current v15–v17 handoff
+
+See ops/pilot/PLAT-038-V15-HANDOFF.md and PLAT-038-V15-COVERAGE.json for the implemented controlled separate-effect protocol, original receipt mappings, private worker and AI phases, truthful callers, read-only source ports and bounded inactive/historical-source cleanup metadata. Local controlled implementation is IMPLEMENTED_QA_PENDING; real external access and historical unmanaged/PREPARED reconciliation remain explicitly gated. fullEndpointCoverage:false; whole PLAT-038 INCOMPLETE. TPR-149 integrates, then TPR-150/152 independently verify.
+
+## Historical v14 handoff
 
 See ops/pilot/PLAT-038-V14-HANDOFF.md and PLAT-038-V14-COVERAGE.json for allocated immutable CS roots, administrative/one-time credential receipts, explicit human preview, bounded LOCAL_OBSERVE and caller recovery. All allocated A-E are IMPLEMENTED_QA_PENDING; reserved engine/worker/transport/full recovery remain gated. fullEndpointCoverage:false.
 
