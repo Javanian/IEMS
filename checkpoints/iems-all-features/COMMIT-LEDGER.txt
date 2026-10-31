@@ -179,3 +179,26 @@ a6f76c7d1b81bde1375f48c203037ffdd411eece|feat(PLAT-040): assemble feature runtim
 f8706b26d2b40fe941e480685c1a94634bc88f00|feat(PLAT-021): bridge private synthetic snapshots to existing raw Parquet API
 55766c6a87e5b81a2b9f267a451b3c2cce2d242f|feat(PLAT-048): compose private reporting lifecycle and immutable local extraction
 576a947d623ee12561d0a7819eb4bd3645021eba|feat(PLAT-038): wire bounded receipt admission and registered tenant archive port
+140fa2433bd65114c0ed3e7d557e4a7b357de43a|docs(PLAT-040): record reporting and SaaS integration with remaining local gaps
+19561749dbac890a4adfe192f3424996ff86d21e|test(PLAT-013): reproduce canonical E02 scope clock and VAT blocker
+27e7531e3611dee0ed1336d3aa17160c73bbd2d2|feat(PLAT-013): add typed repair service orders and exact scope VAT billing
+2eaa73126555a2a344f4a8dce1ec5925e773ecbd|feat(PLAT-038): admit existing local owner receipts with source-validated replay
+152188ffcc0accf7817bb6700180e0cbd0781629|feat(PLAT-013): bind customer asset dispatch POD and exact repair warranty
+4eb0f0729025e05be9b921bf33a3491df0c8b82c|fix(PLAT-013): fence typed service and warranty sources in caller transactions
+6951ab3b1371e13f6121a667901fd134d616c099|fix(PLAT-013): validate immutable POD warranty proof on service claims and rechecks
+59b7d637cdd70b0bdb937773f84430c32f9ee2d1|test(PLAT-013): assemble canonical accepted and rejected E02 runtime runner
+78e0ce89a4f88bab0dfd9c116be04b984933f351|feat(PLAT-013): expose typed service dispatch POD and warranty commands in repair UI
+55ec65d6ea607989865b674df778104093dd9b26|feat(PLAT-038): receipt keyed CRM legacy quotes and procurement commands
+a87e593abe0476bae34275d1f19c78441c6a4b10|feat(PLAT-038): atomically issue documents with caller session and receipt admission
+ab8ecca634340d0c5dea38296362e2e662b9548a|Merge commit '78e0ce89a4f88bab0dfd9c116be04b984933f351' into program/iems-all-20261030-pilot_cloud_saas
+55e6c34299373037bfff44cb8ad09a47d1e86ac0|fix(PLAT-038): validate typed repair replay and register E02 business graph
+701b1627e3b001f1b1f70ac9aa59207277162f77|fix(PLAT-013): supply explicit synthetic spare heat trace in canonical E02 runner
+ce0f08a3911bebf6a83a3fe82e6a8628a2cac04f|fix(PLAT-013): return stable null generic order field for customer asset POD
+497db362d1f53895f181fdaffc083e0875e61d28|docs(PLAT-013): record real E02 runtime findings and exact pin refresh delta
+cc9e6d87a8e505fbfc0a04e937431a41abd0342c|fix(PLAT-013): keep literal null distinct from registry field syntax
+24d223d0de4f4b061a7ac34ead4160eaf10a1bf6|chore(PLAT-013): refresh generated delivery source digests only
+68860a4ece7c57db3b5bf5d6332c817396b07657|test(PLAT-013): publish canonical consumption and QC identities in E02 manifests
+daf1324a15a13f86b3138bd0b651b9edeeb950f9|test(PLAT-013): include rejection cancellation billing and POD hashes in manifest
+e7f44360d4b7883c1319f0c9d39bd8cab4ff3be7|docs(PLAT-013): hand off verified E02 runtime manifests and digest-only pins
+1ba4d57f356bf3baa2c15b3290e931fdcf9f35cd|merge(TPR-149): preserve E02 domain runner and SaaS receipt handoffs
+c7eb54163c2bd29bbc6590597a21105a41c963d4|feat(PLAT-019): assemble linked owned E01 E02 and private reporting demo

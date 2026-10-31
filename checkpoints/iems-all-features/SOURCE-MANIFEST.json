@@ -2,8 +2,8 @@
   {
     "adapter": "shortage producer/claim",
     "path": "apps/portfolio-api/src/material-shortages.mjs",
-    "lastSourceCommit": "576a947d623ee12561d0a7819eb4bd3645021eba",
-    "blob": "75ac9cbb80a0fe8ec39ad33e85cdc82afdc53fa1",
+    "lastSourceCommit": "2eaa73126555a2a344f4a8dce1ec5925e773ecbd",
+    "blob": "074141c0ac37a684a6634417e8235632189c3d07",
     "acceptance": "NOT_RUN"
   },
   {
@@ -30,8 +30,8 @@
   {
     "adapter": "historical document reader",
     "path": "apps/portfolio-api/src/documents.mjs",
-    "lastSourceCommit": "576a947d623ee12561d0a7819eb4bd3645021eba",
-    "blob": "62d741e62a1e4048d372640d2d6df64973195603",
+    "lastSourceCommit": "a87e593abe0476bae34275d1f19c78441c6a4b10",
+    "blob": "93bd808a17bcd9414634456bde40e46e733b60f3",
     "acceptance": "NOT_RUN"
   },
   {
@@ -51,8 +51,8 @@
   {
     "adapter": "commercial live order",
     "path": "apps/portfolio-api/src/commercial.mjs",
-    "lastSourceCommit": "576a947d623ee12561d0a7819eb4bd3645021eba",
-    "blob": "f9913b77ba3ccaa95f36ab6f3dba8115e75afb33",
+    "lastSourceCommit": "55ec65d6ea607989865b674df778104093dd9b26",
+    "blob": "b20f6bb504b5f07fb0ea89f5adf3c0c03937ec99",
     "acceptance": "NOT_RUN"
   },
   {
@@ -65,8 +65,8 @@
   {
     "adapter": "purchased settlement/shipment",
     "path": "apps/portfolio-api/src/purchased-fulfillment.mjs",
-    "lastSourceCommit": "576a947d623ee12561d0a7819eb4bd3645021eba",
-    "blob": "df3cc09532560abfb062f702f0575847d39cbc56",
+    "lastSourceCommit": "2eaa73126555a2a344f4a8dce1ec5925e773ecbd",
+    "blob": "6203700cc4255a549b27041a93939f7d2abdbf2f",
     "acceptance": "NOT_RUN"
   },
   {
@@ -88,6 +88,48 @@
     "path": "apps/portfolio-api/src/operations.mjs",
     "lastSourceCommit": "4deef871c73a7e98f21b05e9fa3e95567db2178d",
     "blob": "34f78f8d3a64af633ea0170d9bca028bcde778ab",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "repair typed service order authority",
+    "path": "apps/portfolio-api/src/repair-orders.mjs",
+    "lastSourceCommit": "4eb0f0729025e05be9b921bf33a3491df0c8b82c",
+    "blob": "ac6af984bd088b7207848313ec5e160cdb46ec8c",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "customer property return POD authority",
+    "path": "apps/portfolio-api/src/repair-return.mjs",
+    "lastSourceCommit": "6951ab3b1371e13f6121a667901fd134d616c099",
+    "blob": "10f298becafd52fd42fa846a8811fa1a8470804f",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "typed delivery replay and view",
+    "path": "apps/portfolio-api/src/delivery.mjs",
+    "lastSourceCommit": "cc9e6d87a8e505fbfc0a04e937431a41abd0342c",
+    "blob": "8227d65efe82f512957cd937829cdc6e8cec7960",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "private reporting lifecycle",
+    "path": "ops/demo/reporting-runtime.mjs",
+    "lastSourceCommit": "55766c6a87e5b81a2b9f267a451b3c2cce2d242f",
+    "blob": "55e5cd240ad485405d8e17ae8cc0048cb9da3057",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "document caller-session issue",
+    "path": "packages/document-rendering/src/index.mjs",
+    "lastSourceCommit": "a87e593abe0476bae34275d1f19c78441c6a4b10",
+    "blob": "17c6f98f611a9a9db8fdbdcc76405f6d83a082de",
+    "acceptance": "NOT_RUN"
+  },
+  {
+    "adapter": "SaaS admission policy",
+    "path": "packages/tenant-lifecycle/admission.mjs",
+    "lastSourceCommit": "a87e593abe0476bae34275d1f19c78441c6a4b10",
+    "blob": "f9f0e5bb5e5a9515bd1eb861bdd4c578ed5f88da",
     "acceptance": "NOT_RUN"
   }
 ]
