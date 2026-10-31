@@ -26,6 +26,7 @@ import { initializeCustomerService } from '../../portfolio-api/src/customer-serv
 import { orderInquiry } from './portfolio-service-browser.mjs';
 import { createServer } from 'vite';
 import { procurementJourney } from './portfolio-procurement-browser.mjs';
+import { reconcileCommercialNoEffect } from './commercial-command-reconciliation.mjs';
 import { warehouseJourney } from './portfolio-warehouse-browser.mjs';
 import { wmsJourney } from './portfolio-wave4b-wms-browser.mjs';
 import { engineeringJourney } from './portfolio-wave4c-engineering-browser.mjs';
@@ -275,10 +276,13 @@ try {
   assert.ok(cookie.httpOnly); assert.equal(cookie.sameSite, 'Lax');
   const headers = { origin: web, 'content-type': 'application/json', cookie: `portfolio_session=${cookie.value}` };
   const concurrent = await fetch(`http://127.0.0.1:4313/api/crm/opportunities/${opportunityId}/stage`, { method: 'POST', headers, body: JSON.stringify({ expectedVersion: 2, stage: 'QUOTING', reason: 'Synthetic independent API writer' }) }); assert.equal(concurrent.status, 200);
+  const opportunityHistory = () => Promise.all(['opportunities', 'crmAudit', 'crmOutbox'].map(name => db.collection(name).find().sort({_id:1}).toArray()));
+  const beforeStaleStage = await opportunityHistory();
   await fill('stage', 'WON'); await fill('reason', 'Synthetic stale browser attempt'); await click('Save stage');
   await waitForTechnicalDetails({wait,evaluate},'VERSION_CONFLICT');
   assert.equal(await db.collection('opportunities').findOne({ _id: opportunityId }).then(r => r.history.length), 3);
   await screenshot('03-conflict'); await click('Refresh and retry'); await wait(`document.body.innerText.includes('Stage: QUOTING')`);
+  await reconcileCommercialNoEffect({evaluate,wait,click}, async()=>assert.deepEqual(await opportunityHistory(),beforeStaleStage), `Opportunity ${opportunityId}: version3 and three history/audit events unchanged after rejected stale stage.`);
   await fill('stage', 'WON'); await fill('reason', 'Synthetic reviewed current-version retry'); await click('Save stage');
   await wait(`document.body.innerText.includes('Stage: WON')`);
   row = await db.collection('opportunities').findOne({ _id: opportunityId }); assert.equal(row.version, 4); assert.equal(row.history.length, 4);
@@ -302,8 +306,11 @@ try {
   await fill('expiresAt', '2027-12-31T00:00:00.000Z'); await fill('description0', ' Revised exact browser item '); await fill('quantity0', '2.500'); await fill('uom0', 'EA'); await fill('unitPrice0', '100.01');
   await click('Save revision'); await wait(`document.body.innerText.includes('Revision: 2')`);
   const competing = await fetch(`http://127.0.0.1:4313/api/commercial/quotes/${quoteId}/approve`, {method:'POST',headers,body:JSON.stringify({expectedVersion:3,revision:2})}); assert.equal(competing.status,200);
+  const quoteHistory = () => Promise.all(['quotes', 'commercialAudit', 'commercialOutbox', 'salesOrders', 'quoteConversions'].map(name=>db.collection(name).find().sort({_id:1}).toArray()));
+  const beforeStaleApproval = await quoteHistory();
   await click('Approve revision'); await waitForTechnicalDetails({wait,evaluate},'VERSION_CONFLICT');
   await screenshot('09-quote-conflict'); await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: Approved')`);
+  await reconcileCommercialNoEffect({evaluate,wait,click}, async()=>assert.deepEqual(await quoteHistory(),beforeStaleApproval), `Quote ${quoteId}: approved revision2 unchanged; stale approval created no event or conversion.`);
   await click('Record acceptance'); await wait(`document.body.innerText.includes('Status: Accepted')`);
   await click('Convert to sales order'); await wait(`document.body.innerText.includes('Sales order snapshot')`);
   await wait(`document.querySelector('[data-order-id]')`);
@@ -321,7 +328,10 @@ try {
   assert.equal(replay.status,200); assert.equal((await replay.json()).data._id,orderId);
   assert.equal(await db.collection('commercialAudit').countDocuments({}),auditCount);
   assert.deepEqual(quote.revisions[0].lines[0], {description:' Exact browser item ',quantity:'1.250',uom:'EA',unitPrice:'9999999999999999999999999999.99',currency:'USD'});
-  assert.equal(await db.collection('commercialOutbox').countDocuments({}),1);
+  const quoteEvents = await db.collection('commercialOutbox').find({$or:[{quoteId},{subjectId:quoteId}]}).toArray();
+  assert.deepEqual(quoteEvents.map(event=>event.kind).sort(), ['quote.created','quote.approve','quote.revisions','quote.approve','quote.accept','salesOrder.created'].sort());
+  assert.equal(quoteEvents.find(event=>event.kind==='salesOrder.created').subjectId,orderId);
+  assert.equal(await db.collection('commercialOutbox').countDocuments({}),6);
   await screenshot('10-sales-order-snapshot');
   await click('Open sales order'); await wait(`document.querySelector('h1')?.textContent==='Sales order'`);
   await wait(`document.body.innerText.includes('250.03')`); await screenshot('11-sales-order-detail');

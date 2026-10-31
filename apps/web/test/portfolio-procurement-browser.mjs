@@ -1,5 +1,6 @@
 import { waitForTechnicalDetails } from './browser-readiness.mjs';
 import assert from 'node:assert/strict';
+import { reconcileCommercialNoEffect } from './commercial-command-reconciliation.mjs';
 export async function procurementJourney({ db, call, wait, click, fill, evaluate, screenshot, check, headers }) {
   await click('Sales orders'); await wait(`document.querySelector('h1')?.textContent==='Sales orders'`);
   const salesOrder = await db.collection('salesOrders').findOne({});
@@ -23,9 +24,12 @@ export async function procurementJourney({ db, call, wait, click, fill, evaluate
   assert.equal(pr.version,1); assert.equal(pr.snapshot.total,'125.01'); assert.equal(pr.vendorId,vendorId);
   const post = (path,body) => fetch(`http://127.0.0.1:4313/api/procurement/${path}`,{method:'POST',headers,body:JSON.stringify(body)});
   assert.equal((await post(`requests/${requestId}/approve`,{expectedVersion:1})).status,200);
+  const history = () => Promise.all(['purchaseRequests','procurementAudit','procurementOutbox','purchaseOrders'].map(name=>db.collection(name).find().sort({_id:1}).toArray()));
+  const beforeStaleApproval = await history();
   await click('Approve purchase request'); await waitForTechnicalDetails({wait,evaluate},'VERSION_CONFLICT');
   assert.equal(await db.collection('procurementAudit').countDocuments({kind:'purchaseRequest.approve'}),1);
   await screenshot('14-procurement-conflict'); await click('Refresh and retry'); await wait(`document.body.innerText.includes('Status: Approved')`);
+  await reconcileCommercialNoEffect({evaluate,wait,click}, async()=>assert.deepEqual(await history(),beforeStaleApproval), `Purchase request ${requestId}: one approval and no conversion; rejected stale approval has no effects.`);
   await click('Convert to purchase order'); await wait(`document.querySelector('h1')?.textContent==='Purchase order'`);
   const orderId = await evaluate(`location.pathname.split('/').at(-1)`);
   let po = await db.collection('purchaseOrders').findOne({_id:orderId});
@@ -34,8 +38,7 @@ export async function procurementJourney({ db, call, wait, click, fill, evaluate
   assert.equal(po.requestId,requestId); assert.equal(po.version,1); assert.deepEqual(po.snapshot,pr.approval.snapshot);
   await click('Issue locally'); await wait(`document.body.innerText.includes('Status: Issued')`);
   await call('Emulation.setDeviceMetricsOverride',{width:375,height:500,deviceScaleFactor:1,mobile:true});
-  await fill('reference','Synthetic operator reference');
-  await evaluate(`document.querySelector('[name=reference]').focus()`);
+  await evaluate(`(()=>{const form=[...document.querySelectorAll('form')].find(form=>form.querySelector('h2')?.textContent==='Operator confirmation');const input=form.querySelector('[name=reference]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'Synthetic operator reference');input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();})()`);
   await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9}); await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
   assert.equal(await evaluate('document.activeElement.textContent'),'Record operator confirmation');
   assert.equal(await evaluate('getComputedStyle(document.activeElement).outlineStyle'),'solid');
