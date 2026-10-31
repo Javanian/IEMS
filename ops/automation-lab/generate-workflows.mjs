@@ -9,7 +9,7 @@ const webhook = (path, x = 160) => node('Operator trigger', 'webhook', 2, { http
 const schedule = (name, interval) => node(name, 'scheduleTrigger', 1.2, { rule: { interval: [interval] } }, 160, 380);
 const http = (name, path, method, body, key, x) => node(name, 'httpRequest', 4.2, {
   method, url: path.startsWith('=') ? path : api + path, authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
-  sendHeaders: true, headerParameters: { parameters: [{ name: 'X-IEMS-Execution-Id', value: '={{ $execution.id }}' }, ...(key ? [{ name: 'Idempotency-Key', value: key }] : [])] },
+  sendHeaders: true, headerParameters: { parameters: [{ name: 'Origin', value: 'http://127.0.0.1:5187' }, { name: 'Content-Type', value: 'application/json' }, { name: 'X-IEMS-Execution-Id', value: '={{ $execution.id }}' }, ...(key ? [{ name: 'Idempotency-Key', value: key }] : [])] },
   ...(body ? { sendBody: true, specifyBody: 'json', jsonBody: body } : {}), options: { timeout: 15000 }
 }, x, 240, { credentials: credential });
 const split = (field, x) => node('One item per record', 'splitOut', 1, { fieldToSplitOut: field, options: {} }, x);

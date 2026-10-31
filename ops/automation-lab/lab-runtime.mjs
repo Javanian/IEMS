@@ -155,7 +155,7 @@ try {
   status({ phase: 'importing-pinned-workflows', mongoUri: repl.getUri(), database: config.database });
   const credentialsPath = join(root, 'n8n-credentials.private.json');
   save(credentialsPath, [
-    { id: 'iems-service-api', name: 'IEMS scoped automation service', type: 'httpHeaderAuth', data: { name: 'Authorization', value: `Bearer ${config.serviceToken}` } },
+    { id: 'iems-service-api', name: 'IEMS scoped automation service', type: 'httpHeaderAuth', data: { name: 'Cookie', value: `portfolio_session=${config.serviceToken}` } },
     { id: 'iems-webhook-auth', name: 'IEMS private webhook', type: 'httpHeaderAuth', data: { name: 'x-iems-webhook-token', value: config.webhookToken } }
   ]);
   await cli('import-credentials', ['import:credentials', `--input=${credentialsPath}`]);

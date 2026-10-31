@@ -32,6 +32,14 @@
         "headerParameters": {
           "parameters": [
             {
+              "name": "Origin",
+              "value": "http://127.0.0.1:5187"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
               "name": "X-IEMS-Execution-Id",
               "value": "={{ $execution.id }}"
             }
@@ -73,5 +81,5 @@
   },
   "pinData": {},
   "tags": [],
-  "versionId": "96b86a70-6e76-4a47-ad13-34618bd1ebe0"
+  "versionId": "3b3d485f-f1d7-41a4-a74f-685305930581"
 }

@@ -45,6 +45,14 @@
         "headerParameters": {
           "parameters": [
             {
+              "name": "Origin",
+              "value": "http://127.0.0.1:5187"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
               "name": "X-IEMS-Execution-Id",
               "value": "={{ $execution.id }}"
             }
@@ -78,6 +86,14 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
+            {
+              "name": "Origin",
+              "value": "http://127.0.0.1:5187"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
             {
               "name": "X-IEMS-Execution-Id",
               "value": "={{ $execution.id }}"
@@ -162,5 +178,5 @@
   },
   "pinData": {},
   "tags": [],
-  "versionId": "92fb48a4-949d-4a7f-a2a5-15f1d4eeb599"
+  "versionId": "690a8151-2f15-4c78-a2b7-b35415126426"
 }
