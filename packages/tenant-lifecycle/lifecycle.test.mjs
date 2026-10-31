@@ -8,18 +8,21 @@ function fixture() {
   const tenantId=randomUUID(),plantId=randomUUID(),userId=randomUUID(),membershipId=randomUUID();
   const grant={tenantId,plantId,userId,membershipId,membershipVersion:1,legalEntityId:randomUUID()};
   let state={},before; let denied=false, wide=true, failOutbox=false, sourceRevision='1', removed=false;
-  const match=(r,f)=>Object.entries(f).every(([k,v])=>r[k]===v);
+  const match=(r,f)=>Object.entries(f).every(([k,v])=>v && typeof v==='object' && '$in' in v ? v.$in.includes(r[k]) : r[k]===v);
   const db={collection(name){return {
     async createIndex(){}, async findOne(filter){return structuredClone((state[name]??[]).find(r=>match(r,filter))??null);},
+    find(filter){let limit=Infinity;return {limit(n){limit=n;return this;},async toArray(){return structuredClone((state[name]??[]).filter(r=>match(r,filter)).slice(0,limit));}};},
     async insertOne(row){if(name==='outbox'&&failOutbox)throw new Error('outbox unavailable');(state[name]??=[]).push(structuredClone(row));},
     async insertMany(rows){for(const r of rows)await this.insertOne(r);},
     async replaceOne(filter,row){const i=(state[name]??[]).findIndex(r=>match(r,filter));if(i<0)return {matchedCount:0};state[name][i]=structuredClone(row);return {matchedCount:1};},
     async updateOne(filter,update){const row=(state[name]??[]).find(r=>match(r,filter));if(!row)return {matchedCount:0};Object.assign(row,structuredClone(update.$set??{}));for(const [k,v]of Object.entries(update.$inc??{}))row[k]=(row[k]??0)+v;return {matchedCount:1};},
   };}};
   state.memberships=[{_id:membershipId,tenantId,active:true,version:1,tenantWide:true,roles:[{role:'saasOperator',tenantWide:true}]}];
-  const foundation={async authorizeInTransaction(scope,target,{session}){
-    assert.ok(session.inTransaction());if(denied||scope.tenantId!==tenantId||target.plantId!==plantId)throw Object.assign(new Error('denied'),{status:403});
+  const foundation={async authorize(scope,target){
+    if(denied||scope.tenantId!==tenantId||target.plantId!==plantId)throw Object.assign(new Error('denied'),{status:403});
     state.memberships[0].tenantWide=wide;return grant;
+  },async authorizeInTransaction(scope,target,{session}){
+    assert.ok(session.inTransaction());return this.authorize(scope,target);
   }};
   const client={startSession(){return {startTransaction(){before=structuredClone(state);},inTransaction:()=>true,
     async commitTransaction(){},async abortTransaction(){state=before;},async endSession(){}};}};
@@ -43,7 +46,9 @@ test('subscription, meter, stale revision, replay and revoked replay',async()=>{
   assert.equal((await f.api.subscribe(f.scope,sub)).replayed,true);
   await f.api.meter(f.scope,f.input(1,{metric:'apiCalls',amount:'2'}));
   await assert.rejects(f.api.meter(f.scope,f.input(1,{metric:'apiCalls',amount:'3'})),{code:'REVISION_CONFLICT'});
+  const before=structuredClone(f.state());
   assert.equal((await f.api.status(f.scope,{plantId:f.grant.plantId})).subscription.usage.apiCalls,'2');
+  assert.deepEqual(f.state(),before,'status is read-only');
   f.deny();await assert.rejects(f.api.subscribe(f.scope,sub),{status:403});
 });
 test('tenant-wide authority is required even on idempotent replay',async()=>{
@@ -71,6 +76,16 @@ test('source changes and absent domain adapter fail closed',async()=>{
   await assert.rejects(f.api.delete(f.scope,f.input(3,{archiveId:e.archiveId,digest:e.digest})),{code:'EXPORT_STALE'});
   assert.equal(f.removed(),false);
   const api=createTenantLifecycle({...f.runtime,domainPort:null});await assert.rejects(api.export(f.scope,f.input(3)),{code:'TENANT_DATA_PORT_UNAVAILABLE'});
+});
+
+test('unmanaged engine, vendor and uncertain delivery history still blocks export atomically',async()=>{
+  for(const [collection,state] of [['automation_engine_runs','ENGINE_ACKNOWLEDGED'],['aiVendorDeliveryAttempts','UNKNOWN'],['cs_outbox','SENDING'],['cs_outbox','UNKNOWN']]){
+    const f=fixture();await f.api.subscribe(f.scope,f.input(0,{plan:'pilot'}));
+    f.state()[collection]=[{_id:randomUUID(),tenantId:f.grant.tenantId,state}];
+    const before=structuredClone(f.state());
+    await assert.rejects(f.api.export(f.scope,f.input(1)),{code:'SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING'});
+    assert.deepEqual(f.state(),before);
+  }
 });
 test('cross tenant scope is rejected and counters do not leak',async()=>{
   const f=fixture();await assert.rejects(f.api.subscribe({tenantId:randomUUID()},f.input(0,{plan:'pilot'})),{status:403});

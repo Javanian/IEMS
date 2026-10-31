@@ -5,7 +5,7 @@ import {readFile} from 'node:fs/promises';
 import {startOwned} from '../../apps/portfolio-api/test/support/owned-mongo.mjs';
 import {boundedTransaction,contentHash,createCommandExecutor} from '../tenant-foundation/commands.mjs';
 import {createSaasAdmission,admissionProfile} from './admission.mjs';
-import {admissionRegistry,validateAdmissionRoutes} from './admission-registry.mjs';
+import {admissionRegistry,registeredRoutes,validateAdmissionRoutes} from './admission-registry.mjs';
 import {createAiDocuments} from '../scoped-ai/documents.mjs';
 import {createApp} from '../../apps/portfolio-api/src/app.mjs';
 process.env.MONGOMS_RUNTIME_DOWNLOAD='false';
@@ -81,7 +81,12 @@ test('receipt admission on marker-owned Mongo', {timeout:120000}, async t=>{
    const text=await readFile(new URL(`../../${path}`,import.meta.url),'utf8');
    const calls=text.match(/createCommandExecutor\([^\n]+/g)||[];assert.ok(calls.length);assert.ok(calls.every(call=>call.includes('admission:')),'explicit callback at every constructor '+path);
   }
-  assert.equal(admissionRegistry.routes.length,400);assert.equal(admissionRegistry.fullEndpointCoverage,false);
+  assert.equal(admissionRegistry.routes.length,406);assert.equal(admissionRegistry.fullEndpointCoverage,false);
+  const host=createApp(h.runtime,{origins:['http://localhost:4173']});
+  assert.deepEqual(registeredRoutes(host),admissionRegistry.routes.map(row=>row.route));
+  validateAdmissionRoutes(host);
+  host.post('/api/unregistered-admission-probe',()=>assert.fail('Unregistered route must not run'));
+  assert.throws(()=>validateAdmissionRoutes(host),{code:'SAAS_HOST_ROUTES_UNREGISTERED'});
   assert.throws(()=>validateAdmissionRoutes({router:{stack:[]}}),{code:'SAAS_HOST_ROUTES_UNREGISTERED'});
   const unvalidated=createSaasAdmission({...h.runtime,coverage:admissionProfile});await assert.rejects(unvalidated.enrollmentGuard(admissionProfile),{code:'SAAS_ADMISSION_INCOMPLETE'});
   const configured=createSaasAdmission({...h.runtime,coverage:admissionProfile,integrations:{rag:{vectors:{}}}});

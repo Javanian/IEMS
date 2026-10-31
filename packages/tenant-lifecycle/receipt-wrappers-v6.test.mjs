@@ -5,6 +5,7 @@ import {startOwned,orderWithStock} from '../../apps/portfolio-api/test/support/o
 import {ownerPurchasedFixture,command} from '../../apps/portfolio-api/test/support/purchased-owner-fixture.mjs';
 import {companyOwnerFixture} from '../../apps/portfolio-api/test/support/company-stock-owner-fixture.mjs';
 import {admissionProfile} from './admission.mjs';
+import {allSnapshot} from '../../apps/portfolio-api/test/support/company-stock-readiness-owner-fixture.mjs';
 process.env.MONGOMS_RUNTIME_DOWNLOAD='false';
 const financial={taxPolicy:'NO_TAX',roundingPolicy:'LINE_HALF_UP',lines:[{description:'V6 real source fixture',quantity:'2',uom:'KG',unitPrice:'1.00',currency:'USD'}]};
 
@@ -68,12 +69,16 @@ test('v6 actual local receipt wrappers: quota abort once conflict revoked replay
   const meters=()=>Promise.all([h.db.collection('audit').countDocuments({tenantId:a.tenantId,kind:'saas.effect.metered',namespace}),h.db.collection('outbox').countDocuments({tenantId:a.tenantId,type:'saas.effect.metered','data.namespace':namespace})]);
   const meterBefore=await meters();
   await h.db.collection('saasSubscriptions').updateOne({tenantId:a.tenantId},{$set:{'usage.apiCalls':'10000'}});
+  const quotaBefore=await allSnapshot(h);
   const quota=await send(c.body);assert.equal(quota.status,429,JSON.stringify({namespace,quota}));assert.equal(quota.error.code,'SAAS_QUOTA_EXCEEDED');assert.deepEqual(await snapshot(),before);assert.deepEqual(await meters(),meterBefore);
+  assert.deepEqual(await allSnapshot(h),quotaBefore,'quota denial rolls back authorization, enrollment and rate fences too');
   await h.db.collection('saasSubscriptions').updateOne({tenantId:a.tenantId},{$set:{'usage.apiCalls':usage}});
   const info=await h.db.listCollections({name:namespace}).next();assert.ok(info,'initialized receipt collection');
   await h.db.command({collMod:namespace,validator:{key:{$ne:key}},validationLevel:'strict'});
+  const abortBefore=await allSnapshot(h);
   try{const abort=await send(c.body);assert.equal(abort.status,500,JSON.stringify({namespace,abort}));assert.deepEqual(await snapshot(),before);assert.equal((await sub()).usage.apiCalls,usage);assert.deepEqual(await meters(),meterBefore);}
   finally{await h.db.command({collMod:namespace,validator:info.options?.validator??{},validationLevel:info.options?.validationLevel??'strict'});}
+  assert.deepEqual(await allSnapshot(h),abortBefore,'receipt failure rolls back every durable write');
   const once=await send(c.body);assert.equal(once.status,c.status??200,JSON.stringify({namespace,once}));
   assert.equal((await sub()).usage.apiCalls,String(BigInt(usage)+1n));results.set(label,once.data);assert.deepEqual(await meters(),meterBefore.map(n=>n+1));
   const identity={...filter,key,...(namespace==='workforceResults'?{actorId:a.userId}:{}),...(namespace==='purchaseOrderAmendmentKeys'?{cohort:'LEGACY'}:{})};
@@ -81,8 +86,9 @@ test('v6 actual local receipt wrappers: quota abort once conflict revoked replay
   const conflicting=c.change?c.change(c.body):{...c.body,reason:c.body.reason+' changed'};
   const conflict=await send(conflicting);assert.equal(conflict.status,409,JSON.stringify({namespace,conflict}));assert.ok(['IDEMPOTENCY_CONFLICT','IDEMPOTENCY_KEY_REUSED'].includes(conflict.error.code));
   const after=await snapshot();await h.db.collection('memberships').updateOne({_id:a.membershipId},{$set:{roles:roles.filter(r=>r.role!=='saasUser')}});
+  const revokedBefore=await allSnapshot(h);
   try{const revoked=await send(c.body);assert.equal(revoked.status,403,JSON.stringify({namespace,revoked}));assert.deepEqual(await snapshot(),after);}
-  finally{await h.db.collection('memberships').updateOne({_id:a.membershipId},{$set:{roles}});}
+  finally{assert.deepEqual(await allSnapshot(h),revokedBefore,'revoked replay cannot commit even an authorization fence');await h.db.collection('memberships').updateOne({_id:a.membershipId},{$set:{roles}});}
   const replay=await send(c.body);assert.equal(replay.status,c.status??200,JSON.stringify({namespace,replay}));
   assert.equal((await sub()).usage.apiCalls,String(BigInt(usage)+1n));assert.equal(await h.db.collection(namespace).countDocuments(identity),1);assert.deepEqual(await meters(),meterBefore.map(n=>n+1));
  });

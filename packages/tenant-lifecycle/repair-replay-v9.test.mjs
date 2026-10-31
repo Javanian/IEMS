@@ -11,10 +11,10 @@ test('v9 actual typed repair/POD receipts reauthorize source and never recharge 
  await verifySourceSchemas();await verifyAdmissionSources();
  for(const name of ['repairSalesOrders','repairWorkOrders','repairOrderRevisions','repairReturnAuthorities'])assert.equal(businessRegistry.collections[name].disposition,'BUSINESS');
  for(const path of ['repair-orders','repair-return'])assert.ok(businessRegistry.sources[`apps/portfolio-api/src/${path}.mjs`]);
- assert.equal(admissionRegistry.routes.length,400);
+ assert.equal(admissionRegistry.routes.length,406);
  let clock=new Date(e02Fixture.repair_case.intake_date);const h=await startOwned(t,{businessClock:()=>clock});
  const flow=await runE02Prefix(h,{setClock:value=>clock=value});const a=h.seeded[0],db=h.db;
- // This focused receipt fixture exercises the original rejection return; accepted spare trace remains owner142's failing full-chain prerequisite.
+ // Rejection-return receipt proof; the accepted repair chain is verified separately by its domain owner.
  flow.replay=[];
  const variant=e02Fixture.rejection_variant,path=`/repair/cases/${flow.case._id}`;
  const command=body=>({idempotencyKey:randomUUID(),...body});
@@ -41,9 +41,8 @@ test('v9 actual typed repair/POD receipts reauthorize source and never recharge 
  const before=await counts(),usage=(await subscription()).usage;
  const pod=flow.replay.find(e=>e.path.endsWith('/confirmations')),settle=flow.replay.find(e=>e.path.includes('/invoices/')),orders=flow.replay.find(e=>e.path.endsWith('/orders'));assert.ok(pod&&settle&&orders);
  const savedPod=await db.collection('deliveryKeys').findOne({key:pod.body.idempotencyKey});
- assert.equal(Object.hasOwn(pod.result,'salesOrderId'),false);assert.equal(savedPod.result.salesOrderId,null);
- // Assert the exact historical Mongo response; the first HTTP view omitted this undefined optional field.
- pod.result=JSON.parse(JSON.stringify(savedPod.result));
+ assert.equal(Object.hasOwn(pod.result,'salesOrderId'),true);assert.equal(pod.result.salesOrderId,null);assert.equal(savedPod.result.salesOrderId,null);
+ assert.deepEqual(pod.result,JSON.parse(JSON.stringify(savedPod.result)),'first HTTP response and persisted repair receipt have the same explicit null order field');
  await t.test('actual original receipt responses survive later state/version and charge zero',async()=>{
   for(const entry of flow.replay)assert.deepEqual(await h.ok(entry.path,entry.body,entry.status??200),entry.result);
   assert.deepEqual(await counts(),before);assert.deepEqual((await subscription()).usage,usage);
