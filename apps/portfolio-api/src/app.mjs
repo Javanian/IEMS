@@ -88,7 +88,7 @@ export async function initialize({ client, db, customerService = {}, businessClo
   const { createSaasAdmission, admissionProfile } = await import('../../../packages/tenant-lifecycle/admission.mjs');
   const { createSeparateEffects } = await import('../../../packages/tenant-lifecycle/effects.mjs');
   const { createControlledLocalAdapter } = await import('../../../packages/tenant-lifecycle/local-effects-adapter.mjs');
-  const { isControlledLocalAiProvider } = await import('../../../packages/tenant-lifecycle/local-ai-provider.mjs');
+  const { isControlledLocalAiProvider, controlledVendorProvider } = await import('../../../packages/tenant-lifecycle/local-ai-provider.mjs');
   runtime.separateEffects=createSeparateEffects({...runtime,admission:descriptor=>runtime.saasAdmission.effect(descriptor),fault:integrations.effects?.controlFault});
   await runtime.separateEffects.initialize();
   if(integrations.effects){
@@ -96,7 +96,8 @@ export async function initialize({ client, db, customerService = {}, businessClo
     for(const id of ['local.engine','local.cs','local.ai-index','local.vendor'])runtime.separateEffects.registerAdapter(createControlledLocalAdapter({...runtime,id,fault:integrations.effects.adapterFault}));
   }
   runtime.saasAdmission = createSaasAdmission({ ...runtime, coverage: integrations.tenantLifecycle?.admissionCoverage ?? admissionProfile,
-    controlledIndexReady:()=>isControlledLocalAiProvider(runtime.localAiProvider)&&runtime.separateEffects.supports('ai.index.rebuild')&&runtime.separateEffects.supports('ai.index.cleanup') });
+    controlledIndexReady:()=>isControlledLocalAiProvider(runtime.localAiProvider)&&runtime.separateEffects.supports('ai.index.rebuild')&&runtime.separateEffects.supports('ai.index.cleanup'),
+    controlledVendorReady:()=>controlledVendorProvider(runtime.localVendorProvider?.vendorTransport)===runtime.localVendorProvider&&runtime.separateEffects.supports('ai.vendor.delivery') });
   runtime.localCommands = createLocalCommandReceipts(runtime);
   runtime.commands = await initializeFoundationRuntime(runtime);
   await initializeReportingSnapshots(db);
@@ -118,7 +119,13 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await runtime.rag.initialize();
   runtime.assistants = createAssistantRuntime(runtime);
   runtime.intent = createIntentRuntime(runtime, integrations.intent);
-  runtime.vendorDrafts = createVendorDraftRuntime(runtime, { ...integrations.vendorDrafts, saasAdmission: runtime.saasAdmission });
+  if(integrations.effects?.vendor){
+    if(integrations.vendorDrafts?.transport)fail(503,'AI_EFFECT_ADAPTER_AMBIGUOUS');
+    const {createControlledLocalAiProvider}=await import('../../../packages/tenant-lifecycle/local-ai-provider.mjs');
+    runtime.localVendorProvider=runtime.localAiProvider??await createControlledLocalAiProvider({...integrations.effects.vendor,client,applicationDb:db});
+  }
+  runtime.vendorDrafts = createVendorDraftRuntime(runtime, { ...integrations.vendorDrafts,
+    ...(runtime.localVendorProvider?{transport:runtime.localVendorProvider.vendorTransport}:{}),saasAdmission: runtime.saasAdmission });
   await runtime.vendorDrafts.initialize();
   runtime.predictions = createPredictionRuntime(runtime, { ...integrations.predictions, saasAdmission: runtime.saasAdmission });
   await runtime.predictions.initialize();

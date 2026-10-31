@@ -27,7 +27,7 @@ export const csReceiptPolicies=Object.freeze({
 });
 for(const policy of Object.values(csReceiptPolicies))Object.freeze(policy);
 const operatorActions = new Set(['saas.subscribe','saas.meter','saas.suspend','saas.resume','saas.export','saas.delete','saas.restore']);
-export function createSaasAdmission({db,foundation,integrations={},clock=()=>new Date(),coverage=null,controlledIndexReady}={}) {
+export function createSaasAdmission({db,foundation,integrations={},clock=()=>new Date(),coverage=null,controlledIndexReady,controlledVendorReady}={}) {
   if(coverage!==null && coverage!==admissionProfile) fail('SAAS_ADMISSION_UNSUPPORTED_CONFIGURATION',400);
   const subscriptions=db.collection('saasSubscriptions'), pending=new WeakMap();
   let hostReady=false;const csContexts=new WeakMap();
@@ -179,6 +179,7 @@ export function createSaasAdmission({db,foundation,integrations={},clock=()=>new
       if(!hostReady || coverage!==admissionProfile || profile!==admissionProfile) fail('SAAS_ADMISSION_INCOMPLETE',503);
       if(integrations.rag?.embeddings || integrations.rag?.vectors || integrations.vendorDrafts?.transport || integrations.voice?.store) fail('SAAS_ADMISSION_EXTERNAL_ADAPTER_UNCOVERED',503);
       if(integrations.effects?.ai&&controlledIndexReady?.()!==true)fail('SAAS_ADMISSION_EXTERNAL_ADAPTER_UNCOVERED',503);
+      if(integrations.effects?.vendor&&controlledVendorReady?.()!==true)fail('SAAS_ADMISSION_EXTERNAL_ADAPTER_UNCOVERED',503);
     },
     authorize,guard:authorize,unsupported,unsupportedTenant,unkeyed,effect,createCustomerServicePort,
     async controlPlane(d) {
