@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { boundedTransaction, contentHash } from '../../../packages/tenant-foundation/commands.mjs';
 import { appendReportingSnapshot } from '../../../packages/domain-events/snapshot-source.mjs';
 import { addDecimals, decimal, uuid } from '../../../packages/domain-events/source-bindings.mjs';
+import { validatePurchasedShipment, validatePurchasedPayment, depositState } from './purchased-financial.mjs';
+import { stockHash, stockHashless } from './catalog-stock-values.mjs';
+import { shipmentSemantic } from './purchased-stock-proof.mjs';
 
 const json = value => JSON.parse(JSON.stringify(value));
 const scoped = (row, grant) => {
@@ -45,25 +48,60 @@ export function createReportingSource({ db, client, foundation, authorizeResourc
     await order(scope, row, session, observedAt);
     return row;
   }
-  async function fulfillment(scope, receipt, session, observedAt) {
-    const grant = await authorized(scope, session, 'fulfillmentKeys', receipt), r = receipt.result;
+  async function fulfillment(scope, receipt, session, observedAt, unsupported = [], purchased = false) {
+    const grant = await authorized(scope, session, purchased ? 'fulfillmentShipments' : 'fulfillmentKeys', receipt);
+    const r = purchased ? shipmentSemantic(receipt) : receipt.result;
     if (!r || !uuid.test(r._id) || !Number.isSafeInteger(r.version) || r.version < 1) throw new Error('IMMUTABLE_RESULT_MISSING');
     scoped(r, grant);
     const filter = { tenantId: grant.tenantId, plantId: grant.plantId, subjectId: r._id };
-    const audit = await db.collection('fulfillmentAudit').find(filter, { session }).limit(2).toArray();
+    const purchaseKeys = purchased ? await db.collection('purchasedFulfillmentKeys').find({ tenantId: grant.tenantId, plantId: grant.plantId, kind: 'SHIPMENT_POSTED', 'result.shipmentId': r._id }, { session }).limit(2).toArray() : [];
+    if (purchased && (purchaseKeys.length !== 1 || purchaseKeys[0].result.shipmentHash !== stockHash(r) || purchaseKeys[0].result.salesOrderId !== r.salesOrderId)) throw new Error('PURCHASED_SHIPMENT_RECEIPT_MISSING');
+    const audit = purchased
+      ? await db.collection('purchasedFulfillmentEvents').find({ tenantId: grant.tenantId, plantId: grant.plantId, kind: 'SHIPMENT_POSTED', salesOrderId: r.salesOrderId, 'snapshot.commandProof.key': purchaseKeys[0].key, 'snapshot.commandProof.resultHash': stockHash(purchaseKeys[0].result) }, { session }).limit(2).toArray()
+      : await db.collection('fulfillmentAudit').find(filter, { session }).limit(2).toArray();
     if (audit.length !== 1) throw new Error('REGISTERED_SOURCE_KIND_EVIDENCE_MISSING');
-    const kind = audit[0].kind;
+    const kind = purchased ? 'shipment.recorded' : audit[0].kind;
     if (kind === 'invoice.issued') return []; // Reference evidence, never an order/payment snapshot.
+    if (kind === 'deposit.recorded') {
+      await depositState(db, { tenantId: grant.tenantId, plantId: grant.plantId }, r._id, session);
+      unsupported.push({ collection: 'fulfillmentKeys', id: receipt._id, kind, reason: 'ACCOUNT_UNALLOCATED_SEPARATE_DATASET' });
+      return [];
+    }
+    if (['packing.picked', 'packing.packed'].includes(kind)) {
+      unsupported.push({ collection: 'fulfillmentKeys', id: receipt._id, kind, reason: 'NON_FINANCIAL_SOURCE_NO_SNAPSHOT_MAPPING' });
+      return [];
+    }
     if (!['shipment.recorded', 'payment.recorded'].includes(kind)) throw new Error('UNREGISTERED_SOURCE_KIND');
-    const source = { collection: 'fulfillmentKeys', id: r._id, version: r.version, hash: contentHash(json(r)), eventIds: [], receiptId: receipt._id, sourceOccurredAt: audit[0].occurredAt ? new Date(audit[0].occurredAt).toISOString() : null };
+    const source = { collection: purchased ? 'fulfillmentShipments' : 'fulfillmentKeys', id: r._id, version: r.version, hash: contentHash(json(r)), eventIds: [audit[0]._id], receiptId: purchased ? purchaseKeys[0]._id : receipt._id, sourceOccurredAt: new Date(r.shippedAt || r.createdAt).toISOString() };
     const targets = [];
     if (kind === 'shipment.recorded') {
+      const shipment = await db.collection('fulfillmentShipments').findOne({ tenantId: grant.tenantId, plantId: grant.plantId, _id: r._id }, { session });
+      if (!shipment || contentHash(json(shipmentSemantic(shipment))) !== source.hash) throw new Error('SHIPMENT_IMMUTABLE_RECEIPT_CONFLICT');
+      await authorized(scope, session, 'fulfillmentShipments', shipment);
       const parent = await requiredOrder(scope, r.salesOrderId, session, observedAt);
       const line = parent.snapshot.lines[r.lineIndex];
       if (!line || line.uom !== r.uom || parent.accountId !== r.accountId || r.status !== 'SHIPPED') throw new Error('SHIPMENT_SOURCE_CONFLICT');
-      if (!Array.isArray(r.sources) || !r.sources.length || r.sources.length>100 || r.sources.some(s => !['WORK_ORDER','RESERVATION'].includes(s.sourceType) || !uuid.test(s.sourceId)) || addDecimals(r.sources.map(s => s.quantity))!==addDecimals([r.quantity])) throw new Error('SHIPMENT_QUANTITY_PROOF_MISSING');
+      const typed = ['PURCHASED_SHIPMENT_V1', 'MANUFACTURED_SHIPMENT_V1'].includes(r.schema);
+      if (purchased !== (r.schema === 'PURCHASED_SHIPMENT_V1') || r.schema && !typed) throw new Error('UNREGISTERED_SHIPMENT_SCHEMA');
+      if (typed && !await validatePurchasedShipment(db, { tenantId: grant.tenantId, plantId: grant.plantId }, r._id, session)) throw new Error('TYPED_SHIPMENT_AUTHORITY_MISSING');
+      const sourceType = r.schema === 'PURCHASED_SHIPMENT_V1' ? ['CATALOG_RESERVATION'] : r.schema === 'MANUFACTURED_SHIPMENT_V1' ? ['COMPANY_OUTPUT'] : ['WORK_ORDER', 'RESERVATION'];
+      if (!Array.isArray(r.sources) || !r.sources.length || r.sources.length>100 || r.sources.some(s => !sourceType.includes(s.sourceType) || !uuid.test(s.sourceId)) || addDecimals(r.sources.map(s => s.quantity))!==addDecimals([r.quantity])) throw new Error('SHIPMENT_QUANTITY_PROOF_MISSING');
       targets.push({ resourceType: 'fulfillment', resourceId: r._id, eventKey: r._id, data: { orderId: parent._id, quantity: decimal(r.quantity), uom: r.uom, sourceLineIndex: r.lineIndex, deleted: false } });
     } else {
+      const payment = await db.collection('fulfillmentPayments').findOne({ tenantId: grant.tenantId, plantId: grant.plantId, _id: r._id }, { session });
+      if (!payment || contentHash(json(payment)) !== source.hash) throw new Error('PAYMENT_IMMUTABLE_RECEIPT_CONFLICT');
+      await authorized(scope, session, 'fulfillmentPayments', payment);
+      await validatePurchasedPayment(db, { tenantId: grant.tenantId, plantId: grant.plantId }, r._id, session);
+      const settlementKind = r.settlementKind ?? 'CASH';
+      if (!['CASH', 'DEPOSIT', 'CREDIT'].includes(settlementKind)) throw new Error('UNREGISTERED_SETTLEMENT_KIND');
+      Object.assign(source, { settlementKind, cashEffect: settlementKind === 'CASH' ? 'RECEIPT' : 'NONE', balanceEffect: 'RECEIVABLE_REDUCTION' });
+      if (settlementKind !== 'CASH') {
+        const evidence = await db.collection(settlementKind === 'DEPOSIT' ? 'fulfillmentDepositAllocations' : 'fulfillmentCreditNotes').find({ tenantId: grant.tenantId, plantId: grant.plantId, paymentId: r._id }, { session }).limit(2).toArray();
+        const e = evidence[0];
+        if (evidence.length !== 1 || stockHash(stockHashless(e)) !== e.contentHash || e.accountId !== r.accountId || e.currency !== r.currency || e.amount !== r.amount || stockHash(e.allocations) !== stockHash(r.allocations) || (settlementKind === 'DEPOSIT' ? e.depositId !== r.depositId : e.reason !== r.creditReason || e.kind !== 'CREDIT_ADJUSTMENT')) throw new Error('SETTLEMENT_AUTHORITY_MISSING');
+        await authorized(scope, session, settlementKind === 'DEPOSIT' ? 'fulfillmentDepositAllocations' : 'fulfillmentCreditNotes', e);
+        if (settlementKind === 'DEPOSIT') await depositState(db, { tenantId: grant.tenantId, plantId: grant.plantId }, r.depositId, session);
+      }
       if (!Array.isArray(r.allocations) || r.allocations.length > 100 || r.status !== 'RECORDED') throw new Error('PAYMENT_ALLOCATION_EVIDENCE_MISSING');
       const groups = new Map(), seen = new Set();
       for (const a of r.allocations) {
@@ -104,33 +142,59 @@ export function createReportingSource({ db, client, foundation, authorizeResourc
         const filter = { tenantId: grant.tenantId, plantId: grant.plantId };
         const orders = await db.collection('salesOrders').find(filter, { session }).sort({ _id: 1 }).limit(limit + 1).toArray();
         const receipts = await db.collection('fulfillmentKeys').find(filter, { session }).sort({ _id: 1 }).limit(limit + 1).toArray();
-        if (orders.length + receipts.length > limit) throw new Error('SCOPE_EXCEEDS_BOUNDED_COMPLETE_SCAN');
-        const observedAt = new Date().toISOString(), envelopes = [];
+        const authority = {};
+        for (const collection of ['fulfillmentShipments', 'fulfillmentPayments', 'fulfillmentInvoices']) authority[collection] = await db.collection(collection).find(filter, { session }).sort({ _id: 1 }).limit(limit + 1).toArray();
+        if (orders.length + receipts.length + Object.values(authority).reduce((sum, rows) => sum + rows.length, 0) > limit) throw new Error('SCOPE_EXCEEDS_BOUNDED_COMPLETE_SCAN');
+        for (const [collection, rows] of Object.entries(authority)) for (const row of rows) {
+          await authorized(scope, session, collection, row);
+          if (collection === 'fulfillmentShipments' && row.schema === 'PURCHASED_SHIPMENT_V1') continue;
+          if (receipts.filter(receipt => receipt.result?._id === row._id).length !== 1) throw new Error('SOURCE_AUTHORITY_RECEIPT_MISSING');
+        }
+        const observedAt = new Date().toISOString(), envelopes = [], unsupported = [];
         for (const row of orders) envelopes.push(await order(scope, row, session, observedAt));
-        for (const row of receipts) envelopes.push(...await fulfillment(scope, row, session, observedAt));
+        for (const row of receipts) envelopes.push(...await fulfillment(scope, row, session, observedAt, unsupported));
+        for (const row of authority.fulfillmentShipments.filter(row => row.schema === 'PURCHASED_SHIPMENT_V1')) envelopes.push(...await fulfillment(scope, row, session, observedAt, unsupported, true));
         if (envelopes.length>1000) throw new Error('REPORTING_SCOPE_RESOURCE_BOUND_EXCEEDED');
         const resources = [...new Set(envelopes.map(e => e.aggregateId))];
         if (await db.collection('reportingSnapshotHeads').findOne({ ...filter, resourceId: { $nin: resources } }, { session })) throw new Error('MISSING_SOURCE_AUTHORITY_NO_INFERRED_DELETE');
-        const manifest = { _id: randomUUID(), ...filter, legalEntityId: grant.legalEntityId, runId: randomUUID(), observedAt, coverage: 'COMPLETE', trustedZero: true, baseline: true, sourceHighWater: { salesOrders: orders.at(-1)?._id ?? null, fulfillmentKeys: receipts.at(-1)?._id ?? null }, sourceHashes: { salesOrders: contentHash(json(orders)), fulfillmentKeys: contentHash(json(receipts)) }, counts: { salesOrders: orders.length, fulfillmentKeys: receipts.length }, quarantine: [], unsupported: [], fence: 'single-snapshot-transaction', validity: 'as-of-observedAt-only' };
+        const sources = { salesOrders: orders, fulfillmentKeys: receipts, ...authority };
+        // These scans reconcile registered cohorts, not every possible source authority dataset.
+        const manifest = { _id: randomUUID(), ...filter, legalEntityId: grant.legalEntityId, runId: randomUUID(), observedAt, coverage: 'INCOMPLETE', trustedZero: false, baseline: true, sourceHighWater: Object.fromEntries(Object.entries(sources).map(([name, rows]) => [name, rows.at(-1)?._id ?? null])), sourceHashes: Object.fromEntries(Object.entries(sources).map(([name, rows]) => [name, contentHash(json(rows))])), counts: Object.fromEntries(Object.entries(sources).map(([name, rows]) => [name, rows.length])), quarantine: [], unsupported, coverageReason: 'WHOLE_AUTHORITY_COVERAGE_NOT_PROVEN', fence: 'single-snapshot-transaction', validity: 'as-of-observedAt-only' };
         manifest.snapshotHeads = [...new Map(envelopes.map(e => [e.aggregateId, { aggregateId: e.aggregateId, aggregateVersion: e.aggregateVersion, eventId: e.eventId, hash: contentHash(e) }])).values()];
         manifest.hash = contentHash(manifest);
         await db.collection('reportingSourceCoverage').insertOne(manifest, { session });
         return { manifest, envelopes };
+      }).catch(async error => {
+        if (error.code === 'COMMIT_OUTCOME_UNKNOWN' || error.code === 11000 || error.hasErrorLabel?.('TransientTransactionError')) throw error;
+        await boundedTransaction(client, async session => {
+          const grant = await foundation.authorizeInTransaction(scope, { tenantId: scope.tenantId, plantId: scope.selectedPlantId ?? scope.plantId, action: 'fulfillment.read' }, { session });
+          await db.collection('reportingSourceQuarantine').insertOne({ _id: randomUUID(), tenantId: grant.tenantId, plantId: grant.plantId, legalEntityId: grant.legalEntityId, collection: 'scope', reason: error.message, observedAt: new Date().toISOString(), cursorAdvanced: false }, { session });
+        });
+        throw error;
       });
     },
     async reconcile({ scope, collection, after = null, limit = 100 }) {
-      if (!['salesOrders', 'fulfillmentKeys'].includes(collection) || !Number.isInteger(limit) || limit < 1 || limit > 1000 || (after && !uuid.test(after))) throw new Error('BOUNDED_SOURCE_SCAN_REQUIRED');
+      if (!['salesOrders', 'fulfillmentKeys', 'fulfillmentShipments'].includes(collection) || !Number.isInteger(limit) || limit < 1 || limit > 1000 || (after && !uuid.test(after))) throw new Error('BOUNDED_SOURCE_SCAN_REQUIRED');
       try { return await boundedTransaction(client, async session => {
         const grant = await foundation.authorizeInTransaction(scope, { tenantId: scope.tenantId, plantId: scope.selectedPlantId ?? scope.plantId, action: collection === 'salesOrders' ? 'quote.read' : 'fulfillment.read' }, { session });
         const filter = { tenantId: grant.tenantId, plantId: grant.plantId };
         const rows = await db.collection(collection).find({ ...filter, ...(after ? { _id: { $gt: after } } : {}) }, { session }).sort({ _id: 1 }).limit(limit + 1).toArray();
-        const observedAt = new Date().toISOString(), envelopes = [];
+        const observedAt = new Date().toISOString(), envelopes = [], unsupported = [];
         // Any mapping error aborts the page, including its cursor and all parent appends.
         for (const row of rows.slice(0, limit)) {
           if (collection === 'salesOrders') envelopes.push(await order(scope, row, session, observedAt));
-          else envelopes.push(...await fulfillment(scope, row, session, observedAt));
+          else if (collection === 'fulfillmentShipments') {
+            if (row.schema === 'PURCHASED_SHIPMENT_V1') envelopes.push(...await fulfillment(scope, row, session, observedAt, unsupported, true));
+            else {
+              await authorized(scope, session, collection, row);
+              const keys = await db.collection('fulfillmentKeys').find({ ...filter, 'result._id': row._id }, { session }).limit(2).toArray();
+              if (keys.length !== 1) throw new Error('SOURCE_AUTHORITY_RECEIPT_MISSING');
+              envelopes.push(...await fulfillment(scope, keys[0], session, observedAt, unsupported));
+            }
+          } else envelopes.push(...await fulfillment(scope, row, session, observedAt, unsupported));
         }
         const manifest = { _id: randomUUID(), ...filter, legalEntityId: grant.legalEntityId, runId: randomUUID(), collection, observedAt, after, highWater: rows.slice(0, limit).at(-1)?._id ?? after, nextCursor: rows.length > limit ? rows[limit - 1]._id : null, scanned: Math.min(rows.length, limit), emitted: envelopes.length, coverage: 'INCOMPLETE', trustedZero: false, baseline: true, quarantine: [], unsupported: [], fence: 'snapshot-transaction-page' };
+        manifest.unsupported = unsupported;
         manifest.hash = contentHash(manifest);
         await db.collection('reportingSourceCoverage').insertOne(manifest, { session });
         return { manifest, envelopes };
