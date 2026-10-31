@@ -430,6 +430,7 @@
       "hashField": "payloadHash",
       "hook": "apps/portfolio-api/src/automation.mjs operation/caller session",
       "actions": {
+        "AUTOMATION_RECOVERY": "cs.automation.execute",
         "AUTOMATION_ENGINE_RUN": "cs.automation.execute",
         "TICKET_ESCALATE": "cs.automation.execute",
         "RESOLUTION_DRAFT_CREATE": "cs.automation.execute",
@@ -446,7 +447,7 @@
       },
       "replay": "current scope/permission, ticket/binding/approval/recipient/outbox proof; original result; zero charge",
       "meter": "ONE_COMMAND",
-      "separateEffect": "New managed LOCAL_SIMULATED engine and local delivery phases require original owner/current source/private capabilities; live sender and full recovery remain gated/pending"
+      "separateEffect": "New managed LOCAL_SIMULATED engine and local delivery phases require original owner/current source/private capabilities; full managed recovery inherits exact parent receipts; live sender/unmanaged history remain gated"
     },
     "cs_idempotency": {
       "filter": [
@@ -580,6 +581,12 @@
     },
     "disposition": "RETAIN_PRIVATE_OR_TECHNICAL",
     "kinds": {
+      "automation.recovery": {
+        "owner": "automation_audit_logs",
+        "action": "AUTOMATION_RECOVERY",
+        "meter": "ONE_ROOT_COMMAND",
+        "children": "Existing original intent phases nonbillable; genuinely new deterministic resolution intent independently charges once; immutable frozen selection/no rescan/no resend of unknown"
+      },
       "automation.engine": {
         "owner": "automation_audit_logs",
         "action": "AUTOMATION_ENGINE_RUN",
@@ -604,7 +611,6 @@
       "LOCAL_SIMULATED_OWNED_MARKER_DATABASE_ONLY"
     ],
     "pending": [
-      "automation full recovery",
       "AI rebuild/cleanup/vendor phases",
       "caller status UI"
     ],
@@ -615,7 +621,7 @@
     "apps/portfolio-api/src/app.mjs": "89e44fc34fb5aa66a03d57f9599717b66efa93ec34329c0a0b63e6c076064aca",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
     "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
-    "apps/portfolio-api/src/automation.mjs": "7a331a193a00cc59c04b9fba85a65bb889e102cce00f441cfe497b655503aaed",
+    "apps/portfolio-api/src/automation.mjs": "8db69b7f43101f2cebbbcaa16ccdb948e20046377ecf3a93195eadcaf2b50c37",
     "apps/portfolio-api/src/business-clock.mjs": "75ac403414331887f6df0e944a7f6f6a0415aa62c4ae62b76124c28adb8f2188",
     "apps/portfolio-api/src/catalog-disposition-state.mjs": "14bdaae9188d604a15ea90ef63b2adf025600b26b3a4af58364ee24f4d99f875",
     "apps/portfolio-api/src/catalog-disposition.mjs": "1835a7e3235460873335e53979a409360f3ffea0d8814e6737317f7ef3dbb49f",
@@ -715,10 +721,10 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/effects.mjs": "fafc300fe1722b4d225e6c00e3300300b5135909333c6305817717d9ac353c3e",
+    "packages/tenant-lifecycle/effects.mjs": "e877480420a5394afb8fb4395d09705d7e0f481ba674d73bee250795db646436",
     "packages/tenant-lifecycle/local-effects-adapter.mjs": "fbf0409c0064a1c75e177f53a91327b554943421f8423b7274c7306fc68aa6a3",
     "packages/tenant-lifecycle/effect-primitives.mjs": "7c528a2602f3b46fc2d0d94dc782ebf5d0fecec9f867618bc5397d871d4fbb6f",
-    "packages/tenant-lifecycle/admission.mjs": "17352fb3897c0c9b8e00327bcd279390a168f1760fa67a85f74e7ea7df41b6eb",
+    "packages/tenant-lifecycle/admission.mjs": "b22f9d0a95daf9bae2df9ee27d22e8c9af16e3b3e179179f6519cab2d097be28",
     "packages/tenant-lifecycle/index.mjs": "b75329b141e134ebbdab6d0b6f3e971e2191ce16df91f987034d49a07faa8087",
     "packages/tenant-lifecycle/domain-port.mjs": "48787a3e8928573328259a0bfef8bdf05ef183c4dd813a0175dff62c70131a36",
     "packages/tenant-lifecycle/admission-registry.mjs": "292fefe68375039b69c04cf3850e3413eb26934f02308e0e67fd8208cdbe1ca6"
@@ -1999,7 +2005,7 @@
       "state": "CONDITIONAL_RECEIPTED",
       "receipt": "automation_audit_logs",
       "meter": "ONE_COMMAND",
-      "condition": "Explicit bounded LOCAL_OBSERVE_V1 only; legacy/full recovery and all workers remain unsupported enrolled."
+      "condition": "Explicit bounded LOCAL_OBSERVE_V1 or registered LOCAL_SIMULATED AUTOMATION_RECOVERY with original audit receipt/frozen selection/private parent child contexts; unmanaged legacy recovery remains gated."
     },
     {
       "route": "POST /api/cs/automation/resolution-draft",
@@ -3007,6 +3013,12 @@
       "route": "POST /api/saas/download",
       "state": "CONTROL_PLANE",
       "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/effects/:id/children/:childId/continue",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "meter": "NONE",
+      "note": "Registered kind rebinds current original actor/source; private persisted parent/attempt/fence; continue or observe never creates a new root."
     },
     {
       "route": "POST /api/saas/effects/:id/continue",

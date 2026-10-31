@@ -377,6 +377,7 @@
   "POST /api/repair/quality/resources/:type/:id/release",
   "POST /api/saas/delete",
   "POST /api/saas/download",
+  "POST /api/saas/effects/:id/children/:childId/continue",
   "POST /api/saas/effects/:id/continue",
   "POST /api/saas/effects/:id/observe",
   "POST /api/saas/export",
