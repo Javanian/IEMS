@@ -1,10 +1,11 @@
 import { resolveScopeAliases } from '../../../packages/tenant-foundation/index.mjs';
 import { createAiDocuments, documentRoles } from '../../../packages/scoped-ai/documents.mjs';
 import { createScopedIndex, aiRoles, fail, uuid } from '../../../packages/scoped-ai/indexing.mjs';
+import { createApprovedOrderDocumentSource } from '../../../packages/scoped-ai/issued-documents.mjs';
 
 export const ragRoles = { ...aiRoles, ...documentRoles };
 export function createRagRuntime(runtime, { embeddings, vectors } = {}) {
-  const documents = createAiDocuments(runtime);
+  const documents = createAiDocuments({ ...runtime, issuedSource: createApprovedOrderDocumentSource(runtime) });
   const index = embeddings && vectors ? createScopedIndex({ ...runtime, source: documents.source, embeddings, vectors }) : null;
   return Object.freeze({ documents, index,
     async initialize() { await documents.initialize(); if (index) await index.initialize(); },
@@ -37,10 +38,12 @@ export function installRag(app, rag) {
     if (!rag.index) fail('AI_PROVIDER_UNAVAILABLE', 503);
     respond(res, await rag.index.revoke(req.scope, { ...body, plantId, resourceId }));
   });
-  app.put('/api/ai/documents/:id', async (req, res) => {
-    const body = input(req, ['key', 'expectedRevision', 'title', 'text', 'allowedUserIds']);
+  const publish = async (req, res) => {
+    const body = input(req, ['key', 'expectedRevision', 'title', 'text', 'allowedUserIds', 'sourceReference']);
     respond(res, await rag.documents.publish(req.scope, { ...body, plantId: plant(req), resourceId: resource(req) }));
-  });
+  };
+  app.put('/api/ai/documents/:id', publish);
+  app.post('/api/ai/documents/:id/publish', publish);
   app.post('/api/ai/documents/:id/revoke', async (req, res) => {
     const body = input(req, ['key', 'expectedRevision']);
     respond(res, await rag.documents.revoke(req.scope, { ...body, plantId: plant(req), resourceId: resource(req) }));

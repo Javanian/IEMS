@@ -1,8 +1,11 @@
 import { boundedTransaction, createCommandExecutor, contentHash } from '../tenant-foundation/commands.mjs';
 import { fail, uuid, scopeTarget } from './indexing.mjs';
+import { validateApprovedOrderReference } from './issued-documents.mjs';
 
 export const documentRoles = { aiDocumentAdmin: ['ai.document.manage', 'ai.document.read', 'ai.index', 'ai.retrieve'],
-  aiDocumentReader: ['ai.document.read', 'ai.retrieve'] };
+  aiDocumentReader: ['ai.document.read', 'ai.retrieve'],
+  aiIssuedDocumentReader: ['ai.document.read', 'ai.retrieve', 'ai.vendor.source.read'],
+  aiIssuedDocumentAdmin: ['ai.document.manage', 'ai.document.read', 'ai.index', 'ai.retrieve', 'ai.vendor.source.read'] };
 
 export function textChunks(text) {
   if (typeof text !== 'string' || !text.trim() || text.length > 100000 || text.includes('\0')) fail('AI_INVALID_TEXT');
@@ -10,16 +13,21 @@ export function textChunks(text) {
   return Array.from({ length: Math.ceil(normalized.length / 2000) }, (_, i) => normalized.slice(i * 2000, (i + 1) * 2000));
 }
 
-export function createAiDocuments({ client, db, foundation }) {
+export function createAiDocuments({ client, db, foundation, issuedSource = null }) {
   const documents = db.collection('aiDocuments');
   const commands = createCommandExecutor({ client, db, foundation });
   const target = (scope, plantId, action, session) => foundation.authorizeInTransaction(scope, scopeTarget(scope, plantId, action), { session });
   const filterFor = grant => ({ tenantId: grant.tenantId, plantId: grant.plantId, legalEntityId: grant.legalEntityId });
-  const source = Object.freeze({ async readAuthorized({ grant, resourceId, session }) {
+  const source = Object.freeze({ async readAuthorized({ scope, grant, resourceId, session }) {
     if (!session?.inTransaction() || !uuid(resourceId) || !uuid(grant?.userId)) fail('SCOPE_DENIED', 403);
     const filter = { ...filterFor(grant), _id: resourceId, active: true, allowedUserIds: grant.userId };
     const row = await documents.findOne(filter, { session });
     if (!row) fail('AI_DOCUMENT_NOT_FOUND', 404);
+    if (row.sourceReference) {
+      if (!issuedSource) fail('AI_ISSUED_SOURCE_UNAVAILABLE', 503);
+      const original = await issuedSource.readAuthorized({ scope, grant, reference: row.sourceReference, session });
+      if (contentHash({ title: original.title, chunks: textChunks(original.text) }) !== row.contentHash) fail('AI_DOCUMENT_CHANGED', 409);
+    }
     if (row.contentHash !== contentHash({ title: row.title, chunks: row.chunks })) fail('AI_DOCUMENT_CORRUPT', 409);
     const write = await documents.updateOne({ ...filter, revision: row.revision, aclRevision: row.aclRevision },
       { $inc: { readFence: 1 } }, { session });
@@ -36,10 +44,25 @@ export function createAiDocuments({ client, db, foundation }) {
           !input.title.trim() || input.title.length > 240 || !Array.isArray(input.allowedUserIds) ||
           !input.allowedUserIds.length || input.allowedUserIds.length > 100 || !input.allowedUserIds.every(uuid) ||
           new Set(input.allowedUserIds).size !== input.allowedUserIds.length) fail('AI_INVALID_DOCUMENT');
-      const chunks = textChunks(input.text), title = input.title.trim(), allowedUserIds = [...input.allowedUserIds].sort();
-      return commands.execute(scope, { ...scopeTarget(scope, input.plantId, 'ai.document.manage'), key: input.key,
+      if (input.sourceReference) validateApprovedOrderReference(input.sourceReference);
+      let chunks = input.sourceReference ? [] : textChunks(input.text), title = input.title.trim();
+      const allowedUserIds = [...input.allowedUserIds].sort();
+      const publisher = input.sourceReference ? createCommandExecutor({ client, db, foundation: {
+        async authorizeInTransaction(s, target, { session }) {
+          const grant = await foundation.authorizeInTransaction(s, target, { session });
+          if (!issuedSource) fail('AI_ISSUED_SOURCE_UNAVAILABLE', 503);
+          await issuedSource.readAuthorized({ scope: s, grant, reference: input.sourceReference, session });
+          return grant;
+        },
+      } }) : commands;
+      return publisher.execute(scope, { ...scopeTarget(scope, input.plantId, 'ai.document.manage'), key: input.key,
         aggregateId: input.resourceId, expectedRevision: input.expectedRevision,
-        input: { title, chunks, allowedUserIds } }, async ({ session, grant, expectedRevision }) => {
+        input: { title, chunks, allowedUserIds, sourceReference: input.sourceReference ?? null } }, async ({ session, grant, expectedRevision }) => {
+        if (input.sourceReference) {
+          if (!issuedSource) fail('AI_ISSUED_SOURCE_UNAVAILABLE', 503);
+          const original = await issuedSource.readAuthorized({ scope, grant, reference: input.sourceReference, session });
+          title = original.title; chunks = textChunks(original.text);
+        }
         for (const userId of allowedUserIds) {
           const user = await db.collection('users').findOne({ _id: userId, active: true }, { session });
           const membership = await db.collection('memberships').findOne({ tenantId: grant.tenantId, userId, active: true }, { session });
@@ -56,7 +79,8 @@ export function createAiDocuments({ client, db, foundation }) {
         if ((previous?.revision ?? 0) !== expectedRevision) fail('REVISION_CONFLICT', 409);
         const revision = expectedRevision + 1, aclRevision = (previous?.aclRevision ?? 0) + 1;
         const row = { ...filter, revision, aclRevision, title, chunks, allowedUserIds, active: true,
-          provenance: 'MANUAL_TEXT', contentHash: contentHash({ title, chunks }), updatedAt: new Date(), updatedBy: grant.userId };
+          provenance: input.sourceReference ? 'COMMERCIAL_APPROVED_REVISION' : 'MANUAL_TEXT', sourceReference: input.sourceReference ?? null,
+          contentHash: contentHash({ title, chunks }), updatedAt: new Date(), updatedBy: grant.userId };
         if (previous) {
           const write = await documents.replaceOne({ ...filter, revision: expectedRevision }, row, { session });
           if (write.matchedCount !== 1) fail('REVISION_CONFLICT', 409);
@@ -82,13 +106,20 @@ export function createAiDocuments({ client, db, foundation }) {
       return boundedTransaction(client, async session => {
         const grant = await target(scope, plantId, 'ai.document.read', session);
         const rows = await documents.find({ ...filterFor(grant), active: true, allowedUserIds: grant.userId }, { session,
-          projection: { _id: 1, title: 1, revision: 1, aclRevision: 1, updatedAt: 1, provenance: 1 } }).sort({ _id: 1 }).limit(51).toArray();
+          projection: { _id: 1, title: 1, revision: 1, aclRevision: 1, updatedAt: 1, provenance: 1, sourceReference: 1 } }).sort({ _id: 1 }).limit(51).toArray();
+        const visible = [];
         for (const row of rows.slice(0, 50)) {
+          if (row.sourceReference) {
+            if (!issuedSource) continue;
+            try { await issuedSource.readAuthorized({ scope, grant, reference: row.sourceReference, session }); }
+            catch (error) { if ([403, 404, 409].includes(error.status)) continue; throw error; }
+          }
           const write = await documents.updateOne({ ...filterFor(grant), _id: row._id, active: true, allowedUserIds: grant.userId,
             revision: row.revision, aclRevision: row.aclRevision }, { $inc: { readFence: 1 } }, { session });
           if (write.matchedCount !== 1) fail('AI_DOCUMENT_CHANGED', 409);
+          visible.push(row);
         }
-        return { resources: rows.slice(0, 50).map(row => ({ resourceId: row._id, title: row.title, revision: row.revision,
+        return { resources: visible.map(row => ({ resourceId: row._id, title: row.title, revision: row.revision,
           aclRevision: row.aclRevision, updatedAt: row.updatedAt, provenance: row.provenance })), coverage: rows.length > 50 ? 'INCOMPLETE' : 'COMPLETE' };
       });
     },

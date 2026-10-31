@@ -35,8 +35,8 @@ export function validateVector(value, dimensions) {
 }
 
 // The host adapter must fence source ACL and revision in this same session, including deletion.
-export async function readSource(source, grant, resourceId, session) {
-  const value = sourceShape(await source.readAuthorized({ grant, resourceId, session }));
+export async function readSource(source, grant, resourceId, session, scope) {
+  const value = sourceShape(await source.readAuthorized({ scope, grant, resourceId, session }));
   if (value.resourceId !== resourceId) fail('AI_SOURCE_MISMATCH', 409);
   return { ...value, hash: contentHash(value) };
 }
@@ -59,7 +59,7 @@ export function createScopedIndex({ client, db, foundation, source, vectors, emb
       validateRequest(input);
       return boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.index', session);
-        const current = await readSource(source, grant, input.resourceId, session);
+        const current = await readSource(source, grant, input.resourceId, session, scope);
         const row = await indexes.findOne({ tenantId: grant.tenantId, plantId: grant.plantId,
           resourceId: input.resourceId }, { session });
         const state = !row ? 'NOT_INDEXED' : !row.active ? 'REVOKED' :
@@ -77,7 +77,7 @@ export function createScopedIndex({ client, db, foundation, source, vectors, emb
       if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0 || typeof input.key !== 'string') fail('AI_INVALID_COMMAND');
       const snapshot = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.index', session);
-        return { grant, source: await readSource(source, grant, input.resourceId, session) };
+        return { grant, source: await readSource(source, grant, input.resourceId, session, scope) };
       });
       const generation = randomUUID();
       const values = await boundedCall(signal => embeddings.embed(snapshot.source.chunks, { signal }));
@@ -91,7 +91,7 @@ export function createScopedIndex({ client, db, foundation, source, vectors, emb
       return commands.execute(scope, { ...scopeTarget(scope, input.plantId, 'ai.index'), key: input.key,
         aggregateId: input.resourceId, expectedRevision: input.expectedRevision,
         input: { sourceHash: snapshot.source.hash, model: embeddings.model } }, async ({ session, grant, expectedRevision }) => {
-        const currentSource = await readSource(source, grant, input.resourceId, session);
+        const currentSource = await readSource(source, grant, input.resourceId, session, scope);
         if (currentSource.hash !== snapshot.source.hash) fail('AI_SOURCE_CHANGED', 409);
         const filter = { tenantId: grant.tenantId, plantId: grant.plantId, resourceId: input.resourceId };
         const previous = await indexes.findOne(filter, { session });
@@ -143,7 +143,7 @@ export function createScopedIndex({ client, db, foundation, source, vectors, emb
           const index = await indexes.findOne(filter, { session });
           if (!index || !index.points.includes(candidate.id)) continue;
           let fresh;
-          try { fresh = await readSource(source, grant, p.resourceId, session); }
+          try { fresh = await readSource(source, grant, p.resourceId, session, scope); }
           catch (error) { if ([403, 404].includes(error.status)) continue; throw error; }
           if (fresh.hash !== index.sourceHash || p.chunkIndex >= fresh.chunks.length) continue;
           const fence = await indexes.updateOne({ ...filter, revision: index.revision }, { $inc: { readFence: 1 } }, { session });

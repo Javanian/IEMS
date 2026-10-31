@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { createAiDocuments, textChunks } from './documents.mjs';
 import { contentHash } from '../tenant-foundation/commands.mjs';
 
-function fixture() {
+function fixture(issuedSource = null) {
   const grant = Object.fromEntries(['tenantId', 'plantId', 'legalEntityId', 'userId'].map(k => [k, randomUUID()]));
   const resourceId = randomUUID(), membershipId = randomUUID();
   const rows = new Map(), writes = [];
@@ -32,7 +32,7 @@ function fixture() {
   const runtime = { db: { collection }, client: { startSession: () => ({ startTransaction() {}, inTransaction: () => true,
     async commitTransaction() {}, async abortTransaction() {}, async endSession() {} }) },
     foundation: { async authorizeInTransaction() { return grant; } } };
-  const api = createAiDocuments(runtime), scope = {};
+  const api = createAiDocuments({ ...runtime, issuedSource }), scope = {};
   const publish = (overrides = {}) => api.publish(scope, { plantId: grant.plantId, resourceId, key: randomUUID(),
     expectedRevision: 0, title: 'Manual', text: 'Evidence text', allowedUserIds: [grant.userId], ...overrides });
   const read = (overrides = {}) => api.source.readAuthorized({ grant: { ...grant, ...overrides }, resourceId, session: { inTransaction: () => true } });
@@ -76,4 +76,23 @@ test('plain text ingestion bounds and deterministic chunks preserve citation off
   assert.deepEqual(textChunks('one\r\ntwo'), ['one\ntwo']); assert.equal(textChunks('a'.repeat(4001)).length, 3);
   for (const value of ['', '  ', 'a'.repeat(100001), 'a\0b']) assert.throws(() => textChunks(value), { code: 'AI_INVALID_TEXT' });
   assert.equal(contentHash({ title: 'x', chunks: textChunks('abc') }), contentHash({ title: 'x', chunks: ['abc'] }));
+});
+
+test('issued documents derive text in the transaction and recheck business authority on source reads and replay', async () => {
+  let denied = false, checks = 0, receivedScope;
+  const f = fixture({ async readAuthorized({ scope, session }) {
+    checks++; receivedScope = scope; assert.equal(session.inTransaction(), true);
+    if (denied) throw Object.assign(new Error('SOURCE_REVOKED'), { code: 'SOURCE_REVOKED', status: 403 });
+    return { title: 'Approved PO', text: 'Authoritative approved facts' };
+  } });
+  const sourceReference = { cohort: 'LEGACY', vendorId: randomUUID(), orderId: randomUUID(), documentRevision: 1, sourceHash: 'a'.repeat(64) };
+  await f.publish({ key: 'issued', sourceReference, text: 'Untrusted replacement must be ignored' });
+  assert.equal(receivedScope, f.scope); assert.equal(f.rows.get('aiDocuments')[0].provenance, 'COMMERCIAL_APPROVED_REVISION');
+  assert.deepEqual((await f.api.source.readAuthorized({ scope: f.scope, grant: f.grant, resourceId: f.resourceId,
+    session: { inTransaction: () => true } })).chunks, ['Authoritative approved facts']);
+  denied = true;
+  await assert.rejects(f.publish({ key: 'issued', sourceReference, text: 'Untrusted replacement must be ignored' }), { code: 'SOURCE_REVOKED' });
+  await assert.rejects(f.api.source.readAuthorized({ scope: f.scope, grant: f.grant, resourceId: f.resourceId,
+    session: { inTransaction: () => true } }), { code: 'SOURCE_REVOKED' });
+  assert.ok(checks >= 4);
 });

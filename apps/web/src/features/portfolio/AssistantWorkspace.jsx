@@ -92,5 +92,78 @@ export function AssistantWorkspace() {
         </li>)}</ul>
       </>}
     </section>}
+    <DocumentControls />
   </>;
+}
+
+function DocumentControls() {
+  const identity = useContext(IdentityContext), generation = useRef(0), lock = useRef(false);
+  const [state, setState] = useState({}), [selected, setSelected] = useState(null), [pending, setPending] = useState(null), [mode, setMode] = useState('MANUAL');
+  const storageKey = identity?.scope?.tenantId && identity?.scope?.plantId && identity?.user?.id
+    ? `iems.ai-document:${identity.scope.tenantId}:${identity.scope.plantId}:${identity.user.id}` : null;
+  useEffect(() => {
+    generation.current++; lock.current = false; setState({}); setSelected(null); setPending(null);
+    try { if (storageKey) setPending(JSON.parse(sessionStorage.getItem(storageKey) || 'null')); }
+    catch { setState({ error: new Error('Document command recovery is unavailable. Contact the index operator before submitting changes.') }); }
+    return () => { generation.current++; };
+  }, [identity, storageKey]);
+  async function read(resourceId) {
+    if (lock.current) return;
+    lock.current = true; const current = generation.current; setState(s => ({ ...s, busy: true, error: null }));
+    try {
+      const result = await portfolioRequest(resourceId ? `/api/ai/documents/${resourceId}/index` : '/api/ai/documents');
+      if (current === generation.current) setState(s => ({ ...s, busy: false, ...(resourceId ? { index: result.data } : { list: result.data }) }));
+    } catch (error) { if (current === generation.current) setState(s => ({ ...s, busy: false, error, index: null })); }
+    finally { if (current === generation.current) lock.current = false; }
+  }
+  async function mutate(command) {
+    if (lock.current) return;
+    const current = generation.current; lock.current = true; setState(s => ({ ...s, busy: true, error: null, index: null }));
+    try {
+      if (!storageKey) throw new Error('Authenticated recovery identity is unavailable');
+      sessionStorage.setItem(storageKey, JSON.stringify(command)); setPending(command);
+      await portfolioRequest(command.path, { body: command.body });
+      if (current !== generation.current) return;
+      sessionStorage.removeItem(storageKey); setPending(null); setSelected(null); lock.current = false; await read();
+    } catch (error) { if (current === generation.current) setState(s => ({ ...s, busy: false, error })); }
+    finally { if (current === generation.current) lock.current = false; }
+  }
+  function publish(event) {
+    event.preventDefault(); const f = Object.fromEntries(new FormData(event.currentTarget)), resourceId = selected?.resourceId || crypto.randomUUID();
+    const body = { key: crypto.randomUUID(), expectedRevision: selected?.revision || 0, title: f.title || 'Approved purchase order',
+      allowedUserIds: f.allowedUserIds.split(/[\s,]+/).filter(Boolean), ...(mode === 'MANUAL' ? { text: f.text } :
+        { sourceReference: { cohort: f.cohort, vendorId: f.vendorId.trim(), orderId: f.orderId.trim(), documentRevision: Number(f.documentRevision), sourceHash: f.sourceHash.trim() } }) };
+    mutate({ path: `/api/ai/documents/${resourceId}/publish`, body });
+  }
+  const action = (suffix, expectedRevision) => mutate({ path: `/api/ai/documents/${selected.resourceId}/${suffix}`, body: { key: crypto.randomUUID(), expectedRevision } });
+  return <section className="pf-panel" aria-labelledby="ai-documents-heading"><h2 id="ai-documents-heading">Documents and index</h2>
+    <p>Publish scoped plain text or bind an approved purchase order. Source changes and revoked access invalidate old index generations. PDF/OCR and remote URL imports are unsupported.</p>
+    <button disabled={state.busy} onClick={() => read()}>Load authorized documents</button>
+    {pending && <WorkspaceState title="Unresolved document command"><p>Reconcile the saved command before submitting another change.</p><button disabled={state.busy} onClick={() => mutate(pending)}>Reconcile same command</button></WorkspaceState>}
+    {state.error && <WorkspaceState kind="error" title="Document or index unavailable"><p>{errorMessage(state.error)}</p><p>An unavailable embedding/vector provider does not prevent manual document persistence.</p></WorkspaceState>}
+    {state.busy && <WorkspaceState kind="loading" title="Checking document and index authority" />}
+    {state.list && <><p>Coverage: {state.list.coverage}. Only current authorized records are listed.</p>
+      {!state.list.resources.length && <p>No authorized documents found.</p>}
+      <ul className="pf-list">{state.list.resources.map(row => <li key={row.resourceId}><button disabled={state.busy || !!pending} onClick={() => { setSelected(row); setState(s => ({ ...s, index: null })); }}>{row.title}</button>
+        <span>Document {row.revision} · ACL {row.aclRevision} · {row.provenance}</span></li>)}</ul></>}
+    {selected && <><h3>{selected.title}</h3><p className="pf-id">{selected.resourceId}</p>
+      <button disabled={state.busy || !!pending} onClick={() => read(selected.resourceId)}>Inspect current index / recovery action</button>
+      <button disabled={state.busy || !!pending} onClick={() => action('revoke', selected.revision)}>Revoke document access</button>
+      <button disabled={state.busy || !!pending} onClick={() => { setSelected(null); setState(s => ({ ...s, index: null })); }}>Compose another document</button></>}
+    {selected && state.index && <><p>{state.index.state} · source revision {state.index.sourceRevision} · index revision {state.index.revision} · model {state.index.model}. Next: {state.index.nextAction}.</p>
+      <button disabled={state.busy || !!pending} onClick={() => action('rebuild', state.index.revision)}>Rebuild current source with configured model</button>
+      <button disabled={state.busy || !!pending || state.index.revision === 0} onClick={() => action('index/revoke', state.index.revision)}>Deactivate index generation</button></>}
+    <details><summary>{selected ? 'Replace text or ACL with a new revision' : 'Publish a document'}</summary>
+      <WorkspaceField as="select" label="Ingestion source" value={mode} onChange={e => setMode(e.target.value)}><option value="MANUAL">Manual plain text</option><option value="ISSUED">Approved purchase order</option></WorkspaceField>
+      <form className="pf-form" onSubmit={publish} key={`${selected?.resourceId || 'new'}:${mode}`}>
+        {mode === 'MANUAL' ? <><WorkspaceField name="title" label="Document title" required maxLength={240} defaultValue={selected?.title || ''} />
+          <WorkspaceField as="textarea" name="text" label="Complete replacement text" required maxLength={100000} hint="Manual text is labelled MANUAL_TEXT and does not establish business authority." /></> : <>
+          <WorkspaceField as="select" name="cohort" label="Purchase order cohort"><option>LEGACY</option><option>CATALOG</option></WorkspaceField>
+          <WorkspaceField name="vendorId" label="Vendor ID" required /><WorkspaceField name="orderId" label="Purchase order ID" required />
+          <WorkspaceField type="number" min="1" step="1" name="documentRevision" label="Current approved revision" required />
+          <WorkspaceField name="sourceHash" label="Original approved SHA-256" pattern="[a-f0-9]{64}" required hint="Text is extracted from the approved source. Readers also require current procurement source permission." /></>}
+        <WorkspaceField as="textarea" name="allowedUserIds" label="Allowed reader user IDs" required hint="Separate UUIDs with commas or whitespace. Include yourself to list or index the document. No account or role is created." />
+        <button className="pf-primary" disabled={state.busy || !!pending}>Publish {selected ? 'next revision' : 'document'}</button>
+      </form></details>
+  </section>;
 }
