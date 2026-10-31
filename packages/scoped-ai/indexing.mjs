@@ -52,6 +52,16 @@ export function createScopedIndex({ client, db, foundation, saasAdmission, sourc
   const validateRequest = input => {
     if (!input || !uuid(input.plantId) || !uuid(input.resourceId)) fail('AI_INVALID_RESOURCE');
   };
+  const legacyReplay=async(scope,input,grant,session,payload)=>{
+    const previous=await db.collection('foundationCommandResults').findOne({tenantId:grant.tenantId,plantId:grant.plantId,userId:grant.userId,action:'ai.index',key:input.key},{session});
+    if(!saasAdmission&&await db.collection('saasSubscriptions').findOne({tenantId:grant.tenantId},{session}))fail('SAAS_ADMISSION_PORT_REQUIRED',503);
+    if(!previous)return null;
+    const payloadHash=contentHash({action:'ai.index',aggregateId:input.resourceId,expectedRevision:input.expectedRevision,input:payload});
+    if(previous.inputHash!==payloadHash)fail('IDEMPOTENCY_CONFLICT',409);
+    if(previous.response?.revision!==input.expectedRevision+1||previous.response.data?.resourceId!==input.resourceId)fail('AI_HISTORICAL_RESULT_INVALID',409);
+    await saasAdmission?.effect({scope,grant,session,namespace:'foundationCommandResults',key:input.key,action:'ai.index',aggregateId:input.resourceId,payloadHash,replayed:true});
+    return {...previous.response,replayed:true};
+  };
   const publishRebuild = async ({session,grant,expectedRevision,scope,input,snapshot,generation,points}) => {
         const currentSource = await readSource(source, grant, input.resourceId, session, scope);
         if (currentSource.hash !== snapshot.source.hash) fail('AI_SOURCE_CHANGED', 409);
@@ -110,13 +120,15 @@ export function createScopedIndex({ client, db, foundation, saasAdmission, sourc
     },
     async rebuild(scope, input) {
       validateRequest(input);
-      if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0 || typeof input.key !== 'string') fail('AI_INVALID_COMMAND');
+      if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0 || input.expectedRevision >= Number.MAX_SAFE_INTEGER || typeof input.key !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(input.key)) fail('AI_INVALID_COMMAND');
       if(managed)return managed.accept(scope,input,'rebuild');
       const snapshot = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.index', session);
         await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
-        return { grant, source: await readSource(source, grant, input.resourceId, session, scope) };
+        const current=await readSource(source, grant, input.resourceId, session, scope);
+        return {grant,source:current,replay:await legacyReplay(scope,input,grant,session,{sourceHash:current.hash,model:embeddings.model})};
       });
+      if(snapshot.replay)return snapshot.replay;
       const generation = randomUUID();
       const values = await boundedCall(signal => embeddings.embed(snapshot.source.chunks, { signal }));
       if (!Array.isArray(values) || values.length !== snapshot.source.chunks.length) fail('AI_EMBEDDING_UNAVAILABLE', 503);
@@ -147,16 +159,18 @@ export function createScopedIndex({ client, db, foundation, saasAdmission, sourc
     async cleanup(scope, input) {
       validateRequest(input);
       if (!vectors.deletePoints) fail('AI_INDEX_CLEANUP_UNAVAILABLE', 503);
-      if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 1 || typeof input.key !== 'string') fail('AI_INVALID_COMMAND');
+      if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 1 || input.expectedRevision >= Number.MAX_SAFE_INTEGER || typeof input.key !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(input.key)) fail('AI_INVALID_COMMAND');
       if(managed)return managed.accept(scope,input,'cleanup');
       const retired = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.index', session);
         await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
+        const replay=await legacyReplay(scope,input,grant,session,{operation:'CLEANUP'});if(replay)return {replay};
         const row = await indexes.findOne({ tenantId: grant.tenantId, plantId: grant.plantId, resourceId: input.resourceId }, { session });
         // A newer revision may be our own committed cleanup; receipt lookup below reconciles the same key.
         if (!row || row.revision !== input.expectedRevision) return [];
         return [...new Set([...(row.retiredPoints ?? []), ...(!row.active ? row.points : [])])].slice(0, 100);
       });
+      if(retired.replay)return retired.replay;
       // Exact retired IDs are never reused. A lost delete acknowledgement can safely repeat the same IDs.
       if (retired.length) await boundedCall(signal => vectors.deletePoints(retired, { signal }));
       return commands.execute(scope, { ...scopeTarget(scope, input.plantId, 'ai.index'), key: input.key,
