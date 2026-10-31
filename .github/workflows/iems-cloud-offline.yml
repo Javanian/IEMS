@@ -27,6 +27,6 @@ jobs:
       - name: Validate offline release contract
         run: node infra/cloud/validate.mjs
       - name: Run bounded synthetic checks
-        run: node --test --test-concurrency=1 ops/pilot/rehearsal.test.mjs ops/recovery/rehearsal.test.mjs packages/tenant-lifecycle/lifecycle.test.mjs infra/cloud/data-layout.test.mjs
+        run: node --test --test-concurrency=1 ops/pilot/rehearsal.test.mjs ops/recovery/rehearsal.test.mjs packages/tenant-lifecycle/lifecycle.test.mjs infra/cloud/data-layout.test.mjs infra/cloud/databricks-evaluation.test.mjs
       - name: Report provider validation boundary
         run: echo "Terraform/provider tests require the reviewed offline mirror; cloud apply and credential access are disabled. This job does not establish cloud acceptance."
