@@ -11,4 +11,3 @@ test('v12 retained UI attempts bind exact key/body/scope and survive remount unc
  await assert.rejects(command.send(identity,'/api/crm/accounts',{name:'Invalid success'},{requester:async()=>({data:{}})}),{code:'INVALID_MUTATION_RESPONSE'});const remounted=createCommandAttempt('owned-test',{storage});assert.equal(remounted.snapshot().reconcile,true);await assert.rejects(remounted.send(identity,'/api/crm/accounts',{name:'cannot start'}));
  await assert.rejects(command.retry(identity,{requester:async()=>{throw Object.assign(new Error('conflict'),{status:409});}}));assert.equal(command.snapshot().reconcile,true);await assert.rejects(command.retry(identity),{code:'COMMAND_RECONCILIATION_REQUIRED'});
 });
-

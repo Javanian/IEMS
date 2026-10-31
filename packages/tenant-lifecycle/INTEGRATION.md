@@ -1,3 +1,10 @@
+# Current v12/v13 handoff
+
+See ops/pilot/PLAT-038-V12-HANDOFF.md and PLAT-038-V12-COVERAGE.json.
+Private CS receipt admission, four local automation receipts, public job caller-session rate and thirteen explicit UI attempts are implemented. Separate workers, credentials/approval/review and other enumerated local gaps remain pending. fullEndpointCoverage:false.
+
+## Historical handoff (superseded where amended above)
+
 # PLAT-038 bounded receipt profile and tenant data port
 
 V6 continuation: nineteen additional existing receipt namespaces and twenty-one

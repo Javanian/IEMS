@@ -1,0 +1,2529 @@
+{
+  "sourceCommit": "4bc80c363237083d85caefe1d2d6b578d21bfb7f",
+  "prerequisite": "147a7917d468854fca4d1b75988bd338c5172e9f",
+  "fullEndpointCoverage": false,
+  "counts": {
+    "READ": 175,
+    "CONTROL_PLANE": 9,
+    "AUTH_RECOVERY": 3,
+    "ADVISORY_READ": 4,
+    "UNSUPPORTED": 4,
+    "RECEIPTED": 186,
+    "CONDITIONAL_RECEIPTED": 5,
+    "LOCAL_COVERAGE_PENDING": 12,
+    "REJECTED_COMMAND": 2
+  },
+  "pending": [
+    {
+      "route": "POST /api/ai/documents/:id/index/cleanup",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/ai/documents/:id/rebuild",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/dispatch",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/reconcile",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/cs/automation/deliveries/:id/review",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/engine-error",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/pause",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/reconcile",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/approve",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/cancel",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/reject",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/run/:workflowId",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/service-credentials",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/service-credentials/:id/revoke",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/conversations/:id/reply",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/simulator/dispatch",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    }
+  ],
+  "routes": [
+    {
+      "route": "GET /api/ai/documents",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/ai/documents/:id/index",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/ai/models",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/ai/vendor-drafts/:draftId",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/analytics/authority",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/analytics/catalog",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/analytics/datasets/:dataset",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/analytics/datasets/:dataset/export",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/analytics/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-disposition/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-disposition/receipts/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-disposition/receipts/:id/inspections",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-disposition/receipts/:id/inspections/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-disposition/receipts/:id/stock-movements",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/options/items",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/options/items/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/options/vendors",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/options/vendors/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders/:id/document-revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders/:id/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/orders/:id/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/receipts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/receipts/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/requests",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/requests/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/requests/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/requests/:id/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-procurement/requests/:id/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-stock/receipts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/catalog-stock/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/catalog-items",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/catalog-items/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/inquiries",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/inquiries/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/quotes",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/commercial/quotes/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/company-stock/receipts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/company-stock/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/company-stock/receipts/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/company-stock/receipts/:id/units/:unitId/trace",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/crm/accounts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/crm/accounts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/crm/accounts/:id/contacts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/crm/opportunities",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/crm/opportunities/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/audit-logs",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/deliveries",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/digest",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/resolution-drafts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/resolution-drafts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/sink-messages",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/automation/sla-breaches",
+      "state": "READ",
+      "meter": "NONE",
+      "note": "Bounded eligibility observation; no task scheduling or business writes."
+    },
+    {
+      "route": "GET /api/cs/automation/status",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/bindings",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/bindings/:id/order-status",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/conversations",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/conversations/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/conversations/:id/thread",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/conversations/by-binding/:bindingId",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/metrics",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/tickets",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/tickets/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/cs/tickets/:id/internal-notes",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/deliveries/shipments/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/deliveries/shipments/:id/confirmations",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/deliveries/shipments/:id/returns",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/documents/issues/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/documents/issues/:id/pdf",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/documents/sources/:kind/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/accounts/:id/ledger",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/invoices",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/invoices/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/manufactured/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/orders/:id/balances",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/orders/:id/closure",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/orders/:id/entitlement",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/orders/:id/reconciliation",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/packing",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/packing/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/payments",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/payments/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/shipments",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/fulfillment/shipments/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-execution/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-execution/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-execution/orders/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-production/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-production/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-production/orders/:id/engineering/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-production/orders/:id/engineering/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/internal-production/orders/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/items",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/items/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/items/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/items/:id/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/items/:id/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/locations",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/locations/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/inventory-master/locations/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/engineering",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/engineering/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/engineering/:id/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/genealogy/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/genealogy",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/genealogy/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/genealogy/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/installations",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/installations/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/installations/revisions",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/installations/revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/labor",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/output-units",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/serial-claims",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/manufacturing/work-orders/:id/serial-claims/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/capacity",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/capacity/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/dashboard",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/drilldown/:source",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/voice/generation",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/voice/zones",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/voice/zones/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/operations/voice/zones/:id/audio/:jobId",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/platform/jobs",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/portals/customers/:customerId/orders/:orderNumber",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/portals/vendors/:vendorId/orders/:orderId",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/portals/vendors/:vendorId/orders/:orderId/responses",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/material-shortages/:sourceId",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/orders/:id/document-revisions/:revision",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/requests",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/requests/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/vendors",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/procurement/vendors/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/purchased-fulfillment/orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/purchased-fulfillment/orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/purchased-fulfillment/orders/:id/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/cases",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/cases/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/deposits",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/deposits/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/invoices",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/invoices/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/maintenance/equipment/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/maintenance/equipment/:id/capacity",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/quality/resources",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/quality/resources/:type/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/sales-orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/sales-orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/work-orders",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/repair/work-orders/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/saas/status",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "GET /api/session/me",
+      "state": "AUTH_RECOVERY",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/bins",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/bins/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/holds",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/movements",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/movements/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts/:id/holds",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts/:id/reconciliation",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts/:id/serial-custody",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/receipts/:id/serial-custody/events",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/reservations",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/warehouse/reservations/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/workforce/capabilities",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "GET /api/workforce/operators/:id",
+      "state": "READ",
+      "meter": "NONE"
+    },
+    {
+      "route": "POST /api/ai/assistant",
+      "state": "ADVISORY_READ",
+      "meter": "NONE",
+      "note": "No business write; source/authorization fences retained. Provider availability/cost separately gated."
+    },
+    {
+      "route": "POST /api/ai/cs-intent",
+      "state": "ADVISORY_READ",
+      "meter": "NONE",
+      "note": "No business write; source/authorization fences retained. Provider availability/cost separately gated."
+    },
+    {
+      "route": "POST /api/ai/documents/:id/index/cleanup",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/ai/documents/:id/index/revoke",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/documents/:id/publish",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/documents/:id/rebuild",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/ai/documents/:id/revoke",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/models/select",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/predictions",
+      "state": "ADVISORY_READ",
+      "meter": "NONE",
+      "note": "No business write; source/authorization fences retained. Provider availability/cost separately gated."
+    },
+    {
+      "route": "POST /api/ai/retrieve",
+      "state": "ADVISORY_READ",
+      "meter": "NONE",
+      "note": "No business write; source/authorization fences retained. Provider availability/cost separately gated."
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/approve",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/create",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/dispatch",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/intent",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/preview",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/reconcile",
+      "state": "UNSUPPORTED",
+      "meter": "NONE",
+      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+    },
+    {
+      "route": "POST /api/ai/vendor-drafts/:draftId/revoke",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-disposition/receipts/:id/approve",
+      "state": "RECEIPTED",
+      "receipt": "catalogDispositionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-disposition/receipts/:id/inspections",
+      "state": "RECEIPTED",
+      "receipt": "catalogDispositionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-disposition/receipts/:id/putaway",
+      "state": "RECEIPTED",
+      "receipt": "catalogDispositionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/orders/:id/amendments",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/orders/:id/amendments/:amendmentId/approve",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/orders/:id/amendments/:amendmentId/issue",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/orders/:id/issue",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/orders/:id/vendor-promise",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/receipts",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests/:id/approve",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests/:id/convert",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests/:id/revisions",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests/:id/rfq",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/catalog-procurement/requests/:id/rfq-response",
+      "state": "RECEIPTED",
+      "receipt": "catalogKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/commercial/inquiries",
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/commercial/inquiries/:id/convert",
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/commercial/inquiries/:id/revisions",
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/commercial/inquiries/:id/stage",
+      "state": "RECEIPTED",
+      "receipt": "inquiryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/commercial/quotes",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/accept",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/approve",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/convert",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "quoteConversions"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/commercial/quotes/:id/revisions",
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": [
+        "quoteCatalogKeys",
+        "legacyQuoteCommandResults"
+      ],
+      "condition": "Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.",
+      "meter": "ONE_COMMAND"
+    },
+    {
+      "route": "POST /api/company-stock/receipts/:id/holds",
+      "state": "RECEIPTED",
+      "receipt": "companyStockKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/company-stock/receipts/:id/holds/release",
+      "state": "RECEIPTED",
+      "receipt": "companyStockKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/crm/accounts",
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/crm/accounts/:id/contacts",
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/crm/opportunities",
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/crm/opportunities/:id/stage",
+      "state": "RECEIPTED",
+      "receipt": "crmCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/cs/automation/deliveries/:id/review",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/digest/dispatch",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/digest/record",
+      "state": "REJECTED_COMMAND",
+      "meter": "NONE",
+      "note": "Always rejects caller delivery receipts/alternate handoff; no business effect."
+    },
+    {
+      "route": "POST /api/cs/automation/engine-error",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/escalate",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/pause",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/recheck",
+      "state": "READ",
+      "meter": "NONE",
+      "note": "Bounded eligibility observation; no task scheduling or business writes."
+    },
+    {
+      "route": "POST /api/cs/automation/reconcile",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-draft",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/approve",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/cancel",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/dispatch",
+      "state": "RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "note": "Local transaction only; current source/approval/recipient replay; enrolled dispatch returns queued intent without worker."
+    },
+    {
+      "route": "POST /api/cs/automation/resolution-drafts/:id/reject",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/run/:workflowId",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/service-credentials",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/service-credentials/:id/revoke",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/automation/whatsapp-handoff",
+      "state": "REJECTED_COMMAND",
+      "meter": "NONE",
+      "note": "Always rejects caller delivery receipts/alternate handoff; no business effect."
+    },
+    {
+      "route": "POST /api/cs/bindings",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/bindings/:id/revoke",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/conversations/:id/mode",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/conversations/:id/reply",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/conversations/:id/takeover",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/deliveries/:id/resolve",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/simulator/dispatch",
+      "state": "LOCAL_COVERAGE_PENDING",
+      "meter": "NONE",
+      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+    },
+    {
+      "route": "POST /api/cs/simulator/inbound",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND",
+      "note": "Current-session private disposition; enrolled response stays queued, no preview/worker; non-enrolled worker gates retained."
+    },
+    {
+      "route": "POST /api/cs/tickets/:id/internal-notes",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/tickets/:id/public-update",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/cs/tickets/:id/stage",
+      "state": "RECEIPTED",
+      "receipt": "cs_idempotency",
+      "meter": "ONE_TOP_LEVEL_COMMAND"
+    },
+    {
+      "route": "POST /api/deliveries/shipments/:id/confirmations",
+      "state": "RECEIPTED",
+      "receipt": "deliveryKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/deliveries/shipments/:id/returns",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentReturnKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/documents/issues",
+      "state": "RECEIPTED",
+      "receipt": "documentIssues",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/deposits",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/invoices",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/manufactured-shipments",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/packing",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/packing/:id/pack",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/payments",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/fulfillment/shipments",
+      "state": "RECEIPTED",
+      "receipt": "fulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/allocations",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/issue",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/losses",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/putaway",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/qc",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/records",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/release",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/reservations",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-execution/orders/:id/reservations/:reservationId/release",
+      "state": "RECEIPTED",
+      "receipt": "internalExecutionKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-production/orders",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-production/orders/:id/cancel",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-production/orders/:id/engineering/approve",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-production/orders/:id/engineering/revisions",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/internal-production/orders/:id/engineering/revoke",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/items",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/items/:id/approve",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/items/:id/deactivate",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/items/:id/revisions",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/locations",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/locations/:id/deactivate",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/inventory-master/locations/:id/qualify",
+      "state": "RECEIPTED",
+      "receipt": "internalPlanningKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/engineering",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/engineering/:id/release",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/engineering/:id/revisions",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/engineering/:id/revoke",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/genealogy/allocations",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/genealogy/finalize",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/genealogy/losses",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/installations/finalize",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/installations/losses",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/installations/record",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/installations/remove",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/labor",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/material-demand",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/qc",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/record",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/release",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/release-engineering",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/serial-claims",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/manufacturing/work-orders/:id/serial-claims/abandon",
+      "state": "RECEIPTED",
+      "receipt": "manufacturingKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/samples/:id/sample",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/cancel",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/claim",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/failed",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/generated",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/publish",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/jobs/:id/recover",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/configure",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/enqueue",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/failed",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/lease",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/played",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/recover",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/operations/voice/zones/:id/started",
+      "state": "RECEIPTED",
+      "receipt": "operationsKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/platform/jobs",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "note": "Dedicated job executor reauthorizes handler and request; caller-session rate/new enqueue only; worker retries nonbillable"
+    },
+    {
+      "route": "POST /api/portals/grants",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/portals/grants/:grantId/revoke",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/portals/vendors/:vendorId/orders/:orderId/responses",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/material-shortages/:sourceId/release",
+      "state": "RECEIPTED",
+      "receipt": "materialShortageKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/material-shortages/refresh",
+      "state": "RECEIPTED",
+      "receipt": "materialShortageKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/amendments",
+      "state": "RECEIPTED",
+      "receipt": "purchaseOrderAmendmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/amendments/:amendmentId/approve",
+      "state": "RECEIPTED",
+      "receipt": "purchaseOrderAmendmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/amendments/:amendmentId/issue",
+      "state": "RECEIPTED",
+      "receipt": "purchaseOrderAmendmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/issue",
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/vendor-confirmation",
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/orders/:id/vendor-promise",
+      "state": "RECEIPTED",
+      "receipt": "procurementPromiseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests",
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests/:id/approve",
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests/:id/convert",
+      "state": "RECEIPTED",
+      "receipt": "procurementConversions",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests/:id/rfq",
+      "state": "RECEIPTED",
+      "receipt": "procurementRfqKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests/:id/rfq-response",
+      "state": "RECEIPTED",
+      "receipt": "procurementRfqKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/requests/from-shortage",
+      "state": "RECEIPTED",
+      "receipt": "materialShortageKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/procurement/vendors",
+      "state": "RECEIPTED",
+      "receipt": "procurementCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/purchased-fulfillment/orders/:id/reservations",
+      "state": "RECEIPTED",
+      "receipt": "purchasedFulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/purchased-fulfillment/orders/:id/reservations/:reservationId/release",
+      "state": "RECEIPTED",
+      "receipt": "purchasedFulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/purchased-fulfillment/orders/:id/shipments",
+      "state": "RECEIPTED",
+      "receipt": "purchasedFulfillmentKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/bill",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/component-dispose",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/component-remove",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/decide",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/deposit",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/diagnostic-authorize",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/execute",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/hold",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/orders",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/qc",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/return",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/rework",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/scope",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/spare-authorize",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/spare-install",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/spare-issue",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/spare-release",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/spare-reserve",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/start",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/teardown",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/test",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/test-plan",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/warranty",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/warranty-claim",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/cases/:id/warranty-void",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/invoices/:id/settle",
+      "state": "RECEIPTED",
+      "receipt": "repairKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/maintenance/equipment/:id/cancel",
+      "state": "RECEIPTED",
+      "receipt": "maintenanceKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/maintenance/equipment/:id/complete",
+      "state": "RECEIPTED",
+      "receipt": "maintenanceKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/maintenance/equipment/:id/schedule",
+      "state": "RECEIPTED",
+      "receipt": "maintenanceKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/maintenance/equipment/:id/start",
+      "state": "RECEIPTED",
+      "receipt": "maintenanceKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/quality/resources/:type/:id/calibrate",
+      "state": "RECEIPTED",
+      "receipt": "qualityKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/quality/resources/:type/:id/configure",
+      "state": "RECEIPTED",
+      "receipt": "qualityKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/quality/resources/:type/:id/hold",
+      "state": "RECEIPTED",
+      "receipt": "qualityKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/quality/resources/:type/:id/qualify",
+      "state": "RECEIPTED",
+      "receipt": "qualityKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/repair/quality/resources/:type/:id/release",
+      "state": "RECEIPTED",
+      "receipt": "qualityKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/saas/delete",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/download",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/export",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/meter",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/restore",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/resume",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/subscribe",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/suspend",
+      "state": "CONTROL_PLANE",
+      "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/session/login",
+      "state": "AUTH_RECOVERY",
+      "meter": "NONE"
+    },
+    {
+      "route": "POST /api/session/logout",
+      "state": "AUTH_RECOVERY",
+      "meter": "NONE"
+    },
+    {
+      "route": "POST /api/warehouse/bins",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/holds/:holdId/release",
+      "state": "RECEIPTED",
+      "receipt": "stockHoldKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/count",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/holds",
+      "state": "RECEIPTED",
+      "receipt": "stockHoldKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/putaway",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/release",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/reserve",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/serial-custody/adopt",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/warehouse/receipts/:id/transfer",
+      "state": "RECEIPTED",
+      "receipt": "warehouseKeys",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/workforce/operators/:id/challenge",
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/workforce/operators/:id/configure",
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/workforce/operators/:id/consent",
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "POST /api/workforce/operators/:id/verify",
+      "state": "RECEIPTED",
+      "receipt": "workforceResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    },
+    {
+      "route": "PUT /api/ai/documents/:id",
+      "state": "RECEIPTED",
+      "receipt": "foundationCommandResults",
+      "meter": "ONE_COMMAND",
+      "nested": "Children inherit wrapper session; separately committed foundation command is independent"
+    }
+  ]
+}
