@@ -79,7 +79,15 @@ test('wave4f CS binding onboarding, simulator, authoritative manufacture/repair 
   });
 
   await t.test('simulator replies with rendered manufacture and repair status from the owning collections', async () => {
-    const one = await okSimulate(primary.bindingId, `IEMS ORDER ${f.so.orderNumber}`);
+    const preview = runtime.customerServicePreview, calls = { claim: 0, empty: 0, record: 0 };
+    runtime.customerServicePreview = { ...preview,
+      claimNextDelivery: async (...args) => { calls.claim++; const value = await preview.claimNextDelivery(...args); if (!value) calls.empty++; return value; },
+      recordDeliveryResult: async (...args) => { calls.record++; return preview.recordDeliveryResult(...args); },
+    };
+    let one;
+    try { one = await okSimulate(primary.bindingId, `IEMS ORDER ${f.so.orderNumber}`); }
+    finally { runtime.customerServicePreview = preview; }
+    assert.deepEqual(calls, { claim: 1, empty: 0, record: 1 });
     assert.equal(one.command, 'ORDER');
     const r = one.reply;
     assert.deepEqual([r.direction, r.origin, r.kind, r.deliveryState, r.state, r.template, r.sentAt], ['OUTBOUND', 'BOT', 'BOT_REPLY', 'PREVIEWED', 'PREVIEWED', { id: 'order_status', version: 1 }, null]);
