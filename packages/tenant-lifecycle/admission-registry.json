@@ -750,7 +750,7 @@
     "packages/contracts/src/domains/planning-execution/manufactured-graph.mjs": "1df97ae2c4854a2be65d2ed1735b87424a2e068d61a138f316c1d09e7dae9efd",
     "packages/customer-service/index.mjs": "de09d4217923a359f68291c8d9da8e26382aa20be9c2f2a9a461cdeed8362ef9",
     "packages/customer-service/order-fixtures.mjs": "a6cd15176e749a31f4c8366661b0781289129f77f7731fe3a2c39f5d11b9bcc8",
-    "packages/customer-service/order-source.mjs": "140c440c8530ef772ef4bd1a29659e9285414a41f1082ae40a0cbe2ddde12aa0",
+    "packages/customer-service/order-source.mjs": "2a12a9f35f54da10e2b5356ff7097e9110c9ff3b73266fd639a5ca9d606d90a1",
     "packages/customer-service/service-metrics.mjs": "469cc57b2779ef6b81d907c91c052664a6d7a73ae109882a72cfdf6910cba9b4",
     "packages/scoped-ai/assistants.mjs": "4c2205b6847e1daf46a9d2824898b1833cc80816063ba2bc56ae3e7738e25be9",
     "packages/scoped-ai/documents.mjs": "4c956532fd305219bae990775694d942e1ec996c5e4a59f95ef0adb6952ba5fb",
