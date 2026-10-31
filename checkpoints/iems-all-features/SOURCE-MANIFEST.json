@@ -79,9 +79,9 @@
   {
     "adapter": "service reads",
     "path": "packages/customer-service/order-source.mjs",
-    "lastSourceCommit": "fd2f6aedfd265ca1b7458758592a701ce9da52a3",
-    "blob": "f09e6b7838ec6dcd26e0bb3b963c73c28a8227d4",
-    "acceptance": "NOT_RUN"
+    "lastSourceCommit": "44f92f3cf0b6a966f0b108b91644bde712222d3e",
+    "blob": "f92057d6a88438bf00321ac4dd4fa85bee40d4f1",
+    "acceptance": "PENDING_INDEPENDENT_QA"
   },
   {
     "adapter": "operations reads/telemetry",

@@ -1,11 +1,12 @@
 {
-  "independentQA": "NOT_RUN",
-  "mergedHead": "33005312187236d9aba6b91bb68ba73b9c11ab90",
+  "independentQA": "PENDING_CORRECTED_CANDIDATE",
+  "mergedHead": "6a3cd735b0da84ce3241d130ad1104e9ab6684cd",
   "status": "IMPLEMENTED_QA_PENDING",
   "base": "0ad4248af46adad2762763438efb27aaace932b4",
   "schema": "IEMS_INTEGRATION_V1",
   "unresolved": [
-    "Independent final QA150/152 NOT_RUN; historical unmanaged/PREPARED recovery remains gated, actual provider/cloud/live evidence external"
+    "Independent corrected-candidate QA159/160/161/162 and aggregate152 pending",
+    "Cloud/live/provider/hardware/consent/pilot-data external boundaries remain; historical unmanaged/PREPARED recovery gated"
   ],
   "publication": "LOCAL_ONLY",
   "integratedHandoffs": {
@@ -26,5 +27,16 @@
     "record": "/TPR/issues/TPR-149#document-integration-result",
     "contract": "Final minimum compile/source-pin/linked-smoke results are recorded against the immutable candidate SHA in the issue evidence; this manifest does not assert tests not run.",
     "independentQA": "NOT_RUN"
+  },
+  "remediation": {
+    "source": "6a3cd735b0da84ce3241d130ad1104e9ab6684cd",
+    "method": "FAST_FORWARD_STACKED",
+    "handoffLedger": "remediation/INTEGRATED-HANDOFFS.json",
+    "featureMatrix": "remediation/FEATURE-HANDOFF-MATRIX.json",
+    "commitLedger": "remediation/COMMIT-LEDGER.txt",
+    "checks": "PASS: API maintained319/319, syntax/types/web build and actual source verifiers; see remediation/VERIFICATION.json",
+    "review": "TPR-159/160/161/162 then TPR-152",
+    "historicalQA": "TPR-150 FAIL on96b8bea, preserved",
+    "cleanup": "Verified all owned remediation resources stopped; issue151 evidence integration-final-cleanup.json"
   }
 }

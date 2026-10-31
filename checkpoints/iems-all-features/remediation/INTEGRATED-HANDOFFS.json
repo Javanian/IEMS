@@ -1,0 +1,87 @@
+{
+  "baseline": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+  "handoffs": [
+    {
+      "sha": "6808232182c574f201e37bcb050049ec61368377",
+      "issue": "TPR-154",
+      "checks": "Native dbt17/17 x3, PG8 groups, cluster stopped",
+      "finding": [
+        "QA-002",
+        "QA-008"
+      ],
+      "review": "ACCEPTED_IMPLEMENTATION_ONLY"
+    },
+    {
+      "sha": "077d659f525ac9e1505e31abf42ad5c54f56ce43",
+      "issue": "TPR-155",
+      "checks": "Focused Mongo48/48 + domain7/7; no product source delta",
+      "finding": [
+        "QA-003",
+        "QA-005"
+      ],
+      "review": "ACCEPTED_IMPLEMENTATION_ONLY"
+    },
+    {
+      "sha": "6a50b197f28c2d19ed72b58f3f0417292718a7a5",
+      "issue": "TPR-156",
+      "checks": "Atomic documents8 + VAT1, browser20, distinct procurement keys; remaining fences transferred158",
+      "finding": [
+        "QA-005"
+      ],
+      "review": "ACCEPTED_IMPLEMENTATION_ONLY"
+    },
+    {
+      "sha": "589f4ed47d3cb141b4c85397cc685349c337cb38",
+      "issue": "TPR-163",
+      "checks": "Bounded derivative pins; verifiers/determinism/mismatch guard and cleanup",
+      "finding": [
+        "QA-004",
+        "QA-006"
+      ],
+      "review": "ACCEPTED_IMPLEMENTATION_ONLY"
+    },
+    {
+      "sha": "f03ea7b94f3d912aac704a89af5b087df1779de7",
+      "issue": "TPR-157",
+      "checks": "Unit5, HTTP7, browser47+heading24, native n8n SMTP restart and scheduled/error, c8p95=781.4ms zero errors",
+      "finding": [
+        "QA-004",
+        "QA-005",
+        "QA-006",
+        "QA-007"
+      ],
+      "review": "ACCEPTED_IMPLEMENTATION_ONLY"
+    },
+    {
+      "sha": "b7229eeb5e875db6958f32cd076b2fd699687d83",
+      "issue": "TPR-158",
+      "checks": "Lifecycle214/contracts24/pinsPASS; maintained317PASS2FAIL historical reader leaf+parent",
+      "finding": [
+        "QA-001",
+        "QA-005"
+      ],
+      "review": "ACCEPTED_IMPLEMENTATION_ONLY"
+    },
+    {
+      "sha": "6a3cd735b0da84ce3241d130ad1104e9ab6684cd",
+      "issue": "TPR-157",
+      "checks": "Residual original reader7PASS; final composed API maintained319PASS0FAIL0skip/cancel on6a3cd73",
+      "finding": [
+        "QA-005"
+      ],
+      "review": "ACCEPTED_IMPLEMENTATION_ONLY"
+    }
+  ],
+  "integratedSource": "6a3cd735b0da84ce3241d130ad1104e9ab6684cd",
+  "independentAcceptance": "PENDING_QA159_160_161_162_THEN152",
+  "historicalFindings": "D:/Project AI/GITHUB/IEMS-worktrees/iems-all-20261030-final_qa/checkpoints/iems-all-features/qa/FINDINGS.md",
+  "integration": "Fast-forward stacked ancestry; no conflicts, no duplicate cherry-picks",
+  "externalLimits": [
+    "Cloud AWS/MSK/Redshift/Atlas and optional Databricks actual deployment not exercised",
+    "Real WhatsApp/email credentials, biometrics consent/hardware, paid models and real pilot data remain external",
+    "n8n/SMTP and latency evidence is isolated synthetic local; no production SLA/provider delivery acceptance",
+    "Historical unmanaged/PREPARED/SENDING/UNKNOWN recovery remains gated; fullEndpointCoverage=false",
+    "Independent complete55ID/WA/gap/browser/security/conservation/concurrency/recovery acceptance pending"
+  ],
+  "schema": "IEMS_REMEDIATION_HANDOFF_V1"
+}

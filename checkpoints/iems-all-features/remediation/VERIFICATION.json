@@ -1,0 +1,45 @@
+{
+  "independentQA": "NOT_RUN",
+  "apiSyntax": {
+    "exit": 0,
+    "log": "integrated-api-syntax.log",
+    "command": "npm --prefix apps/portfolio-api run check"
+  },
+  "candidateQualification": "Later documentation-only commit must be diff-qualified against this source; no runtime source change during suite",
+  "contracts": {
+    "initialExit": 1,
+    "log": "integrated-contracts-types-after-ci.log",
+    "finalExit": 0,
+    "command": "npm --prefix packages/contracts run typecheck",
+    "initialReason": "Missing local @types/node",
+    "remedy": "npm --prefix packages/contracts ci --ignore-scripts, exit0; no tracked manifest/lock delta"
+  },
+  "tree": "57460b2721eaad7ccff4f3f34ee0d95f218fb45e",
+  "webBuild": {
+    "exit": 0,
+    "warnings": "Preserved Browserslist/npm/chunk warnings; no auto update",
+    "log": "integrated-web-build.log",
+    "command": "npm --prefix apps/web run build"
+  },
+  "sourceVerifiers": {
+    "exit": 0,
+    "log": "integrated-source-verifiers.log",
+    "command": "actual verifyAdmissionSources() and verifySourceSchemas()"
+  },
+  "maintained": {
+    "report": "integrated-maintained-run.json",
+    "state": "PASS",
+    "command": "node apps/portfolio-api/scripts/test-maintained.mjs",
+    "historicalExclusion": "Unchanged wave4g-tax historical assertion, current wave4h remains maintained",
+    "exit": 0,
+    "counts": {
+      "fail": 0,
+      "skip": 0,
+      "cancel": 0,
+      "topLevel": 71,
+      "tests": 319,
+      "pass": 319
+    }
+  },
+  "source": "6a3cd735b0da84ce3241d130ad1104e9ab6684cd"
+}

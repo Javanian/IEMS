@@ -251,3 +251,43 @@ ee350cb4f893be5df8c741f82f575be0c197fb50|feat(PLAT-038): authorize bounded metad
 c9634a7de8f6a74181a7e68b636cbc6311397895|feat(PLAT-038): expose scoped cleanup recovery with stable caller intent
 d7fbc4b394ec7e852ab859a84aaf6cea264b001e|docs(PLAT-038): hand off v15-v17 phase coverage and reviewed source registry
 33005312187236d9aba6b91bb68ba73b9c11ab90|merge(TPR-149): integrate v15-v17 managed effect and cleanup handoff
+1514822161adc5e6593cb644e08ed40eda29ad38|fix(analytics): build coverage on native DuckDB 1.4.1
+6808232182c574f201e37bcb050049ec61368377|fix(reporting): specify minimal snapshot replacement privileges
+76e367890db5d3aac3768535a86570471426b0b4|test(stock): reconcile multigeneration and historical terminal contracts
+19b36c990881a53038012fc75452eaa92c6d914f|test(repair): reach rollback gates with canonical replacement evidence
+908131746dc9677a47d7d19eab0d1ade9fd400ff|test(warehouse): assert exact committed receipt fences under contention
+ed6a40a26dfdbd44b23cf7db7b40b55747c3555d|test(stock-holds): receive against real approved purchase quantities
+077d659f525ac9e1505e31abf42ad5c54f56ce43|docs(qa): record stock and repair contract reconciliation evidence
+6767c4cf4d23fb6ee1f916fc801b93324de300ae|test(documents): reconcile atomic issuance and authorized recovery
+08fb8327fe470c3180c6617391bd257b2184ff90|test(vat): preserve approved scope and atomic document recovery
+c2d975708edccab3bfa8338d7009a0893fd1a1a5|fix(procurement): separate amendment and vendor promise component identity
+2585a4eb2800d9c7a44c5cbecf2cfb95c33e3810|test(commercial): reconcile retained commands against actual history
+032e5f0f72380dbc402fa247fb9b066d77444e92|test(fulfillment): select direct dispatch and scope payment controls
+6a50b197f28c2d19ed72b58f3f0417292718a7a5|docs(qa): hand off commercial remediation and remaining fence evidence
+44f92f3cf0b6a966f0b108b91644bde712222d3e|fix(cs): advance manufacturing projection revision with work orders
+dd1eccef4243325283b15c688c405724d2307ded|fix(automation): use scoped session credential and trusted mutation headers
+b208d0f0c1d6b5edd9de1f58de76eab681c7000b|test(cs): target active reader and preserve partial readiness assertions
+589f4ed47d3cb141b4c85397cc685349c337cb38|fix(tenant-lifecycle): regenerate approved CS source pins
+fc8b4ae4207b694fda8517b770f70615023615a4|test(customer-service): reconcile admission fences and current source errors
+b54edad37e9c55821f3614b7bd1f7c866215558d|test(portals): model subscription admission and deny enrolled fallback
+2125fee70805617b4b524d05b72506cbad2656c0|test(customer-service): preserve serialized revocation and operator ownership contracts
+20a5ead6dd8209e206fef0746dfeb4e08876f7d3|fix(automation-lab): tolerate disappearing process command during stop
+023261b5b345a6e0228e62fe44f6b3b6ef1148fa|perf(customer-service): finish scoped preview drain after requested deliveries
+bf24dba343facc396d3265e6540678a184537f4f|fix(customer-service): preserve admitted preview drain inventory
+721e3954f00076d6879b04a43a9b202b1b7427b7|test(customer-service): verify scoped preview bounds and refresh owned pins
+ba0bc185a8a281909ac61b1ebdc65887ca6e5c6c|fix(customer-service): preserve unscoped dispatcher input contract
+8f69315379ac794df4eb5578081f16f78f221b76|chore(customer-service): refresh verified unscoped fix source pins
+d85f310808ee08369e47cd93e410df175481aaed|test(browser): retain trace preflight failure diagnostics
+4aab249165bb144ad7aaa6841fe059561cb46f1a|perf(customer-service): coordinate contending tenant simulator requests
+b937044d441ec02da26b6e04420ada1fd9d062a2|chore(customer-service): pin verified bounded contention source
+79795f17ea808f0a42487633a245d06b39d9eec6|fix(automation-lab): launch web from its configured application directory
+27c8c56194d5a2671544e15075010c470d531174|test(customer-service): exercise the active browser order reader seam
+2d566aee0fc0635add9a3ec6764e4545e5104e3b|test(customer-service): prove unavailable reader retry without effects
+b1d9a5c2761ef96b2f86fdb88f4966f4da6e5f77|test(customer-service): create real manufacture-only browser prerequisite
+cebca229c7bfdb95e391bae7bcbb53d7f3a88f58|test(customer-service): use the actual WO release request contract
+f03ea7b94f3d912aac704a89af5b087df1779de7|fix(automation-lab): advertise the registered Automation Center route
+f08407a80504a780422ba8340148028b3ce4ac10|test(tenant-lifecycle): reconcile exact enrollment replay fences
+025cff17863a3addc6b5fc762fd2e8bb20ffe2da|test(tenant-lifecycle): reconcile final receipt and admission contracts
+549289fe6acd80905de3c95c4059024a34a77f0d|test(tenant-lifecycle): verify final composed registry integrity
+b7229eeb5e875db6958f32cd076b2fd699687d83|test(tenant-lifecycle): account for purchased and quote replay enrollment fences
+6a3cd735b0da84ce3241d130ad1104e9ab6684cd|test(cs): reconcile active reader rollback and same-key recovery
