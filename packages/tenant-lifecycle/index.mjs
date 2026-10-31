@@ -24,7 +24,7 @@ export function addUsage(usage, metric, amount, limits) {
 }
 
 // Domain export/delete/restore stays unavailable until an authoritative complete-scope port is wired.
-export function createTenantLifecycle({ client, db, foundation, domainPort = null, enrollmentGuard = null, documentPort = null, saasAdmission, clock = () => new Date() }) {
+export function createTenantLifecycle({ client, db, foundation, domainPort = null, enrollmentGuard = null, documentPort = null, saasAdmission, separateEffects = null, clock = () => new Date() }) {
   const rows = db.collection('saasSubscriptions'), archives = db.collection('saasLifecycleArchives');
   const administrativeAdmission = saasAdmission?.controlPlane ?? (async descriptor => {
     if(descriptor.namespace!=='foundationCommandResults' || !lifecycleRoles.saasOperator.includes(descriptor.action)) fail('SAAS_CONTROL_PLANE_COMMAND_INVALID',500);
@@ -33,8 +33,8 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
   function shape(input, keys) {
     if (!input || Object.getPrototypeOf(input) !== Object.prototype || Object.keys(input).some(k => !keys.includes(k)) || !uuid(input.plantId)) fail('INVALID_SAAS_REQUEST');
   }
-  async function tenantGrant(scope, plantId, action, session) {
-    const grant = await foundation.authorizeInTransaction(scope,{ tenantId: scope?.tenantId, plantId, action },{session});
+  async function tenantGrant(scope, plantId, action, session, readOnly=false) {
+    const grant = readOnly?await foundation.authorize(scope,{tenantId:scope?.tenantId,plantId,action}):await foundation.authorizeInTransaction(scope,{ tenantId: scope?.tenantId, plantId, action },{session});
     const member = await db.collection('memberships').findOne({ _id: grant.membershipId, tenantId: grant.tenantId, active:true, version:grant.membershipVersion },{session});
     if (!member?.tenantWide || !member.roles?.some(g => g.tenantWide && lifecycleRoles[g.role]?.includes(action))) fail('TENANT_WIDE_SAAS_GRANT_REQUIRED',403);
     return grant;
@@ -62,6 +62,13 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
     });
   }
   const requireState = (row, states) => { if (!states.includes(row.state)) fail('SAAS_INVALID_STATE',409); };
+  async function historyQuiescent(tenantId,session){
+    if(separateEffects)await separateEffects.assertQuiescent({tenantId,session});
+    for(const [name,filter,key] of [['automation_engine_runs',{},'runId'],['aiVendorDeliveryAttempts',{},'attemptIds'],['cs_outbox',{state:{$in:['SENDING','UNKNOWN']}},'deliveryIds']]){
+      const cursor=db.collection(name).find({tenantId,...filter},{session}).limit(1001),history=await cursor.toArray();if(history.length>1000)fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);
+      for(const record of history){if(!separateEffects||!record.controlCommandId)fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);await separateEffects.verifyManagedRecord({tenantId,commandId:record.controlCommandId,reference:{key,id:record._id},session});}
+    }
+  }
   const port = () => { if (!domainPort || !['snapshot','remove','restore'].every(k => typeof domainPort[k] === 'function')) fail('TENANT_DATA_PORT_UNAVAILABLE',503); };
   function snapshotValid(snapshot,tenantId) {
     if (snapshot?.schema !== 'TENANT_EXPORT_V1' || snapshot.tenantId !== tenantId || snapshot.coverage !== 'COMPLETE' ||
@@ -77,23 +84,21 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
     },
     async status(scope,input) {
       shape(input,['plantId']);
-      return boundedTransaction(client,async session => {
-        const grant = await tenantGrant(scope,input.plantId,'saas.read',session);
+      const result=await boundedTransaction(client,async session => {
+        const grant = await tenantGrant(scope,input.plantId,'saas.read',session,true);
         const row = await rows.findOne({tenantId:grant.tenantId},{session});
-        return {schema:'SAAS_STATUS_V1',subscription:row ? clean(current(row)) : null,plans,
+        return {schema:'SAAS_STATUS_V1',subscription:row ? clean(current(row)) : null,plans,quiescence:separateEffects?await separateEffects.quiescence({tenantId:grant.tenantId,session}):{state:'UNCONFIGURED'},
           admission:{profile:'RECEIPTED_COMMANDS_V1',fullEndpointCoverage:false,
             supported:'Receipt-backed keyed CRM, legacy quotes/procurement, manufacturing, repair, internal production, inventory and stock holds, inquiries, shortages, catalog procurement/disposition, purchased fulfillment, delivery/returns, workforce, operations and selected quote, procurement, document, model and portal commands; public job ingress and selected private customer-service receipts. Enrolled simulator inbound and automation resolution/digest intents remain locally queued. Four standalone private/operator CS roots preserve immutable results; explicit human local preview, administrative receipts, one-time-no-recovery credentials and bounded LOCAL_OBSERVE_V1 are supported. SLA escalation and resolution draft creation retain their existing receipts.',
             unsupported:'Unkeyed enrolled CRM/legacy quote/procurement requests, independently committing customer-service workers, full legacy automation recovery and external engine/sender effects, AI indexing rebuild/cleanup and AI delivery dispatch/reconciliation.',
             enrollmentBoundary:'Enrollment requires command-aware clients; older unkeyed forms may be unavailable. Unsupported business mutations are blocked. Existing automation engine history prevents enrollment until authoritative quiescence can be established.'},
           domainLifecycleConfigured:!!domainPort, billing:'SAAS_METERING_ONLY_NO_PAYMENT_COLLECTION',
           boundary:'Tenant invoices are separate. Delete is a reversible archive workflow, not certified erasure. Domain effects require a complete authoritative transactional port.'};
-      });
+      });await tenantGrant(scope,input.plantId,'saas.read',undefined,true);return result;
     },
     subscribe(scope,input) { return mutate(scope,input,'saas.subscribe',['plan','admissionProfile'],async (row,{session,grant}) => {
       if(enrollmentGuard)await enrollmentGuard(input.admissionProfile);
-      if(enrollmentGuard && await db.collection('cs_outbox').findOne({tenantId:grant.tenantId,state:{$in:['SENDING','UNKNOWN']}},{session})) fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);
-      if(enrollmentGuard && await db.collection('automation_engine_runs').findOne({tenantId:grant.tenantId},{session})) fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);
-      if(enrollmentGuard && await db.collection('aiVendorDeliveryAttempts').findOne({tenantId:grant.tenantId},{session})) fail('SAAS_ENROLLMENT_EXTERNAL_EFFECT_PENDING',409);
+      if(enrollmentGuard)await historyQuiescent(grant.tenantId,session);
       if(enrollmentGuard) {
         try {
           if(!documentPort?.validateTenantHistory) {
@@ -106,14 +111,17 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
       if (Object.keys(row.usage).some(k => BigInt(row.usage[k]) > BigInt(plans[input.plan][k]))) fail('PLAN_BELOW_USAGE',409);
       row.plan = input.plan; if (row.state === 'UNSUBSCRIBED') row.state='ACTIVE';
       if(enrollmentGuard)row.admissionProfile=input.admissionProfile;
+      if(separateEffects&&row.state==='ACTIVE')await separateEffects.openInSession({tenantId:grant.tenantId,session});
     }); },
     meter(scope,input) { return mutate(scope,input,'saas.meter',['metric','amount'],async row => {
       requireState(row,['ACTIVE']); row.usage=addUsage(row.usage,input.metric,input.amount,plans[row.plan]);
     }); },
-    suspend(scope,input) { return mutate(scope,input,'saas.suspend',[],async row => {requireState(row,['ACTIVE']);row.state='SUSPENDED';}); },
-    resume(scope,input) { return mutate(scope,input,'saas.resume',[],async row => {requireState(row,['SUSPENDED']);row.state='ACTIVE';}); },
+    async quiesce(scope,input){shape(input,['plantId']);const grant=await boundedTransaction(client,async session=>{const grant=await tenantGrant(scope,input.plantId,'saas.suspend',session);if(!separateEffects)fail('EFFECT_ADAPTER_UNPROVEN',503);await separateEffects.closeInSession({tenantId:grant.tenantId,session});return grant;});return separateEffects.stopAndDrain(grant.tenantId);},
+    suspend(scope,input) { return mutate(scope,input,'saas.suspend',[],async (row,{session,grant}) => {requireState(row,['ACTIVE']);if(separateEffects)await separateEffects.closeInSession({tenantId:grant.tenantId,session});row.state='SUSPENDED';}); },
+    resume(scope,input) { return mutate(scope,input,'saas.resume',[],async (row,{session,grant}) => {requireState(row,['SUSPENDED']);if(separateEffects)await separateEffects.openInSession({tenantId:grant.tenantId,session});row.state='ACTIVE';}); },
     export(scope,input) { return mutate(scope,input,'saas.export',[],async (row,{session,grant}) => {
       requireState(row,['ACTIVE','SUSPENDED']); port();
+      await historyQuiescent(grant.tenantId,session);
       row.usage=addUsage(row.usage,'exports','1',plans[row.plan]);
       const snapshot=await domainPort.snapshot({scope,grant,session}); snapshotValid(snapshot,grant.tenantId);
       const archiveId=randomUUID(), digest=contentHash(snapshot);
@@ -123,6 +131,7 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
     }); },
     delete(scope,input) { return mutate(scope,input,'saas.delete',['archiveId','digest'],async (row,{session,grant}) => {
       requireState(row,['SUSPENDED']); port();
+      await historyQuiescent(grant.tenantId,session);
       if (!uuid(input.archiveId) || row.archiveId !== input.archiveId) fail('ARCHIVE_NOT_CURRENT',409);
       const archive=await archives.findOne({_id:input.archiveId,tenantId:grant.tenantId,deleted:false},{session});
       if (!archive || archive.digest !== input.digest || contentHash(archive.snapshot) !== archive.digest) fail('ARCHIVE_INTEGRITY_INVALID',409);
@@ -134,6 +143,7 @@ export function createTenantLifecycle({ client, db, foundation, domainPort = nul
     }); },
     restore(scope,input) { return mutate(scope,input,'saas.restore',['archiveId','digest'],async (row,{session,grant}) => {
       requireState(row,['ARCHIVED']); port();
+      await historyQuiescent(grant.tenantId,session);
       if (!uuid(input.archiveId) || row.archiveId !== input.archiveId) fail('ARCHIVE_NOT_CURRENT',409);
       const archive=await archives.findOne({_id:input.archiveId,tenantId:grant.tenantId,deleted:true,restored:false},{session});
       if (!archive || archive.digest !== input.digest || contentHash(archive.snapshot) !== archive.digest) fail('ARCHIVE_INTEGRITY_INVALID',409);

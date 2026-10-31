@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { IdentityContext } from './PortfolioWorkspace.jsx';
-import { portfolioRequest, errorMessage } from './client.mjs';
+import { portfolioRequest, errorMessage, useLocalEffects } from './client.mjs';
+import { LocalEffectStatus } from './CustomerServiceWorkspace.jsx';
 import WorkspaceField from '../../components/forms/WorkspaceField.jsx';
 import WorkspaceState from '../../components/ui/WorkspaceState.jsx';
 
@@ -98,6 +99,7 @@ export function AssistantWorkspace() {
 
 function DocumentControls() {
   const identity = useContext(IdentityContext), generation = useRef(0), lock = useRef(false);
+  const effects=useLocalEffects('document-index',identity);
   const [state, setState] = useState({}), [selected, setSelected] = useState(null), [pending, setPending] = useState(null), [mode, setMode] = useState('MANUAL');
   const storageKey = identity?.scope?.tenantId && identity?.scope?.plantId && identity?.user?.id
     ? `iems.ai-document:${identity.scope.tenantId}:${identity.scope.plantId}:${identity.user.id}` : null;
@@ -122,11 +124,22 @@ function DocumentControls() {
     try {
       if (!storageKey) throw new Error('Authenticated recovery identity is unavailable');
       sessionStorage.setItem(storageKey, JSON.stringify(command)); setPending(command);
-      await portfolioRequest(command.path, { body: command.body });
+      const result=await portfolioRequest(command.path, { body: command.body });
       if (current !== generation.current) return;
+      if(result.data?.accepted===true){if(!result.data.commandId)throw new Error('The accepted intent reference is missing. Reconcile the same command.');effects.remember(result.data.commandId,command.path.endsWith('/rebuild')?['EMBED','UPSERT']:['DELETE'],'Document index');}
       sessionStorage.removeItem(storageKey); setPending(null); setSelected(null); lock.current = false; await read();
     } catch (error) { if (current === generation.current) setState(s => ({ ...s, busy: false, error })); }
     finally { if (current === generation.current) lock.current = false; }
+  }
+  async function readCleanup(resourceId) {
+    if (lock.current) return;
+    lock.current=true;const current=generation.current;setState(s=>({...s,busy:true,error:null,cleanup:null}));
+    try {
+      const result=await portfolioRequest(`/api/ai/documents/${resourceId}/index/cleanup`);
+      if(result.data?.schema!=='AI_INDEX_CLEANUP_STATUS_V1'||result.data.resourceId!==resourceId)throw new Error('Cleanup authority could not be verified.');
+      if(current===generation.current)setState(s=>({...s,busy:false,cleanup:result.data}));
+    } catch(error){if(current===generation.current)setState(s=>({...s,busy:false,error,cleanup:null}));}
+    finally{if(current===generation.current)lock.current=false;}
   }
   function publish(event) {
     event.preventDefault(); const f = Object.fromEntries(new FormData(event.currentTarget)), resourceId = selected?.resourceId || crypto.randomUUID();
@@ -138,6 +151,16 @@ function DocumentControls() {
   const action = (suffix, expectedRevision) => mutate({ path: `/api/ai/documents/${selected.resourceId}/${suffix}`, body: { key: crypto.randomUUID(), expectedRevision } });
   return <section className="pf-panel" aria-labelledby="ai-documents-heading"><h2 id="ai-documents-heading">Documents and index</h2>
     <p>Publish scoped plain text or bind an approved purchase order. Source changes and revoked access invalidate old index generations. PDF/OCR and remote URL imports are unsupported.</p>
+    <LocalEffectStatus control={effects}/>
+    <details><summary>Cleanup an inactive or superseded document index</summary>
+      <p>Enter an existing document ID to inspect cleanup authority. Current ACL and original source permission are required. Cleanup removes at most 100 retired or proven orphan points and preserves the published generation.</p>
+      <form className="pf-form" onSubmit={event=>{event.preventDefault();readCleanup(new FormData(event.currentTarget).get('cleanupResourceId').trim());}}>
+        <WorkspaceField name="cleanupResourceId" label="Cleanup document ID" required pattern="[a-fA-F0-9-]{36}" />
+        <button disabled={state.busy||!!pending}>Inspect cleanup authority</button>
+      </form>
+      {state.cleanup&&<><p className="pf-id">{state.cleanup.resourceId}</p><p>{state.cleanup.metadata.active?'Active':'Inactive'} document · {state.cleanup.metadata.provenance} · document revision {state.cleanup.metadata.revision} · index revision {state.cleanup.revision}. Tracked retired points: {state.cleanup.retiredPointCount}.</p>
+        <button disabled={state.busy||!!pending||state.cleanup.revision===0} onClick={()=>{const value=state.cleanup;setState(s=>({...s,cleanup:null}));mutate({path:`/api/ai/documents/${value.resourceId}/index/cleanup`,body:{key:crypto.randomUUID(),expectedRevision:value.revision}});}}>Clean verified retired or orphan points</button></>}
+    </details>
     <button disabled={state.busy} onClick={() => read()}>Load authorized documents</button>
     {pending && <WorkspaceState title="Unresolved document command"><p>Reconcile the saved command before submitting another change.</p><button disabled={state.busy} onClick={() => mutate(pending)}>Reconcile same command</button></WorkspaceState>}
     {state.error && <WorkspaceState kind="error" title="Document or index unavailable"><p>{errorMessage(state.error)}</p><p>An unavailable embedding/vector provider does not prevent manual document persistence.</p></WorkspaceState>}
@@ -153,7 +176,7 @@ function DocumentControls() {
     {selected && state.index && <><p>{state.index.state} · source revision {state.index.sourceRevision} · index revision {state.index.revision} · model {state.index.model}. Next: {state.index.nextAction}.</p>
       <p>Tracked retired points: {state.index.retiredPointCount}. Cleanup removes at most 100 old points per action.</p>
       <button disabled={state.busy || !!pending} onClick={() => action('rebuild', state.index.revision)}>Rebuild current source with configured model</button>
-      <button disabled={state.busy || !!pending || !state.index.retiredPointCount} onClick={() => action('index/cleanup', state.index.revision)}>Clean tracked retired points</button>
+      <button disabled={state.busy || !!pending || state.index.revision===0} onClick={() => action('index/cleanup', state.index.revision)}>Clean retired or managed orphan points</button>
       <button disabled={state.busy || !!pending || state.index.revision === 0} onClick={() => action('index/revoke', state.index.revision)}>Deactivate index generation</button></>}
     <details><summary>{selected ? 'Replace text or ACL with a new revision' : 'Publish a document'}</summary>
       <WorkspaceField as="select" label="Ingestion source" value={mode} onChange={e => setMode(e.target.value)}><option value="MANUAL">Manual plain text</option><option value="ISSUED">Approved purchase order</option></WorkspaceField>

@@ -14,9 +14,9 @@ export const admissionReceipts = Object.freeze(Object.fromEntries([
   ['deliveryKeys','payloadHash'], ['fulfillmentReturnKeys','payloadHash'], ['workforceResults','inputHash'],
   ['purchaseOrderAmendmentKeys','payloadHash'], ['procurementRfqKeys','payloadHash'], ['procurementPromiseKeys','payloadHash'],
   ['procurementConversions','payloadHash'], ['quoteCatalogKeys','payloadHash'], ['quoteConversions','payloadHash'], ['companyStockKeys','payloadHash'],
-  ['automation_audit_logs','payloadHash'], ['cs_idempotency','requestHash'], ['documentIssues','contentHash'], ['crmCommandResults','inputHash'], ['legacyQuoteCommandResults','inputHash'], ['procurementCommandResults','inputHash'],
+  ['saasEffectCommands','payloadHash'], ['automation_audit_logs','payloadHash'], ['cs_idempotency','requestHash'], ['documentIssues','contentHash'], ['crmCommandResults','inputHash'], ['legacyQuoteCommandResults','inputHash'], ['procurementCommandResults','inputHash'],
 ].map(([collection,hashField]) => [collection,Object.freeze({collection,hashField})])));
-export const automationReceiptPolicies=Object.freeze({TICKET_ESCALATE:'cs.automation.execute',RESOLUTION_DRAFT_CREATE:'cs.automation.execute',RESOLUTION_DISPATCH_INTENT:'cs.automation.execute',DIGEST_DISPATCH_INTENT:'cs.automation.execute',AUTOMATION_PAUSE:'cs.automation.admin',RESOLUTION_APPROVE:'cs.ticket.write',RESOLUTION_REJECT:'cs.ticket.write',RESOLUTION_CANCEL:'cs.ticket.write',DELIVERY_MANUAL_REVIEW:'cs.automation.admin',SERVICE_CREDENTIAL_ISSUE:'cs.automation.admin',SERVICE_CREDENTIAL_REVOKE:'cs.automation.admin',LOCAL_DELIVERY_RECONCILE:'cs.automation.execute'});
+export const automationReceiptPolicies=Object.freeze({AUTOMATION_RECOVERY:'cs.automation.execute',AUTOMATION_ENGINE_RUN:'cs.automation.execute',TICKET_ESCALATE:'cs.automation.execute',RESOLUTION_DRAFT_CREATE:'cs.automation.execute',RESOLUTION_DISPATCH_INTENT:'cs.automation.execute',DIGEST_DISPATCH_INTENT:'cs.automation.execute',AUTOMATION_PAUSE:'cs.automation.admin',RESOLUTION_APPROVE:'cs.ticket.write',RESOLUTION_REJECT:'cs.ticket.write',RESOLUTION_CANCEL:'cs.ticket.write',DELIVERY_MANUAL_REVIEW:'cs.automation.admin',SERVICE_CREDENTIAL_ISSUE:'cs.automation.admin',SERVICE_CREDENTIAL_REVOKE:'cs.automation.admin',LOCAL_DELIVERY_RECONCILE:'cs.automation.execute'});
 export const csReceiptPolicies=Object.freeze({
  'simulator.dispatch':{permission:'cs.simulator.use',owner:'user'},
  'complaint.start':{customer:true},'complaint.update':{customer:true},'conversation.bot_reply':{customer:true},'conversation.operator_reply':{permission:'cs.reply',owner:'user'},
@@ -27,7 +27,7 @@ export const csReceiptPolicies=Object.freeze({
 });
 for(const policy of Object.values(csReceiptPolicies))Object.freeze(policy);
 const operatorActions = new Set(['saas.subscribe','saas.meter','saas.suspend','saas.resume','saas.export','saas.delete','saas.restore']);
-export function createSaasAdmission({db,foundation,integrations={},clock=()=>new Date(),coverage=null}={}) {
+export function createSaasAdmission({db,foundation,integrations={},clock=()=>new Date(),coverage=null,controlledIndexReady,controlledVendorReady}={}) {
   if(coverage!==null && coverage!==admissionProfile) fail('SAAS_ADMISSION_UNSUPPORTED_CONFIGURATION',400);
   const subscriptions=db.collection('saasSubscriptions'), pending=new WeakMap();
   let hostReady=false;const csContexts=new WeakMap();
@@ -63,7 +63,7 @@ export function createSaasAdmission({db,foundation,integrations={},clock=()=>new
     if(fence.matchedCount!==1) fail('SCOPE_DENIED',403);
     if(await subscriptions.findOne({tenantId},{session})) fail('SAAS_ADMISSION_UNSUPPORTED_EFFECT',403);
   }
-  async function effect({scope,grant:supplied,session,namespace,key,action,aggregateId,payloadHash,replayed,identity,parent,operation}) {
+  async function effect({scope,grant:supplied,session,namespace,key,action,aggregateId,payloadHash,replayed,identity,parent,operation,rootIdentity}) {
     if(namespace==='cs_idempotency')return operatorCsEffect({scope,session,identity,payloadHash,replayed,action,parent});
     const plantId=supplied?.plantId??scope?.selectedPlantId, authority=await active(scope,{plantId,session});
     if(!authority) return {state:'LEGACY_UNENROLLED',charged:false};
@@ -80,6 +80,9 @@ export function createSaasAdmission({db,foundation,integrations={},clock=()=>new
       filter={...identity};
       const receipt=await db.collection(namespace).findOne(filter,{session});
       if(receipt&&(receipt.plantId!==grant.plantId||receipt.action!==operation||receipt.targetEntity?.id!==aggregateId))fail('IDEMPOTENCY_CONFLICT');
+    }
+    if(namespace==='saasEffectCommands') {
+      const fields=['action','key','plantId','resourceId','tenantId','userId'];if(!identity||Object.keys(identity).sort().join(',')!=='ownerIdentityHash,ownerNamespace,tenantId'||identity.tenantId!==grant.tenantId||identity.ownerNamespace!=='AI_INDEX_ROOT_V1'||!rootIdentity||Object.keys(rootIdentity).sort().join(',')!==fields.join(',')||rootIdentity.tenantId!==grant.tenantId||rootIdentity.plantId!==grant.plantId||rootIdentity.userId!==grant.userId||rootIdentity.key!==key||rootIdentity.resourceId!==aggregateId||rootIdentity.action!==operation||!['ai.index.rebuild','ai.index.cleanup'].includes(operation)||action!=='ai.index'||identity.ownerIdentityHash!==contentHash(rootIdentity))fail('SAAS_ADMISSION_IDENTITY_REQUIRED',400);filter={...identity};
     }
     if(namespace==='documentIssues') {
       const fields=['kind','legalEntityId','plantId','sourceId','sourceVersion','tenantId'];
@@ -175,6 +178,8 @@ export function createSaasAdmission({db,foundation,integrations={},clock=()=>new
     async enrollmentGuard(profile) {
       if(!hostReady || coverage!==admissionProfile || profile!==admissionProfile) fail('SAAS_ADMISSION_INCOMPLETE',503);
       if(integrations.rag?.embeddings || integrations.rag?.vectors || integrations.vendorDrafts?.transport || integrations.voice?.store) fail('SAAS_ADMISSION_EXTERNAL_ADAPTER_UNCOVERED',503);
+      if(integrations.effects?.ai&&controlledIndexReady?.()!==true)fail('SAAS_ADMISSION_EXTERNAL_ADAPTER_UNCOVERED',503);
+      if(integrations.effects?.vendor&&controlledVendorReady?.()!==true)fail('SAAS_ADMISSION_EXTERNAL_ADAPTER_UNCOVERED',503);
     },
     authorize,guard:authorize,unsupported,unsupportedTenant,unkeyed,effect,createCustomerServicePort,
     async controlPlane(d) {

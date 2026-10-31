@@ -1,3 +1,4 @@
+import type {SeparateEffects, EffectWorkerCapability, EffectSession as ClientSession} from '../tenant-lifecycle/effects.mjs';
 import type { TenantFoundation, VerifiedScope, UUID } from '../tenant-foundation/index.d.ts';
 
 export type { UUID, VerifiedScope };
@@ -71,7 +72,7 @@ export type Actor = { type: 'CUSTOMER'; customerId: UUID } | { type: 'OPERATOR';
 export interface TicketView { ticketId: UUID; ticketNumber: string; plantId: UUID; customerId: UUID; stage: TicketStage; version: number; category: ComplaintCategory; orderNumber: string | null; orderSource: typeof SYNTHETIC_ORDER_SOURCE | 'PORTFOLIO_API_OWNED' | null; assigneeId: UUID | null; description: string; dataOrigin?: 'SYNTHETIC_RUNTIME' | 'SEEDED' | 'UNKNOWN'; conversationId?: UUID | null; createdAt: Date; updatedAt: Date }
 export interface TicketEvent { eventId: UUID; ticketId: UUID; kind: string; visibility: 'CUSTOMER'; fromStage: TicketStage | null; toStage: TicketStage; version: number; actor: Actor; reason?: string | null; text?: string | null; historyOrigin?: 'RECORDED' | 'SEEDED' | 'UNKNOWN'; at: Date }
 export interface ModeChange { conversationId: UUID; mode: ConversationMode; version: number; cancelledDeliveryIds: UUID[]; inFlightDeliveryIds: UUID[] }
-export interface ConversationView { conversationId: UUID; mode: ConversationMode; version: number; assigneeId: UUID | null; activeTicketId: UUID | null; deliveries: { deliveryId: UUID; kind: string; origin: 'BOT' | 'SYSTEM' | 'OPERATOR'; state: DeliveryState; attempt: number; cancelReason: string | null; deliveryUncertain: boolean }[] }
+export interface ConversationView { conversationId: UUID; mode: ConversationMode; version: number; assigneeId: UUID | null; activeTicketId: UUID | null; deliveries: { deliveryId: UUID; kind: string; origin: 'BOT' | 'SYSTEM' | 'OPERATOR'; state: DeliveryState; attempt: number; cancelReason: string | null; deliveryUncertain: boolean; effect?:{commandId:UUID;phase:UUID;mode:'LOCAL_SIMULATED'} }[] }
 export interface ClaimedDelivery { deliveryId: UUID; fence: number; attempt: number; kind: 'TICKET_ACK' | 'HANDOFF_ACK' | 'BOT_REPLY' | 'OPERATOR_REPLY' | 'TICKET_RESOLVED'; recipient: { channelAccountId: string; providerContactId: string }; payload: Record<string, unknown>; payloadHash: string }
 type Op<T> = T & { plantId: UUID };
 
@@ -82,6 +83,7 @@ export interface ConversationSummary { conversationId: UUID; mode: ConversationM
 export interface ThreadMessage { messageId: UUID; direction: 'INBOUND' | 'OUTBOUND'; origin: 'CUSTOMER' | 'BOT' | 'SYSTEM' | 'OPERATOR'; kind: string; text: string; state: string; at: Date;
   /** Outbound only. */ body?: string | null; template?: { id: string | null; version: number }; source?: { kind: string; id: string | null; sourceVersion: number | null; asOf: Date } | null;
   deliveryState?: ThreadDeliveryState; order?: { kind: OrderKind | null; orderNumber: string; publicStage: OrderPublicStage; progress: { released: number; total: number } | null; milestones: OrderMilestone[]; confirmedDates: ConfirmedDates; sourceVersion: number | null; asOf: Date };
+  effect?: {commandId:UUID;phase:UUID;mode:'LOCAL_SIMULATED'};
   cancelReason?: string; previewedAt?: Date | null; sentAt?: Date | null }
 export type BindingStatus = 'ACTIVE' | 'EXPIRED' | 'REVOKED';
 export interface BindingView { bindingId: UUID; accountId: UUID; contactId: UUID | null; channel: 'SIMULATED' | 'FIXTURE'; address: string | null; status: BindingStatus; version: number; expiresAt: Date | null; verifiedMethod: string; createdAt: Date; createdBy: UUID | null; revokedAt: Date | null; revokedBy: UUID | null; revokeReason: string | null }
@@ -128,9 +130,9 @@ export interface CustomerService {
   operatorReply(scope: VerifiedScope, input: Op<{ conversationId: UUID; text: string; commandKey: string }>): Promise<{ deliveryId: UUID; state: DeliveryState }>;
   resolveUnknownDelivery(scope: VerifiedScope, input: Op<{ deliveryId: UUID; resolution: 'CONFIRMED_SENT' | 'CONFIRMED_NOT_SENT_REQUEUE' | 'ABANDON'; evidence: string; providerMessageId?: string | null; commandKey: string }>): Promise<{ deliveryId: UUID; state: DeliveryState }>;
   // Trusted single-owner dispatcher port. SENDING is durable before any remote call.
-  claimNextDelivery(input: { tenantId: UUID; channelAccountId: string; leaseOwner: string; leaseMs?: number; deliveryIds?: UUID[] }): Promise<ClaimedDelivery | null>;
-  recordDeliveryResult(input: { tenantId: UUID; deliveryId: UUID; fence: number; outcome: 'PREVIEWED' | 'SENT' | 'NOT_SENT' | 'SUBMIT_UNCERTAIN'; providerMessageId?: string | null; error?: string | null }): Promise<{ deliveryId: UUID; state: DeliveryState }>;
-  reconcileExpiredSending(input: { tenantId: UUID }): Promise<{ unknownDeliveryIds: UUID[] }>;
+  claimNextDelivery(input: { tenantId: UUID; channelAccountId: string; leaseOwner: string; leaseMs?: number; deliveryIds?: UUID[]; workerCapability?:EffectWorkerCapability; session?:ClientSession }): Promise<ClaimedDelivery | null>;
+  recordDeliveryResult(input: { tenantId: UUID; deliveryId: UUID; fence: number; outcome: 'PREVIEWED' | 'SENT' | 'NOT_SENT' | 'SUBMIT_UNCERTAIN'; providerMessageId?: string | null; error?: string | null; workerCapability?:EffectWorkerCapability; session?:ClientSession }): Promise<{ deliveryId: UUID; state: DeliveryState }>;
+  reconcileExpiredSending(input: { tenantId: UUID; workerCapability?:EffectWorkerCapability; session?:ClientSession }): Promise<{ unknownDeliveryIds: UUID[] }>;
   // Wave 4f trusted onboarding (cs.binding.read / cs.binding.manage), simulator (cs.simulator.use), metrics (cs.ticket.read).
   createBinding(scope: VerifiedScope, input: Op<{ accountId: UUID; contactId: UUID; channel: 'SIMULATED'; address: string; expiresAt?: string | null; idempotencyKey: string }>): Promise<{ binding: BindingView }>;
   revokeBindingByOperator(scope: VerifiedScope, input: Op<{ bindingId: UUID; reason: string; expectedVersion: number; idempotencyKey: string }>): Promise<{ binding: BindingView; cancelledDeliveries: number }>;
@@ -151,8 +153,10 @@ export declare function createCustomerService(options: {
     unsupported(scope: VerifiedScope, options: {plantId: UUID; session: any}): Promise<unknown>;
     unsupportedTenant(options: {tenantId: UUID; session: any}): Promise<unknown>;
     effect(descriptor: CsReceiptAdmission): Promise<{state: string; context?: object}>;
-    createCustomerServicePort?: CustomerServicePortFactory;
+    separateEffects?: SeparateEffects;
+  createCustomerServicePort?: CustomerServicePortFactory;
   };
+  separateEffects?: SeparateEffects;
   createCustomerServicePort?: CustomerServicePortFactory;
   now?: () => Date;
   draftTtlMs?: number;
@@ -164,7 +168,7 @@ export declare function createCustomerService(options: {
   orderMaxStaleMs?: number;
   allowSyntheticOrders?: boolean;
   previewDispatcher?: boolean;
-  faultInjector?: (boundary: 'domain' | 'pointer' | 'result' | 'afterCommit' | 'bindingSnapshot') => void | Promise<void>;
+  faultInjector?: (boundary: 'domain' | 'pointer' | 'result' | 'afterCommit' | 'bindingSnapshot' | 'managedIntent' | 'managedPreview') => void | Promise<void>;
   partyDirectory?: PartyDirectory | null;
   firstResponseSlaMinutes?: number;
 }): CustomerService;

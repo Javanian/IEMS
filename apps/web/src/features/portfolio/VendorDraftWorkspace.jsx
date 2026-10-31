@@ -1,11 +1,13 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { IdentityContext } from './PortfolioWorkspace.jsx';
-import { portfolioRequest, errorMessage } from './client.mjs';
+import { portfolioRequest, errorMessage, useLocalEffects } from './client.mjs';
+import { LocalEffectStatus } from './CustomerServiceWorkspace.jsx';
 import WorkspaceField from '../../components/forms/WorkspaceField.jsx';
 import WorkspaceState from '../../components/ui/WorkspaceState.jsx';
 
 export function VendorDraftWorkspace() {
   const identity = useContext(IdentityContext);
+  const effects=useLocalEffects('vendor-delivery',identity);
   const [draftId, setDraftId] = useState(''), [record, setRecord] = useState(null), [error, setError] = useState(null);
   const [busy, setBusy] = useState(false), [pending, setPending] = useState(null);
   const generation = useRef(0), controller = useRef(null), operation = useRef(false);
@@ -24,7 +26,7 @@ export function VendorDraftWorkspace() {
     setBusy(true); setError(null);
     try {
       const result = await portfolioRequest(`/api/ai/vendor-drafts/${encodeURIComponent(id)}`, { signal: controller.current.signal });
-      if (generation.current === token) { setDraftId(id); setRecord(result.data); }
+      if (generation.current === token) { setDraftId(id); setRecord(result.data);if(result.data.attempt?.effect)effects.remember(result.data.attempt.effect.commandId,['VENDOR'],'Vendor delivery'); }
     } catch (e) { if (generation.current === token && e.name !== 'AbortError') { setError(e); setRecord(null); } }
     finally { if (generation.current === token) { operation.current = false; setBusy(false); } }
   }
@@ -37,8 +39,9 @@ export function VendorDraftWorkspace() {
       // Persist the exact command before POST; failures retain it for explicit reconciliation.
       if (!storageKey) throw new Error('Authenticated recovery identity is unavailable');
       if (!replay) { sessionStorage.setItem(storageKey, JSON.stringify(attempt)); setPending(attempt); }
-      await portfolioRequest(`/api/ai/vendor-drafts/${encodeURIComponent(id)}/${action}`, { body });
+      const result=await portfolioRequest(`/api/ai/vendor-drafts/${encodeURIComponent(id)}/${action}`, { body });
       if (generation.current !== token) return;
+      if(result.data?.effect)effects.remember(result.data.effect.commandId,['VENDOR'],'Vendor delivery');
       sessionStorage.removeItem(storageKey); setPending(null); setDraftId(id); operation.current = false; await read(id);
     } catch (e) { if (generation.current === token) { operation.current = false; setError(e); setBusy(false); } }
   }
@@ -53,6 +56,7 @@ export function VendorDraftWorkspace() {
   return <>
     <header className="pf-page-header"><h1>Vendor follow-up drafts</h1><p>Compose from an approved purchase order, review the exact recipient and evidence, then record human approval.</p></header>
     <WorkspaceState title="External delivery disabled"><p>Email and WhatsApp contacts are not configured. Local delivery receipts are explicitly simulated; approval never sends a message.</p></WorkspaceState>
+    <LocalEffectStatus control={effects} onObserved={()=>draftId&&read(draftId)}/>
     {pending && <section className="pf-panel" aria-label="Unresolved command"><h2>Resolve the previous command</h2><p>The outcome may be unknown. Preserve this tab and reconcile the same command before creating another.</p>
       <button disabled={busy} onClick={() => pending.action === 'dispatch' ? read(pending.id) : submit(pending.action, pending.body, pending.id, true)}>Reconcile saved command</button>
       <button disabled={busy} onClick={() => read(pending.id)}>Inspect current server record</button>

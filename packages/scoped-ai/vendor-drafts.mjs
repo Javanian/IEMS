@@ -1,3 +1,5 @@
+import {createManagedVendorBoundary} from '../tenant-lifecycle/vendor-effects.mjs';
+import {controlledVendorProvider} from '../tenant-lifecycle/local-ai-provider.mjs';
 import { randomUUID } from 'node:crypto';
 import { boundedTransaction, contentHash, createCommandExecutor } from '../tenant-foundation/commands.mjs';
 import { boundedCall, fail, scopeTarget, uuid } from './indexing.mjs';
@@ -18,7 +20,7 @@ const referenceOf = source => ({ cohort: source.cohort, vendorId: source.vendorI
 const sourceInput = reference => Object.fromEntries(Object.entries(reference).filter(([k]) => k !== 'sourceHash'));
 const same = (a, b) => contentHash(a) === contentHash(b);
 
-export function createVendorDrafts({ client, db, foundation, saasAdmission, authority, transport = null, clock = () => new Date(), timeoutMs = 3000 }) {
+export function createVendorDrafts({ client, db, foundation, saasAdmission, authority, transport = null, separateEffects, clock = () => new Date(), timeoutMs = 3000 }) {
   if (!authority?.source || !authority?.recipient || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5000 ||
       transport !== null && (transport.mode !== 'LOCAL_SIMULATED' || !transport.send || !transport.reconcile || !transport.id)) fail('AI_ADAPTER_CONFIGURATION', 500);
   const drafts = db.collection('aiVendorDrafts'), revisions = db.collection('aiVendorDraftRevisions'), approvals = db.collection('aiVendorApprovals');
@@ -52,8 +54,7 @@ export function createVendorDrafts({ client, db, foundation, saasAdmission, auth
         return grant;
       },
     } });
-    return commands.execute(scope, { ...scopeTarget(scope, input.plantId, `ai.vendor.${action}`), key: input.key,
-      aggregateId: input.draftId, expectedRevision: input.expectedRevision, input }, async context => {
+    const domainEffect=async context=>{
       const row = action === 'create' ? null : await find(context.grant, input.draftId, context.session);
       if (row && row.revision !== input.expectedRevision || !row && input.expectedRevision !== 0) fail('REVISION_CONFLICT', 409);
       const next = await effect({ ...context, row });
@@ -70,8 +71,35 @@ export function createVendorDrafts({ client, db, foundation, saasAdmission, auth
         occurredAt: clock().toISOString(), action }, { session: context.session });
       return { revision, data: { draftId: input.draftId, revision, state: next.state, attemptId: next.attemptId ?? row?.attemptId ?? null },
         events: [{ type: `ai.vendor.${action}`, version: 1, data: { draftId: input.draftId, revision } }] };
+    };
+    if(action==='deliver'&&managed)return managed.intent(scope,input,domainEffect);
+    return commands.execute(scope, { ...scopeTarget(scope, input.plantId, `ai.vendor.${action}`), key: input.key,
+      aggregateId: input.draftId, expectedRevision: input.expectedRevision, input }, async context => {
+      return domainEffect(context);
     });
   };
+  const settleBody=async(scope,input,attempt,receipt,owner,{session,grant},matched,state)=>{
+      const row = await find(grant, input.draftId, session);
+      const predicate = { ...filter(grant, input.attemptId), draftId: input.draftId, owner };
+      const current = await attempts.findOne(predicate, { session });
+      if (!current) fail('AI_VENDOR_RECONCILE_REQUIRED', 409);
+      if (['CONFIRMED', 'NOT_PERFORMED'].includes(current.state)) return { state: current.state, attemptId: input.attemptId, mode: 'LOCAL_SIMULATED' };
+      const write = await attempts.updateOne({ ...predicate, state: current.state },
+        { $set: { state, receipt: matched ? receipt : null, settledAt: clock().toISOString() } }, { session });
+      if (write.matchedCount !== 1) fail('AI_VENDOR_RECONCILE_REQUIRED', 409);
+      const saved = await drafts.updateOne({ ...filter(grant, input.draftId), attemptId: input.attemptId, revision: row.revision },
+        { $set: { state }, $inc: { revision: 1 } }, { session });
+      if (saved.matchedCount !== 1) fail('REVISION_CONFLICT', 409);
+      await revisions.insertOne({ ...row, _id: randomUUID(), draftId: input.draftId, revision: row.revision + 1,
+        state, action: 'delivery.result', actorId: grant.userId, occurredAt: clock().toISOString() }, { session });
+      await db.collection('audit').insertOne({ _id: randomUUID(), ...grant, kind: 'ai.vendor.delivery.result', subjectId: input.draftId,
+        attemptId: input.attemptId, state, mode: 'LOCAL_SIMULATED', occurredAt: clock() }, { session });
+      await db.collection('outbox').insertOne({ _id: randomUUID(), tenantId: grant.tenantId, plantId: grant.plantId,
+        type: 'ai.vendor.delivery.result', schemaVersion: 1, data: { draftId: input.draftId, attemptId: input.attemptId, state },
+        occurredAt: clock(), publishedAt: null }, { session });
+      return { state, attemptId: input.attemptId, mode: 'LOCAL_SIMULATED', recallConfirmed: false };
+  };
+  const managed=controlledVendorProvider(transport)?createManagedVendorBoundary({client,db,foundation,saasAdmission,separateEffects,authority,transport,clock,timeoutMs,find,checkSource,checkRecipient,settleBody}):null;
   const base = ['plantId', 'draftId', 'expectedRevision', 'key'];
   return Object.freeze({
     async initialize() {
@@ -82,6 +110,7 @@ export function createVendorDrafts({ client, db, foundation, saasAdmission, auth
     },
     async read(scope, input) {
       strict(input, ['plantId', 'draftId']);
+      if(managed)return managed.read(scope,input);
       return boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.vendor.read', session);
         const row = await find(grant, input.draftId, session);
@@ -92,7 +121,7 @@ export function createVendorDrafts({ client, db, foundation, saasAdmission, auth
         return { schema: 'VENDOR_DRAFT_V1', draftId: row._id, revision: row.revision, state: row.state, text: row.text,
           contentHash: row.contentHash, source: row.source, recipient: row.recipient ?? null, preview: row.preview ?? null,
           approval: row.approval ?? null, attempt: attempt ? { attemptId: attempt._id, state: attempt.state,
-            mode: attempt.mode, providerId: attempt.providerId, receipt: attempt.receipt ?? null } : null,
+            mode: attempt.mode, providerId: attempt.providerId, receipt: attempt.receipt ?? null, ...(attempt.controlCommandId?{effect:{commandId:attempt.controlCommandId,phase:'VENDOR'}}:{}) } : null,
           liveDeliveryEnabled: false, mode: transport ? 'LOCAL_SIMULATED' : 'DISABLED' };
       });
     },
@@ -164,6 +193,7 @@ export function createVendorDrafts({ client, db, foundation, saasAdmission, auth
     async dispatch(scope, input) {
       strict(input, ['plantId', 'draftId', 'attemptId']);
       if (!uuid(input.attemptId) || !transport) fail('AI_LIVE_DELIVERY_DISABLED', 409);
+      if(managed)return managed.dispatch(scope,input);
       const owner = randomUUID();
       const claimed = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.vendor.deliver', session);
@@ -191,6 +221,7 @@ export function createVendorDrafts({ client, db, foundation, saasAdmission, auth
     async reconcile(scope, input) {
       strict(input, ['plantId', 'draftId', 'attemptId']);
       if (!uuid(input.attemptId) || !transport) fail('AI_LIVE_DELIVERY_DISABLED', 409);
+      if(managed)return managed.reconcile(scope,input);
       const attempt = await boundedTransaction(client, async session => {
         const grant = await authorize(scope, input.plantId, 'ai.vendor.reconcile', session);
         await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
@@ -219,25 +250,7 @@ export function createVendorDrafts({ client, db, foundation, saasAdmission, auth
     return boundedTransaction(client, async session => {
       const grant = await authorize(scope, input.plantId, 'ai.vendor.reconcile', session);
       await saasAdmission?.unsupported(scope,{plantId:input.plantId,session});
-      const row = await find(grant, input.draftId, session);
-      const predicate = { ...filter(grant, input.attemptId), draftId: input.draftId, owner };
-      const current = await attempts.findOne(predicate, { session });
-      if (!current) fail('AI_VENDOR_RECONCILE_REQUIRED', 409);
-      if (['CONFIRMED', 'NOT_PERFORMED'].includes(current.state)) return { state: current.state, attemptId: input.attemptId, mode: 'LOCAL_SIMULATED' };
-      const write = await attempts.updateOne({ ...predicate, state: current.state },
-        { $set: { state, receipt: matched ? receipt : null, settledAt: clock().toISOString() } }, { session });
-      if (write.matchedCount !== 1) fail('AI_VENDOR_RECONCILE_REQUIRED', 409);
-      const saved = await drafts.updateOne({ ...filter(grant, input.draftId), attemptId: input.attemptId, revision: row.revision },
-        { $set: { state }, $inc: { revision: 1 } }, { session });
-      if (saved.matchedCount !== 1) fail('REVISION_CONFLICT', 409);
-      await revisions.insertOne({ ...row, _id: randomUUID(), draftId: input.draftId, revision: row.revision + 1,
-        state, action: 'delivery.result', actorId: grant.userId, occurredAt: clock().toISOString() }, { session });
-      await db.collection('audit').insertOne({ _id: randomUUID(), ...grant, kind: 'ai.vendor.delivery.result', subjectId: input.draftId,
-        attemptId: input.attemptId, state, mode: 'LOCAL_SIMULATED', occurredAt: clock() }, { session });
-      await db.collection('outbox').insertOne({ _id: randomUUID(), tenantId: grant.tenantId, plantId: grant.plantId,
-        type: 'ai.vendor.delivery.result', schemaVersion: 1, data: { draftId: input.draftId, attemptId: input.attemptId, state },
-        occurredAt: clock(), publishedAt: null }, { session });
-      return { state, attemptId: input.attemptId, mode: 'LOCAL_SIMULATED', recallConfirmed: false };
+      return settleBody(scope,input,attempt,receipt,owner,{session,grant},matched,state);
     });
   }
 }

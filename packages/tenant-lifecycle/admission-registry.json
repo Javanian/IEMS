@@ -430,6 +430,8 @@
       "hashField": "payloadHash",
       "hook": "apps/portfolio-api/src/automation.mjs operation/caller session",
       "actions": {
+        "AUTOMATION_RECOVERY": "cs.automation.execute",
+        "AUTOMATION_ENGINE_RUN": "cs.automation.execute",
         "TICKET_ESCALATE": "cs.automation.execute",
         "RESOLUTION_DRAFT_CREATE": "cs.automation.execute",
         "RESOLUTION_DISPATCH_INTENT": "cs.automation.execute",
@@ -445,7 +447,7 @@
       },
       "replay": "current scope/permission, ticket/binding/approval/recipient/outbox proof; original result; zero charge",
       "meter": "ONE_COMMAND",
-      "separateEffect": "Local enqueue only; sender/worker/engine/reconciliation unsupported"
+      "separateEffect": "New managed LOCAL_SIMULATED engine and local delivery phases require original owner/current source/private capabilities; full managed recovery inherits exact parent receipts; live sender/unmanaged history remain gated"
     },
     "cs_idempotency": {
       "filter": [
@@ -523,6 +525,33 @@
       "replay": "current actor/source/ticket/customer/conversation/binding/approval rechecks; customer WeakMap resolver; parent receipt inherits once",
       "meter": "ONE_TOP_LEVEL_COMMAND"
     },
+    "saasEffectCommands": {
+      "filter": [
+        "tenantId",
+        "ownerNamespace",
+        "ownerIdentityHash"
+      ],
+      "ownerNamespace": "AI_INDEX_ROOT_V1",
+      "rootIdentity": [
+        "tenantId",
+        "plantId",
+        "userId",
+        "action",
+        "resourceId",
+        "key"
+      ],
+      "hashField": "payloadHash",
+      "hash": "contentHash({action:ai.index.rebuild|cleanup,resourceId,expectedRevision,input:{}})",
+      "actions": [
+        "ai.index.rebuild",
+        "ai.index.cleanup"
+      ],
+      "permission": "ai.index plus saas.use",
+      "hook": "packages/tenant-lifecycle/effects.mjs admitIndexRoot/accept caller session",
+      "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+      "profileState": "CONTROLLED_LOCAL_INDEX_AND_CLEANUP_METADATA_V1_QA_PENDING",
+      "finalBusinessReceipt": "Original foundationCommandResults exact filter/inputHash/response; private root capability and same-session final index CAS/audit/outbox, no second charge"
+    },
     "documentIssues": {
       "filter": [
         "tenantId",
@@ -547,16 +576,110 @@
     "packages/scoped-ai/documents.mjs",
     "packages/scoped-ai/indexing.mjs",
     "packages/scoped-ai/models.mjs",
-    "packages/scoped-ai/vendor-drafts.mjs"
+    "packages/scoped-ai/vendor-drafts.mjs",
+    "packages/tenant-lifecycle/local-effects-adapter.mjs",
+    "packages/tenant-lifecycle/local-ai-provider.mjs"
   ],
   "system": "Private reporting relay, authorization/source/read fences, internal job retries and init/index creation are not independent billable user commands. Public job ingress owns one foundation receipt with same-session rate consumption.",
-  "externalEnrollment": "Any automation_engine_runs history blocks enrollment until authoritative quiescence/reconciliation is designed; an engine HTTP ACK does not prove effects stopped.",
+  "externalEnrollment": "Legacy/unmanaged engine/vendor history and CS SENDING/UNKNOWN remain denied. Fresh managed LOCAL_SIMULATED history requires current owner/source authority and verified closed-epoch high-water/complete-attempt barrier; ACK, timeout and missing promises never prove stopped.",
+  "separateEffects": {
+    "schema": "SEPARATE_EFFECTS_V1",
+    "collections": {
+      "saasEffectCommands": [
+        "tenantId",
+        "ownerNamespace",
+        "ownerIdentityHash"
+      ],
+      "saasEffectAttempts": [
+        "tenantId",
+        "commandId",
+        "phase",
+        "ordinal"
+      ],
+      "saasEffectEvents": [
+        "tenantId",
+        "commandId",
+        "version"
+      ],
+      "saasEffectBarriers": [
+        "tenantId",
+        "adapterId",
+        "instanceEpoch",
+        "stopEpoch"
+      ]
+    },
+    "disposition": "RETAIN_PRIVATE_OR_TECHNICAL",
+    "kinds": {
+      "ai.vendor.delivery": {
+        "owner": "Original foundationCommandResults ai.vendor.deliver + aiVendorDeliveryAttempts exact deliveryKey/content/approval/source/recipient/provider",
+        "phases": [
+          "VENDOR"
+        ],
+        "meter": "INHERITS_ORIGINAL_INTENT",
+        "proof": "Actual private native local receipt, current actor/approver/recipient/source fences, terminal immutable result, late revoke retains observation without recall/publication"
+      },
+      "ai.index.rebuild": {
+        "owner": "saasEffectCommands AI_INDEX_ROOT_V1",
+        "phases": [
+          "EMBED",
+          "UPSERT"
+        ],
+        "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+        "finalReceipt": "Original foundationCommandResults ai.index filter/digest/response; nonbillable private phase settlement"
+      },
+      "ai.index.cleanup": {
+        "owner": "saasEffectCommands AI_INDEX_ROOT_V1",
+        "phases": [
+          "DELETE"
+        ],
+        "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+        "proof": "Exact frozen retired/orphan IDs with verified native receipts; never delete published IDs; native deleted/requested/remaining proof distinct from original pointer result"
+      },
+      "automation.recovery": {
+        "owner": "automation_audit_logs",
+        "action": "AUTOMATION_RECOVERY",
+        "meter": "ONE_ROOT_COMMAND",
+        "children": "Existing original intent phases nonbillable; genuinely new deterministic resolution intent independently charges once; immutable frozen selection/no rescan/no resend of unknown"
+      },
+      "automation.engine": {
+        "owner": "automation_audit_logs",
+        "action": "AUTOMATION_ENGINE_RUN",
+        "phase": "EFFECT",
+        "meter": "ONE_ROOT_COMMAND",
+        "child": "AUTOMATION_ENGINE_ERROR_NONBILLABLE"
+      },
+      "automation.local-delivery": {
+        "owner": "automation_audit_logs",
+        "phase": "EXACT_DELIVERY_ID",
+        "meter": "INHERITS_ORIGINAL_ROOT",
+        "proof": "Original content/payload/recipient/approval hashes, actual local provider receipt; never SMTP SENT"
+      },
+      "cs.local-preview": {
+        "owner": "cs_idempotency",
+        "phase": "EXACT_DELIVERY_ID",
+        "meter": "INHERITS_ORIGINAL_ROOT",
+        "worker": "PRIVATE_FACTORY_CAPABILITY_ONLY"
+      }
+    },
+    "adapterModes": [
+      "LOCAL_SIMULATED_OWNED_MARKER_DATABASE_ONLY"
+    ],
+    "retryPolicy": "Original human delivery.review or DELIVERY_MANUAL_REVIEW receipt plus source fence atomically closes an attempt BEFORE provider BEGIN; new ordinal/fence binds retryOf to that immutable receipt. Begun UNKNOWN remains reconciliation-required; no ACK/timeout/human assertion as stop proof.",
+    "callers": "Five scoped UI callers retain original command/key/body on uncertainty and only public intent metadata for phase recovery; actual mounted focused proof, independent QA pending.",
+    "pending": [
+      "Historical PREPARED document recovery remains separately gated; unmanaged engine/vendor/transport history cannot be converted by local phase acceptance; real provider/model/vector/send access remains NOT_RUN and unauthorized"
+    ],
+    "providerEvidence": {
+      "local": "FOCUSED_LOCAL_SIMULATED_PROOF_QA_PENDING",
+      "external": "NOT_RUN"
+    }
+  },
   "sources": {
     "apps/portfolio-api/src/analytics.mjs": "321a9a29dc738b64cac746d7b4123f9cfcaece1c1af643c7b159aac53b007833",
-    "apps/portfolio-api/src/app.mjs": "4cf21acce04e1de8ca283334e7cfe19eb75958f910ad4e27abac9f5c77badddb",
+    "apps/portfolio-api/src/app.mjs": "04f5d429ba15f4ac70d393eb23c7de9be4bb3a02a595db142eca0441bea899ae",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
     "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
-    "apps/portfolio-api/src/automation.mjs": "1aa28d03ce78a484427193b75cb5a18de7053bfa9667513607317c1e876097d1",
+    "apps/portfolio-api/src/automation.mjs": "60a47c27a52d76ed28b8eba44349db66f26035ac0ca1a2a74b973e0cd9c4dfa3",
     "apps/portfolio-api/src/business-clock.mjs": "75ac403414331887f6df0e944a7f6f6a0415aa62c4ae62b76124c28adb8f2188",
     "apps/portfolio-api/src/catalog-disposition-state.mjs": "14bdaae9188d604a15ea90ef63b2adf025600b26b3a4af58364ee24f4d99f875",
     "apps/portfolio-api/src/catalog-disposition.mjs": "1835a7e3235460873335e53979a409360f3ffea0d8814e6737317f7ef3dbb49f",
@@ -575,7 +698,7 @@
     "apps/portfolio-api/src/config.mjs": "68d37bb07eeef69f3b0179992f94e7b7c1c158a81c57b2ce80a1230d2e0be15a",
     "apps/portfolio-api/src/crm.mjs": "fc42fe7a9ed0a483154c5c5b02507516ca1f6bad58d54a37b5e26183cd6c72b3",
     "apps/portfolio-api/src/cs-intent.mjs": "8a3f8597044b9ec4b900aea6daeaf0d03df347d62ea5ea0953f0d609941ec0f7",
-    "apps/portfolio-api/src/customer-service.mjs": "3f7f7b9ea7004d2537ae6fd8cb84c7f87a732ba4b7d51ada903edd586b820703",
+    "apps/portfolio-api/src/customer-service.mjs": "ad4423cec1df47ddbe8ffa828e0cc88928a7bd7c8f3b7600d31fbef7a6db3367",
     "apps/portfolio-api/src/delivery.mjs": "ac6c9e63567df966e0b5ae2f58eb121c095a93a430b9e82494e1c14afd26910f",
     "apps/portfolio-api/src/descendant-freeze.mjs": "ff470bb795c5667f871b239a2ecb86191294cdd2eff30b4f07ecec5626a6f0a7",
     "apps/portfolio-api/src/documents.mjs": "b21fd75da76bf8688204161bab07ad52e5d08dc52cbe30452a99a6a9036e666f",
@@ -608,7 +731,7 @@
     "apps/portfolio-api/src/purchased-stock-proof.mjs": "2694da90e35c11e35437e5cb18d8039e803526ed760fa66f88aa1f729ab7a932",
     "apps/portfolio-api/src/quality.mjs": "2e26e5fd98493efba7c43e174084eed385115974fc54f73e29dce3466711abe8",
     "apps/portfolio-api/src/quote-catalog.mjs": "f6da9627dcac48822639aad42b059ca32718ecbaa4bd1775f567f868b8cbe129",
-    "apps/portfolio-api/src/rag.mjs": "5ea97c46d382b77f60e424d61b587cccd1c765e1827bdf471be2d7a35d88e3ed",
+    "apps/portfolio-api/src/rag.mjs": "0f247462930cdc0afc6b5ef0085e674d32b160c4d8cbfae351353d7d3339ed2f",
     "apps/portfolio-api/src/receipt-origin.mjs": "9c8fe6accc3928ac8e2759aeb2b88f78b184fbac6792f96afd25992bf18c75dd",
     "apps/portfolio-api/src/repair-components.mjs": "226cbcce033a787a33f524d32be0aa76690374a6e1905d57848122d1b194508d",
     "apps/portfolio-api/src/repair-orders.mjs": "85f28ed5fef7542b4a5a230e8a205331b3958c11eb5ef67d1a30fd3b4e5e7306",
@@ -625,23 +748,23 @@
     "packages/contracts/src/domains/engineering-repair/gates.mjs": "4d250c6bafc99853bdb25d69655d20c68159c9d0518c05c8129b0287c2daf3e3",
     "packages/contracts/src/domains/logistics-billing/values.mjs": "91d85580045284e070a5395a75b0875c1b7e91aaff5b9f5326794272fc335c20",
     "packages/contracts/src/domains/planning-execution/manufactured-graph.mjs": "1df97ae2c4854a2be65d2ed1735b87424a2e068d61a138f316c1d09e7dae9efd",
-    "packages/customer-service/index.mjs": "29df7033874ffe7d932a1f2f929f796b645b9e5acba9122cf57abf5fd6cd28f6",
+    "packages/customer-service/index.mjs": "de09d4217923a359f68291c8d9da8e26382aa20be9c2f2a9a461cdeed8362ef9",
     "packages/customer-service/order-fixtures.mjs": "a6cd15176e749a31f4c8366661b0781289129f77f7731fe3a2c39f5d11b9bcc8",
     "packages/customer-service/order-source.mjs": "140c440c8530ef772ef4bd1a29659e9285414a41f1082ae40a0cbe2ddde12aa0",
     "packages/customer-service/service-metrics.mjs": "469cc57b2779ef6b81d907c91c052664a6d7a73ae109882a72cfdf6910cba9b4",
     "packages/scoped-ai/assistants.mjs": "4c2205b6847e1daf46a9d2824898b1833cc80816063ba2bc56ae3e7738e25be9",
-    "packages/scoped-ai/documents.mjs": "e6b160878d3c7afead25250e2226b93a7e2e5193177a545936935c6c9055511a",
+    "packages/scoped-ai/documents.mjs": "4c956532fd305219bae990775694d942e1ec996c5e4a59f95ef0adb6952ba5fb",
     "packages/scoped-ai/feature-manifest.mjs": "f8d308a3fccf15cb2c3007d34d1bbefe43943286d9b3f3b4328039d3450a5fec",
-    "packages/scoped-ai/indexing.mjs": "ac3a7e2232e26aff189d9d7ab447cd1a44ff3d87b7d2d85de08eb9d7c32de520",
+    "packages/scoped-ai/indexing.mjs": "04e3539777befe3512b38025d791f0edc431ecf9df6f2b4f294a1c852853c872",
     "packages/scoped-ai/intents.mjs": "3a0fcbae9edea8c677ba91ecb2d0734e7d48dfb6e8a05e1ceaf935ca2ee83c4d",
-    "packages/scoped-ai/issued-documents.mjs": "f6f94579b7a362aaf3776761ce6f97abc26e09da8dfd53fd53c918ba3753384f",
+    "packages/scoped-ai/issued-documents.mjs": "7517fd9c6d40ccfe0df71d02de091b271cd7561b8ee748376e97c4587da5aa81",
     "packages/scoped-ai/local-model.mjs": "b8953a4fbf195d9cd5cd78878c6571e9c3b0f40706513eaeca9167fc0f10d5e4",
     "packages/scoped-ai/mlflow.mjs": "1450d56af190744d8aebccba31d35fb48b79e5ab4d5db6f5f72bc2075ce8ba69",
     "packages/scoped-ai/models.mjs": "0b4034f193360a974db4688b69f2a1256a7e81029473cda62d0c8300408f525c",
     "packages/scoped-ai/qdrant.mjs": "dd6e982855c3d4074a295196e8927453be6a387a7d84c83b37eca779781c1704",
     "packages/scoped-ai/temporal.mjs": "9b8b7e642d2daf4b1aaaef192d77704d5452338c7c74ba0aacfb2ae36a4a5534",
-    "packages/scoped-ai/vendor-drafts.mjs": "e23ea24fe9422e61868e4d0e429840178d6d90602f26b836532a3cd3f542a513",
-    "packages/scoped-ai/vendor-source.mjs": "d0d4dd9f7498ebc0d6d2e56e76a085d8950874505fde4987892bcd80171c7937",
+    "packages/scoped-ai/vendor-drafts.mjs": "ddff2047346250913b5a77707def3466a22aa520c2476af1234fab1b5415edf5",
+    "packages/scoped-ai/vendor-source.mjs": "2b3c91a878b4fe9c22d9619f6c7af60e047a6cf43a739981e51b4e9df61cff8c",
     "packages/domain-events/index.mjs": "5d7ff3466006e1846aa6062f2f9a85e8d56d9745332bfe731f875d3b8f83ad5c",
     "packages/domain-events/snapshot-source.mjs": "2f7d436cf26ff032380d1370557f30cb3c9986bd3b892f43b44b59b35b8f7dfd",
     "packages/domain-events/source-bindings.mjs": "ffe4c0ac645697765a0dccf1418ebb7a498987024e3c31f4d7d658f75c992f16",
@@ -656,8 +779,14 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/admission.mjs": "8657e5231f4049e86c9e779333bf4e3aae9a1668532dcf3bf3ed8f7046b62f72",
-    "packages/tenant-lifecycle/index.mjs": "dac85e9bc8bba4419864209cd2feec7e4d2c61088442e2e6ddb5afabcfa3011b",
+    "packages/tenant-lifecycle/effects.mjs": "e88f2d25583bc2c8267a2cac0b16a990efa957e8d758bfb6827592743d0058bb",
+    "packages/tenant-lifecycle/local-effects-adapter.mjs": "3203b873403b1c57e9e446142b943328c993b49d721aadf057ebb4fd90a294e8",
+    "packages/tenant-lifecycle/effect-primitives.mjs": "7c528a2602f3b46fc2d0d94dc782ebf5d0fecec9f867618bc5397d871d4fbb6f",
+    "packages/tenant-lifecycle/local-ai-provider.mjs": "77a0b820116c978c5fc7b9a1bd0a210244fea23a2abc72818296dfb30063115b",
+    "packages/tenant-lifecycle/indexing-effects.mjs": "f1b62820a930b6c258ba31f5a80566e8c28b8bfdfcc0dec6e531e2d54f66b319",
+    "packages/tenant-lifecycle/vendor-effects.mjs": "1275ab1c8220ebc503e8cdae1d8cee97a7ec29cf6e66ee5ff19fca398f8b01d3",
+    "packages/tenant-lifecycle/admission.mjs": "0ffba815d0872a0b6402a68e12dcf00b75b51357c182d3e026b8c777a04a9b59",
+    "packages/tenant-lifecycle/index.mjs": "4359aa7714debaa617c107aad3b3a0666c94a10168bc937bf7373827af922585",
     "packages/tenant-lifecycle/domain-port.mjs": "48787a3e8928573328259a0bfef8bdf05ef183c4dd813a0175dff62c70131a36",
     "packages/tenant-lifecycle/admission-registry.mjs": "292fefe68375039b69c04cf3850e3413eb26934f02308e0e67fd8208cdbe1ca6"
   },
@@ -671,6 +800,12 @@
       "route": "GET /api/ai/documents/:id/index",
       "state": "READ",
       "meter": "NONE"
+    },
+    {
+      "route": "GET /api/ai/documents/:id/index/cleanup",
+      "state": "READ",
+      "meter": "NONE",
+      "condition": "Named CLEANUP_METADATA_V1 snapshot; current actor/source ACL and original approved reference, no text/provider/write authority; inactive or superseded documents do not become rebuildable."
     },
     {
       "route": "GET /api/ai/models",
@@ -1459,6 +1594,12 @@
       "meter": "NONE"
     },
     {
+      "route": "GET /api/saas/effects/:id",
+      "state": "READ",
+      "meter": "NONE",
+      "note": "Registered kind rebinds current original actor/source; private persisted parent/attempt/fence; continue or observe never creates a new root."
+    },
+    {
       "route": "GET /api/saas/status",
       "state": "CONTROL_PLANE",
       "meter": "SEPARATE_ADMIN_RECEIPT"
@@ -1557,9 +1698,10 @@
     },
     {
       "route": "POST /api/ai/documents/:id/index/cleanup",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": "saasEffectCommands",
+      "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+      "condition": "Factory-issued native local model/vector pair, persisted exact point/source/ACL/model identity, EMBED then UPSERT or bounded exact-ID DELETE with actual provider receipts; immutable202 acceptance and separate authorized status. New cleanup plans use CLEANUP_METADATA_V1 current actor/ACL and original historical source authority; old plans retain original hashes. Published points remain excluded. Raw provider adapters remain gated."
     },
     {
       "route": "POST /api/ai/documents/:id/index/revoke",
@@ -1577,9 +1719,10 @@
     },
     {
       "route": "POST /api/ai/documents/:id/rebuild",
-      "state": "UNSUPPORTED",
-      "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": "saasEffectCommands",
+      "meter": "ONE_ACCEPTED_ROOT_COMMAND",
+      "condition": "Factory-issued native local model/vector pair, persisted exact point/source/ACL/model identity, EMBED then UPSERT or bounded exact-ID DELETE with actual provider receipts; immutable202 acceptance and separate authorized status. New cleanup plans use CLEANUP_METADATA_V1 current actor/ACL and original historical source authority; old plans retain original hashes. Published points remain excluded. Raw provider adapters remain gated."
     },
     {
       "route": "POST /api/ai/documents/:id/revoke",
@@ -1623,9 +1766,10 @@
     },
     {
       "route": "POST /api/ai/vendor-drafts/:draftId/dispatch",
-      "state": "UNSUPPORTED",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "receipt": "Original foundationCommandResults ai.vendor.deliver + aiVendorDeliveryAttempts",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "condition": "Factory-issued native LOCAL_SIMULATED transport, exact original receipt/control/attempt/source/approval/recipient binding; private VENDOR claim/invoke/settle, reconcile observes same attempt without send. Legacy/unregistered transport remains gated."
     },
     {
       "route": "POST /api/ai/vendor-drafts/:draftId/intent",
@@ -1643,9 +1787,10 @@
     },
     {
       "route": "POST /api/ai/vendor-drafts/:draftId/reconcile",
-      "state": "UNSUPPORTED",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "receipt": "Original foundationCommandResults ai.vendor.deliver + aiVendorDeliveryAttempts",
       "meter": "NONE",
-      "note": "No admitted effect under this profile; transaction/port rejects enrolled tenant before business effect. Existing validators may reject earlier."
+      "condition": "Factory-issued native LOCAL_SIMULATED transport, exact original receipt/control/attempt/source/approval/recipient binding; private VENDOR claim/invoke/settle, reconcile observes same attempt without send. Legacy/unregistered transport remains gated."
     },
     {
       "route": "POST /api/ai/vendor-drafts/:draftId/revoke",
@@ -1901,9 +2046,10 @@
     },
     {
       "route": "POST /api/cs/automation/engine-error",
-      "state": "LOCAL_COVERAGE_PENDING",
+      "state": "PRIVATE_PARENT_OBSERVATION",
+      "receipt": "automation_audit_logs",
       "meter": "NONE",
-      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+      "condition": "AUTOMATION_ENGINE_ERROR exact run/workflow/execution/error hash, actual correlated service session and already-begun registered attempt; never stop proof."
     },
     {
       "route": "POST /api/cs/automation/escalate",
@@ -1930,7 +2076,7 @@
       "state": "CONDITIONAL_RECEIPTED",
       "receipt": "automation_audit_logs",
       "meter": "ONE_COMMAND",
-      "condition": "Explicit bounded LOCAL_OBSERVE_V1 only; legacy/full recovery and all workers remain unsupported enrolled."
+      "condition": "Explicit bounded LOCAL_OBSERVE_V1 or registered LOCAL_SIMULATED AUTOMATION_RECOVERY with original audit receipt/frozen selection/private parent child contexts; unmanaged legacy recovery remains gated."
     },
     {
       "route": "POST /api/cs/automation/resolution-draft",
@@ -1969,9 +2115,10 @@
     },
     {
       "route": "POST /api/cs/automation/run/:workflowId",
-      "state": "LOCAL_COVERAGE_PENDING",
-      "meter": "NONE",
-      "note": "No admitted stable receipt for this separate local administrative, reply or worker effect; enrolled mutation denied. Exact contracts in PLAT-038-V12-HANDOFF.md."
+      "state": "CONDITIONAL_RECEIPTED",
+      "receipt": "automation_audit_logs",
+      "meter": "ONE_COMMAND",
+      "condition": "Managed engine LOCAL_SIMULATED adapter and real current human/service session; AUTOMATION_ENGINE_RUN keeps existing tenant/key digest and immutable accepted result; legacy engine remains separate-effect gated."
     },
     {
       "route": "POST /api/cs/automation/service-credentials",
@@ -2939,6 +3086,24 @@
       "meter": "SEPARATE_ADMIN_RECEIPT"
     },
     {
+      "route": "POST /api/saas/effects/:id/children/:childId/continue",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "meter": "NONE",
+      "note": "Registered kind rebinds current original actor/source; private persisted parent/attempt/fence; continue or observe never creates a new root."
+    },
+    {
+      "route": "POST /api/saas/effects/:id/continue",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "meter": "NONE",
+      "note": "Registered kind rebinds current original actor/source; private persisted parent/attempt/fence; continue or observe never creates a new root."
+    },
+    {
+      "route": "POST /api/saas/effects/:id/observe",
+      "state": "PRIVATE_PARENT_CONTINUATION",
+      "meter": "NONE",
+      "note": "Registered kind rebinds current original actor/source; private persisted parent/attempt/fence; continue or observe never creates a new root."
+    },
+    {
       "route": "POST /api/saas/export",
       "state": "CONTROL_PLANE",
       "meter": "SEPARATE_ADMIN_RECEIPT"
@@ -2947,6 +3112,12 @@
       "route": "POST /api/saas/meter",
       "state": "CONTROL_PLANE",
       "meter": "SEPARATE_ADMIN_RECEIPT"
+    },
+    {
+      "route": "POST /api/saas/quiesce",
+      "state": "CONTROL_PLANE",
+      "meter": "NONE",
+      "note": "Current tenant-wide saas.suspend closes the durable epoch then performs verified adapter drain; no business publication or root charge."
     },
     {
       "route": "POST /api/saas/restore",

@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { IdentityContext, Resource, useResource } from './PortfolioWorkspace.jsx';
 import { useKeyedCommand } from './HoldsWorkspace.jsx';
 import { normalizePage } from './holds.mjs';
-import { Boundary, ServiceTabs, ThreadMessage, ServiceCommandForm } from './CustomerServiceWorkspace.jsx';
+import { Boundary, ServiceTabs, ThreadMessage, ServiceCommandForm, LocalEffectStatus } from './CustomerServiceWorkspace.jsx';
+import { useLocalEffects } from './client.mjs';
 import { bindingCommand, revokeCommand, bindingStatus, bindingIdOf, capabilityState, csOutcome, permissionReason, humanize } from './customer-service.mjs';
 
 const when = at => (at ? new Date(at).toLocaleString('en-US') : '');
@@ -90,6 +91,7 @@ function RevokeBinding({ binding, reload }) {
 
 const PRESETS = [['Order or repair status', 'IEMS ORDER '], ['Start complaint', 'IEMS COMPLAINT'], ['Ask for a person', 'IEMS HUMAN'], ['Menu', 'IEMS MENU']];
 function Simulator({ binding, status }) {
+  const identity=useContext(IdentityContext),effects=useLocalEffects('binding-simulator:'+bindingIdOf(binding),identity);
   const [text, setText] = useState(''), [denied, setDenied] = useState(false), [exchanges, setExchanges] = useState([]);
   const pendingText = useRef('');
   const command = useKeyedCommand({ path: '/api/cs/simulator/inbound', onSaved: result => setExchanges(list => [{ ...result, sent: pendingText.current }, ...list]) });
@@ -97,6 +99,7 @@ function Simulator({ binding, status }) {
   const state = !status.usable ? { enabled: false, reason: status.reason } : base;
   return <section className="pf-panel" aria-labelledby="simulator-heading">
     <h2 id="simulator-heading">Inbound simulator</h2>
+    <LocalEffectStatus control={effects}/>
     <p className="pf-muted">Sends a customer message through the same handler as the WhatsApp bridge, and queues a local reply when enrolled. Use the separate preview action below to review queued messages. Nothing leaves this workspace.</p>
     <div className="pf-actions" role="group" aria-label="Message presets">{PRESETS.map(([label, value]) => <button key={label} type="button" disabled={!state.enabled} onClick={() => setText(value)}>{label}</button>)}</div>
     <form className="pf-form" onSubmit={e => {
@@ -114,6 +117,7 @@ function Simulator({ binding, status }) {
       {x.reply ? <ol className="pf-list pf-sim-reply"><ThreadMessage m={{ direction: 'OUTBOUND', origin: 'BOT', at: x.reply.at || new Date().toISOString(), ...x.reply }} /></ol> : !x.suppressed && <p>No reply was prepared for this message.</p>}
       {x.suppressed && <p>No bot reply: the conversation is with an agent ({humanize(x.mode)}).</p>}
       {x.error && <p className="pf-id">Result: {humanize(x.error)}</p>}
+      {x.deliveries?.filter(delivery=>delivery.effect).map(delivery=><button type="button" key={delivery.effect.phase} disabled={effects.busy} onClick={()=>effects.track(delivery.effect.commandId,[delivery.effect.phase],'Simulated customer reply')}>Inspect queued reply intent</button>)}
       {x.draft && <p className="pf-id">Complaint draft stage: {humanize(x.draft.stage)}</p>}
       <div className="pf-actions">{x.ticket && <Link to={`/portfolio/service/tickets/${x.ticket.ticketId}`}>Open ticket {x.ticket.ticketNumber}</Link>}{x.conversationId && <Link to={`/portfolio/service/conversations/${x.conversationId}`}>Open conversation</Link>}</div>
     </li>)}</ol></>}

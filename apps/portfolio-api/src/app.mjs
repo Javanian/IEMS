@@ -86,7 +86,18 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await verifyAdmissionSources();
   const { createMongoTenantDataPort } = await import('../../../packages/tenant-lifecycle/domain-port.mjs');
   const { createSaasAdmission, admissionProfile } = await import('../../../packages/tenant-lifecycle/admission.mjs');
-  runtime.saasAdmission = createSaasAdmission({ ...runtime, coverage: integrations.tenantLifecycle?.admissionCoverage ?? admissionProfile });
+  const { createSeparateEffects } = await import('../../../packages/tenant-lifecycle/effects.mjs');
+  const { createControlledLocalAdapter } = await import('../../../packages/tenant-lifecycle/local-effects-adapter.mjs');
+  const { isControlledLocalAiProvider, controlledVendorProvider } = await import('../../../packages/tenant-lifecycle/local-ai-provider.mjs');
+  runtime.separateEffects=createSeparateEffects({...runtime,admission:descriptor=>runtime.saasAdmission.effect(descriptor),fault:integrations.effects?.controlFault});
+  await runtime.separateEffects.initialize();
+  if(integrations.effects){
+    if(integrations.effects.mode!=='LOCAL_SIMULATED'||!/^portfolio_(owned|test)_/.test(db.databaseName)||!await db.collection('ownedRun').findOne({}))fail(503,'EFFECT_LOCAL_OWNED_DATABASE_REQUIRED');
+    for(const id of ['local.engine','local.cs','local.ai-index','local.vendor'])runtime.separateEffects.registerAdapter(createControlledLocalAdapter({...runtime,id,fault:integrations.effects.adapterFault}));
+  }
+  runtime.saasAdmission = createSaasAdmission({ ...runtime, coverage: integrations.tenantLifecycle?.admissionCoverage ?? admissionProfile,
+    controlledIndexReady:()=>isControlledLocalAiProvider(runtime.localAiProvider)&&runtime.separateEffects.supports('ai.index.rebuild')&&runtime.separateEffects.supports('ai.index.cleanup'),
+    controlledVendorReady:()=>controlledVendorProvider(runtime.localVendorProvider?.vendorTransport)===runtime.localVendorProvider&&runtime.separateEffects.supports('ai.vendor.delivery') });
   runtime.localCommands = createLocalCommandReceipts(runtime);
   runtime.commands = await initializeFoundationRuntime(runtime);
   await initializeReportingSnapshots(db);
@@ -99,11 +110,22 @@ export async function initialize({ client, db, customerService = {}, businessClo
   await initializeWorkforce(db);
   runtime.documents = await initializeDocuments(runtime);
   runtime.customerService = await initializeCustomerService(runtime, customerService);
-  runtime.rag = createRagRuntime(runtime, integrations.rag);
+  if(integrations.effects?.ai){
+    if(integrations.rag?.embeddings||integrations.rag?.vectors)fail(503,'AI_EFFECT_ADAPTER_AMBIGUOUS');
+    const {createControlledLocalAiProvider}=await import('../../../packages/tenant-lifecycle/local-ai-provider.mjs');
+    runtime.localAiProvider=await createControlledLocalAiProvider({...integrations.effects.ai,client,applicationDb:db});
+  }
+  runtime.rag = createRagRuntime(runtime, runtime.localAiProvider?{embeddings:runtime.localAiProvider.embeddings,vectors:runtime.localAiProvider.vectors}:integrations.rag);
   await runtime.rag.initialize();
   runtime.assistants = createAssistantRuntime(runtime);
   runtime.intent = createIntentRuntime(runtime, integrations.intent);
-  runtime.vendorDrafts = createVendorDraftRuntime(runtime, { ...integrations.vendorDrafts, saasAdmission: runtime.saasAdmission });
+  if(integrations.effects?.vendor){
+    if(integrations.vendorDrafts?.transport)fail(503,'AI_EFFECT_ADAPTER_AMBIGUOUS');
+    const {createControlledLocalAiProvider}=await import('../../../packages/tenant-lifecycle/local-ai-provider.mjs');
+    runtime.localVendorProvider=runtime.localAiProvider??await createControlledLocalAiProvider({...integrations.effects.vendor,client,applicationDb:db});
+  }
+  runtime.vendorDrafts = createVendorDraftRuntime(runtime, { ...integrations.vendorDrafts,
+    ...(runtime.localVendorProvider?{transport:runtime.localVendorProvider.vendorTransport}:{}),saasAdmission: runtime.saasAdmission });
   await runtime.vendorDrafts.initialize();
   runtime.predictions = createPredictionRuntime(runtime, { ...integrations.predictions, saasAdmission: runtime.saasAdmission });
   await runtime.predictions.initialize();
@@ -223,7 +245,7 @@ export function createApp(runtime, { origins, secureCookie = false } = {}) {
   installCustomerIntent(app, runtime.intent);
   installVendorDrafts(app, runtime.vendorDrafts);
   installPredictions(app, runtime.predictions);
-  installTenantLifecycle(app, runtime.tenantLifecycle);
+  installTenantLifecycle(app, runtime.tenantLifecycle, runtime.separateEffects);
   runtime.saasAdmission.validateHost(app);
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } }));
   app.use((error, req, res, next) => {
