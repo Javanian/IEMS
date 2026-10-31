@@ -172,3 +172,25 @@ reversed UUID parent ordering, gaps, singleton, raw failure and cleanup. Prior
 typed shipment and grouped cash/deposit/credit parity tests remain in
 packages/domain-events/reporting-source.test.mjs. Full independent program QA
 is deferred to TPR-150/152 after CTO TPR-149 integration.
+
+## Typed customer-property return coexistence
+
+The source adapter validates `REPAIR_RETURN_SHIPMENT_V1` /
+`CUSTOMER_ASSET_RETURN` using the repair owner's current service-order,
+return authority, quality, POD and warranty rechecks in the caller transaction.
+It requires the actual immutable `repairKeys` return result and matching audit,
+and authorizes each source resource, including `repair.read` on repair records.
+The private CLI adds only this read permission and the named repair/delivery
+source collections to its existing allowlist.
+
+These shipments have no registered commercial reporting v2 target. They remain
+visible in bounded shipment source counts/hashes and explicit unsupported entries
+with real UUID, version, semantic hash, receipt and authority identities. Coverage
+stays `INCOMPLETE` / `trustedZero=false`; no generic order, receipt, stock or money
+is invented. Extraction revalidates these entries against current source authority
+and denies revoked, deleted, held, missing or changed evidence. This is coexistence,
+not repair financial analytics or whole-authority coverage.
+
+Focused probe: `node --test --test-concurrency=1 ops/demo/reporting-repair.test.mjs`.
+The linked reproduction remains the integration owner's unchanged
+`node ops/demo/portfolio.mjs --synthetic-owned --smoke --output <new absolute directory>`.
