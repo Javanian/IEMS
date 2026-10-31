@@ -3,12 +3,12 @@ import test from 'node:test';
 import { installCustomerService } from '../src/customer-service.mjs';
 import { customerServiceDisposition, SIMULATED_CHANNEL_ACCOUNT } from '../../../packages/customer-service/index.mjs';
 
-function harness({ ids = [], queued = [], managed = false, state = 'PREVIEWED', denied = false } = {}) {
+function harness({ ids = [], queued = [], managed = false, state = 'PREVIEWED', denied = false, onInbound } = {}) {
   const routes = new Map(), claims = [], results = [], effects = [], queries = [];
   const runtime = {
     foundation: { authorize: async () => { if (denied) throw Object.assign(Error('denied'), { code: 'DENIED' }); } },
     customerService: {
-      simulateInbound: async () => ({ result: { deliveryIds: ids }, [customerServiceDisposition]: { enrolled: false } }),
+      simulateInbound: async scope => { await onInbound?.(scope); return { result: { deliveryIds: ids }, [customerServiceDisposition]: { enrolled: false } }; },
       getOutboundMessages: async () => [],
     },
     customerServicePreview: {
@@ -32,9 +32,9 @@ function harness({ ids = [], queued = [], managed = false, state = 'PREVIEWED', 
   installCustomerService({ use() {}, get() {}, post: (path, fn) => routes.set(path, fn) }, runtime, {
     fail: (status, code) => { throw Object.assign(Error(code), { status, code }); }, id: x => x, fields() {},
   });
-  const invoke = async (unscoped = false) => {
+  const invoke = async (unscoped = false, tenantId = 'tenant') => {
     let value;
-    await routes.get(`/api/cs/simulator/${unscoped ? 'dispatch' : 'inbound'}`)({ body: {}, filter: { plantId: 'plant' }, scope: { tenantId: 'tenant' } }, { json: body => { value = body.data; } });
+    await routes.get(`/api/cs/simulator/${unscoped ? 'dispatch' : 'inbound'}`)({ body: {}, filter: { plantId: 'plant' }, scope: { tenantId } }, { json: body => { value = body.data; } });
     return value.previewedDeliveryIds;
   };
   return { invoke, claims, results, effects, queries };
@@ -50,6 +50,32 @@ test('scoped preview drain completes unique and duplicate IDs without mutating c
     assert.ok(h.claims.every(row => row.tenantId === 'tenant' && row.channelAccountId === SIMULATED_CHANNEL_ACCOUNT));
     assert.ok(h.queries.every(row => row.name === 'cs_outbox' && row.filter.tenantId === 'tenant' && row.filter.channelAccountId === SIMULATED_CHANNEL_ACCOUNT && row.filter.state === 'QUEUED'));
   }
+});
+
+test('inbound turns serialize one tenant, allow another tenant and release after failure', async () => {
+  let release, count = 0;
+  const blocked = new Promise(resolve => { release = resolve; }), started = [];
+  const h = harness({ onInbound: async scope => {
+    started.push(scope.tenantId);
+    if (scope.tenantId === 'tenant' && count++ === 0) { await blocked; throw Object.assign(Error('denied'), { code: 'DENIED' }); }
+  } });
+  const first = assert.rejects(h.invoke(), { code: 'DENIED' });
+  const second = h.invoke();
+  await h.invoke(false, 'other-tenant');
+  assert.deepEqual(started, ['tenant', 'other-tenant']);
+  release(); await first; await second;
+  await h.invoke(); assert.equal(count, 3);
+});
+
+test('coordination is bounded at25 and saturation still executes the ordinary service contract', async () => {
+  let release, calls = 0;
+  const blocked = new Promise(resolve => { release = resolve; });
+  const h = harness({ onInbound: async () => { if (++calls === 1) await blocked; } });
+  const pending = Array.from({ length: 25 }, () => h.invoke());
+  await new Promise(setImmediate);
+  assert.equal(calls, 1);
+  await h.invoke(); assert.equal(calls, 2);
+  release(); await Promise.all(pending); assert.equal(calls, 26);
 });
 
 test('empty scope performs no work and unavailable scoped work stops after one empty claim', async () => {

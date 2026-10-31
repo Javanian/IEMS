@@ -130,7 +130,23 @@ export function installCustomerService(app, runtime, { fail, id, fields }) {
     }
     return done;
   };
-  app.post('/api/cs/simulator/inbound', async (req, res) => contractErrors(async () => {
+  let inboundTurns = [];
+  const inboundTurn = async (tenantId, run) => {
+    const preceding = inboundTurns.filter(entry => entry[0] === tenantId);
+    // Bound contention coordination; saturation retains the original guarded request path.
+    if (preceding.length >= 25) return run();
+    let release;
+    const current = [tenantId, new Promise(resolve => { release = resolve; })];
+    inboundTurns.push(current);
+    try {
+      for (const entry of preceding) await entry[1];
+      return await run();
+    } finally {
+      inboundTurns = inboundTurns.filter(entry => entry !== current);
+      release();
+    }
+  };
+  app.post('/api/cs/simulator/inbound', async (req, res) => contractErrors(() => inboundTurn(req.scope.tenantId, async () => {
     strict(req.body, ['bindingId', 'inboundKey', 'text']);
     const { bindingId, inboundKey, text } = req.body;
     const out = await cs().simulateInbound(req.scope, { plantId: plantId(req), bindingId, inboundKey, text });
@@ -155,7 +171,7 @@ export function installCustomerService(app, runtime, { fail, id, fields }) {
       ...(out.result.draft ? { draft: { stage: out.result.draft.stage, version: out.result.draft.version } } : {}),
       deliveries: messages, previewedDeliveryIds: previewed,
     } });
-  }));
+  })));
   app.post('/api/cs/simulator/dispatch', async (req, res) => contractErrors(async () => {
     strict(req.body,['commandKey','deliveryIds']);
     if(req.automationService)fail(403,'HUMAN_APPROVAL_REQUIRED');
