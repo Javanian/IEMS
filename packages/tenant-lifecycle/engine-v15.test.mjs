@@ -5,10 +5,10 @@ import {startOwned} from '../../apps/portfolio-api/test/support/owned-mongo.mjs'
 import {admissionProfile} from './admission.mjs';
 process.env.MONGOMS_RUNTIME_DOWNLOAD='false';
 test('v15 mounted engine original receipts and actual local phase lifecycle',{timeout:150000},async t=>{
- let calls=0,lostAck=false,hold=null;
- const h=await startOwned(t,{integrations:{effects:{mode:'LOCAL_SIMULATED',adapterFault:async boundary=>{if(boundary==='afterProviderReceipt'&&lostAck){lostAck=false;throw Error('Owned local ACK loss');}},engine:{execute:async()=>{calls++;if(hold)await hold.promise;}}}}}),db=h.db,a=h.seeded[0];
+ let calls=0,lostAck=false,hold=null,revokeAtBegin=false,ownedDb,serviceId;
+ const h=await startOwned(t,{integrations:{effects:{mode:'LOCAL_SIMULATED',controlFault:async boundary=>{if(boundary==='beforeProviderBegin'&&revokeAtBegin){revokeAtBegin=false;await ownedDb.collection('sessions').updateOne({_id:serviceId},{$set:{revoked:true}});}},adapterFault:async boundary=>{if(boundary==='afterProviderReceipt'&&lostAck){lostAck=false;throw Error('Owned local ACK loss');}},engine:{execute:async()=>{calls++;if(hold)await hold.promise;}}}}}),db=h.db,a=h.seeded[0];ownedDb=db;
  const call=(path,body={},key=randomUUID(),cookie=h.alpha)=>h.send('/cs/automation'+path,{body,cookie,headers:{'Idempotency-Key':key}});
- const issued=await call('/service-credentials',{label:'Owned engine service',ttlMinutes:30});assert.equal(issued.status,201);h.runtime.automation={serviceToken:issued.data.token};
+ const issued=await call('/service-credentials',{label:'Owned engine service',ttlMinutes:30});assert.equal(issued.status,201);serviceId=issued.data.sessionId;h.runtime.automation={serviceToken:issued.data.token};
  const roles=[{role:'owner',plantIds:[a.plantId],tenantWide:false},{role:'saasUser',plantIds:[a.plantId],tenantWide:false},{role:'saasOperator',plantIds:[],tenantWide:true}];await db.collection('memberships').updateOne({_id:a.membershipId},{$set:{tenantWide:true,roles}});
  await h.ok('/saas/subscribe',{key:randomUUID(),expectedRevision:0,reason:'Owned managed phases',plan:'pilot',admissionProfile});const sub=()=>db.collection('saasSubscriptions').findOne({tenantId:a.tenantId});
  const accept=async(k=randomUUID(),body={})=>{const r=await call('/run/wf-sla-escalation',body,k);assert.equal(r.status,202,JSON.stringify(r));return r;};
@@ -33,6 +33,9 @@ test('v15 mounted engine original receipts and actual local phase lifecycle',{ti
  });
  await t.test('service revocation blocks new claim with zero invocation',async()=>{
   const accepted=await accept(),before=calls;await db.collection('sessions').updateOne({_id:issued.data.sessionId},{$set:{revoked:true}});try{assert.equal((await control(accepted.effect.commandId,'continue')).status,403);assert.equal(calls,before);}finally{await db.collection('sessions').updateOne({_id:issued.data.sessionId},{$set:{revoked:false}});}
+ });
+ await t.test('revocation after invoke claim but before durable provider BEGIN prevents work',async()=>{
+  const accepted=await accept(),id=accepted.effect.commandId,before=calls;revokeAtBegin=true;try{assert.equal((await control(id,'continue')).status,403);assert.equal(calls,before);const attempt=await db.collection('saasEffectAttempts').findOne({commandId:id});assert.equal(attempt.state,'UNKNOWN');assert.equal(attempt.provider,undefined);}finally{await db.collection('sessions').updateOne({_id:serviceId},{$set:{revoked:false}});}
  });
  await t.test('suspend closes dispatch atomically, real drain waits begun work, no late publication',async()=>{
   const accepted=await accept(),id=accepted.effect.commandId;let release;hold={promise:new Promise(r=>release=r)};const pending=control(id,'continue');for(let i=0;i<200&&!await db.collection('saasEffectAttempts').findOne({commandId:id,'provider.state':'BEGUN'});i++)await new Promise(r=>setTimeout(r,5));

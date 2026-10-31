@@ -12,12 +12,13 @@ export function createControlledLocalAdapter({client,db,id,instanceEpoch=randomU
  async function record(commandId,tenantId,session,kind,proof){const command=await commands.findOne({_id:commandId,tenantId},{session});if(!command)fail('LOCAL_ADAPTER_PARENT_REQUIRED');const version=command.version+1,result=await commands.updateOne({_id:commandId,tenantId,version:command.version},{$set:{version,updatedAt:new Date().toISOString()}},{session});if(result.matchedCount!==1)fail('EFFECT_VERSION_CONFLICT');await events.insertOne({_id:randomUUID(),schemaVersion:1,tenantId,commandId,version,kind,proof,occurredAt:new Date().toISOString()},{session});}
  const setProof=rows=>rows.map(x=>({attemptId:x._id,instanceEpoch:x.instanceEpoch,epoch:x.epoch,fence:x.fence,providerKey:x.providerKey,providerState:x.provider?.state??'NOT_PERFORMED',providerProofHash:x.provider?.proofHash??null})).sort((a,b)=>a.attemptId.localeCompare(b.attemptId));
  const adapter={id,instanceEpoch,mode:'LOCAL_SIMULATED',
-  async invoke(attempt,work){
+  async invoke(attempt,work,{authorize}={}){
    if(typeof work!=='function'||attempt.adapterId!==id||attempt.instanceEpoch!==instanceEpoch)fail('LOCAL_ADAPTER_BINDING_REQUIRED');
    const existing=await attempts.findOne({_id:attempt._id,tenantId:attempt.tenantId,adapterId:id,instanceEpoch,providerKey:attempt.providerKey});
    if(existing?.provider?.state==='TERMINAL')return existing.provider.result;
    if(existing?.provider)fail('LOCAL_PROVIDER_OUTCOME_UNKNOWN');
    await tx(async session=>{
+    if(authorize)await authorize(session);
     const tenant=await db.collection('tenants').findOneAndUpdate({_id:attempt.tenantId,active:true,saasEffectDispatchOpen:{$ne:false},...(attempt.epoch===0?{$or:[{saasEffectEpoch:0},{saasEffectEpoch:{$exists:false}}]}:{saasEffectEpoch:attempt.epoch})},{$inc:{saasEffectFence:1,saasEffectHighWater:1}},{session,returnDocument:'after'});if(!tenant)fail('LOCAL_ADAPTER_STOPPED');
     const changed=await attempts.updateOne({_id:attempt._id,tenantId:attempt.tenantId,adapterId:id,instanceEpoch,providerKey:attempt.providerKey,inputHash:attempt.inputHash,state:'INVOKING',fence:attempt.fence,provider:{$exists:false}},{$set:{provider:{state:'BEGUN',highWater:tenant.saasEffectHighWater,startedAt:new Date().toISOString(),instanceEpoch,providerKey:attempt.providerKey}}},{session});if(changed.matchedCount!==1)fail('LOCAL_PROVIDER_ALREADY_BEGUN');
     await record(attempt.commandId,attempt.tenantId,session,'PROVIDER_BEGUN',{attemptId:attempt._id,adapterId:id,instanceEpoch,highWater:tenant.saasEffectHighWater,inputHash:attempt.inputHash,fence:attempt.fence});
@@ -41,7 +42,7 @@ export function createControlledLocalAdapter({client,db,id,instanceEpoch=randomU
    await Promise.all([...inFlight.values()].filter(x=>x.tenantId===tenantId).map(x=>x.promise.catch(()=>{})));
    return tx(async session=>{
     const fence=await db.collection('tenants').findOneAndUpdate({_id:tenantId,active:true,saasEffectDispatchOpen:false,saasEffectEpoch:stopEpoch},{$inc:{saasEffectFence:1}},{session,returnDocument:'after'});if(!fence)fail('LOCAL_STOP_EPOCH_CHANGED');
-    await attempts.updateMany({tenantId,adapterId:id,provider:{$exists:false},state:{$in:['CLAIMED','INVOKING']}},{$set:{state:'NOT_PERFORMED',stopEpoch,leaseOwner:null,leaseUntil:null},$inc:{version:1}},{session});
+    await attempts.updateMany({tenantId,adapterId:id,provider:{$exists:false},state:{$in:['CLAIMED','INVOKING','UNKNOWN']}},{$set:{state:'NOT_PERFORMED',stopEpoch,leaseOwner:null,leaseUntil:null},$inc:{version:1}},{session});
     const rows=await attempts.find({tenantId,adapterId:id},{session}).toArray();for(const row of rows)if(row.provider?.state==='TERMINAL')await adapter.observe(row,{session});
     if(rows.some(x=>x.provider&&!['TERMINAL'].includes(x.provider.state)))return {state:'PENDING',adapterId:id,instanceEpoch,stopEpoch,unsettled:rows.filter(x=>x.provider&&x.provider.state!=='TERMINAL').map(x=>x._id)};
     const proof={schema:'LOCAL_DRAIN_BARRIER_V1',mode:'LOCAL_SIMULATED',tenantId,adapterId:id,instanceEpoch,stopEpoch,highWater:fence.saasEffectHighWater??0,attemptSet:setProof(rows)},proofHash=effectHash(proof),identity={tenantId,adapterId:id,instanceEpoch,stopEpoch};

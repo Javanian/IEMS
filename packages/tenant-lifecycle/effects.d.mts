@@ -13,8 +13,8 @@ export interface EffectOrigin {authorize(input:{command:EffectCommand;session:Cl
 export interface EffectPhase {command:EffectCommand;attempt:EffectAttempt;capability:EffectWorkerCapability;context?:unknown}
 export interface EffectClaimPhase extends EffectPhase {session:ClientSession;phase:string}
 export interface EffectPublicationPhase extends EffectPhase {session:ClientSession;observation:{result:Record<string,any>;proofHash:string}}
-export interface EffectHandler {adapterId:string;statusAction?:string;phases?(command:EffectCommand):string[];rebind?(input:{scope:VerifiedScope;command:EffectCommand;session:ClientSession}):Promise<EffectOrigin>;prepare?(input:EffectClaimPhase):Promise<Record<string,unknown>>;beforeInvoke?(input:{command:EffectCommand;attempt:EffectAttempt;session:ClientSession}):Promise<void>;invoke(input:EffectPhase):Promise<Record<string,unknown>>;publish(input:EffectPublicationPhase):Promise<Record<string,unknown>>;childEvents?:string[];authorizeChild?(input:{scope:VerifiedScope;command:EffectCommand;attempt:EffectAttempt;session:ClientSession}):Promise<EffectGrant>}
-export interface ControlledEffectAdapter {readonly id:string;readonly mode:'LOCAL_SIMULATED';readonly instanceEpoch:string;invoke(attempt:EffectAttempt,work:()=>Promise<unknown>):Promise<unknown>;observe(attempt:EffectAttempt,options?:{session?:ClientSession}):Promise<unknown>;stopAndDrain(input:{tenantId:string;stopEpoch:number}):Promise<unknown>;verifyBarrier(input:{tenantId:string;stopEpoch:number;session?:ClientSession}):Promise<boolean>}
+export interface EffectHandler {adapterId:string;statusAction?:string;phases?(command:EffectCommand):string[];rebind?(input:{scope:VerifiedScope;command:EffectCommand;session:ClientSession}):Promise<EffectOrigin>;prepare?(input:EffectClaimPhase):Promise<Record<string,unknown>>;beforeInvoke?(input:{command:EffectCommand;attempt:EffectAttempt;session:ClientSession}):Promise<void>;invoke(input:EffectPhase):Promise<Record<string,unknown>>;publish(input:EffectPublicationPhase):Promise<Record<string,unknown>>;allowsChild?(input:{parent:EffectCommand;child:EffectCommand;phase:string;session:ClientSession}):Promise<boolean>;childEvents?:string[];authorizeChild?(input:{scope:VerifiedScope;command:EffectCommand;attempt:EffectAttempt;session:ClientSession}):Promise<EffectGrant>}
+export interface ControlledEffectAdapter {readonly id:string;readonly mode:'LOCAL_SIMULATED';readonly instanceEpoch:string;invoke(attempt:EffectAttempt,work:()=>Promise<unknown>,options?:{authorize?(session:ClientSession):Promise<void>}):Promise<unknown>;observe(attempt:EffectAttempt,options?:{session?:ClientSession}):Promise<unknown>;stopAndDrain(input:{tenantId:string;stopEpoch:number}):Promise<unknown>;verifyBarrier(input:{tenantId:string;stopEpoch:number;session?:ClientSession}):Promise<boolean>}
 export interface SeparateEffects {
  initialize():Promise<void>;
  registerAdapter(adapter:ControlledEffectAdapter):void;
@@ -24,10 +24,11 @@ export interface SeparateEffects {
  bind(commandId:string,origin:EffectOrigin):void;
  accept(input:{session:ClientSession;id?:string;grant:EffectGrant;actor:Record<string,unknown>;owner:EffectOwner;kind:string;plan:Record<string,unknown>;accepted:Record<string,unknown>;origin:EffectOrigin}):Promise<EffectCommand>;
  worker(capability:EffectWorkerCapability,input:{session:ClientSession;publish?:boolean}):Promise<{command:EffectCommand;attempt:EffectAttempt;ref:Record<string,unknown>}>;
- claim(commandId:string,phase?:string):Promise<{command:EffectCommand;attempt:EffectAttempt;claimed:boolean;capability:EffectWorkerCapability}>;
+ claim(commandId:string,phase?:string,parentCapability?:EffectWorkerCapability):Promise<{command:EffectCommand;attempt:EffectAttempt;claimed:boolean;capability:EffectWorkerCapability}>;
  invoke(capability:EffectWorkerCapability):Promise<unknown>;
  settle(capability:EffectWorkerCapability):Promise<unknown>;
  run(commandId:string,phase?:string):Promise<unknown>;
+ runChild(parentCapability:EffectWorkerCapability,commandId:string,phase:string,options?:{observeOnly?:boolean}):Promise<unknown>;
  observe(commandId:string,phase?:string):Promise<unknown>;
  rebind(scope:VerifiedScope,commandId:string):Promise<unknown>;
  status(scope:VerifiedScope,commandId:string):Promise<unknown>;
