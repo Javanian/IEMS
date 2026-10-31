@@ -3421,7 +3421,7 @@
       ]
     },
     "apps/portfolio-api/src/customer-service.mjs": {
-      "sha256": "6f060be415f05dce8045dffc99a1bfc37e0b28a266e1d8b78883f2733ed8e9a0",
+      "sha256": "c8e9c98cfec9ed2b08605951ca51476bab150fb55aa3ab70c70f2ed7ce72d4e1",
       "fields": [
         "ASSIGNED",
         "CLOSED",
