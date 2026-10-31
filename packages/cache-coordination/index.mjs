@@ -52,12 +52,13 @@ export function createCacheCoordination({ sendCommand, namespace, timeoutMs = 25
 export function createDurableRateLimiter({ client, db, authorize, now = () => new Date() }) {
   if (typeof authorize !== 'function') throw new TypeError('Transactional authorization required');
   const buckets = db.collection('platformRateLimits');
-  return {
+  const limiter = {
     async initialize() { await buckets.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }); },
-    async consume(scope, { subjectId, policy, limit, windowMs }) {
+    async consume(scope, options) { return boundedTransaction(client,session=>limiter.consumeInTransaction(scope,options,{session})); },
+    async consumeInTransaction(scope, { subjectId, policy, limit, windowMs }, {session}={}) {
+      if(!session?.inTransaction() || session.client!==client || db.client!==client) throw new JobError('RATE_TRANSACTION_REQUIRED',500);
       jobScope(scope);
       if (typeof subjectId !== 'string' || !subjectId.length || subjectId.length > 256 || !/^[a-z0-9.-]{1,60}$/.test(policy) || !bound(limit, 1, 100000) || !bound(windowMs, 1000, 86400000)) throw new JobError('INVALID_RATE_POLICY', 400);
-      return boundedTransaction(client, async session => {
         const grant = await authorize(scope, { session });
         if (!grant || Object.keys(jobScope(scope)).some(k => grant[k] !== scope[k]) || grant.userId !== subjectId) throw new JobError('RATE_AUTHORIZATION_DENIED', 403);
         const at = now(), start = Math.floor(at.getTime() / windowMs) * windowMs;
@@ -71,7 +72,7 @@ export function createDurableRateLimiter({ client, db, authorize, now = () => ne
         }
         else await buckets.insertOne({ _id: id, ...jobScope(scope), subjectId, policy, limit, windowMs, used: 1, expiresAt: new Date(start + windowMs * 2) }, { session });
         return { allowed: true, remaining: limit - (row?.used || 0) - 1, retryAt: new Date(start + windowMs).toISOString() };
-      });
     }
   };
+  return limiter;
 }

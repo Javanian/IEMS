@@ -52,7 +52,8 @@ function classify(route) {
  if(path==='/api/documents/issues')receipt='documentIssues';
  if(path.startsWith('/api/crm/'))receipt='crmCommandResults';
  if(['/api/procurement/vendors','/api/procurement/requests','/api/procurement/requests/:id/approve','/api/procurement/orders/:id/issue','/api/procurement/orders/:id/vendor-confirmation'].includes(path))receipt='procurementCommandResults';
- if(path.startsWith('/api/cs/')||path==='/api/platform/jobs')return {state:'LOCAL_COVERAGE_PENDING',meter:'NONE',note:'Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied.'};
+ if(path==='/api/platform/jobs')return {state:'RECEIPTED',receipt:'foundationCommandResults',meter:'ONE_COMMAND',note:'Dedicated job executor reauthorizes handler and request; caller-session rate/new enqueue only; worker retries nonbillable'};
+ if(path.startsWith('/api/cs/'))return {state:'LOCAL_COVERAGE_PENDING',meter:'NONE',note:'Existing private-principal/worker/session/receipt contract is not yet allocated; enrolled mutation denied.'};
  if(path.startsWith('/api/commercial/quotes'))return {state:'CONDITIONAL_RECEIPTED',receipt:['quoteCatalogKeys',...(path.endsWith('/convert')?['quoteConversions']:['legacyQuoteCommandResults'])],condition:'Typed quotes keep idempotencyKey/quoteCatalogKeys; legacy convert keeps quoteConversions; legacy create/change uses optional commandKey/legacyQuoteCommandResults, required when enrolled. Mixed/cohort keys denied.',meter:'ONE_COMMAND'};
 
  if(path.startsWith('/api/portals/')||['/api/ai/documents/:id','/api/ai/documents/:id/publish','/api/ai/documents/:id/revoke','/api/ai/documents/:id/index/revoke','/api/ai/models/select'].includes(path)||/^\/api\/ai\/vendor-drafts\/[^/]+\/(create|preview|approve|revoke|intent)$/.test(path))receipt='foundationCommandResults';
