@@ -446,7 +446,7 @@
       },
       "replay": "current scope/permission, ticket/binding/approval/recipient/outbox proof; original result; zero charge",
       "meter": "ONE_COMMAND",
-      "separateEffect": "Local enqueue only; sender/worker/engine/reconciliation unsupported"
+      "separateEffect": "New managed LOCAL_SIMULATED engine and local delivery phases require original owner/current source/private capabilities; live sender and full recovery remain gated/pending"
     },
     "cs_idempotency": {
       "filter": [
@@ -587,6 +587,12 @@
         "meter": "ONE_ROOT_COMMAND",
         "child": "AUTOMATION_ENGINE_ERROR_NONBILLABLE"
       },
+      "automation.local-delivery": {
+        "owner": "automation_audit_logs",
+        "phase": "EXACT_DELIVERY_ID",
+        "meter": "INHERITS_ORIGINAL_ROOT",
+        "proof": "Original content/payload/recipient/approval hashes, actual local provider receipt; never SMTP SENT"
+      },
       "cs.local-preview": {
         "owner": "cs_idempotency",
         "phase": "EXACT_DELIVERY_ID",
@@ -609,7 +615,7 @@
     "apps/portfolio-api/src/app.mjs": "89e44fc34fb5aa66a03d57f9599717b66efa93ec34329c0a0b63e6c076064aca",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
     "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
-    "apps/portfolio-api/src/automation.mjs": "6c14ccf0ff68a74748c983ab381153dfbb9336eb8418adbb60632d40beb0869c",
+    "apps/portfolio-api/src/automation.mjs": "7a331a193a00cc59c04b9fba85a65bb889e102cce00f441cfe497b655503aaed",
     "apps/portfolio-api/src/business-clock.mjs": "75ac403414331887f6df0e944a7f6f6a0415aa62c4ae62b76124c28adb8f2188",
     "apps/portfolio-api/src/catalog-disposition-state.mjs": "14bdaae9188d604a15ea90ef63b2adf025600b26b3a4af58364ee24f4d99f875",
     "apps/portfolio-api/src/catalog-disposition.mjs": "1835a7e3235460873335e53979a409360f3ffea0d8814e6737317f7ef3dbb49f",
@@ -709,8 +715,8 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/effects.mjs": "3dd07e44974644d810d83a886de649b6075ea86b87c9e3e81931c0ea60dd53fe",
-    "packages/tenant-lifecycle/local-effects-adapter.mjs": "733ad24b1e46d7f11ef92997436de3e8e95fb23f248e078b5729744c29d817f7",
+    "packages/tenant-lifecycle/effects.mjs": "fafc300fe1722b4d225e6c00e3300300b5135909333c6305817717d9ac353c3e",
+    "packages/tenant-lifecycle/local-effects-adapter.mjs": "fbf0409c0064a1c75e177f53a91327b554943421f8423b7274c7306fc68aa6a3",
     "packages/tenant-lifecycle/effect-primitives.mjs": "7c528a2602f3b46fc2d0d94dc782ebf5d0fecec9f867618bc5397d871d4fbb6f",
     "packages/tenant-lifecycle/admission.mjs": "17352fb3897c0c9b8e00327bcd279390a168f1760fa67a85f74e7ea7df41b6eb",
     "packages/tenant-lifecycle/index.mjs": "b75329b141e134ebbdab6d0b6f3e971e2191ce16df91f987034d49a07faa8087",
