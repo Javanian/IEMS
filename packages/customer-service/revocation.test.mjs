@@ -69,10 +69,13 @@ test('binding revoke after snapshot aborts customer command including replay',as
  assert.equal(await db.collection('cs_inbound').countDocuments({tenantId:h.tenantId}),0);
  assert.equal(await db.collection('cs_outbox').countDocuments({tenantId:h.tenantId,state:'QUEUED'}),0);
 });
-test('authoritative reader rechecks binding after await and retains customer scope',async()=>{
- const h=await fixture();let received;
- const cs=createCustomerService({client,db,foundation:h.foundation,orderReader:{readCustomerOrder:async input=>{received=input;await h.cs.revokeBinding(h.scope,{plantId:h.plantId,bindingId:h.bindingId,expectedVersion:1});return {source:'PORTFOLIO_API_OWNED',orderNumber:input.orderNumber,publicStage:'ACCEPTED',sourceVersion:1,sourceId:randomUUID(),asOf:new Date(),progress:null};}}});
+test('reader timeout releases the binding fence for revocation and later reads remain denied',async()=>{
+ const h=await fixture();let received,revocation;
+ const cs=createCustomerService({client,db,foundation:h.foundation,orderReaderTimeoutMs:100,orderReader:{readCustomerOrder:async input=>{received=input;revocation=h.cs.revokeBinding(h.scope,{plantId:h.plantId,bindingId:h.bindingId,expectedVersion:1});await revocation;return {source:'PORTFOLIO_API_OWNED',orderNumber:input.orderNumber,publicStage:'ACCEPTED',sourceVersion:1,sourceId:randomUUID(),asOf:new Date(),progress:null};}}});
  const p=await cs.resolveCustomerPrincipal({tenantId:h.tenantId,channelAccountId:h.tenantId,providerContactId:'owned'});
+ await assert.rejects(cs.getOrderStatusForCustomer(p,{orderNumber:'SO-OWNED'}),{code:'STATUS_UNAVAILABLE'});
+ await revocation;
+ assert.equal((await db.collection('cs_contact_bindings').findOne({_id:h.bindingId})).status,'REVOKED');
  await assert.rejects(cs.getOrderStatusForCustomer(p,{orderNumber:'SO-OWNED'}),{code:'DENIED'});
  assert.deepEqual(received,{tenantId:h.tenantId,plantId:h.plantId,customerId:h.customerId,orderNumber:'SO-OWNED'});
  await assert.rejects(cs.getOrderStatusForCustomer({...p},{orderNumber:'SO-OWNED'}),{code:'DENIED'});

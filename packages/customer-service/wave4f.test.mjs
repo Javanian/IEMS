@@ -104,6 +104,7 @@ test('reader kind/milestones are validated strictly and passed through; metrics 
   for (const text of ['IEMS COMPLAINT GENERAL', 'IEMS COMPLAINT CATEGORY OTHER', 'IEMS COMPLAINT DESCRIBE Synthetic question']) await cs.simulateInbound(scope, { plantId: k.p1, bindingId: binding.bindingId, inboundKey: randomUUID(), text });
   const confirmed = await cs.simulateInbound(scope, { plantId: k.p1, bindingId: binding.bindingId, inboundKey: randomUUID(), text: 'IEMS COMPLAINT CONFIRM' });
   assert.ok(confirmed.result.receipt.ticketNumber);
+  clock.now += 1;
   const window = { plantId: k.p1, from: new Date(clock.now - 3600000), to: new Date(clock.now + 60000) };
   const m = await cs.getMetrics(scope, window);
   assert.equal(await db.collection('cs_outbox').countDocuments({ conversationId: sim.conversationId, origin: { $in: ['BOT', 'SYSTEM'] } }) > 0, true);

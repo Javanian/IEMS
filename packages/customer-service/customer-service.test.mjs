@@ -238,7 +238,9 @@ test('handoff cancels queued bot replies, suppresses new ones, and records in-fl
   assert.equal(raced.find(x => x.status === 'rejected').reason.code, 'VERSION_CONFLICT');
   const winner = raced[0].status === 'fulfilled' ? scopes.agentA : scopes.agentB;
   const loser = winner === scopes.agentA ? scopes.agentB : scopes.agentA;
-  await assert.rejects(cs.operatorReply(loser, { plantId: k.p1, conversationId: conv.conversationId, text: 'Hi', commandKey: randomUUID() }), code('INVALID_TRANSITION'));
+  const outboundBefore = await count('cs_outbox');
+  await assert.rejects(cs.operatorReply(loser, { plantId: k.p1, conversationId: conv.conversationId, text: 'Hi', commandKey: randomUUID() }), code('DENIED'));
+  assert.equal(await count('cs_outbox'), outboundBefore);
   const reply = await cs.operatorReply(winner, { plantId: k.p1, conversationId: conv.conversationId, text: 'Hello, I am looking into it.', commandKey: 'op-1' });
   const sent = await drain();
   assert.deepEqual(sent.map(d => d.kind), ['HANDOFF_ACK', 'OPERATOR_REPLY']);
@@ -249,7 +251,9 @@ test('handoff cancels queued bot replies, suppresses new ones, and records in-fl
 
 test('dispatch rechecks mode epoch and binding version so stale bot replies are cancelled not sent', async () => {
   const conv = await cs.findConversationByBinding(scopes.agentA, { plantId: k.p1, bindingId: k.b2 });
-  const resumed = await cs.setConversationMode(scopes.agentA, { plantId: k.p1, conversationId: conv.conversationId, expectedVersion: conv.version, toMode: 'BOT_ACTIVE', reason: 'resume bot explicitly', commandKey: randomUUID() });
+  const stored = await db.collection('cs_conversations').findOne({ _id: conv.conversationId });
+  const assigned = stored.assigneeId === k.agentA ? scopes.agentA : scopes.agentB;
+  const resumed = await cs.setConversationMode(assigned, { plantId: k.p1, conversationId: conv.conversationId, expectedVersion: conv.version, toMode: 'BOT_ACTIVE', reason: 'resume bot explicitly', commandKey: randomUUID() });
   assert.equal(resumed.mode, 'BOT_ACTIVE');
   const stale = await cs.enqueueBotReply(principals.c2, { inboundKey: 'bot-epoch', template: 'menu' });
   // Out-of-band epoch bump: only the dispatch-time recheck stands between this stale row and a send.
@@ -419,9 +423,9 @@ test('v2 negatives: reader scope, revoked binding, cross-customer drafts, cursor
   await assert.rejects(live.operatorReply(scopes.agentT2, { plantId: k.p1, conversationId: fresh.conversationId, text: 'x', commandKey: 'neg-t2' }), { code: 'SCOPE_DENIED' });
   let current = fresh;
   if (current.mode !== 'PAUSED') current = await live.setConversationMode(scopes.agentA, { plantId: k.p1, conversationId: fresh.conversationId, expectedVersion: fresh.version, toMode: 'PAUSED', reason: 'Pause check', commandKey: 'neg-pause' });
-  await assert.rejects(live.operatorReply(scopes.agentA, { plantId: k.p1, conversationId: fresh.conversationId, text: 'x', commandKey: 'neg-paused' }), code('INVALID_TRANSITION'));
+  await assert.rejects(live.operatorReply(scopes.agentA, { plantId: k.p1, conversationId: fresh.conversationId, text: 'x', commandKey: 'neg-paused' }), code('DENIED'));
   const taken = await live.takeOverConversation(scopes.agentA, { plantId: k.p1, conversationId: fresh.conversationId, expectedVersion: current.version, commandKey: 'neg-take' });
-  await assert.rejects(live.operatorReply(scopes.agentB, { plantId: k.p1, conversationId: fresh.conversationId, text: 'x', commandKey: 'neg-other-agent' }), code('INVALID_TRANSITION'));
+  await assert.rejects(live.operatorReply(scopes.agentB, { plantId: k.p1, conversationId: fresh.conversationId, text: 'x', commandKey: 'neg-other-agent' }), code('DENIED'));
   const reply = await live.operatorReply(scopes.agentA, { plantId: k.p1, conversationId: fresh.conversationId, text: 'Operator answer', commandKey: 'neg-reply' });
   assert.equal(reply.state, 'QUEUED');
   assert.equal((await live.handleInboundCommand(c1, { inboundKey: 'neg-human-mode', text: 'IEMS MENU', command: { op: 'MENU' } })).reply.state, 'SUPPRESSED');
