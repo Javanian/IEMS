@@ -1,7 +1,11 @@
 [
   {
+    "file": "dashboard-retry.test.mjs",
+    "sha256": "28505c0eeb564d7ec5a402255e24b5a7c54f548d8cfd2f6b2e28f0c3082ad08c"
+  },
+  {
     "file": "dashboard.test.mjs",
-    "sha256": "ce43321859ff54e1f82e7ccfe9b7420f127156d92dad850aec4631578415bf00"
+    "sha256": "0fa9f4c1c17e105bafe38b81729cbeab242e04dcbc0d1203e543ed7a75da6d82"
   },
   {
     "file": "evidence/assertion-retention.json",
@@ -56,8 +60,52 @@
     "sha256": "9274c32ee119ca2e4b2ed5d093ccb19dfeb0d250f6f15d9b1fe78f5be237fc4a"
   },
   {
+    "file": "evidence/vis004/cleanup-initial.json",
+    "sha256": "21a3760fea9b78473d2ad7d62e54240f8f65f08f8a1be9456763dd76d99d761a"
+  },
+  {
+    "file": "evidence/vis004/cleanup.json",
+    "sha256": "36fca211589815b7ad59d59e54b26d1e630a0a303d2677a7685b91dc265f47fd"
+  },
+  {
+    "file": "evidence/vis004/memory-save.json",
+    "sha256": "a8af8cc41b97ff398998f87e141395dcdd54631a7b1ab52b61f0f5b804d0f67c"
+  },
+  {
+    "file": "evidence/vis004/registry-delta.tap",
+    "sha256": "8795394b2697f0c0324521f5fc1e6ae768bae53618fca6fcb83e680394dfb611"
+  },
+  {
+    "file": "evidence/vis004/registry-impact-corrected.tap",
+    "sha256": "35d5afc3557b59ddc47f56d9969b12caeb1dd976105bebc76bb87f3f6fe85da1"
+  },
+  {
+    "file": "evidence/vis004/registry-impact-initial.tap",
+    "sha256": "21ec12468472cd63e6bb7d45568d79619a8653d508f7fd02e740b3f929eaacc0"
+  },
+  {
+    "file": "evidence/vis004/registry-review.json",
+    "sha256": "0e8dc89e977b8cd2468c70063cf5dffce006532abbe9e5010cc60ac74f52a733"
+  },
+  {
+    "file": "evidence/vis004/retry-contract.tap",
+    "sha256": "b8d60cadf24c9988bd23c488edd30c70abf63a5c98e4c3568d50df13782ff05e"
+  },
+  {
+    "file": "evidence/vis004/source-pins.tap",
+    "sha256": "463b1024d2e2a5a90901519468e6ed1e2fcafbe624230f066fde965b2425a2c8"
+  },
+  {
+    "file": "evidence/vis004/validation.json",
+    "sha256": "737304cce9e0f04d3ee9986b7b2bd5320258ddaef75959068fe2e596c64e3522"
+  },
+  {
+    "file": "evidence/vis004/vis004-strict.tap",
+    "sha256": "0b03754de489498cfc7df618513d9015378596fad55bd55ebf0059f42be14797"
+  },
+  {
     "file": "IMPLEMENTATION-RESULT.md",
-    "sha256": "b9f3792ff7e4044a5cff32e93d7ec6e2440e64dd64d4f62c480fbe3929664fe1"
+    "sha256": "8e8a6f6f6f63a8b5d4784391dc7631895e886a969517db170dde449a09c204c5"
   },
   {
     "file": "memory-note.json",
@@ -68,7 +116,19 @@
     "sha256": "22133073d505f850023dad95baca9006c18e2848d47f0955018ea6b104964bd4"
   },
   {
+    "file": "registry-impact.test.mjs",
+    "sha256": "2870e707cb48909480a93331e1adbe5af347dbc7391bd7a6fbd01aacd44983ae"
+  },
+  {
+    "file": "source-pins.test.mjs",
+    "sha256": "85336cbd5d7de72c8bfbe2f42cdf1100196880c246a18701a6da958f75fa93dd"
+  },
+  {
     "file": "VIS-004-proposal.patch",
     "sha256": "0b11b77a99b94878651f1deaa1dcec8c485ecda31aa11e65cc399754db315792"
+  },
+  {
+    "file": "vis004-memory-note.json",
+    "sha256": "2d9f495647610b1ce3c0a088f80b861a6bb93a5511dadad69ffc4d74b8ba6c9e"
   }
 ]

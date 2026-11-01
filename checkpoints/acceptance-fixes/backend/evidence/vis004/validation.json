@@ -1,0 +1,37 @@
+{
+  "sourcePinResult": {
+    "skip": 0,
+    "exit": 0,
+    "pass": 1,
+    "fail": 0
+  },
+  "limitations": "Actual software on owned synthetic Mongo; mock session only for bounded retry/unknown-commit unit contract. No exact historical browser concurrency proof, full regression, GUI/physical/biometric/audio/provider acceptance. No independent review.",
+  "strictResult": {
+    "overlapping": 36,
+    "exit": 0,
+    "dashboardRequests": 66,
+    "skip": 0,
+    "sequential": 30,
+    "fail": 0,
+    "pass": 12
+  },
+  "strictCommand": "node --import ./checkpoints/acceptance-fixes/backend/owned-runtime.mjs --test --test-concurrency=1 checkpoints/acceptance-fixes/backend/dashboard-retry.test.mjs checkpoints/acceptance-fixes/backend/dashboard.test.mjs apps/portfolio-api/test/wave4c-labor.test.mjs ops/operations/voice.test.mjs ops/operations/workforce.test.mjs",
+  "sourcePinCommand": "node --test checkpoints/acceptance-fixes/backend/source-pins.test.mjs",
+  "syntaxPaths": [
+    "apps/portfolio-api/src/operations.mjs",
+    "checkpoints/acceptance-fixes/backend/dashboard.test.mjs",
+    "checkpoints/acceptance-fixes/backend/dashboard-retry.test.mjs",
+    "checkpoints/acceptance-fixes/backend/registry-impact.test.mjs",
+    "checkpoints/acceptance-fixes/backend/source-pins.test.mjs"
+  ],
+  "sourceTree": "matches committed source a057def5fce1f4e2d3fabdf0371c3ebeb0718c85; dashboard indentation only changed after strict run",
+  "base": "eda87776d02ec816b181f8fe21f77b61585a4ee7",
+  "syntaxExit": 0,
+  "registryImpactResult": {
+    "skip": 0,
+    "originalFailure": "Initial new fixture omitted selected-plant grant context and failed SCOPE_DENIED; preserved separately. No product guard was modified.",
+    "exit": 0,
+    "pass": 2,
+    "fail": 0
+  }
+}
