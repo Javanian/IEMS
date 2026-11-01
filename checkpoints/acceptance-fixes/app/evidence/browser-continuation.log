@@ -1,0 +1,14 @@
+Owned web origin http://127.0.0.1:32400
+PASS explicit synthetic foundation seed with two actual fixture operators, fresh owned DB, real MongoDB 7.0.14 replica set
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[BABEL] Note: The code generator has deoptimised the styling of C:\Users\Admin\AppData\Local\Temp\paperclip-run-tpr-166-71bdea23-955-p3N7ze\vite-cache\deps\react-dom_client.js?v=05c0e114 as it exceeds the max of 500KB.
+PASS mounted deep-link login, genuine credentialed cookie session
+PASS HttpOnly cookie not exposed; no localStorage/sessionStorage bearer or auth data
+DIAGNOSTIC ONLY: review journeys; prior journey coverage is absent. Full acceptance requires all five diagnostic modes0 and all22 flags.
+PASS Actual invalid identity/password produce identical correction guidance; keyboard sign-in and revoked-session 401 recovery succeed
+PASS Original E01 native account/inquiry/submission/review/quotationR1 approval/negotiatedR2 approval/acceptance/SO conversion preserve original prices, immutable R1 and exact conversion retry
+PASS Original E01 native engineeringB/WO6+4/four original labor actors and windows/ten exact serial outputs/QC/five-source per-unit genealogy/shipments6+4/POD6+4/invoices73500+8085 and49000+5390/settlement135975 conserve actual identities and material
+PASS Original mounted E02 helper completes; accepted/rejected customer returns show actual serial and repair link without fabricated line; keyboard navigation works
+{"diagnosticOnly":true,"fullAcceptance":false,"passed":7,"exceptions":0,"consoleErrors":0,"evidence":"D:\\Project AI\\GITHUB\\IEMS-worktrees\\iems-accept-fix-20261101-app\\checkpoints\\acceptance-fixes\\app\\evidence\\browser-continuation","resultsFile":"review-debug-results.json"}

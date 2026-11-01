@@ -8,10 +8,10 @@ import { roleActions } from '../../apps/portfolio-api/src/commercial.mjs';
 import { fulfillmentRoles, fulfillmentActions } from '../../apps/portfolio-api/src/fulfillment.mjs';
 import { repairRoles } from '../../apps/portfolio-api/src/repair.mjs';
 import { uuid } from '../../packages/domain-events/source-bindings.mjs';
-import { createReportingRuntime } from './reporting-runtime.mjs';
+import { createReportingRuntime, reportingDatabaseName } from './reporting-runtime.mjs';
 
 export async function validatePrivateConfig(config) {
-  if (!config || Object.keys(config).some(k => !['uri', 'databaseName', 'root', 'marker', 'token', 'python'].includes(k)) || !/^portfolio_test_[a-f0-9]{32}$/.test(config.databaseName) || !uuid.test(config.marker) || !/^[A-Za-z0-9_-]{43}$/.test(config.token)) throw new Error('EXPLICIT_PRIVATE_SYNTHETIC_CONFIG_REQUIRED');
+  if (!config || Object.keys(config).some(k => !['uri', 'databaseName', 'root', 'marker', 'token', 'python'].includes(k)) || !reportingDatabaseName(config.databaseName) || !uuid.test(config.marker) || !/^[A-Za-z0-9_-]{43}$/.test(config.token)) throw new Error('EXPLICIT_PRIVATE_SYNTHETIC_CONFIG_REQUIRED');
   const uri = new URL(config.uri);
   if (uri.protocol !== 'mongodb:' || !['127.0.0.1', '[::1]'].includes(uri.hostname) || uri.username || uri.password || !uri.port || !['', '/'].includes(uri.pathname) || uri.hash || [...uri.searchParams.keys()].some(k => !['replicaSet', 'directConnection'].includes(k))) throw new Error('SYNTHETIC_LOOPBACK_SOURCE_ONLY');
   if (typeof config.root !== 'string' || !isAbsolute(config.root) || (await lstat(config.root)).isSymbolicLink()) throw new Error('EXPLICIT_EXTRACTION_ROOT_REQUIRED');

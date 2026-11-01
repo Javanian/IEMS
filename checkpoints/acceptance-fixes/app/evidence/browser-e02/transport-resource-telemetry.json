@@ -1,0 +1,1468 @@
+{
+  "schema": "TRANSPORT_RESOURCE_DIAGNOSTIC_V1",
+  "capturedUTC": "2026-11-01T04:11:24.339Z",
+  "platform": "win32",
+  "experiment": {
+    "withoutPreflight": false,
+    "variant": "A-with-preflight"
+  },
+  "bounds": {
+    "maxSnapshots": 16,
+    "eventLimit": 1024,
+    "maxBytes": 1048576,
+    "samplerTimeoutMs": 8000
+  },
+  "droppedEvents": 0,
+  "droppedSnapshots": 0,
+  "droppedRequests": 0,
+  "roots": [
+    {
+      "role": "harness",
+      "pid": 21744,
+      "registeredUTC": "2026-11-01T04:10:26.260Z",
+      "identity": "OS-creation-time-observed",
+      "createdUTC": "2026-11-01T04:10:24.8074200Z"
+    },
+    {
+      "role": "main-browser",
+      "pid": 18200,
+      "registeredUTC": "2026-11-01T04:10:36.930Z",
+      "identity": "OS-creation-time-observed",
+      "createdUTC": "2026-11-01T04:10:36.9240970Z"
+    }
+  ],
+  "snapshots": [
+    {
+      "phase": "before-preflight",
+      "startedUTC": "2026-11-01T04:10:26.268Z",
+      "completedUTC": "2026-11-01T04:10:29.085Z",
+      "overheadMs": 2817,
+      "node": {
+        "memory": {
+          "rss": 153010176,
+          "heapTotal": 74866688,
+          "heapUsed": 38877160,
+          "external": 25945039,
+          "arrayBuffers": 19040823
+        },
+        "activeResourceTypes": [
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "ProcessWrap"
+        ]
+      },
+      "host": {
+        "os": "Microsoft Windows 11 Pro",
+        "version": "10.0.26300",
+        "freeBytes": 6762508288,
+        "committedBytes": 17704562688,
+        "commitLimitBytes": 32052199424,
+        "processCount": 326,
+        "tcpStates": {
+          "": 64,
+          "FinWait1": 14,
+          "Closed": 12,
+          "Bound": 8,
+          "Established": 40,
+          "TimeWait": 1182,
+          "CloseWait": 12,
+          "Listen": 5
+        },
+        "tcpUnavailable": null,
+        "dynamicTcpRange": {
+          "start": 49152,
+          "count": 16384
+        },
+        "dynamicTcpEntries": 702
+      },
+      "owned": [
+        {
+          "pid": 21744,
+          "parentPid": 3812,
+          "createdUTC": "2026-11-01T04:10:24.8074200Z",
+          "name": "node.exe",
+          "workingSetBytes": 152719360,
+          "privateBytes": 225546240,
+          "handles": 259,
+          "tcpStates": {}
+        }
+      ],
+      "previouslyObservedAbsent": []
+    },
+    {
+      "phase": "after-preflight",
+      "startedUTC": "2026-11-01T04:10:29.087Z",
+      "completedUTC": "2026-11-01T04:10:32.111Z",
+      "overheadMs": 3024,
+      "node": {
+        "memory": {
+          "rss": 153178112,
+          "heapTotal": 74866688,
+          "heapUsed": 39914864,
+          "external": 26060828,
+          "arrayBuffers": 19156572
+        },
+        "activeResourceTypes": [
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "ProcessWrap"
+        ]
+      },
+      "host": {
+        "os": "Microsoft Windows 11 Pro",
+        "version": "10.0.26300",
+        "freeBytes": 6775660544,
+        "committedBytes": 17693827072,
+        "commitLimitBytes": 32052199424,
+        "processCount": 326,
+        "tcpStates": {
+          "": 63,
+          "FinWait1": 14,
+          "Closed": 14,
+          "Bound": 8,
+          "Established": 40,
+          "TimeWait": 1178,
+          "CloseWait": 12,
+          "Listen": 6
+        },
+        "tcpUnavailable": null,
+        "dynamicTcpRange": {
+          "start": 49152,
+          "count": 16384
+        },
+        "dynamicTcpEntries": 700
+      },
+      "owned": [
+        {
+          "pid": 21744,
+          "parentPid": 3812,
+          "createdUTC": "2026-11-01T04:10:24.8074200Z",
+          "name": "node.exe",
+          "workingSetBytes": 153149440,
+          "privateBytes": 225558528,
+          "handles": 259,
+          "tcpStates": {}
+        }
+      ],
+      "previouslyObservedAbsent": []
+    },
+    {
+      "phase": "main-browser-ready",
+      "startedUTC": "2026-11-01T04:10:38.479Z",
+      "completedUTC": "2026-11-01T04:10:41.891Z",
+      "overheadMs": 3412,
+      "node": {
+        "memory": {
+          "rss": 180617216,
+          "heapTotal": 91234304,
+          "heapUsed": 60751568,
+          "external": 26551548,
+          "arrayBuffers": 19492381
+        },
+        "activeResourceTypes": [
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "TCPSocketWrap",
+          "TCPSocketWrap",
+          "TCPSocketWrap",
+          "TCPServerWrap",
+          "FSEventWrap",
+          "TCPServerWrap",
+          "PipeWrap",
+          "ProcessWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap"
+        ]
+      },
+      "host": {
+        "os": "Microsoft Windows 11 Pro",
+        "version": "10.0.26300",
+        "freeBytes": 6228258816,
+        "committedBytes": 18242924544,
+        "commitLimitBytes": 32052199424,
+        "processCount": 340,
+        "tcpStates": {
+          "": 76,
+          "Bound": 10,
+          "FinWait1": 16,
+          "Closed": 12,
+          "Established": 52,
+          "TimeWait": 1186,
+          "CloseWait": 12,
+          "Listen": 6
+        },
+        "tcpUnavailable": null,
+        "dynamicTcpRange": {
+          "start": 49152,
+          "count": 16384
+        },
+        "dynamicTcpEntries": 727
+      },
+      "owned": [
+        {
+          "pid": 21744,
+          "parentPid": 3812,
+          "createdUTC": "2026-11-01T04:10:24.8074200Z",
+          "name": "node.exe",
+          "workingSetBytes": 180518912,
+          "privateBytes": 246906880,
+          "handles": 757,
+          "tcpStates": {
+            "Closed": 1,
+            "Bound": 2,
+            "": 3,
+            "Established": 3,
+            "FinWait1": 1
+          }
+        },
+        {
+          "pid": 7572,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:32.1866880Z",
+          "name": "mongod-x64-win32-7.0.14.exe",
+          "workingSetBytes": 186400768,
+          "privateBytes": 207405056,
+          "handles": 1860,
+          "tcpStates": {
+            "FinWait1": 1,
+            "Established": 2,
+            "": 1
+          }
+        },
+        {
+          "pid": 11240,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:32.2010100Z",
+          "name": "node.exe",
+          "workingSetBytes": 62042112,
+          "privateBytes": 20467712,
+          "handles": 205,
+          "tcpStates": {}
+        },
+        {
+          "pid": 11668,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:36.7895130Z",
+          "name": "esbuild.exe",
+          "workingSetBytes": 14499840,
+          "privateBytes": 18825216,
+          "handles": 150,
+          "tcpStates": {}
+        },
+        {
+          "pid": 18200,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:36.9240970Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 142090240,
+          "privateBytes": 41570304,
+          "handles": 1474,
+          "tcpStates": {
+            "Established": 1,
+            "": 1
+          }
+        },
+        {
+          "pid": 7884,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:36.9519990Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 11354112,
+          "privateBytes": 2764800,
+          "handles": 194,
+          "tcpStates": {}
+        },
+        {
+          "pid": 3528,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.1231560Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 41254912,
+          "privateBytes": 15704064,
+          "handles": 373,
+          "tcpStates": {}
+        },
+        {
+          "pid": 20388,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.1273580Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 40837120,
+          "privateBytes": 12951552,
+          "handles": 407,
+          "tcpStates": {
+            "": 3,
+            "FinWait1": 2,
+            "Bound": 1,
+            "Established": 6
+          }
+        },
+        {
+          "pid": 8712,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.1664380Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 17301504,
+          "privateBytes": 7872512,
+          "handles": 167,
+          "tcpStates": {}
+        },
+        {
+          "pid": 14956,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.2185120Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 85352448,
+          "privateBytes": 44019712,
+          "handles": 284,
+          "tcpStates": {}
+        },
+        {
+          "pid": 20588,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.2827990Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 43462656,
+          "privateBytes": 18472960,
+          "handles": 231,
+          "tcpStates": {}
+        },
+        {
+          "pid": 14804,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.3202420Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 44744704,
+          "privateBytes": 18440192,
+          "handles": 231,
+          "tcpStates": {}
+        },
+        {
+          "pid": 22964,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.3202650Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 45264896,
+          "privateBytes": 18509824,
+          "handles": 241,
+          "tcpStates": {}
+        },
+        {
+          "pid": 22404,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.3751220Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 42385408,
+          "privateBytes": 20705280,
+          "handles": 239,
+          "tcpStates": {}
+        },
+        {
+          "pid": 6160,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:38.2184140Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 33964032,
+          "privateBytes": 18108416,
+          "handles": 213,
+          "tcpStates": {}
+        }
+      ],
+      "previouslyObservedAbsent": []
+    },
+    {
+      "phase": "failure",
+      "startedUTC": "2026-11-01T04:11:12.154Z",
+      "completedUTC": "2026-11-01T04:11:15.107Z",
+      "overheadMs": 2953,
+      "node": {
+        "memory": {
+          "rss": 644407296,
+          "heapTotal": 425889792,
+          "heapUsed": 187501424,
+          "external": 35819877,
+          "arrayBuffers": 24505338
+        },
+        "activeResourceTypes": [
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "TCPSocketWrap",
+          "TCPSocketWrap",
+          "TCPSocketWrap",
+          "TCPServerWrap",
+          "FSEventWrap",
+          "TCPServerWrap",
+          "PipeWrap",
+          "ProcessWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap"
+        ]
+      },
+      "host": {
+        "os": "Microsoft Windows 11 Pro",
+        "version": "10.0.26300",
+        "freeBytes": 5522505728,
+        "committedBytes": 19130347520,
+        "commitLimitBytes": 32052199424,
+        "processCount": 341,
+        "tcpStates": {
+          "": 91,
+          "Bound": 14,
+          "FinWait1": 19,
+          "Closed": 14,
+          "Established": 86,
+          "TimeWait": 771,
+          "CloseWait": 12,
+          "Listen": 6
+        },
+        "tcpUnavailable": null,
+        "dynamicTcpRange": {
+          "start": 49152,
+          "count": 16384
+        },
+        "dynamicTcpEntries": 595
+      },
+      "owned": [
+        {
+          "pid": 21744,
+          "parentPid": 3812,
+          "createdUTC": "2026-11-01T04:10:24.8074200Z",
+          "name": "node.exe",
+          "workingSetBytes": 643977216,
+          "privateBytes": 719106048,
+          "handles": 777,
+          "tcpStates": {
+            "": 12,
+            "Bound": 3,
+            "FinWait1": 3,
+            "Closed": 3,
+            "Established": 22,
+            "Listen": 1
+          }
+        },
+        {
+          "pid": 7572,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:32.1866880Z",
+          "name": "mongod-x64-win32-7.0.14.exe",
+          "workingSetBytes": 201990144,
+          "privateBytes": 223055872,
+          "handles": 1998,
+          "tcpStates": {
+            "Established": 11,
+            "FinWait1": 3,
+            "Listen": 1,
+            "": 1
+          }
+        },
+        {
+          "pid": 11240,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:32.2010100Z",
+          "name": "node.exe",
+          "workingSetBytes": 62009344,
+          "privateBytes": 20365312,
+          "handles": 205,
+          "tcpStates": {}
+        },
+        {
+          "pid": 11668,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:36.7895130Z",
+          "name": "esbuild.exe",
+          "workingSetBytes": 24064000,
+          "privateBytes": 26038272,
+          "handles": 174,
+          "tcpStates": {}
+        },
+        {
+          "pid": 18200,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:36.9240970Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 197013504,
+          "privateBytes": 70127616,
+          "handles": 1712,
+          "tcpStates": {
+            "Established": 1,
+            "": 1
+          }
+        },
+        {
+          "pid": 7884,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:36.9519990Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 11317248,
+          "privateBytes": 2682880,
+          "handles": 187,
+          "tcpStates": {}
+        },
+        {
+          "pid": 3528,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.1231560Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 53448704,
+          "privateBytes": 17874944,
+          "handles": 370,
+          "tcpStates": {}
+        },
+        {
+          "pid": 20388,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.1273580Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 47853568,
+          "privateBytes": 16445440,
+          "handles": 474,
+          "tcpStates": {
+            "": 9,
+            "Bound": 3,
+            "Closed": 2,
+            "FinWait1": 4,
+            "Established": 14
+          }
+        },
+        {
+          "pid": 8712,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.1664380Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 17870848,
+          "privateBytes": 8011776,
+          "handles": 178,
+          "tcpStates": {}
+        },
+        {
+          "pid": 14956,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.2185120Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 78090240,
+          "privateBytes": 34910208,
+          "handles": 286,
+          "tcpStates": {}
+        },
+        {
+          "pid": 20588,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.2827990Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 45010944,
+          "privateBytes": 18890752,
+          "handles": 233,
+          "tcpStates": {}
+        },
+        {
+          "pid": 14804,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.3202420Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 195182592,
+          "privateBytes": 115568640,
+          "handles": 470,
+          "tcpStates": {}
+        },
+        {
+          "pid": 13236,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:45.7156780Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 31457280,
+          "privateBytes": 15007744,
+          "handles": 215,
+          "tcpStates": {}
+        },
+        {
+          "pid": 8820,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:46.2169270Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 45023232,
+          "privateBytes": 21377024,
+          "handles": 237,
+          "tcpStates": {}
+        }
+      ],
+      "previouslyObservedAbsent": [
+        {
+          "pid": 22964,
+          "createdUTC": "2026-11-01T04:10:37.3202650Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 22404,
+          "createdUTC": "2026-11-01T04:10:37.3751220Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 6160,
+          "createdUTC": "2026-11-01T04:10:38.2184140Z",
+          "name": "chrome.exe"
+        }
+      ]
+    },
+    {
+      "phase": "before-main-cleanup",
+      "startedUTC": "2026-11-01T04:11:15.348Z",
+      "completedUTC": "2026-11-01T04:11:18.038Z",
+      "overheadMs": 2689,
+      "node": {
+        "memory": {
+          "rss": 646213632,
+          "heapTotal": 426590208,
+          "heapUsed": 189836232,
+          "external": 37235898,
+          "arrayBuffers": 25921359
+        },
+        "activeResourceTypes": [
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "TCPSocketWrap",
+          "TCPSocketWrap",
+          "TCPSocketWrap",
+          "TCPServerWrap",
+          "FSEventWrap",
+          "TCPServerWrap",
+          "PipeWrap",
+          "ProcessWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap",
+          "FSEventWrap"
+        ]
+      },
+      "host": {
+        "os": "Microsoft Windows 11 Pro",
+        "version": "10.0.26300",
+        "freeBytes": 5527756800,
+        "committedBytes": 19092799488,
+        "commitLimitBytes": 32052199424,
+        "processCount": 340,
+        "tcpStates": {
+          "": 93,
+          "Bound": 14,
+          "FinWait1": 19,
+          "Closed": 11,
+          "Established": 88,
+          "TimeWait": 600,
+          "CloseWait": 12,
+          "Listen": 6
+        },
+        "tcpUnavailable": null,
+        "dynamicTcpRange": {
+          "start": 49152,
+          "count": 16384
+        },
+        "dynamicTcpEntries": 521
+      },
+      "owned": [
+        {
+          "pid": 21744,
+          "parentPid": 3812,
+          "createdUTC": "2026-11-01T04:10:24.8074200Z",
+          "name": "node.exe",
+          "workingSetBytes": 646209536,
+          "privateBytes": 721539072,
+          "handles": 779,
+          "tcpStates": {
+            "": 13,
+            "Bound": 5,
+            "FinWait1": 4,
+            "Closed": 1,
+            "Established": 23,
+            "Listen": 1
+          }
+        },
+        {
+          "pid": 7572,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:32.1866880Z",
+          "name": "mongod-x64-win32-7.0.14.exe",
+          "workingSetBytes": 201990144,
+          "privateBytes": 223055872,
+          "handles": 1998,
+          "tcpStates": {
+            "Established": 11,
+            "Closed": 3,
+            "FinWait1": 1,
+            "": 1
+          }
+        },
+        {
+          "pid": 11240,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:32.2010100Z",
+          "name": "node.exe",
+          "workingSetBytes": 62009344,
+          "privateBytes": 20365312,
+          "handles": 205,
+          "tcpStates": {}
+        },
+        {
+          "pid": 11668,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:36.7895130Z",
+          "name": "esbuild.exe",
+          "workingSetBytes": 24064000,
+          "privateBytes": 26038272,
+          "handles": 174,
+          "tcpStates": {}
+        },
+        {
+          "pid": 18200,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:36.9240970Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 196947968,
+          "privateBytes": 69758976,
+          "handles": 1718,
+          "tcpStates": {
+            "Established": 1,
+            "": 1
+          }
+        },
+        {
+          "pid": 7884,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:36.9519990Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 11317248,
+          "privateBytes": 2682880,
+          "handles": 187,
+          "tcpStates": {}
+        },
+        {
+          "pid": 3528,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.1231560Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 58179584,
+          "privateBytes": 17883136,
+          "handles": 370,
+          "tcpStates": {}
+        },
+        {
+          "pid": 20388,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.1273580Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 47562752,
+          "privateBytes": 16154624,
+          "handles": 474,
+          "tcpStates": {
+            "": 13,
+            "FinWait1": 3,
+            "Bound": 2,
+            "Established": 13,
+            "Closed": 1
+          }
+        },
+        {
+          "pid": 8712,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.1664380Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 17870848,
+          "privateBytes": 8011776,
+          "handles": 178,
+          "tcpStates": {}
+        },
+        {
+          "pid": 14956,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.2185120Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 78090240,
+          "privateBytes": 34910208,
+          "handles": 286,
+          "tcpStates": {}
+        },
+        {
+          "pid": 20588,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.2827990Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 45019136,
+          "privateBytes": 18890752,
+          "handles": 233,
+          "tcpStates": {}
+        },
+        {
+          "pid": 14804,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:37.3202420Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 195600384,
+          "privateBytes": 115757056,
+          "handles": 470,
+          "tcpStates": {}
+        },
+        {
+          "pid": 13236,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:45.7156780Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 31457280,
+          "privateBytes": 15007744,
+          "handles": 215,
+          "tcpStates": {}
+        },
+        {
+          "pid": 8820,
+          "parentPid": 18200,
+          "createdUTC": "2026-11-01T04:10:46.2169270Z",
+          "name": "chrome.exe",
+          "workingSetBytes": 45023232,
+          "privateBytes": 21377024,
+          "handles": 237,
+          "tcpStates": {}
+        }
+      ],
+      "previouslyObservedAbsent": [
+        {
+          "pid": 22964,
+          "createdUTC": "2026-11-01T04:10:37.3202650Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 22404,
+          "createdUTC": "2026-11-01T04:10:37.3751220Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 6160,
+          "createdUTC": "2026-11-01T04:10:38.2184140Z",
+          "name": "chrome.exe"
+        }
+      ]
+    },
+    {
+      "phase": "after-main-cleanup",
+      "startedUTC": "2026-11-01T04:11:22.278Z",
+      "completedUTC": "2026-11-01T04:11:24.339Z",
+      "overheadMs": 2061,
+      "node": {
+        "memory": {
+          "rss": 642256896,
+          "heapTotal": 300322816,
+          "heapUsed": 136814872,
+          "external": 32906613,
+          "arrayBuffers": 21587827
+        },
+        "activeResourceTypes": [
+          "PipeWrap",
+          "PipeWrap",
+          "PipeWrap",
+          "ProcessWrap"
+        ]
+      },
+      "host": {
+        "os": "Microsoft Windows 11 Pro",
+        "version": "10.0.26300",
+        "freeBytes": 6196764672,
+        "committedBytes": 18303717376,
+        "commitLimitBytes": 32052199424,
+        "processCount": 330,
+        "tcpStates": {
+          "": 63,
+          "FinWait1": 13,
+          "Closed": 13,
+          "Bound": 8,
+          "Established": 39,
+          "TimeWait": 201,
+          "CloseWait": 12,
+          "Listen": 6
+        },
+        "tcpUnavailable": null,
+        "dynamicTcpRange": {
+          "start": 49152,
+          "count": 16384
+        },
+        "dynamicTcpEntries": 258
+      },
+      "owned": [
+        {
+          "pid": 21744,
+          "parentPid": 3812,
+          "createdUTC": "2026-11-01T04:10:24.8074200Z",
+          "name": "node.exe",
+          "workingSetBytes": 642252800,
+          "privateBytes": 718094336,
+          "handles": 264,
+          "tcpStates": {}
+        },
+        {
+          "pid": 11668,
+          "parentPid": 21744,
+          "createdUTC": "2026-11-01T04:10:36.7895130Z",
+          "name": "esbuild.exe",
+          "workingSetBytes": 24064000,
+          "privateBytes": 26038272,
+          "handles": 174,
+          "tcpStates": {}
+        }
+      ],
+      "previouslyObservedAbsent": [
+        {
+          "pid": 7572,
+          "createdUTC": "2026-11-01T04:10:32.1866880Z",
+          "name": "mongod-x64-win32-7.0.14.exe"
+        },
+        {
+          "pid": 11240,
+          "createdUTC": "2026-11-01T04:10:32.2010100Z",
+          "name": "node.exe"
+        },
+        {
+          "pid": 18200,
+          "createdUTC": "2026-11-01T04:10:36.9240970Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 7884,
+          "createdUTC": "2026-11-01T04:10:36.9519990Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 3528,
+          "createdUTC": "2026-11-01T04:10:37.1231560Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 20388,
+          "createdUTC": "2026-11-01T04:10:37.1273580Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 8712,
+          "createdUTC": "2026-11-01T04:10:37.1664380Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 14956,
+          "createdUTC": "2026-11-01T04:10:37.2185120Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 20588,
+          "createdUTC": "2026-11-01T04:10:37.2827990Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 14804,
+          "createdUTC": "2026-11-01T04:10:37.3202420Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 22964,
+          "createdUTC": "2026-11-01T04:10:37.3202650Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 22404,
+          "createdUTC": "2026-11-01T04:10:37.3751220Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 6160,
+          "createdUTC": "2026-11-01T04:10:38.2184140Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 13236,
+          "createdUTC": "2026-11-01T04:10:45.7156780Z",
+          "name": "chrome.exe"
+        },
+        {
+          "pid": 8820,
+          "createdUTC": "2026-11-01T04:10:46.2169270Z",
+          "name": "chrome.exe"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "utc": "2026-11-01T04:10:26.260Z",
+      "kind": "owned-root",
+      "role": "harness",
+      "pid": 21744
+    },
+    {
+      "utc": "2026-11-01T04:10:29.087Z",
+      "kind": "preflight-omitted-diagnostic-only"
+    },
+    {
+      "utc": "2026-11-01T04:10:36.930Z",
+      "kind": "owned-root",
+      "role": "main-browser",
+      "pid": 18200
+    },
+    {
+      "utc": "2026-11-01T04:10:38.119Z",
+      "kind": "Target.targetCreated",
+      "targetId": "0F16E4A7AEB9134FF6F7238726BD5163",
+      "url": "[external]"
+    },
+    {
+      "utc": "2026-11-01T04:10:38.130Z",
+      "kind": "Target.targetCreated",
+      "targetId": "1518469D9DC5279847F3CC182597AB1E",
+      "url": "[external]"
+    },
+    {
+      "utc": "2026-11-01T04:10:38.209Z",
+      "kind": "Target.targetCreated",
+      "targetId": "19AFF4B653CAF910E477384DCDEF5269",
+      "url": "[external]"
+    },
+    {
+      "utc": "2026-11-01T04:10:38.210Z",
+      "kind": "Target.targetCreated",
+      "targetId": "4998F38A01E49BD771AF1AD0D638509A",
+      "url": "[external]"
+    },
+    {
+      "utc": "2026-11-01T04:10:38.211Z",
+      "kind": "Target.targetCreated",
+      "targetId": "A253A18DACF142E9543F10C5569AA770",
+      "url": "[external]"
+    },
+    {
+      "utc": "2026-11-01T04:10:38.452Z",
+      "kind": "Target.targetCreated",
+      "targetId": "1439A4B77AEB82728AF840F463CFC131",
+      "url": "[external]"
+    },
+    {
+      "utc": "2026-11-01T04:10:38.473Z",
+      "kind": "main-target-attached",
+      "targetId": "1439A4B77AEB82728AF840F463CFC131",
+      "sessionId": "62CEB1A2036102C4D4A1B40DFA444F36"
+    },
+    {
+      "utc": "2026-11-01T04:10:44.846Z",
+      "kind": "frame-navigated",
+      "sessionId": "62CEB1A2036102C4D4A1B40DFA444F36",
+      "frameId": "1439A4B77AEB82728AF840F463CFC131",
+      "loaderId": "64829C4BFE453E77C29CA3D56650F299",
+      "url": "http://127.0.0.1:32400/portfolio/accounts"
+    },
+    {
+      "utc": "2026-11-01T04:10:46.538Z",
+      "kind": "Target.targetCreated",
+      "targetId": "CF3B0F981BB1BAD11D65F6B3649609BB"
+    },
+    {
+      "utc": "2026-11-01T04:10:46.539Z",
+      "kind": "Target.targetCreated",
+      "targetId": "F0F7E50A281C04A2AC301692E5D1BD22",
+      "url": "[external]"
+    },
+    {
+      "utc": "2026-11-01T04:10:52.440Z",
+      "kind": "Target.targetDestroyed",
+      "targetId": "4998F38A01E49BD771AF1AD0D638509A"
+    },
+    {
+      "utc": "2026-11-01T04:11:00.842Z",
+      "kind": "Target.targetDestroyed",
+      "targetId": "CF3B0F981BB1BAD11D65F6B3649609BB"
+    },
+    {
+      "utc": "2026-11-01T04:11:07.507Z",
+      "kind": "Target.targetDestroyed",
+      "targetId": "19AFF4B653CAF910E477384DCDEF5269"
+    },
+    {
+      "utc": "2026-11-01T04:11:11.734Z",
+      "kind": "frame-navigated",
+      "sessionId": "62CEB1A2036102C4D4A1B40DFA444F36",
+      "frameId": "1439A4B77AEB82728AF840F463CFC131",
+      "loaderId": "12DAA32B64B160BB3394C378727B50CC",
+      "url": "http://127.0.0.1:32400/portfolio/fulfillment/shipments"
+    },
+    {
+      "utc": "2026-11-01T04:11:12.154Z",
+      "kind": "journey-failed",
+      "errorName": "Error"
+    },
+    {
+      "utc": "2026-11-01T04:11:16.318Z",
+      "kind": "Target.targetDestroyed",
+      "targetId": "F0F7E50A281C04A2AC301692E5D1BD22"
+    },
+    {
+      "utc": "2026-11-01T04:11:18.039Z",
+      "kind": "main-browser-close-requested"
+    },
+    {
+      "utc": "2026-11-01T04:11:18.040Z",
+      "kind": "main-browser-close-acknowledged"
+    },
+    {
+      "utc": "2026-11-01T04:11:18.042Z",
+      "kind": "main-browser-disconnected"
+    },
+    {
+      "utc": "2026-11-01T04:11:22.278Z",
+      "kind": "main-cleanup-finished",
+      "browserExitCode": 0,
+      "browserSignalCode": null,
+      "viteClosed": true,
+      "apiClosed": true,
+      "profileRemoved": true
+    }
+  ],
+  "limits": "Point-in-time observer; sampling adds measured delay. No continuous peaks, kernel allocation attribution or historical closure inferred. Missing counters are unknown, not zero."
+}

@@ -1,0 +1,6 @@
+{
+  "issue": "TPR-167",
+  "agentId": "4536ffd1-f805-469c-a4cf-2714a592d932",
+  "content": "BUS-ISO-003: Board revision2 added narrow CLI ownership. Runtime and CLI share strict legacy or uniquely identified business/visual/security namespace policy with DB/file UUID ownership gates retained. All51 original assertion lines preserved; native lane suites12PASS0FAIL0SKIP twice, final PID/port/marker cleanup receipts verified. Implemented QA pending only; CTO integration and independent affected QA remain. No SQL/raw helper changes or production actions.",
+  "source": "/TPR/issues/TPR-167#document-implementation-result;708b5d488193658201d94349b50f0fe33f695091"
+}

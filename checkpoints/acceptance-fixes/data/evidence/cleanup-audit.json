@@ -1,0 +1,87 @@
+{
+  "utc": "2026-11-01T05:52:39.616Z",
+  "processes": [
+    {
+      "pid": 9448,
+      "running": false
+    },
+    {
+      "pid": 15416,
+      "running": false
+    },
+    {
+      "pid": 14720,
+      "running": false
+    },
+    {
+      "pid": 20500,
+      "running": false
+    },
+    {
+      "pid": 9608,
+      "running": false
+    },
+    {
+      "pid": 2256,
+      "running": false
+    },
+    {
+      "pid": 19020,
+      "running": false
+    },
+    {
+      "pid": 15448,
+      "running": false
+    },
+    {
+      "pid": 8452,
+      "running": false
+    },
+    {
+      "pid": 6088,
+      "running": false
+    }
+  ],
+  "portsBindable": [
+    32100,
+    62283,
+    62326
+  ],
+  "mongoStarts": 4,
+  "mongoStops": 4,
+  "fixtureCleanupReceipts": [
+    {
+      "utc": "2026-11-01T05:51:15.924Z",
+      "ownerPid": 2256,
+      "kind": "fixture-cleanup-completed",
+      "databaseName": "portfolio_owned_iems_qa_business_d0c757fe_3bca10c1e7824f0a",
+      "marker": "2f573ecb-0dca-41e3-808b-793c517283e4"
+    },
+    {
+      "utc": "2026-11-01T05:52:27.063Z",
+      "ownerPid": 2256,
+      "kind": "fixture-cleanup-completed",
+      "databaseName": "portfolio_owned_iems_qa_business_d0c757fe_dfd4175d3e364f82",
+      "marker": "e97542bf-2a90-4218-9d65-3c86291236c4"
+    }
+  ],
+  "dataDirectories": [
+    {
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-167\\4536ffd1-f805-469c-a4cf-2714a592d932\\runtime-d0c757fe\\mongo-q9CVyR",
+      "retained": true
+    },
+    {
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-167\\4536ffd1-f805-469c-a4cf-2714a592d932\\runtime-d0c757fe\\mongo-wrdmvW",
+      "retained": true
+    },
+    {
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-167\\4536ffd1-f805-469c-a4cf-2714a592d932\\runtime-d0c757fe\\receipted\\mongo-X2Tri7",
+      "retained": true
+    },
+    {
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-167\\4536ffd1-f805-469c-a4cf-2714a592d932\\runtime-d0c757fe\\receipted\\mongo-Gu08sz",
+      "retained": true
+    }
+  ],
+  "browserProfilesStarted": 0
+}

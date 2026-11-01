@@ -1,0 +1,6 @@
+{
+  "agentId": "0dd7dd43-116b-4c6f-b9d3-c36c850acd48",
+  "issue": "TPR-166",
+  "source": "/TPR/issues/TPR-166#document-implementation-result; ca6fe4d29c01c3bf3af104e5844ae28ad4501677",
+  "content": "VIS-001 return rows branch on actual CUSTOMER_ASSET_RETURN and use serial/assetId plus case link; no fabricated SO line. VIS-002 distinguishes shared INVALID_CREDENTIALS401 from stale session401, same alert for unknown/wrong password. BUS-UI-001 names MutationForm with visible title.22 focused tests pass; bounded actual browser E01/E02/auth continuation passes. Original E01 now passes R2 but later defaults to Record pick, while runner assumes Record shipment; original failure retained, continuation explicitly selects native Record direct dispatch without changing assertions. Full55 acceptance remains pending independent QA. Runtime cleanup verified. See own implementation-result and handoff."
+}

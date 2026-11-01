@@ -1,0 +1,2119 @@
+{
+  "diagnosticOnly": true,
+  "fullAcceptance": false,
+  "realBrowser": true,
+  "fixtureFetch": false,
+  "api": "actual current portfolio-api createApp; guarded business clock only for explicitly selected historical fixture",
+  "priorJourneyCoverage": false,
+  "prior137JourneyCoverage": "ABSENT",
+  "priorOptionalJourneysRun": false,
+  "journeys": [
+    "canonical E01"
+  ],
+  "checks": [
+    "explicit synthetic foundation seed with two actual fixture operators, fresh owned DB, real MongoDB 7.0.14 replica set",
+    "mounted deep-link login, genuine credentialed cookie session",
+    "HttpOnly cookie not exposed; no localStorage/sessionStorage bearer or auth data",
+    "Actual invalid identity/password produce identical correction guidance; keyboard sign-in and revoked-session 401 recovery succeed",
+    "Original E01 native account/inquiry/submission/review/quotationR1 approval/negotiatedR2 approval/acceptance/SO conversion preserve original prices, immutable R1 and exact conversion retry",
+    "Original E01 native engineeringB/WO6+4/four original labor actors and windows/ten exact serial outputs/QC/five-source per-unit genealogy/shipments6+4/POD6+4/invoices73500+8085 and49000+5390/settlement135975 conserve actual identities and material",
+    "Original mounted E02 helper completes; accepted/rejected customer returns show actual serial and repair link without fabricated line; keyboard navigation works"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "network": [
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/logout",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/requests?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/orders?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/receipts?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-production/orders?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-execution/orders?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/holds?status=ACTIVE&limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/requests?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/orders?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/holds?status=ACTIVE&limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/receipts?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-production/orders?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-execution/orders?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/contacts",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries/b59d63d9-bd77-403b-87ae-e55c99f02776",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries/b59d63d9-bd77-403b-87ae-e55c99f02776/stage",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries/b59d63d9-bd77-403b-87ae-e55c99f02776",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries/b59d63d9-bd77-403b-87ae-e55c99f02776/stage",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries/b59d63d9-bd77-403b-87ae-e55c99f02776",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries/b59d63d9-bd77-403b-87ae-e55c99f02776/convert",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries/b59d63d9-bd77-403b-87ae-e55c99f02776",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0/approve",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0/revisions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0/approve",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0/accept",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0/convert",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes/aac0703a-7ce2-44a4-8e5b-189f06d1d7f0",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/inventory-master/items?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/receipts?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/inventory-master/items?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba/revisions/1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba/revisions/1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/receipts?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba/revisions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba/revisions/2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/inventory-master/items?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba/revisions/2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/receipts?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba/release",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba/revisions/2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/inventory-master/items?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering/17d5f2c7-c5be-496c-bc30-b61626915eba/revisions/2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/receipts?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/receipts?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/release-engineering",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/record",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/engineering?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/receipts?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/release-engineering",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/record",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/record",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/record",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/record",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/record",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/qc",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/allocations",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/allocations",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/allocations",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/allocations",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/allocations",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/allocations",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/losses",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/finalize",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/packing?limit=100&salesOrderId=4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/balances",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/closure",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/repair/quality/resources",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/packing?limit=100&salesOrderId=4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/balances",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/repair/quality/resources",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/ca099d0c-e5be-4635-85b2-660714ad917d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/closure",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/record",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/record",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/record",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments/9536e822-e15d-47db-a8d6-dd91925d2f58",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/deliveries/shipments/9536e822-e15d-47db-a8d6-dd91925d2f58",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/deliveries/shipments/9536e822-e15d-47db-a8d6-dd91925d2f58/returns",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/deliveries/shipments/9536e822-e15d-47db-a8d6-dd91925d2f58/confirmations",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/deliveries/shipments/9536e822-e15d-47db-a8d6-dd91925d2f58",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/packing?limit=100&salesOrderId=4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/balances",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/closure",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/repair/quality/resources",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/packing?limit=100&salesOrderId=4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/balances",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/repair/quality/resources",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/closure",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/record",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/qc",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/allocations",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/allocations",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/allocations",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/allocations",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/losses",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/finalize",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d?include=stockExceptions",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/labor?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/genealogy/receipts/17c817d9-2aa7-4006-8f45-d0b7ad55e3cf?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/genealogy/revisions?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/packing?limit=100&salesOrderId=4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/balances",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/closure",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/repair/quality/resources",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/packing?limit=100&salesOrderId=4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/balances",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/repair/quality/resources",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders/f2823cdd-a9b0-484d-bb26-e8dcef11044d/output-units",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/closure",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments/f3fddd7b-7761-4cf1-a7d8-1859bdae8666",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/deliveries/shipments/f3fddd7b-7761-4cf1-a7d8-1859bdae8666",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/deliveries/shipments/f3fddd7b-7761-4cf1-a7d8-1859bdae8666/returns",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/deliveries/shipments/f3fddd7b-7761-4cf1-a7d8-1859bdae8666/confirmations",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/deliveries/shipments/f3fddd7b-7761-4cf1-a7d8-1859bdae8666",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/packing?limit=100&salesOrderId=4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/balances",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/closure",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/repair/quality/resources",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/balances",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/packing?limit=100&salesOrderId=4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=100",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/repair/quality/resources",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2/closure",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices/c31fa576-a192-4d0b-a3e3-e1de4e4db84c",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/payments",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices/c31fa576-a192-4d0b-a3e3-e1de4e4db84c",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices/d1fa1bf6-fd33-4cba-a3da-db9cd5067ae1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/payments",
+      "status": 201
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices/d1fa1bf6-fd33-4cba-a3da-db9cd5067ae1",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/accounts/98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25/ledger",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/repair/cases/9e95ae7e-e875-48d5-beeb-c2b19294726a",
+      "status": 200
+    }
+  ],
+  "cleanup": "marker-verified disposable DB and owned processes only"
+}

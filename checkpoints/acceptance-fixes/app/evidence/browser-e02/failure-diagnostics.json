@@ -1,0 +1,319 @@
+{
+  "diagnosticOnly": true,
+  "fullAcceptance": false,
+  "error": "Error: {\"exceptionId\":1,\"text\":\"Uncaught\",\"lineNumber\":0,\"columnNumber\":112,\"scriptId\":\"151\",\"stackTrace\":{\"callFrames\":[{\"functionName\":\"\",\"scriptId\":\"151\",\"url\":\"\",\"lineNumber\":0,\"columnNumber\":112},{\"functionName\":\"\",\"scriptId\":\"151\",\"url\":\"\",\"lineNumber\":0,\"columnNumber\":46}]},\"exception\":{\"type\":\"object\",\"subtype\":\"error\",\"className\":\"ReferenceError\",\"description\":\"ReferenceError: repair is not defined\\n    at <anonymous>:1:113\\n    at Array.map (<anonymous>)\\n    at <anonymous>:1:47\",\"objectId\":\"-7362533937629728164.3.2\"}}",
+  "checks": [
+    "explicit synthetic foundation seed with two actual fixture operators, fresh owned DB, real MongoDB 7.0.14 replica set",
+    "mounted deep-link login, genuine credentialed cookie session",
+    "HttpOnly cookie not exposed; no localStorage/sessionStorage bearer or auth data",
+    "Actual invalid identity/password produce identical correction guidance; keyboard sign-in and revoked-session 401 recovery succeed"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "network": [
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/logout",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/orders?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/requests?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/receipts?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-production/orders?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-execution/orders?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/holds?status=ACTIVE&limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=25",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/requests?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/orders?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-production/orders?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/receipts?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/holds?status=ACTIVE&limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-execution/orders?limit=25",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=25",
+      "status": 200
+    }
+  ],
+  "networkFailures": [
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/requests?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/orders?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/receipts?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-production/orders?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-execution/orders?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/holds?status=ACTIVE&limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/inquiries?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/commercial/quotes?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/invoices?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/requests?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/orders?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/catalog-procurement/receipts?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-production/orders?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/internal-execution/orders?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/warehouse/holds?status=ACTIVE&limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/manufacturing/work-orders?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/fulfillment/shipments?limit=25",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    }
+  ]
+}

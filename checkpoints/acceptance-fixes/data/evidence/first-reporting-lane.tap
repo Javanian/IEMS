@@ -1,0 +1,83 @@
+TAP version 13
+# Subtest: reporting namespace policy retains legacy names and only uniquely identified QA lanes
+ok 1 - reporting namespace policy retains legacy names and only uniquely identified QA lanes
+  ---
+  duration_ms: 1.2062
+  type: 'test'
+  ...
+# Subtest: private reporting runtime: authorized source/extraction, local delivery, replay, singleton and cleanup
+    # Subtest: actual target requires namespace, DB marker and matching nonsymlink absolute root
+    ok 1 - actual target requires namespace, DB marker and matching nonsymlink absolute root
+      ---
+      duration_ms: 16.4353
+      type: 'test'
+      ...
+    # Subtest: singleton rejects same and alternate roots without releasing active owner
+    ok 2 - singleton rejects same and alternate roots without releasing active owner
+      ---
+      duration_ms: 16.9739
+      type: 'test'
+      ...
+    # Subtest: relay commits file and Mongo effects, preserves domain markers, replays lost marker
+    ok 3 - relay commits file and Mongo effects, preserves domain markers, replays lost marker
+      ---
+      duration_ms: 1795.712
+      type: 'test'
+      ...
+    # Subtest: coverage exports immutable snapshots before incomplete coverage receipt and detects tampering
+    ok 4 - coverage exports immutable snapshots before incomplete coverage receipt and detects tampering
+      ---
+      duration_ms: 3245.3332
+      type: 'test'
+      ...
+    # Subtest: duplicate replay reauthorizes resources and scope, gaps/corruption never acknowledge
+    ok 5 - duplicate replay reauthorizes resources and scope, gaps/corruption never acknowledge
+      ---
+      duration_ms: 384.4266
+      type: 'test'
+      ...
+    # Subtest: current revoked session fails even for already consumed event
+    ok 6 - current revoked session fails even for already consumed event
+      ---
+      duration_ms: 65.185
+      type: 'test'
+      ...
+    # Subtest: raw failure leaves publication pending, closes owned sink and permits exact replay
+    ok 7 - raw failure leaves publication pending, closes owned sink and permits exact replay
+      ---
+      duration_ms: 657.3016
+      type: 'test'
+      ...
+    # Subtest: concurrent runtime calls reject and close waits for the active delivery
+    ok 8 - concurrent runtime calls reject and close waits for the active delivery
+      ---
+      duration_ms: 99.8918
+      type: 'test'
+      ...
+    # Subtest: CLI uses explicit private token and loopback marker, closes its owner/client
+    ok 9 - CLI uses explicit private token and loopback marker, closes its owner/client
+      ---
+      duration_ms: 1581.0108
+      type: 'test'
+      ...
+    1..9
+ok 2 - private reporting runtime: authorized source/extraction, local delivery, replay, singleton and cleanup
+  ---
+  duration_ms: 103859.7071
+  type: 'test'
+  ...
+# Subtest: relay dependency graph overrides reversed UUIDs, preserves sequence and rejects missing dependencies
+ok 3 - relay dependency graph overrides reversed UUIDs, preserves sequence and rejects missing dependencies
+  ---
+  duration_ms: 63311.1807
+  type: 'test'
+  ...
+1..3
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 174601.9543

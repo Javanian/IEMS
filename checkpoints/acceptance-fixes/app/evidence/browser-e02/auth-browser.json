@@ -1,0 +1,7 @@
+{
+  "invalidIdentityAndPasswordSameMessage": true,
+  "credentialInputsRetained": true,
+  "keyboardSignIn": true,
+  "staleSessionExpiryAction": true,
+  "mobile390Overflow": false
+}

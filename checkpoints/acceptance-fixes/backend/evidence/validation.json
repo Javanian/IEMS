@@ -1,0 +1,43 @@
+{
+  "limits": "Proposed patch is syntax/applicability checked only, not applied or runtime tested. Dashboard probe exit0 records the unresolved500, not acceptance.",
+  "checks": [
+    {
+      "exit": 0,
+      "command": "node --check ops/operations/voice.test.mjs"
+    },
+    {
+      "exit": 0,
+      "command": "node --check ops/operations/workforce.test.mjs"
+    },
+    {
+      "exit": 0,
+      "command": "node --check apps/portfolio-api/test/wave4c-labor.test.mjs"
+    },
+    {
+      "exit": 0,
+      "command": "node --check checkpoints/acceptance-fixes/backend/dashboard.test.mjs"
+    },
+    {
+      "exit": 0,
+      "command": "node --check checkpoints/acceptance-fixes/backend/owned-runtime.mjs"
+    },
+    {
+      "exit": 0,
+      "command": "node --check apps/portfolio-api/src/operations.mjs"
+    },
+    {
+      "exit": 0,
+      "command": "verifyAdmissionSources()"
+    },
+    {
+      "exit": 0,
+      "command": "git apply --ignore-whitespace --check checkpoints/acceptance-fixes/backend/VIS-004-proposal.patch"
+    },
+    {
+      "exit": 0,
+      "command": "node --check $PAPERCLIP_RUN_SCRATCH_DIR/operations-proposed.mjs"
+    }
+  ],
+  "at": "2026-11-01T02:16:33.8770736Z",
+  "testedSourceSha": "27dc9e3ffe0da0854a4a170e1ff7acfb909f9830"
+}

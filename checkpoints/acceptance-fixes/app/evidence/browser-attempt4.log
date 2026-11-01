@@ -1,0 +1,74 @@
+Owned web origin http://127.0.0.1:32400
+PASS explicit synthetic foundation seed with two actual fixture operators, fresh owned DB, real MongoDB 7.0.14 replica set
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+warn - The `content` option in your Tailwind CSS configuration is missing or empty.
+warn - Configure your content sources or your generated CSS will be missing styles.
+warn - https://tailwindcss.com/docs/content-configuration
+[BABEL] Note: The code generator has deoptimised the styling of C:\Users\Admin\AppData\Local\Temp\paperclip-run-tpr-166-71bdea23-955-p3N7ze\vite-cache\deps\react-dom_client.js?v=35352fd2 as it exceeds the max of 500KB.
+11:04:41 AM [vite] Internal server error: [postcss] D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/src/features/portfolio/portfolio.css:3:21: The `bg-canvas` class does not exist. If `bg-canvas` is a custom class, make sure it is defined within a `@layer` directive.
+  Plugin: vite:css
+  File: D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/src/features/portfolio/portfolio.css:3:20
+  1  |  @import "../../theme/workspace.css";
+  2  |  @tailwind components;
+  3  |    .portfolio-root { @apply min-h-dvh bg-canvas text-ink; font-size: 1rem; }
+     |                      ^
+  4  |    .pf-record-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: start;...
+  5  |    .pf-reference { @apply font-semibold text-slate-600; }
+      at Input.error (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\postcss\lib\input.js:135:16)
+      at AtRule.error (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\postcss\lib\node.js:146:32)
+      at processApply (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\tailwindcss\lib\lib\expandApplyAtRules.js:380:29)
+      at D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\tailwindcss\lib\lib\expandApplyAtRules.js:551:9
+      at D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\tailwindcss\lib\processTailwindFeatures.js:55:50
+      at async plugins (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\tailwindcss\lib\plugin.js:38:17)
+      at async LazyResult.runAsync (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\postcss\lib\lazy-result.js:293:11)
+      at async runPostCSS (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:30145:19)
+      at async compilePostCSS (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:30129:6)
+      at async compileCSS (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:30059:26)
+      at async TransformPluginContext.handler (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:29592:54)
+      at async EnvironmentPluginContainer.transform (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:28797:14)
+      at async loadAndTransform (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:22670:26)
+11:04:41 AM [vite] (client) Pre-transform error: [postcss] D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/src/features/portfolio/portfolio.css:3:21: The `bg-canvas` class does not exist. If `bg-canvas` is a custom class, make sure it is defined within a `@layer` directive.
+  Plugin: vite:css
+  File: D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/src/features/portfolio/portfolio.css:3:20
+  1  |  @import "../../theme/workspace.css";
+  2  |  @tailwind components;
+  3  |    .portfolio-root { @apply min-h-dvh bg-canvas text-ink; font-size: 1rem; }
+     |                      ^
+  4  |    .pf-record-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: start;...
+  5  |    .pf-reference { @apply font-semibold text-slate-600; }
+11:05:16 AM [vite] Internal server error: [postcss] D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/src/features/portfolio/portfolio.css:3:21: The `bg-canvas` class does not exist. If `bg-canvas` is a custom class, make sure it is defined within a `@layer` directive.
+  Plugin: vite:css
+  File: D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/src/features/portfolio/portfolio.css:3:20
+  1  |  @import "../../theme/workspace.css";
+  2  |  @tailwind components;
+  3  |    .portfolio-root { @apply min-h-dvh bg-canvas text-ink; font-size: 1rem; }
+     |                      ^
+  4  |    .pf-record-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: start;...
+  5  |    .pf-reference { @apply font-semibold text-slate-600; }
+      at Input.error (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\postcss\lib\input.js:135:16)
+      at AtRule.error (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\postcss\lib\node.js:146:32)
+      at processApply (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\tailwindcss\lib\lib\expandApplyAtRules.js:380:29)
+      at D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\tailwindcss\lib\lib\expandApplyAtRules.js:551:9
+      at D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\tailwindcss\lib\processTailwindFeatures.js:55:50
+      at async plugins (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\tailwindcss\lib\plugin.js:38:17)
+      at async LazyResult.runAsync (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\postcss\lib\lazy-result.js:293:11)
+      at async runPostCSS (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:30145:19)
+      at async compilePostCSS (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:30129:6)
+      at async compileCSS (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:30059:26)
+      at async TransformPluginContext.handler (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:29592:54)
+      at async EnvironmentPluginContainer.transform (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:28797:14)
+      at async loadAndTransform (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:22670:26)
+      at async viteTransformMiddleware (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/node/chunks/config.js:24542:20)
+{"exceptions":[],"consoleErrors":[],"network":[],"networkFailures":[{"url":"http://127.0.0.1:32400/src/features/portfolio/portfolio.css","method":"GET","errorText":"net::ERR_ABORTED","canceled":true}]}
+file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-browser.mjs:102
+  throw Error(`Timed out: ${label}. Page: ${await evaluate('document.body.innerText')}`);
+        ^
+
+Error: Timed out: document.querySelector('[name=username]'). Page: 
+    at wait (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-browser.mjs:102:9)
+    at async file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-browser.mjs:233:3
+
+Node.js v24.19.0

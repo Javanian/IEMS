@@ -1,0 +1,35 @@
+{"topLevelSchemaExpansion":[{"name":"manufacturingWorkOrders","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsAudit","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsKeys","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsSampleRevisions","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsSamples","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsTelemetryOutbox","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]},{"name":"qualityResources","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"voiceJobRevisions","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]},{"name":"voiceJobs","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]},{"name":"voiceZones","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]}],"nestedGlobalFieldsUnchanged":true}
+✔ generated registry delta stays within the exact Board exception (445.0022ms)
+{"resourceStart":[{"pid":17420,"port":49821,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-s2VWk1"}],"owner":"TPR-165","at":"2026-11-01T03:49:53.148Z"}
+{"httpStart":{"address":"127.0.0.1","family":"IPv4","port":49847},"pid":11332}
+{"httpStop":{"address":"127.0.0.1","family":"IPv4","port":49847},"pid":11332}
+{"databaseDropped":"portfolio_owned_iems_qa_business_4bf39b48_95fd5d799c5f4f79","marker":"95d8fb7b-6e63-402d-b796-b73eb649a5d4","result":true}
+{"resourceStop":{"pid":17420,"port":49821,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-s2VWk1"},"alive":false,"at":"2026-11-01T03:51:12.634Z"}
+✖ actual domain snapshot admits only the bounded added fields and retains schema/private guards (86228.7478ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 87916.7602
+
+✖ failing tests:
+
+test at checkpoints\acceptance-fixes\backend\registry-impact.test.mjs:38:1
+✖ actual domain snapshot admits only the bounded added fields and retains schema/private guards (86228.7478ms)
+  ScopeDenied: Scope denied
+      at deny (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend/packages/tenant-foundation/index.mjs:7:28)
+      at id (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend/packages/tenant-foundation/index.mjs:9:41)
+      at membership (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend/packages/tenant-foundation/index.mjs:49:45)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Object.authorizeInTransaction (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend/packages/tenant-foundation/index.mjs:174:21)
+      at async authorize (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend/packages/tenant-lifecycle/domain-port.mjs:64:19)
+      at async Object.snapshot (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend/packages/tenant-lifecycle/domain-port.mjs:83:17)
+      at async boundedTransaction (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend/packages/tenant-foundation/commands.mjs:26:24)
+      at async TestContext.<anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend/checkpoints/acceptance-fixes/backend/registry-impact.test.mjs:48:16)
+      at async Test.run (node:internal/test_runner/test:1389:7) {
+    code: 'SCOPE_DENIED',
+    status: 403
+  }

@@ -1,0 +1,16 @@
+{
+  "normalizedOperationsDigest": "5b633da99935e8931e7dbdc94d8387753f9ede8a16e589f7e6a503bafef48079",
+  "schemaImpact": "Effective top-level fields add both tokens for manufacturingWorkOrders,operationsAudit,operationsKeys,operationsSampleRevisions,operationsSamples,qualityResources. Four retained technical/private collection inventory unions also add those names, without changing dispositions. The nested global allFields union already contained both tokens, so it is unchanged. This is a bounded schema field expansion, not cosmetic/hash-only.",
+  "generatorsDeterministic": true,
+  "sourceEntryDelta": {
+    "domain": "operations digest and exact fields TransientTransactionError,hasErrorLabel",
+    "unrelatedDelta": "NONE",
+    "admission": "operations digest only"
+  },
+  "baseline": "eda87776d02ec816b181f8fe21f77b61585a4ee7",
+  "commands": [
+    "node packages/tenant-lifecycle/build-registry.mjs",
+    "node packages/tenant-lifecycle/build-admission-registry.mjs"
+  ],
+  "authority": "TPR-165 Board plan revision e088715f-d4cc-422a-b87b-64818d4812db and comment a5c4df6a-806f-42ee-8041-58d79a704761"
+}

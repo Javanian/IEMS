@@ -1,0 +1,16 @@
+{"ownedDatabase":"portfolio_test_739cb8e02d1e423abfe5ae2752c55608","hosts":["127.0.0.1:58289"],"marker":{"_id":"86a398fd-5139-4b82-9221-e8b202c66e52"},"cleanup":"fixture verifies marker then drops DB and stops owned replica"}
+▶ bounded operator labor real HTTP owned Mongo
+  ✔ persist scoped immutable operation labor and original receipt replay (154.7858ms)
+  ✔ malformed identity scope version state sequence and overlap denials leave no effects (640.8435ms)
+  ✔ real ledger audit outbox validators rollback all effects; concurrent replay once (475.1067ms)
+  ✔ distinct-key cross-WO overlaps serialize; ordered adjacent second operation retains first receipt (402.9041ms)
+  ✔ same-WO distinct keys race once; terminal writes and revoked-session replay denied (336.6651ms)
+✔ bounded operator labor real HTTP owned Mongo (10525.5692ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11265.3202

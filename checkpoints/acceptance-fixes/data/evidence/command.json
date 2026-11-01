@@ -1,0 +1,19 @@
+{
+  "testedHead": "d462bbe1322610ff253bcaebab0493084acfd3c7",
+  "observedUtc": "2026-11-01T05:48:07.3668222Z",
+  "testPid": 9448,
+  "port": 32100,
+  "command": "node --import ./checkpoints/acceptance-fixes/data/register-owned-lane.mjs --test --test-concurrency=1 --test-reporter=tap ops/demo/reporting-runtime.test.mjs",
+  "originalAssertionLinesPreserved": 51,
+  "qualification": "owned source edits uncommitted",
+  "dbPath": "D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/TPR-167/4536ffd1-f805-469c-a4cf-2714a592d932/runtime-d0c757fe/mongo-q9CVyR",
+  "nativePid": 15416,
+  "marker": "1530bc9e-ee40-4863-b138-e754385ef3e1",
+  "cwd": "D:\\Project AI\\GITHUB\\IEMS-worktrees\\iems-accept-fix-20261101-data",
+  "databaseName": "portfolio_owned_iems_qa_business_d0c757fe_34babee431724f11",
+  "sourceFiles": [
+    "ops/demo/reporting-runtime.mjs",
+    "ops/demo/reporting-cli.mjs",
+    "ops/demo/reporting-runtime.test.mjs"
+  ]
+}

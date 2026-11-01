@@ -4,9 +4,15 @@ import { randomUUID } from 'node:crypto';
 import { startOwned, orderWithStock } from './support/owned-mongo.mjs';
 
 test('bounded operator labor real HTTP owned Mongo', async t => {
-  const h = await startOwned(t), { db, ok } = h;
-  assert.match(db.databaseName, /^portfolio_test_/);
-  console.log(JSON.stringify({ ownedDatabase: db.databaseName, marker: await db.collection('ownedRun').findOne(), cleanup: 'fixture verifies marker then drops DB and stops owned replica' }));
+  const h = await startOwned(t), { db, client, ok } = h;
+  assert.equal(db.client, client);
+  assert.match(db.databaseName, /^(?:portfolio_test_[a-f0-9]{32}|portfolio_owned_iems_qa_(?:business|visual|security)_[a-f0-9]{8}_[a-f0-9]{16})$/);
+  assert.equal(client.options.hosts.length, 1);
+  assert.equal(client.options.hosts[0].host, '127.0.0.1');
+  assert.equal(await db.collection('ownedRun').countDocuments(), 1);
+  const marker = await db.collection('ownedRun').findOne();
+  assert.match(marker._id, /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
+  console.log(JSON.stringify({ ownedDatabase: db.databaseName, hosts: client.options.hosts.map(String), marker, cleanup: 'fixture verifies marker then drops DB and stops owned replica' }));
   const { so, receipt } = await orderWithStock(h, { orderQuantity: '4', receiptQuantity: '10', reserve: null });
   const cmd = b => ({ expectedVersion: 1, idempotencyKey: randomUUID(), ...b });
   const orders = (await ok('/manufacturing/work-orders', cmd({ salesOrderId: so._id, lineIndex: 0, quantities: ['1', '1', '1', '1'], uom: 'KG' }), 201)).workOrders;

@@ -1,0 +1,142 @@
+{
+  "portfolio-browser.mjs": {
+    "originalSha256": "4f266e0af3242e56192c333d47e71368f0a877a0a2f19396bd5a9b0d8c387967",
+    "adaptedSha256": "399b4ba4334d9faf1531e23df731accba713c34eae87964f381222c786b255bd",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-review-operator-browser.mjs": {
+    "originalSha256": "44125456e793b8c1461a9c322ed5e04b755a110c22ecefdf67814f1203a5f1d8",
+    "adaptedSha256": "d7f9c99d67141472b2a3f58f34b2eb0dff03140a7bdf14234e25e136e3bf08c7",
+    "journeyAssertionsRetained": true
+  },
+  "wave4f-browser-kit.mjs": {
+    "originalSha256": "60f2de3f643996fb6d8286a6325de92fdfcfe65484b19f236b8f7c3378d16ac7",
+    "adaptedSha256": "27a5ccd99c9d8497e89360a8f0b563d9aa5b751e7bdaa51245df465fbb25b636",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-review-internal-execution-browser.mjs": {
+    "originalSha256": "8f72ebc6f302052abc68887a6b999ec0c45e782066bd1eac50fd5eafe1094572",
+    "adaptedSha256": "a7a1d27509d0e7f59cc0e542ed11e72368ff50e53b22211e616bf2d2f9d8daa0",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-company-stock-browser.mjs": {
+    "originalSha256": "053b49ece023fd862217a2af4a7c082fa8198892401349613515c390ad979ec4",
+    "adaptedSha256": "f5b8091fc8f183d3c05fde0104fe27abc3da6a730bf885a3273b703db2caf8ba",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-company-stock-trace-browser.mjs": {
+    "originalSha256": "659a3d58b934c01c92c6b27757f76b17382e33dd9fa1219d8d4ed78cbc02164b",
+    "adaptedSha256": "edbad41556fc9991cb161828185f1a61f959a3787e631cf9c102ef1b728a3815",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-quote-catalog-browser.mjs": {
+    "originalSha256": "2db01106f32c3da678dfb43c7e216e02de482409d715bc52476f4b4792e58d5d",
+    "adaptedSha256": "4fc9f0cbc5a23b4b348e9cf6133f87c25637ff44bcc523b09de6baa53e651528",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-purchased-fulfillment-browser.mjs": {
+    "originalSha256": "faad97974fc5895afab5094131f03fdbd6c5a847fd9f77b0843646b4a1dffe52",
+    "adaptedSha256": "1bd4c4a0ad7b6028fd02fa30573bd81e9250810d7aa5d183ac84512b05feda90",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-review-e01-browser.mjs": {
+    "originalSha256": "b083f2704dc459c50b9760b94f353c03ecaf08d09f85f052bd117d8006a01085",
+    "adaptedSha256": "6e0ffe5c02d8ebe0415827b68e6acd88ae1a39f3cc6adfbb00230c98f095ae94",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-procurement-browser.mjs": {
+    "originalSha256": "faceab92cedcfb87f196eb6763ffa023d354358916afab323fdf06820a3cc0c9",
+    "adaptedSha256": "7dcc89517c88f614119dff605954cb7774a86ba8efbae780c7cb52f8d757e54e",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-warehouse-browser.mjs": {
+    "originalSha256": "ab5edbc8efb9b0323d298bfca01d24e4458b50924984683e0adf4838f38b45e2",
+    "adaptedSha256": "45ae7c12940f4ccfd521eecd15f96dd677c641290223b7f19ad68c56b2528c2c",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4b-wms-browser.mjs": {
+    "originalSha256": "0c8cd883a0c0454542e905c45d1d58e3a0b95290da7ace67a20fa712f416454a",
+    "adaptedSha256": "2aae3a4da36a519b36a0e8540b812ee06c494804cca5f722266f4f23c0b24bed",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4c-engineering-browser.mjs": {
+    "originalSha256": "c7b497af2f41eb63a8fff280b09671025ed8e472536e8e91286caad3fd4f7146",
+    "adaptedSha256": "a332b5a895dcb317c1856022a13c32dde5e7ec2c93a6f661642a293d956a5fc5",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4d-labor-browser.mjs": {
+    "originalSha256": "d1a2fa6b8437a649c0609ef7a54d887dfe14fd98e3f505e986d45691b4e7f9c9",
+    "adaptedSha256": "a25d089ea59925f1994faf56fe1acdef6080535d292782c8597c811237122bb4",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-manufacturing-browser.mjs": {
+    "originalSha256": "309622a23ac423144f4bd83ce2311a92e18939f18b746629be5c18b0a85e9d2a",
+    "adaptedSha256": "b5a09a11b5be633f26f97e447c9eabc1def766abc5298355cd2abb152b706d89",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-pagination-browser.mjs": {
+    "originalSha256": "d9dfa6092581facada86e650518c9638f47bae7bffd5bf2fa5e443d03f3b5a97",
+    "adaptedSha256": "ff41870946b85cf166893d741df4de9f782f4ceafc7230b556a5a8e126e747ea",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-repair-browser.mjs": {
+    "originalSha256": "a8335abe1365fe57dd70417f0873f2920701fa0e055a44f19f19bd74e4fcb906",
+    "adaptedSha256": "a00fe71160916a9fca8365f73fee8823fab25656985a3d49651223bdb3912bd1",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave3e-documents-browser.mjs": {
+    "originalSha256": "e5607c822b7899c2a7a355cd58392b4caeb21851b5e23d1abfb256d6bebc7214",
+    "adaptedSha256": "abcf5cc720d7994a6c7389eac4e5d0ef172c19e12f0e13ea26e91e2ce70f5984",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4h-vat-browser.mjs": {
+    "originalSha256": "a2d11aa2db715897de9d0b784c1268c744db76363faf3d95fbc6f9225cc5e1b6",
+    "adaptedSha256": "7539f4cf5cd3ecde603dc2b6211d8374e81e0a3ac70c341c5d11accffa46026c",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4i-inquiry-browser.mjs": {
+    "originalSha256": "4f4249e781f0ee66edd4e0bd5d037b37f1072759c0d51beb654d4e6d1c16b220",
+    "adaptedSha256": "a8f8f38eb268080785ace6c9aff4ecae206a11edd725f8346ecb0b492e1452c4",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4j-lot-serial-browser.mjs": {
+    "originalSha256": "56b81800e1416c6b737166caf190ba4d947c9a7355f8c13b4cbbe1c25d6d7f1a",
+    "adaptedSha256": "36bc5e9af055d98dd0a305c9635153f874feeef192f050739c410c0b85c51746",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4k-genealogy-browser.mjs": {
+    "originalSha256": "77110751a51be3b106d8521c0b77ada6a1c1cdc8a09be51482ad08f81bce9b79",
+    "adaptedSha256": "5374651e227e43cf2f0efc12541631f74328e4e8597807ecf5ee0c41b9f4a0db",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4k2a-serial-custody-browser.mjs": {
+    "originalSha256": "a15e7fa5f0fa73e578961073574e8d099210763761c94d03302d332d18394922",
+    "adaptedSha256": "f9d66bdb7326120c0bc6c923bd4d97466f76377952ddd12cee8725c9d4a3402f",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4k2b1-installation-browser.mjs": {
+    "originalSha256": "14527f38977dbb4eba1a46f98610a832abbfc40b715e7e474d33857c9c75eef2",
+    "adaptedSha256": "ca76bdfe820c502a17e397869ad64052ef25f3f0fc9bca9b86310867228608a9",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4k2b2a-internal-planning-browser.mjs": {
+    "originalSha256": "53e0e5a146a0fde82a008f56ae7fe56501a305fafe167dccfb0ba6ad8c298557",
+    "adaptedSha256": "f0ce033ebc85e703d53e0d201691d2efe5c860d60af185181a5fbc393077179d",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4map-catalog-browser.mjs": {
+    "originalSha256": "a23912829903479dd267ef512b2782330da6977096e63caa4bed863e5483e23e",
+    "adaptedSha256": "34303cad347b9f4d3adc0d69f23b5bd592a63d60d2db15f0ba7917400de99efb",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4qc-catalog-disposition-browser.mjs": {
+    "originalSha256": "0fc606f999016a367deea5a312bb554a72a2434c650ce9f57f5784c3ed39de9b",
+    "adaptedSha256": "bfb04fb16c4b10d9ec37141e53e57f1380386d6441f6a08de084b9e811aac2ba",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-wave4j-pr4-browser.mjs": {
+    "originalSha256": "547045db13fd8ea55d38153df117be9477a650746e076363764e5cc8abde0f54",
+    "adaptedSha256": "41aeb708b74c4dda3f8ceb716d72200582f79eac0a9118b9af78150c78c150f9",
+    "journeyAssertionsRetained": true
+  }
+}

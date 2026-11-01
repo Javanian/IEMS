@@ -1,0 +1,40 @@
+{
+  "rows": [
+    {
+      "_id": "d8913ee8-b341-4e50-a389-a8495c5f80b9",
+      "caseId": "9e95ae7e-e875-48d5-beeb-c2b19294726a",
+      "assetId": "385ea1d1-45ef-4770-bf78-1dbbccad45f0",
+      "serial": "793D-SUSP-B2199",
+      "sourceKind": "CUSTOMER_ASSET_RETURN"
+    },
+    {
+      "_id": "75641505-3220-42ba-ab39-2ea485713775",
+      "caseId": "b74fde28-869a-4237-a063-fd02aebbab01",
+      "assetId": "c2e10334-bf04-4d41-9d2c-9cc5a514675e",
+      "serial": "793D-SUSP-B2199",
+      "sourceKind": "CUSTOMER_ASSET_RETURN"
+    }
+  ],
+  "rendered": [
+    {
+      "text": "SHP-2026-UNREP-001\nShipped\n1 SET · Customer asset 793D-SUSP-B2199 · Open repair",
+      "repair": "/portfolio/repair/cases/b74fde28-869a-4237-a063-fd02aebbab01"
+    },
+    {
+      "text": "SHP-2026-0041\nShipped\n6 UN · Line 1"
+    },
+    {
+      "text": "MMT-BPN-SGT-0841\nShipped\n1 SET · Customer asset 793D-SUSP-B2199 · Open repair",
+      "repair": "/portfolio/repair/cases/9e95ae7e-e875-48d5-beeb-c2b19294726a"
+    },
+    {
+      "text": "SHP-2026-0042\nShipped\n4 UN · Line 1"
+    }
+  ],
+  "keyboardRepairNavigation": true,
+  "viewports": [
+    1440,
+    390
+  ],
+  "overflow": false
+}

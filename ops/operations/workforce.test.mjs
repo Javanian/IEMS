@@ -5,6 +5,8 @@ import express from '../../apps/portfolio-api/node_modules/express/index.js';
 import { MongoClient } from '../../apps/portfolio-api/node_modules/mongodb/lib/index.js';
 import { MongoMemoryReplSet } from '../../apps/portfolio-api/node_modules/mongodb-memory-server/index.js';
 import { createTenantFoundation } from '../../packages/tenant-foundation/index.mjs';
+import { createSaasAdmission } from '../../packages/tenant-lifecycle/admission.mjs';
+import { createSeparateEffects } from '../../packages/tenant-lifecycle/effects.mjs';
 import { installWorkforce, initializeWorkforce, workforceActions } from '../../apps/portfolio-api/src/workforce.mjs';
 
 test('owned Mongo: consent, fallback, challenge replay/error, private results and revocation', async t => {
@@ -19,7 +21,11 @@ test('owned Mongo: consent, fallback, challenge replay/error, private results an
   const app=express();app.use(express.json());app.use(async(req,res,next)=>{try{req.scope=await foundation.authenticate(issued.token);next();}catch(e){next(e);}});
   const helpers={id:v=>{if(typeof v!=='string'||!/^[0-9a-f-]{36}$/.test(v))throw Object.assign(new Error('INVALID_ID'),{status:400});return v;},fields:(body,allowed)=>{if(!body||Object.keys(body).some(k=>!allowed.includes(k)))throw Object.assign(new Error('UNKNOWN_FIELD'),{status:400});}};
   let verifierError=false;
-  installWorkforce(app,{client,db,foundation},helpers,{pepper:randomUUID()+randomUUID(),devices:{'owned-kiosk':{authorize:async({scope,filter,session})=>foundation.authorizeInTransaction(scope,{...filter,action:'workforce.verify'},{session})}},assertionVerifier:{verify:async()=>{if(verifierError)throw new Error('private provider detail');return{matched:false};}}});
+  const runtime={client,db,foundation};
+  runtime.separateEffects=createSeparateEffects({...runtime,admission:descriptor=>runtime.saasAdmission.effect(descriptor)});
+  await runtime.separateEffects.initialize();
+  runtime.saasAdmission=createSaasAdmission(runtime);
+  installWorkforce(app,runtime,helpers,{pepper:randomUUID()+randomUUID(),devices:{'owned-kiosk':{authorize:async({scope,filter,session})=>foundation.authorizeInTransaction(scope,{...filter,action:'workforce.verify'},{session})}},assertionVerifier:{verify:async()=>{if(verifierError)throw new Error('private provider detail');return{matched:false};}}});
   app.use((e,req,res,next)=>res.status(e.status||500).json({error:e.code||e.message}));server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
   const root=`http://127.0.0.1:${server.address().port}/api/workforce/operators/${ids.user}`;
   const send=async(path,body,status=200)=>{const r=await fetch(root+path,{method:body?'POST':'GET',headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined});const json=await r.json();assert.equal(r.status,status,JSON.stringify(json));return json.data;};

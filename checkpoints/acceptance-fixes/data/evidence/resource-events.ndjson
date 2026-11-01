@@ -1,0 +1,12 @@
+{"utc":"2026-11-01T05:49:55.878Z","ownerPid":2256,"kind":"listener-preflight","port":32100}
+{"utc":"2026-11-01T05:49:55.880Z","ownerPid":2256,"kind":"mongo-prepared","port":32100,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-167\\4536ffd1-f805-469c-a4cf-2714a592d932\\runtime-d0c757fe\\receipted\\mongo-X2Tri7","command":"C:/Users/Admin/.cache/mongodb-binaries/mongod-x64-win32-7.0.14.exe"}
+{"utc":"2026-11-01T05:50:00.190Z","ownerPid":2256,"kind":"mongo-running","port":32100,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-167\\4536ffd1-f805-469c-a4cf-2714a592d932\\runtime-d0c757fe\\receipted\\mongo-X2Tri7","pid":19020,"killerPid":15448}
+{"utc":"2026-11-01T05:50:57.205Z","ownerPid":2256,"kind":"api-and-database-owned","port":62283,"databaseName":"portfolio_owned_iems_qa_business_d0c757fe_3bca10c1e7824f0a","marker":"2f573ecb-0dca-41e3-808b-793c517283e4"}
+{"utc":"2026-11-01T05:51:15.923Z","ownerPid":2256,"kind":"mongo-stopped"}
+{"utc":"2026-11-01T05:51:15.924Z","ownerPid":2256,"kind":"fixture-cleanup-completed","databaseName":"portfolio_owned_iems_qa_business_d0c757fe_3bca10c1e7824f0a","marker":"2f573ecb-0dca-41e3-808b-793c517283e4"}
+{"utc":"2026-11-01T05:51:15.930Z","ownerPid":2256,"kind":"listener-preflight","port":32100}
+{"utc":"2026-11-01T05:51:15.931Z","ownerPid":2256,"kind":"mongo-prepared","port":32100,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-167\\4536ffd1-f805-469c-a4cf-2714a592d932\\runtime-d0c757fe\\receipted\\mongo-Gu08sz","command":"C:/Users/Admin/.cache/mongodb-binaries/mongod-x64-win32-7.0.14.exe"}
+{"utc":"2026-11-01T05:51:20.562Z","ownerPid":2256,"kind":"mongo-running","port":32100,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-167\\4536ffd1-f805-469c-a4cf-2714a592d932\\runtime-d0c757fe\\receipted\\mongo-Gu08sz","pid":8452,"killerPid":6088}
+{"utc":"2026-11-01T05:52:22.964Z","ownerPid":2256,"kind":"api-and-database-owned","port":62326,"databaseName":"portfolio_owned_iems_qa_business_d0c757fe_dfd4175d3e364f82","marker":"e97542bf-2a90-4218-9d65-3c86291236c4"}
+{"utc":"2026-11-01T05:52:27.063Z","ownerPid":2256,"kind":"mongo-stopped"}
+{"utc":"2026-11-01T05:52:27.063Z","ownerPid":2256,"kind":"fixture-cleanup-completed","databaseName":"portfolio_owned_iems_qa_business_d0c757fe_dfd4175d3e364f82","marker":"e97542bf-2a90-4218-9d65-3c86291236c4"}
