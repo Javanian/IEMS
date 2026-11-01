@@ -1,0 +1,47 @@
+{"resourceStart":[{"pid":11788,"port":58317,"dbPath":"C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-3wu5Dp"}],"owner":"TPR-165","at":"2026-11-01T02:11:32.873Z"}
+{"databaseDropped":"portfolio_owned_iems_qa_business_c8d238a7_8ebe4a9bfda0408d","marker":"b6f132b7-110b-44db-84df-42b8f6a2d739","result":true}
+MongoNetworkError: read ECONNRESET
+    at Connection.onSocketError (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\portfolio-api\node_modules\mongodb\lib\cmap\connection.js:110:22)
+    at Socket.emit (node:events:521:24)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errorLabelSet: Set(0) {},
+  beforeHandshake: false,
+  [cause]: Error: read ECONNRESET
+      at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+    errno: -4077,
+    code: 'ECONNRESET',
+    syscall: 'read'
+  }
+}
+{"resourceStop":{"pid":11788,"port":58317,"dbPath":"C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-3wu5Dp"},"alive":false,"at":"2026-11-01T02:11:37.392Z"}
+✖ bounded operator labor real HTTP owned Mongo (5396.1236ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6293.7886
+
+✖ failing tests:
+
+test at apps\portfolio-api\test\wave4c-labor.test.mjs:6:1
+✖ bounded operator labor real HTTP owned Mongo (5396.1236ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^portfolio_test_/. Input:
+  
+  'portfolio_owned_iems_qa_business_c8d238a7_8ebe4a9bfda0408d'
+  
+      at TestContext.<anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend/apps/portfolio-api/test/wave4c-labor.test.mjs:8:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'portfolio_owned_iems_qa_business_c8d238a7_8ebe4a9bfda0408d',
+    expected: /^portfolio_test_/,
+    operator: 'match',
+    diff: 'simple'
+  }

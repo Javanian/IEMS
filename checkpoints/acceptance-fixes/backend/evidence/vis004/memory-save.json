@@ -1,0 +1,5 @@
+{
+  "success": false,
+  "reason": "Peer MCP writer active; MemPalace mutations read-only while another writer holds its lock",
+  "action": "No retry or stop of other writer; verified note retained in vis004-memory-note.json and issue handoff"
+}

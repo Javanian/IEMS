@@ -1,0 +1,10 @@
+{"isolatedRegistryCopy":"C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-4bf39b48-52e-iFJwT5\\tpr165-source-pins-cuW7Po","operationsMismatchRejected":true,"restored":true}
+✔ both actual verifiers reject an isolated operations mismatch and accept restoration (1038.9469ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1486.7696

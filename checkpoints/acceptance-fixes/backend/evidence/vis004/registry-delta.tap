@@ -1,0 +1,10 @@
+{"topLevelSchemaExpansion":[{"name":"manufacturingWorkOrders","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsAudit","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsKeys","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsSampleRevisions","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsSamples","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsTelemetryOutbox","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]},{"name":"qualityResources","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"voiceJobRevisions","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]},{"name":"voiceJobs","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]},{"name":"voiceZones","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]}],"nestedGlobalFieldsUnchanged":true}
+✔ generated registry delta stays within the exact Board exception (328.2687ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1370.5302

@@ -5,6 +5,8 @@ import express from '../../apps/portfolio-api/node_modules/express/index.js';
 import { MongoClient } from '../../apps/portfolio-api/node_modules/mongodb/lib/index.js';
 import { MongoMemoryReplSet } from '../../apps/portfolio-api/node_modules/mongodb-memory-server/index.js';
 import { createTenantFoundation } from '../../packages/tenant-foundation/index.mjs';
+import { createSaasAdmission } from '../../packages/tenant-lifecycle/admission.mjs';
+import { createSeparateEffects } from '../../packages/tenant-lifecycle/effects.mjs';
 import { initializeOperations, initializeVoice, installOperations, installVoice, voiceActions, createVoiceFileStore } from '../../apps/portfolio-api/src/operations.mjs';
 
 test('real-model store refuses absent or unpinned tooling without making an artifact', async () => {
@@ -19,7 +21,11 @@ test('owned Mongo voice lifecycle with synthetic store: zone isolation, leases, 
   const ids=Object.fromEntries(['tenant','plant','entity','user','member','zone','workOrder'].map(k=>[k,randomUUID()]));
   await foundation.provisionTenant({id:ids.tenant});await foundation.provisionUser({id:ids.user,tenantId:ids.tenant});await foundation.provisionLegalEntity({id:ids.entity,tenantId:ids.tenant});await foundation.provisionPlant({id:ids.plant,tenantId:ids.tenant,legalEntityId:ids.entity});await foundation.provisionMembership({id:ids.member,tenantId:ids.tenant,userId:ids.user,plantIds:[ids.plant],legalEntityIds:[ids.entity],roles:[{role:'tester',plantIds:[ids.plant]}]});
   const issued=await foundation.issueSession({userId:ids.user,tenantId:ids.tenant,selectedPlantId:ids.plant,ttlMs:600000});let now=new Date();
-  const runtime={db,client,foundation,businessClock:()=>now},filter={tenantId:ids.tenant,plantId:ids.plant};await db.collection('manufacturingWorkOrders').insertOne({_id:ids.workOrder,...filter,status:'RELEASED',version:1,updatedAt:new Date(now-8*86400000)});
+  const runtime={db,client,foundation,businessClock:()=>now},filter={tenantId:ids.tenant,plantId:ids.plant};
+  runtime.separateEffects=createSeparateEffects({...runtime,admission:descriptor=>runtime.saasAdmission.effect(descriptor)});
+  await runtime.separateEffects.initialize();
+  runtime.saasAdmission=createSaasAdmission(runtime);
+  await db.collection('manufacturingWorkOrders').insertOne({_id:ids.workOrder,...filter,status:'RELEASED',version:1,updatedAt:new Date(now-8*86400000)});
   const app=express();app.use(express.json());app.use(async(req,res,next)=>{try{req.scope=await foundation.authenticate(req.headers['x-owned-test-token'] || issued.token);next();}catch(e){next(e);}});
   const helpers={id:v=>{if(typeof v!=='string'||!/^[0-9a-f-]{36}$/.test(v))throw Object.assign(new Error('INVALID_ID'),{status:400});return v;},fields:(body,allowed)=>{if(!body||Object.keys(body).some(k=>!allowed.includes(k)))throw Object.assign(new Error('UNKNOWN_FIELD'),{status:400});},guard:async(rt,req,session,action)=>foundation.authorizeInTransaction(req.scope,{...req.filter,action},{session})};
   const bytes=Buffer.from('SYNTHETIC_STATE_TEST_ONLY_NOT_MP3'),hash=createHash('sha256').update(bytes).digest('hex'),model={engine:'piper',modelId:'SYNTHETIC_FIXTURE',modelSha256:'a'.repeat(64),configSha256:'b'.repeat(64)};

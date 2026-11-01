@@ -6970,7 +6970,7 @@
       ]
     },
     "apps/portfolio-api/src/operations.mjs": {
-      "sha256": "1a9f37d823cbff3f43866c9bacf7f94e5ecbeb5bcf586694d35bd369a057e576",
+      "sha256": "5b633da99935e8931e7dbdc94d8387753f9ede8a16e589f7e6a503bafef48079",
       "fields": [
         "ACCESS_DENIED",
         "ADAPTER_CONTRACT_INVALID",
@@ -7072,6 +7072,7 @@
         "STORED",
         "TELEMETRY_SOURCE_MISMATCH",
         "TIMESHEET",
+        "TransientTransactionError",
         "UNKNOWN",
         "UNKNOWN_METRIC_SOURCE",
         "UNREGISTERED_TELEMETRY_EVENT",
@@ -7180,6 +7181,7 @@
         "groups",
         "gt",
         "guard",
+        "hasErrorLabel",
         "headers",
         "helpers",
         "hex",

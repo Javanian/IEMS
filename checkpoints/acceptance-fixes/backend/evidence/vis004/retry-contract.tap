@@ -1,0 +1,10 @@
+✔ only labeled transient reads retry with bounded backoff (5.6607ms)
+✔ generic failures and ambiguous commits do not replay dashboard reads (2.2189ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 140.8645
