@@ -1,0 +1,11 @@
+✔ portfolio requests use real HTTP JSON envelopes and expose conflict status (60.1234ms)
+✔ money stays a canonical decimal string at the currency scale (0.7351ms)
+✔ recovery messages distinguish expired, forbidden, conflict and uncertain writes (0.5047ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 219.5056

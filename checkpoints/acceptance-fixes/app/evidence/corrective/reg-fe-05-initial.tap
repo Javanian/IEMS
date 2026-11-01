@@ -1,0 +1,46 @@
+✔ browser journeys receive the resolved evidence directory without an environment override (9.7822ms)
+✔ CS inbox routes isolate resource state when switching between ticket and conversation projections (2.9508ms)
+X [ERROR] No matching export in "contract:resource" for import "CommandAttemptState"
+
+    apps/web/src/features/portfolio/CommercialWorkspace.jsx:9:69:
+      9 │ ...tyContext,MutationForm,CommandAttemptState } from './PortfolioWo...
+        ╵                           ~~~~~~~~~~~~~~~~~~~
+
+X [ERROR] No matching export in "contract:resource" for import "CommandAttemptState"
+
+    apps/web/src/features/portfolio/ProcurementWorkspace.jsx:7:69:
+      7 │ ...tyContext,MutationForm,CommandAttemptState } from './PortfolioWo...
+        ╵                           ~~~~~~~~~~~~~~~~~~~
+
+✖ source detail routes mount immutable documents only at issued boundaries (268.0167ms)
+✔ document panel names source identity and explicit issuance state (3.6958ms)
+✔ repair deposit guidance distinguishes the frozen maximum from start requirement (1.2498ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 459.7593
+
+✖ failing tests:
+
+test at apps\web\test\portfolio-wave3e-documents.test.mjs:22:1
+✖ source detail routes mount immutable documents only at issued boundaries (268.0167ms)
+  Error: Build failed with 2 errors:
+  apps/web/src/features/portfolio/CommercialWorkspace.jsx:9:69: ERROR: No matching export in "contract:resource" for import "CommandAttemptState"
+  apps/web/src/features/portfolio/ProcurementWorkspace.jsx:7:69: ERROR: No matching export in "contract:resource" for import "CommandAttemptState"
+      at failureErrorWithLog (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\esbuild\lib\main.js:1467:15)
+      at D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\esbuild\lib\main.js:926:25
+      at runOnEndCallbacks (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\esbuild\lib\main.js:1307:45)
+      at buildResponseToResult (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\esbuild\lib\main.js:924:7)
+      at D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\esbuild\lib\main.js:951:16
+      at responseCallbacks.<computed> (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\esbuild\lib\main.js:603:9)
+      at handleIncomingPacket (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\esbuild\lib\main.js:658:12)
+      at Socket.readFromStdout (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\esbuild\lib\main.js:581:7)
+      at Socket.emit (node:events:509:28)
+      at addChunk (node:internal/streams/readable:563:12) {
+    errors: [ { detail: undefined, id: '', location: [Object], notes: [], pluginName: '', text: 'No matching export in "contract:resource" for import "CommandAttemptState"' }, { detail: undefined, id: '', location: [Object], notes: [], pluginName: '', text: 'No matching export in "contract:resource" for import "CommandAttemptState"' } ],
+    warnings: []
+  }

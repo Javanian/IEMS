@@ -1,0 +1,29 @@
+✔ portfolio requests use real HTTP JSON envelopes and expose conflict status (55.4726ms)
+✔ money stays a canonical decimal string at the currency scale (0.5943ms)
+✔ recovery messages distinguish expired, forbidden, conflict and uncertain writes (0.4336ms)
+✔ UTC display normalizes offsets without losing the instant or source subsecond precision (0.3934ms)
+✔ actual purchased shipment, invoice and payment detail hide account navigation unless CRM read is granted (1066.1332ms)
+✔ overlapping line and reserve blockers produce one stable copy of each human hint without dropping distinct reasons (1.117ms)
+✔ typed fulfillment document issue and download require their separate real grants, with no reader or issuer inference (0.3004ms)
+✔ purchased serial reservation captures actual UUIDs and shared stock CAS without invented unit versions (0.4439ms)
+✔ LOT command preserves exact six-place string and omits serial identity fields (0.1954ms)
+✔ release captures latest shared stock proof and only the whole remainder command, including held stock (0.3974ms)
+✔ partial serial dispatch uses selected reservation identities and exact line-bound source CAS (0.4399ms)
+✔ unsupported line, malformed UUID array, repeated claims and missing current evidence fail instead of constructing fallback sources (0.6705ms)
+✔ shipment identity labels come from immutable actual stock-unit UUIDs, not similarly named registry or serial values (0.2542ms)
+✔ released reservation copy preserves shipped custody meaning and source withdrawal recovery is actionable (0.4497ms)
+✔ repair commands preserve exact money and freeze expected version for retry (1.6216ms)
+✔ repair lifecycle requires rework after failure and never offers QC before pass (1.5449ms)
+✔ browser journeys receive the resolved evidence directory without an environment override (15.2682ms)
+✔ CS inbox routes isolate resource state when switching between ticket and conversation projections (15.763ms)
+✔ source detail routes mount immutable documents only at issued boundaries (156.0136ms)
+✔ document panel names source identity and explicit issuance state (1.04ms)
+✔ repair deposit guidance distinguishes the frozen maximum from start requirement (0.9707ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2013.3301

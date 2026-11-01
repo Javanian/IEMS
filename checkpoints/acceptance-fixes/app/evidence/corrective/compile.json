@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "path": "apps/web/src/features/portfolio/FulfillmentWorkspace.jsx",
+      "sha256": "1af55c9a4bc114e3f3adc2fdcce3e0dba6278d0a332b88f9ecfcde6b56d082da"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/AnalyticsWorkspace.jsx",
+      "sha256": "07b64258541ac755dd1907c47635da8d0cb3b39750b2648c877be88629ee4f08"
+    }
+  ],
+  "result": "PASS",
+  "tool": "esbuild transform JSX, no output files"
+}

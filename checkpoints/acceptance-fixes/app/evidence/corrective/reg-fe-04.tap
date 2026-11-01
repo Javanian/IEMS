@@ -1,0 +1,10 @@
+✔ repair commands preserve exact money and freeze expected version for retry (1.4805ms)
+✔ repair lifecycle requires rework after failure and never offers QC before pass (0.568ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 148.0871

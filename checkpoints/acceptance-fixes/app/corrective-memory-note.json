@@ -1,0 +1,6 @@
+{
+  "issue": "TPR-166",
+  "content": "Post169-171 source-only correction: typed CUSTOMER_ASSET_RETURN has no stock sources/SO; render actual serial/asset/case, retain delivery but omit unsupported stock returns. REG-FE02 separately a ledger/returns fixture shape. All5 maintained failures source-reconciled, old cases retained;52focused tests pass. UTC normalizer preserves microseconds across integer-minute offsets. Native repair creates service orders, separates dispatch/POD; company keeps all terminal assertions in explicit marker-owned restored historical fixture plus real reusable UUID reserve/trace and separate pure cycle/unique-parent guards; purchased preserves denial/direction and later steps. Native/browser/Mongo NOT_RUN this phase; product UNACCEPTED, independent QA after CTO freeze. Exact semantic inventory and limits in CORRECTIVE-RESULT.md.",
+  "agentId": "0dd7dd43-116b-4c6f-b9d3-c36c850acd48",
+  "source": "/TPR/issues/TPR-166#document-implementation-result; ad13c2c0d6993dd8654382b0d5f56cd38c77a8db"
+}
