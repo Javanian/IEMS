@@ -74,7 +74,7 @@ export const IdentityContext = createContext(null);
 
 export function Failure({ error, retry, mutation = false }) {
   if (!error) return null;
-  return <div className="pf-error" role="alert"><p>{operatorFailure(error, mutation)}</p>{(error.code || error.correlationId) && <details><summary>Technical details</summary>{error.code && <p>Diagnostic code: {error.code}</p>}{error.correlationId && <p>Support reference: {error.correlationId}</p>}{error.currentVersion !== undefined && <p>Current version: {error.currentVersion}</p>}</details>}{error.status === 401 ? <Link to="/portfolio/login">Sign in again</Link> : retry && <button type="button" onClick={retry}>Refresh and retry</button>}</div>;
+  return <div className="pf-error" role="alert"><p>{operatorFailure(error, mutation)}</p>{(error.code || error.correlationId) && <details><summary>Technical details</summary>{error.code && <p>Diagnostic code: {error.code}</p>}{error.correlationId && <p>Support reference: {error.correlationId}</p>}{error.currentVersion !== undefined && <p>Current version: {error.currentVersion}</p>}</details>}{error.status === 401 ? error.code !== 'INVALID_CREDENTIALS' && <Link to="/portfolio/login">Sign in again</Link> : retry && <button type="button" onClick={retry}>Refresh and retry</button>}</div>;
 }
 export function useResource(path, allPages = false) {
   const [result, setResult] = useState({ loading: true });
