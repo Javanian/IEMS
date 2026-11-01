@@ -1,0 +1,27 @@
+{
+  "initialFullSuite": {
+    "pass": 12,
+    "fail": 0,
+    "skip": 0,
+    "durationMs": 174601.9543,
+    "exitCode": 0
+  },
+  "failures": [
+    {
+      "error": "ERR_MODULE_NOT_FOUND mongodb",
+      "runtimeStarted": false,
+      "passed": 0,
+      "command": "node --test --test-name-pattern=reporting namespace policy ops/demo/reporting-runtime.test.mjs",
+      "failed": 1
+    },
+    {
+      "error": "ERR_MODULE_NOT_FOUND pdfkit",
+      "runtimeStarted": false,
+      "passed": 0,
+      "command": "same after portfolio-api dependency junction",
+      "failed": 1
+    }
+  ],
+  "reasonForSecondSuite": "Record actual dynamically assigned API ports and explicit fixture cleanup receipts",
+  "resolution": "Ignored local junctions reuse existing predecessor app dependencies in apps/portfolio-api and packages/document-rendering,customer-service; no target mutation or installation"
+}
