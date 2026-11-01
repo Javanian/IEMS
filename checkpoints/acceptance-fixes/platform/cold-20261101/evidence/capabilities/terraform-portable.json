@@ -1,0 +1,10 @@
+{
+  "url": "https://releases.hashicorp.com/terraform/1.11.4/terraform_1.11.4_windows_amd64.zip",
+  "version": "1.11.4",
+  "archiveSha256": "4e1dc85419dda723f2bb3afdf63a0d282a2de858588d56dd57d2e4e4c4c83f2b",
+  "officialPublishedSha256": "4e1dc85419dda723f2bb3afdf63a0d282a2de858588d56dd57d2e4e4c4c83f2b",
+  "exeSha256": "98efd684ba0ad1282a042d483dc76ca24728240060fe85c7290c27f350af19d2",
+  "root": "D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/tools/terraform-1.11.4",
+  "globalPathOrServiceChanged": false,
+  "signatureVerification": "Published SHA256 over HTTPS; detached signature not verified"
+}

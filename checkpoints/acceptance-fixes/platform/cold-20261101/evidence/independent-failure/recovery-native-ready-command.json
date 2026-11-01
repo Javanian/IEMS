@@ -1,0 +1,21 @@
+{
+  "root": "D:\\Project AI\\GITHUB\\IEMS-worktrees\\iems-qa-corrected-20261101-security",
+  "command": "C:\\Program Files\\nodejs\\node.exe",
+  "args": [
+    "--import",
+    "file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-corrected-20261101/security/register-owned-runtime.mjs",
+    "--test",
+    "--test-concurrency=1",
+    "--test-reporter=tap",
+    "packages/tenant-lifecycle/automation-recovery-v15.test.mjs",
+    "checkpoints/acceptance-fixes/platform/fixture-guards.test.mjs"
+  ],
+  "tests": [
+    "packages/tenant-lifecycle/automation-recovery-v15.test.mjs",
+    "checkpoints/acceptance-fixes/platform/fixture-guards.test.mjs"
+  ],
+  "sha": "9269ae5d504378ecf7bdaae0edf963b893afcc96",
+  "startedUTC": "2026-11-01T10:55:46.066Z",
+  "runtime": "D:\\Project AI\\GITHUB\\IEMS-evidence\\qa-corrected-20261101\\security\\runtime-e38c0515-8a1b-47ed-9f13-3393603568c3",
+  "run": "e38c0515-8a1b-47ed-9f13-3393603568c3"
+}

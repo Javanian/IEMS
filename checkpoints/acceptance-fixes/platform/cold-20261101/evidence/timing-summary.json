@@ -1,0 +1,252 @@
+{
+  "native": {
+    "indexTotalMs": 87569.0,
+    "ramMinimumBytes": 818192384.0,
+    "stages": [
+      {
+        "utc": "2026-11-01T11:35:02.212Z",
+        "ownerPid": 10540,
+        "kind": "setup-stage",
+        "stage": "begin",
+        "elapsedMs": 0.027000000000043656,
+        "rssBytes": 114380800
+      },
+      {
+        "utc": "2026-11-01T11:35:11.831Z",
+        "ownerPid": 10540,
+        "kind": "setup-stage",
+        "stage": "replica-ready",
+        "elapsedMs": 9619.2493,
+        "rssBytes": 100442112
+      },
+      {
+        "utc": "2026-11-01T11:35:11.843Z",
+        "ownerPid": 10540,
+        "kind": "setup-stage",
+        "stage": "client-connected",
+        "elapsedMs": 9631.0797,
+        "rssBytes": 101109760
+      },
+      {
+        "utc": "2026-11-01T11:36:45.011Z",
+        "ownerPid": 10540,
+        "kind": "setup-stage",
+        "stage": "initialized",
+        "elapsedMs": 102798.6507,
+        "rssBytes": 109776896
+      },
+      {
+        "utc": "2026-11-01T11:37:00.17Z",
+        "ownerPid": 10540,
+        "kind": "setup-stage",
+        "stage": "seeded",
+        "elapsedMs": 117957.0867,
+        "rssBytes": 109535232
+      },
+      {
+        "utc": "2026-11-01T11:37:01.209Z",
+        "ownerPid": 10540,
+        "kind": "setup-stage",
+        "stage": "authenticated",
+        "elapsedMs": 118995.9722,
+        "rssBytes": 112275456
+      },
+      {
+        "utc": "2026-11-01T11:37:09.36Z",
+        "ownerPid": 23840,
+        "kind": "setup-stage",
+        "stage": "begin",
+        "elapsedMs": 0.03770000000076834,
+        "rssBytes": 113025024
+      }
+    ],
+    "floorBreaches": 2,
+    "preflights": [
+      {
+        "utc": "2026-11-01T11:35:03.223Z",
+        "ownerPid": 10540,
+        "kind": "resource-preflight",
+        "freeRamBytes": 3872661504,
+        "hostCpuPercent": 59.584220003273856,
+        "freeDiskBytes": 758926479360,
+        "minimumRamBytes": 2147483648,
+        "maximumCpuPercent": 80,
+        "minimumDiskBytes": 1073741824
+      },
+      {
+        "utc": "2026-11-01T11:37:10.387Z",
+        "ownerPid": 23840,
+        "kind": "resource-preflight",
+        "freeRamBytes": 3778404352,
+        "hostCpuPercent": 81.64811379097094,
+        "freeDiskBytes": 758603902976,
+        "minimumRamBytes": 2147483648,
+        "maximumCpuPercent": 80,
+        "minimumDiskBytes": 1073741824
+      }
+    ],
+    "nodeRssMaxBytes": 117686272.0,
+    "indexCount": 277,
+    "result": {
+      "finishedUtc": "2026-11-01T11:37:11.152Z",
+      "durationMs": 132198,
+      "pid": 15132,
+      "code": 1,
+      "signal": null,
+      "sourceUnchanged": true
+    },
+    "cases": [
+      {
+        "name": "owned fixture refuses missing and foreign teardown markers before dropping its database",
+        "result": "ok",
+        "durationMs": 122559.793,
+        "nested": false
+      },
+      {
+        "name": "v15 bounded recovery uses original receipts and private parent/child phases",
+        "result": "not ok",
+        "durationMs": 989.8568,
+        "nested": false
+      }
+    ],
+    "hostCpuMaxPercent": 100.0,
+    "indexFailures": 0
+  },
+  "native-recovery": {
+    "indexTotalMs": 55587.0,
+    "ramMinimumBytes": 2301857792.0,
+    "stages": [
+      {
+        "utc": "2026-11-01T11:51:03.438Z",
+        "ownerPid": 2388,
+        "kind": "setup-stage",
+        "stage": "begin",
+        "elapsedMs": 0.030099999999947613,
+        "rssBytes": 113262592
+      },
+      {
+        "utc": "2026-11-01T11:51:11.621Z",
+        "ownerPid": 2388,
+        "kind": "setup-stage",
+        "stage": "replica-ready",
+        "elapsedMs": 8183.176399999999,
+        "rssBytes": 114999296
+      },
+      {
+        "utc": "2026-11-01T11:51:11.647Z",
+        "ownerPid": 2388,
+        "kind": "setup-stage",
+        "stage": "client-connected",
+        "elapsedMs": 8209.4372,
+        "rssBytes": 100638720
+      },
+      {
+        "utc": "2026-11-01T11:52:09.622Z",
+        "ownerPid": 2388,
+        "kind": "setup-stage",
+        "stage": "initialized",
+        "elapsedMs": 66184.65699999999,
+        "rssBytes": 109010944
+      },
+      {
+        "utc": "2026-11-01T11:52:11.606Z",
+        "ownerPid": 2388,
+        "kind": "setup-stage",
+        "stage": "seeded",
+        "elapsedMs": 68168.4092,
+        "rssBytes": 109264896
+      },
+      {
+        "utc": "2026-11-01T11:52:12.794Z",
+        "ownerPid": 2388,
+        "kind": "setup-stage",
+        "stage": "authenticated",
+        "elapsedMs": 69356.22899999999,
+        "rssBytes": 112939008
+      }
+    ],
+    "floorBreaches": 0,
+    "preflights": [
+      {
+        "utc": "2026-11-01T11:51:04.443Z",
+        "ownerPid": 2388,
+        "kind": "resource-preflight",
+        "freeRamBytes": 2764079104,
+        "hostCpuPercent": 59.876646107684614,
+        "freeDiskBytes": 758435049472,
+        "minimumRamBytes": 2147483648,
+        "maximumCpuPercent": 80,
+        "minimumDiskBytes": 1073741824
+      }
+    ],
+    "nodeRssMaxBytes": 157495296.0,
+    "indexCount": 277,
+    "result": {
+      "finishedUtc": "2026-11-01T11:52:34.048Z",
+      "durationMs": 93415,
+      "pid": 23928,
+      "code": 0,
+      "signal": null,
+      "sourceUnchanged": true,
+      "capacityFloorRespected": true
+    },
+    "cases": [
+      {
+        "name": "quota and audit abort roll back receipt/control/usage before child work",
+        "result": "ok",
+        "durationMs": 611.0124,
+        "nested": true
+      },
+      {
+        "name": "root selection and receipt immutable; concurrent continuation counts no child usage",
+        "result": "ok",
+        "durationMs": 3784.8496,
+        "nested": true
+      },
+      {
+        "name": "empty request freezes approved drafts; new independent child intent charges once",
+        "result": "ok",
+        "durationMs": 2980.3805,
+        "nested": true
+      },
+      {
+        "name": "ambiguous child claim never invokes; explicit same-parent retry proves ownership",
+        "result": "ok",
+        "durationMs": 2608.2741,
+        "nested": true
+      },
+      {
+        "name": "all effect status kinds and tenant status perform zero actual database writes",
+        "result": "ok",
+        "durationMs": 1523.6079,
+        "nested": true
+      },
+      {
+        "name": "private message content never enters the four orchestration collections",
+        "result": "ok",
+        "durationMs": 8.0402,
+        "nested": true
+      },
+      {
+        "name": "human not-submitted receipt creates a new fenced ordinal only before provider BEGIN",
+        "result": "ok",
+        "durationMs": 2238.6374,
+        "nested": true
+      },
+      {
+        "name": "suspend/stop drains actual parent and delayed child without publishing",
+        "result": "ok",
+        "durationMs": 1807.2605,
+        "nested": true
+      },
+      {
+        "name": "v15 bounded recovery uses original receipts and private parent/child phases",
+        "result": "ok",
+        "durationMs": 87328.4837,
+        "nested": false
+      }
+    ],
+    "hostCpuMaxPercent": 99.09038286612089,
+    "indexFailures": 0
+  }
+}

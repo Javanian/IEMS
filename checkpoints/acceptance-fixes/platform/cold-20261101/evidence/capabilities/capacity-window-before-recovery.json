@@ -1,0 +1,32 @@
+{
+  "minimumFreeRamBytes": 5368709120,
+  "maximumQuietCpuPercent": 40,
+  "samples": [
+    {
+      "utc": "2026-11-01T11:49:54.104Z",
+      "freeRamBytes": 4805902336,
+      "cpuPercent": 24.2161985630307
+    },
+    {
+      "utc": "2026-11-01T11:49:55.111Z",
+      "freeRamBytes": 4801302528,
+      "cpuPercent": 24.532671629445822
+    },
+    {
+      "utc": "2026-11-01T11:49:56.125Z",
+      "freeRamBytes": 4801146880,
+      "cpuPercent": 28.752849234776946
+    },
+    {
+      "utc": "2026-11-01T11:49:57.139Z",
+      "freeRamBytes": 4825006080,
+      "cpuPercent": 18.93617021276596
+    },
+    {
+      "utc": "2026-11-01T11:49:58.142Z",
+      "freeRamBytes": 4812136448,
+      "cpuPercent": 10.683333333333334
+    }
+  ],
+  "eligible": false
+}

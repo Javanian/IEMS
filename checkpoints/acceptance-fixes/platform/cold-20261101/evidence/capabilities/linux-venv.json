@@ -1,0 +1,25 @@
+{
+  "command": "wsl.exe",
+  "venvCreateArgs": [
+    "-d",
+    "IEMS-Lab",
+    "--exec",
+    "python3",
+    "-m",
+    "venv",
+    "--copies",
+    "--without-pip",
+    "/mnt/d/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/tools/linux-venv"
+  ],
+  "createExit": 0,
+  "probeArgs": [
+    "-d",
+    "IEMS-Lab",
+    "--exec",
+    "/mnt/d/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/tools/linux-venv/bin/python3",
+    "/mnt/d/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/capabilities/linux-venv-probe.py"
+  ],
+  "probeExit": 0,
+  "output": "{\"version\": \"3.12.3 (main, Jul 15 2026, 23:46:41) [GCC 13.3.0]\", \"executable\": \"/mnt/d/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/tools/linux-venv/bin/python3\", \"modules\": {\"airflow\": false, \"pyspark\": false, \"pyflink\": false}}\r\n",
+  "hostPackagesOrServicesChanged": false
+}

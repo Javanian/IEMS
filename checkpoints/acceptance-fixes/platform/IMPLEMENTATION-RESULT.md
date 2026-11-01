@@ -1,4 +1,35 @@
-# TPR-168: IMPLEMENTED_QA_PENDING
+# TPR-168 corrective continuation: IMPLEMENTED_QA_PENDING
+
+SEC-R01-COLD measured under the existing bounds; all eight original cases reached a live server in the controlled run. No production code defect was proven. This continuation adds only owned profiling/lifecycle/capability handoff files, with no test/helper/production/pin edit. Earlier independent timeout and producer failures remain below and in the new evidence packet. Independent Security acceptance follows the next CTO freeze; product/full55 remains unaccepted.
+
+## Continuation COMMIT-LEDGER
+
+| Deliverable | Commit | Provenance |
+| --- | --- | --- |
+| Immutable corrected candidate prerequisite | `39a79724eb55edeb79df33ae86dd0eb6629944b4` | Merge exact `9269ae5d504378ecf7bdaae0edf963b893afcc96` into clean prior tip0d5137e; frozen candidate unchanged |
+| Bounded cold profiling and lifecycle receipt | `0b6649ad67fae56847b382e69182c2bc48616e6c` | Original120000/180000/60000ms and full test/helper preserved; actual277-index trace, original/first-run failures, controlled9PASS and cleanup |
+| Portable local tool capability receipt | `1af8567515998f6064429021efcdd6e511b427cb` | Existing Linux/Docker-client state, task-local Linux venv and verified Terraform1.11.4; no global setup/daemon/provider/engine workload claim |
+
+Detailed current handoff: `cold-20261101/COLD-RESULT.md`; exact portable/tool remaining matrix: `cold-20261101/CAPABILITY-RECEIPT.md`; exact continuation owned list and committed-byte checksums: `cold-20261101/FILES.txt` / `MANIFEST.sha256`. All new files are under the assigned platform handoff directory; this existing result document is the only prior file updated. Old root `FILES.txt`/manifest/verifier describe the previous delivery and are retained as historical artifacts.
+
+Current checks at merge39a79724 plus owned instrumentation subsequently committed above:
+
+- First profile invocation exit1: actual missing/foreign-marker cleanup guard PASS, recovery preflight CPU81.648% correctly refused before native launch; eight cases NOT_RUN. Marker setup118995.9722ms;277 index commands87569ms; sampled RAM fell to0.76GiB. Functional guard success does not certify capacity.
+- Controlled recovery-only process exit0/signalnull,93415ms;9PASS (parent plus original eight),0FAIL/SKIP/CANCEL. Cold setup69356.2290ms;277 real index commands55587ms; source-before/after unchanged, sampled RAM floor respected (minimum2.14GiB). Original human not-submitted ordinal/receipt/fence and nested suspend/drain assertions passed. Exact child/stage timing table is in COLD-RESULT.md and raw JSON/TAP. No timeouts, guards or expected values were changed.
+- Four instrumentation syntax checks exit0; source/helper full-byte comparison to9269ae5 PASS; no credential-pattern matches. The original independent before-hook120004.1982ms failure, original stopped failed-data read-only reconciliation, first guard refusal and prior delivery failures are preserved. No full regression or all96F5 rerun.
+- Cleanup:9 recorded native/worker/runner IDs absent;2 Mongo starts/stops,2 normal exact-marker DB drops and2 fixture cleanup completions;32720/32721/32722 rebound and closed. Node sampled RSS max157495296 bytes; Mongo observed RSS sample max151220224 bytes, not a continuous peak. No browser/profile, remaining runtime or unrelated stop/delete. Actual OS creation/PID/command/port/marker/data receipts are in the committed packet.
+
+Native tooling result: existing WSL2 `IEMS-Lab` Linux/Python and DockerCLI29.1.3 are available, but Docker/containerd inactive and socket absent; engine packages not found in inspected locations. Task-contained Linux venv executes successfully. Portable Windows Terraform1.11.4 official archive SHA256 verified; version/fmt/provider-free init/validate exit0. This proves local CLI capability only, not repository IaC/provider or engine acceptance. Existing distro6GB/4CPU/2GB swap configuration unchanged; task activation returned to its initial stopped state. No host installation, feature/firewall/permission/service-configuration change or daemon start.
+
+Kafka/RabbitMQ/Redis/Qdrant/Airflow/Flink/Spark workloads and engine RSS remain LOCAL_NOT_RUN, not external dependencies. The capability matrix names feasible portable routes, original owners and support/resource constraints. Container route optionally needs Board/CTO authorization to start the existing Docker daemon; portable Linux dependencies do not inherently require that service. No host-global action, paid service, cloud/user PostgreSQL or real provider/customer delivery occurred.
+
+Memory recall reconciled the prior note's existence; this bounded continuation note saved successfully once. Current source/checkpoint/issue evidence remains authoritative. Raw external continuation root: `D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/`.
+
+No implementation blocker remains for this bounded deliverable. Next: CTO reviews/integrates the clean continuation tip, preserves resource scheduling and freezes; independent Security Reviewer rechecks original recovery. Downstream native engine owners retain their actual missing workload gates and optional host-service decision. Done means IMPLEMENTED_QA_PENDING only. Local committed, no public push/merge/deploy; remote/CI UNKNOWN, effective model UNVERIFIED. Checkpoint remains the existing UUID destination linked below.
+
+---
+
+# Historical TPR-168 delivery: IMPLEMENTED_QA_PENDING
 
 SEC-R01 fixture arrangement implemented and minimally verified. All eight original recovery cases finish on an actual loopback native Mongo server, including human not-submitted retry fencing and suspend/stop drain. No production cause or exploitable bypass was established. CTO reviews/integrates this local artifact; independent Security Reviewer and affected QA recheck the corrected freeze. Product and full 55-feature acceptance remain unaccepted.
 

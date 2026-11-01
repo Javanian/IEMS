@@ -1,0 +1,118 @@
+{
+  "recordedUtc": "2026-11-01T11:42:30.268Z",
+  "host": {
+    "platform": "win32",
+    "release": "10.0.26300",
+    "logicalCpuCount": 6,
+    "totalRamBytes": 17110343680,
+    "freeRamBytes": 4390256640,
+    "probeNodeRssBytes": 68173824
+  },
+  "scope": "Read-only existing CLI/runtime discovery. No daemon start, feature/permission change, global installation, container run/pull, service mutation, engine workload or cloud call.",
+  "rows": [
+    {
+      "label": "windows-discovery",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "@(Get-Command docker,wsl,java,terraform,python,uv,cargo,rustc,kafka-server-start,rabbitmq-server,redis-server,qdrant,airflow,flink,spark-submit -ErrorAction SilentlyContinue | Select-Object Name,Source) | ConvertTo-Json -Compress"
+      ],
+      "startedUtc": "2026-11-01T11:42:09.509Z",
+      "elapsedMs": 1741,
+      "code": 0,
+      "signal": null,
+      "stdout": "[{\"Name\":\"wsl.exe\",\"Source\":\"C:\\\\Windows\\\\system32\\\\wsl.exe\"},{\"Name\":\"java.exe\",\"Source\":\"C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-17.0.17.10-hotspot\\\\bin\\\\java.exe\"},{\"Name\":\"python.exe\",\"Source\":\"C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\python.exe\"},{\"Name\":\"uv.exe\",\"Source\":\"C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\hermes\\\\bin\\\\uv.exe\"},{\"Name\":\"cargo.exe\",\"Source\":\"C:\\\\Users\\\\Admin\\\\.cargo\\\\bin\\\\cargo.exe\"},{\"Name\":\"rustc.exe\",\"Source\":\"C:\\\\Users\\\\Admin\\\\.cargo\\\\bin\\\\rustc.exe\"}]\r\n",
+      "stderr": ""
+    },
+    {
+      "label": "existing-wsl-status",
+      "command": "wsl.exe",
+      "args": [
+        "--status"
+      ],
+      "startedUtc": "2026-11-01T11:42:11.250Z",
+      "elapsedMs": 90,
+      "code": 0,
+      "signal": null,
+      "stdout": "Default Distribution: IEMS-Lab\r\nDefault Version: 2\r\n",
+      "stderr": ""
+    },
+    {
+      "label": "existing-wsl-distros",
+      "command": "wsl.exe",
+      "args": [
+        "--list",
+        "--verbose"
+      ],
+      "startedUtc": "2026-11-01T11:42:11.340Z",
+      "elapsedMs": 88,
+      "code": 0,
+      "signal": null,
+      "stdout": "  NAME        STATE           VERSION\r\n* IEMS-Lab    Stopped         2\r\n",
+      "stderr": ""
+    },
+    {
+      "label": "linux-capabilities",
+      "command": "wsl.exe",
+      "args": [
+        "-d",
+        "IEMS-Lab",
+        "--exec",
+        "/bin/sh",
+        "-lc",
+        "printf 'SYSTEM\n'; uname -srmo; printf 'OS_RELEASE\n'; cat /etc/os-release; printf 'DOCKER\n'; timeout 10s docker version; printf 'DOCKER_EXIT=%s\n' \"$?\"; printf 'ENGINES\n'; for tool in kafka-server-start.sh kafka-topics.sh rabbitmq-server rabbitmqctl redis-server redis-cli qdrant airflow flink spark-submit terraform java; do if command -v \"$tool\" >/dev/null 2>&1; then command -v \"$tool\"; else printf '%s MISSING\n' \"$tool\"; fi; done; printf 'PYTHON\n'; python3 --version; printf 'SERVICES\n'; systemctl is-active docker containerd; printf 'RAM\n'; free -b; printf 'DISK\n'; df -B1 /; printf 'PROCESS_RSS_KIB\n'; ps -eo pid,comm,rss --sort=-rss | head -18; printf 'OPT_CACHE_LOCATIONS\n'; ls /opt; printf 'LOCAL_BIN\n'; ls /usr/local/bin"
+      ],
+      "startedUtc": "2026-11-01T11:42:11.428Z",
+      "elapsedMs": 17931,
+      "code": 0,
+      "signal": null,
+      "stdout": "SYSTEM\nLinux 5.15.167.4-microsoft-standard-WSL2 x86_64 GNU/Linux\nOS_RELEASE\nPRETTY_NAME=\"Ubuntu 24.04.5 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.5 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=noble\nLOGO=ubuntu-logo\nDOCKER\nClient:\n Version:           29.1.3\n API version:       1.52\n Go version:        go1.24.4\n Git commit:        29.1.3-0ubuntu3~24.04.2\n Built:             Wed Apr 29 16:41:06 2026\n OS/Arch:           linux/amd64\n Context:           default\nDOCKER_EXIT=1\nENGINES\nkafka-server-start.sh MISSING\nkafka-topics.sh MISSING\nrabbitmq-server MISSING\nrabbitmqctl MISSING\nredis-server MISSING\nredis-cli MISSING\nqdrant MISSING\nairflow MISSING\nflink MISSING\nspark-submit MISSING\nterraform MISSING\njava MISSING\nPYTHON\nPython 3.12.3\nSERVICES\ninactive\ninactive\nRAM\n               total        used        free      shared  buff/cache   available\nMem:      6218960896   574455808  5482360832     3252224   394027008  5644505088\nSwap:     2147483648           0  2147483648\nDISK\nFilesystem         1B-blocks       Used     Available Use% Mounted on\n/dev/sdc       1081101176832 3399921664 1022708899840   1% /\nPROCESS_RSS_KIB\n    PID COMMAND           RSS\n    197 unattended-upgr 22372\n    182 wsl-pro-service 18016\n      1 systemd         12976\n     58 systemd-journal 12480\n    161 systemd-resolve 11952\n    430 systemd         11404\n    196 rsyslogd        11152\n    179 systemd-logind   8132\n    162 systemd-timesyn  6480\n    314 systemd-timedat  6420\n    107 systemd-udevd    6212\n    172 dbus-daemon      5204\n    442 bash             5056\n    116 (udev-worker)    4748\n    121 (udev-worker)    4480\n    132 (udev-worker)    4448\n    373 login            4448\nOPT_CACHE_LOCATIONS\ncontainerd\nLOCAL_BIN\n",
+      "stderr": "failed to connect to the docker API at unix:///var/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /var/run/docker.sock: connect: no such file or directory\nyour 131072x1 screen size is bogus. expect trouble\n"
+    },
+    {
+      "label": "cached-windows-python",
+      "command": "C:/Users/Admin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+      "args": [
+        "-c",
+        "import sys,importlib.util,json;print(json.dumps({\"python\":sys.version,\"exe\":sys.executable,\"modules\":{k:importlib.util.find_spec(k) is not None for k in [\"airflow\",\"pyspark\",\"pyflink\",\"redis\",\"qdrant_client\",\"duckdb\",\"pyarrow\",\"fastapi\",\"uvicorn\"]}}))"
+      ],
+      "startedUtc": "2026-11-01T11:42:29.359Z",
+      "elapsedMs": 110,
+      "code": 0,
+      "signal": null,
+      "stdout": "{\"python\": \"3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]\", \"exe\": \"C:\\\\Users\\\\Admin\\\\.cache\\\\codex-runtimes\\\\codex-primary-runtime\\\\dependencies\\\\python\\\\python.exe\", \"modules\": {\"airflow\": false, \"pyspark\": false, \"pyflink\": false, \"redis\": false, \"qdrant_client\": false, \"duckdb\": false, \"pyarrow\": false, \"fastapi\": false, \"uvicorn\": false}}\r\n",
+      "stderr": ""
+    },
+    {
+      "label": "cached-windows-java",
+      "command": "C:/Program Files/Eclipse Adoptium/jdk-17.0.17.10-hotspot/bin/java.exe",
+      "args": [
+        "-version"
+      ],
+      "startedUtc": "2026-11-01T11:42:29.469Z",
+      "elapsedMs": 116,
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "openjdk version \"17.0.17\" 2025-10-21\r\nOpenJDK Runtime Environment Temurin-17.0.17+10 (build 17.0.17+10)\r\nOpenJDK 64-Bit Server VM Temurin-17.0.17+10 (build 17.0.17+10, mixed mode, sharing)\r\n"
+    },
+    {
+      "label": "host-resource-identities",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "@{os=Get-CimInstance Win32_OperatingSystem|Select-Object FreePhysicalMemory,TotalVisibleMemorySize;processes=@(Get-Process -Name vmmemWSL,vmmem -ErrorAction SilentlyContinue|Select-Object Id,ProcessName,WorkingSet64,PeakWorkingSet64)}|ConvertTo-Json -Depth 4 -Compress"
+      ],
+      "startedUtc": "2026-11-01T11:42:29.585Z",
+      "elapsedMs": 682,
+      "code": 0,
+      "signal": null,
+      "stdout": "{\"os\":{\"FreePhysicalMemory\":4216928,\"TotalVisibleMemorySize\":16709320},\"processes\":[{\"Id\":17304,\"ProcessName\":\"vmmemWSL\",\"WorkingSet64\":1025114112,\"PeakWorkingSet64\":1078329344}]}\r\n",
+      "stderr": ""
+    }
+  ]
+}
