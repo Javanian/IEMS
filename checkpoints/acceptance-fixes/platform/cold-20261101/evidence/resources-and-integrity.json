@@ -1,0 +1,15 @@
+{
+  "mongoObservedMaximumRssBytes": 151220224.0,
+  "mongoRssSamples": [
+    132800512.0,
+    97030144.0,
+    151220224.0,
+    127930368.0,
+    116420608.0
+  ],
+  "qualification": "Maximum of recorded startup and explicit OS samples, not a continuous peak measurement",
+  "sourcePinnedTestAndHelperUnchanged": true,
+  "nodeVersion": "v24.19.0",
+  "sourceBase": "9269ae5d504378ecf7bdaae0edf963b893afcc96",
+  "mergeHead": "39a79724eb55edeb79df33ae86dd0eb6629944b4"
+}

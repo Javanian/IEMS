@@ -1,0 +1,43 @@
+[
+  {
+    "id": "SEC-R01-COLD",
+    "root": "SEC-R01",
+    "severity": "P2",
+    "kind": "VERIFICATION_TIMEOUT",
+    "status": "FAIL",
+    "source": "packages/tenant-lifecycle/automation-recovery-v15.test.mjs:9",
+    "relatedSource": "apps/portfolio-api/test/support/owned-mongo.mjs:11",
+    "expected": "Cold setup <=120000ms; original eight nested cases run against a live server; parent180000ms and teardown60000ms preserved.",
+    "actual": "Actual before hook failed at120004.1982ms while initialization/seeding had not reached the initialized-and-seeded receipt. All eight original cases NOT_RUN. Replica ready in7985.1522ms. No product bypass established and no production root cause inferred.",
+    "reproducer": "In the assigned clean candidate worktree, REVIEW_LABEL=recovery-native-ready node <evidence>/run-review.mjs packages/tenant-lifecycle/automation-recovery-v15.test.mjs checkpoints/acceptance-fixes/platform/fixture-guards.test.mjs. Exact argv/cwd in recovery-native-ready-command.json.",
+    "evidence": [
+      "recovery-native-ready.tap",
+      "recovery-native-ready-result.json",
+      "runtime-e38c0515-8a1b-47ed-9f13-3393603568c3/resource-events.ndjson",
+      "recovery-catalog-reconciliation.json"
+    ],
+    "owner": "CTO / original Platform fixture owner",
+    "next": "Diagnose cold setup under the existing bound and freeze any correction; independent security must execute all eight original assertions. Do not clear from producer passes or another suite."
+  },
+  {
+    "id": "SEC-NATIVE-SETUP",
+    "severity": "P2",
+    "kind": "VERIFICATION_STARTUP_TIMEOUT",
+    "status": "FAIL_SETUP_SCENARIOS_NOT_RUN",
+    "source": "ops/automation-lab/lab-runtime.mjs:160",
+    "launcher": "native-automation.mjs (evidence-only parameter adapter)",
+    "expected": "Fresh marker-owned native n8n stack reaches readiness within unchanged300s outer setup budget before digest/ErrorTrigger assertions.",
+    "actual": "Readiness remained false at300s; pinned credential/workflow import still in startup. Native digest/ErrorTrigger/SMTP assertions NOT_RUN. No retry, timeout relaxation, provider substitution or production cause claimed.",
+    "rawFailure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n",
+    "reproducer": "Exact command/cwd/source/arguments in native-engine-command.json; cached n8n1.121.3 lock-identical; fresh private root/SQLite and reserved32610-32615.",
+    "evidence": [
+      "native-engine-result.json",
+      "native-engine.log",
+      "runtime-e38c0515-8a1b-47ed-9f13-3393603568c3/native-engine/result.json",
+      "native-engine-adapter.json",
+      "cleanup.json"
+    ],
+    "owner": "CTO / original automation and Platform owners",
+    "next": "Diagnose native cold-start/import budget with original checks intact, then independently execute actual engine-error plus native historical/inflight recovery."
+  }
+]

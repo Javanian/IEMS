@@ -1,0 +1,26 @@
+TAP version 13
+# Subtest: owned fixture refuses missing and foreign teardown markers before dropping its database
+ok 1 - owned fixture refuses missing and foreign teardown markers before dropping its database
+  ---
+  duration_ms: 61615.0022
+  type: 'test'
+  ...
+# Subtest: v15 bounded recovery uses original receipts and private parent/child phases
+not ok 2 - v15 bounded recovery uses original receipts and private parent/child phases
+  ---
+  duration_ms: 120004.1982
+  type: 'test'
+  location: 'D:\\Project AI\\GITHUB\\IEMS-worktrees\\iems-qa-corrected-20261101-security\\packages\\tenant-lifecycle\\automation-recovery-v15.test.mjs:12:1'
+  failureType: 'hookFailed'
+  error: 'failed running before hook'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 185626.5894

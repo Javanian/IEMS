@@ -1,0 +1,49 @@
+{
+  "resource": {
+    "utc": "2026-11-01T10:56:57.450Z",
+    "ownerPid": 19348,
+    "kind": "mongo-running",
+    "port": 32600,
+    "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\qa-corrected-20261101\\security\\runtime-e38c0515-8a1b-47ed-9f13-3393603568c3\\mongo-ruTW8Z",
+    "pid": 27456,
+    "killerPid": 24580
+  },
+  "identity": {
+    "ProcessId": 24468,
+    "ParentProcessId": 26944,
+    "CreationDate": "/Date(1793530809490)/",
+    "Name": "mongod-x64-win32-7.0.14.exe",
+    "CommandLine": "C:/Users/Admin/.cache/mongodb-binaries/mongod-x64-win32-7.0.14.exe --port 32600 --dbpath \"D:\\Project AI\\GITHUB\\IEMS-evidence\\qa-corrected-20261101\\security\\runtime-e38c0515-8a1b-47ed-9f13-3393603568c3\\mongo-ruTW8Z\" --replSet testset --storageEngine wiredTiger --bind_ip 127.0.0.1 --noauth --wiredTigerCacheSizeGB 0.25 --oplogSize 128"
+  },
+  "args": [
+    "--port",
+    "32600",
+    "--dbpath",
+    "D:\\Project AI\\GITHUB\\IEMS-evidence\\qa-corrected-20261101\\security\\runtime-e38c0515-8a1b-47ed-9f13-3393603568c3\\mongo-ruTW8Z",
+    "--replSet",
+    "testset",
+    "--storageEngine",
+    "wiredTiger",
+    "--bind_ip",
+    "127.0.0.1",
+    "--noauth",
+    "--wiredTigerCacheSizeGB",
+    "0.25",
+    "--oplogSize",
+    "128"
+  ],
+  "purpose": "Read-only catalog reconciliation of already stopped failed fixture; no replay, source bypass, drop or unrelated target",
+  "startedUTC": "2026-11-01T11:00:10.816Z",
+  "databases": [
+    "admin",
+    "config",
+    "local"
+  ],
+  "ownedBusinessDatabases": [],
+  "databaseDropReadback": "PASS: no portfolio database remains in this exact owned native data root",
+  "exit": [
+    0,
+    null
+  ],
+  "finishedUTC": "2026-11-01T11:00:20.639Z"
+}

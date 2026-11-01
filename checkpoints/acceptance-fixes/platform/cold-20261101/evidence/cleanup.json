@@ -1,0 +1,35 @@
+{
+  "observedUtc": "2026-11-01T11:53:25.2730315Z",
+  "recordedPids": [
+    2388,
+    10540,
+    15132,
+    18480,
+    23168,
+    23840,
+    23896,
+    23928,
+    28240
+  ],
+  "remaining": [],
+  "mongoStarts": 2,
+  "mongoStops": 2,
+  "databaseDrops": 2,
+  "cleanups": 2,
+  "browserProfiles": "NONE",
+  "nativeDirectories": [
+    {
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\continuation-5703bfe4\\native\\mongo-BiuNbG",
+      "exists": true
+    },
+    {
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\continuation-5703bfe4\\native-recovery\\mongo-A8m4yk",
+      "exists": true
+    }
+  ],
+  "reboundPorts": [
+    32720,
+    32721,
+    32722
+  ]
+}
