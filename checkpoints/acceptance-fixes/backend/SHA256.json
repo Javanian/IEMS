@@ -1,0 +1,74 @@
+[
+  {
+    "file": "dashboard.test.mjs",
+    "sha256": "ce43321859ff54e1f82e7ccfe9b7420f127156d92dad850aec4631578415bf00"
+  },
+  {
+    "file": "evidence/assertion-retention.json",
+    "sha256": "36838dc9dcb563d462d692d910c6b3caef2c54bb34d46ddcf63fd586d25db2e2"
+  },
+  {
+    "file": "evidence/cleanup-initial.json",
+    "sha256": "354f100f21f397cb8c93bc8f5fbd2470914768689d78795fadf79724a1ed1a80"
+  },
+  {
+    "file": "evidence/cleanup.json",
+    "sha256": "ba1cc463e3b7733e5f8fc2d4f61c4e6c470236d31d39e6ddea1605686a465853"
+  },
+  {
+    "file": "evidence/dashboard-initial.tap",
+    "sha256": "6eec47096b3f3a4c8e2afb4a3c37c8581816da1354b9aced18abe9444aebbfd5"
+  },
+  {
+    "file": "evidence/dashboard-original.tap",
+    "sha256": "38789ceff4347d07ee40827a1b4b079a3deaa7e80dba07dfc20d7656bc466b6d"
+  },
+  {
+    "file": "evidence/final-observation.tap",
+    "sha256": "4889766dc1b4983eea1c4ff8fb7e1afcfb7b32e09f9a97433c9946020fb41801"
+  },
+  {
+    "file": "evidence/fixed-fixtures.tap",
+    "sha256": "060ee85efb80622ad10dba32c86d1d052a819d4566abb326cce48585ad5414c4"
+  },
+  {
+    "file": "evidence/fixed-owned-selection.tap",
+    "sha256": "cd4f02942aa915c31f1347612c2a2daeaf982500da8a73c9dc1fafe347698506"
+  },
+  {
+    "file": "evidence/labor-amended-original.tap",
+    "sha256": "e8283b89a7f821956a4aa844a0484f8400056308718b46a06e0f2e930c25caf9"
+  },
+  {
+    "file": "evidence/labor-default.tap",
+    "sha256": "9da496302b4101db3a180369ecc1c6e3ab3608fba259e96d9a85d074a9d6b0d6"
+  },
+  {
+    "file": "evidence/original-fixtures-with-deps.tap",
+    "sha256": "f0d21ca47992ad358af5b22437f88fdcd6b928a9f38c25fd9c645ece3543b044"
+  },
+  {
+    "file": "evidence/original-fixtures.tap",
+    "sha256": "05439fefa031065d7533f09ba76305aa23ecda7f57223706d9c2e16f50bac938"
+  },
+  {
+    "file": "evidence/validation.json",
+    "sha256": "9274c32ee119ca2e4b2ed5d093ccb19dfeb0d250f6f15d9b1fe78f5be237fc4a"
+  },
+  {
+    "file": "IMPLEMENTATION-RESULT.md",
+    "sha256": "b9f3792ff7e4044a5cff32e93d7ec6e2440e64dd64d4f62c480fbe3929664fe1"
+  },
+  {
+    "file": "memory-note.json",
+    "sha256": "977882474de2d453563b5c5efd404f764bf68a2b86285a9fbc24c31fbe94c0e6"
+  },
+  {
+    "file": "owned-runtime.mjs",
+    "sha256": "22133073d505f850023dad95baca9006c18e2848d47f0955018ea6b104964bd4"
+  },
+  {
+    "file": "VIS-004-proposal.patch",
+    "sha256": "0b11b77a99b94878651f1deaa1dcec8c485ecda31aa11e65cc399754db315792"
+  }
+]

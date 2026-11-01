@@ -1,0 +1,41 @@
+✔ real-model store refuses absent or unpinned tooling without making an artifact (3.2684ms)
+MongoNetworkError: read ECONNRESET
+    at Connection.onSocketError (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\portfolio-api\node_modules\mongodb\lib\cmap\connection.js:110:22)
+    at Socket.emit (node:events:521:24)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errorLabelSet: Set(0) {},
+  beforeHandshake: false,
+  [cause]: Error: read ECONNRESET
+      at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+    errno: -4077,
+    code: 'ECONNRESET',
+    syscall: 'read'
+  }
+}
+✔ owned Mongo voice lifecycle with synthetic store: zone isolation, leases, receipts and recovery (4069.0563ms)
+MongoNetworkError: read ECONNRESET
+    at Connection.onSocketError (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\portfolio-api\node_modules\mongodb\lib\cmap\connection.js:110:22)
+    at Socket.emit (node:events:521:24)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errorLabelSet: Set(2) { 'RetryableWriteError', 'ResetPool' },
+  beforeHandshake: false,
+  [cause]: Error: read ECONNRESET
+      at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+    errno: -4077,
+    code: 'ECONNRESET',
+    syscall: 'read'
+  }
+}
+✔ owned Mongo: consent, fallback, challenge replay/error, private results and revocation (3184.162ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8486.1806

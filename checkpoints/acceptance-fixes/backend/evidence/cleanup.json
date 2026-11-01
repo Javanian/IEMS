@@ -1,0 +1,78 @@
+{
+  "at": "2026-11-01T02:16:02.5483298Z",
+  "testedSourceSha": "27dc9e3ffe0da0854a4a170e1ff7acfb909f9830",
+  "mongo": [
+    {
+      "pid": 14920,
+      "pidAlive": false,
+      "port": 58374,
+      "listening": false,
+      "dbPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-rZacYB",
+      "dataPathExists": false
+    },
+    {
+      "pid": 22632,
+      "pidAlive": false,
+      "port": 58391,
+      "listening": false,
+      "dbPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-YQbpHk",
+      "dataPathExists": false
+    },
+    {
+      "pid": 15608,
+      "pidAlive": false,
+      "port": 58409,
+      "listening": false,
+      "dbPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-uRKqC3",
+      "dataPathExists": false
+    },
+    {
+      "pid": 8556,
+      "pidAlive": false,
+      "port": 58421,
+      "listening": false,
+      "dbPath": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-Rvfnta",
+      "dataPathExists": false
+    }
+  ],
+  "http": [
+    {
+      "port": 58379,
+      "listening": false
+    },
+    {
+      "port": 58397,
+      "listening": false
+    },
+    {
+      "port": 58414,
+      "listening": false
+    },
+    {
+      "port": 58426,
+      "listening": false
+    }
+  ],
+  "databaseDrops": [
+    {
+      "databaseDropped": "portfolio_owned_iems_qa_business_c8d238a7_e37222ca4ff648f6",
+      "result": true
+    },
+    {
+      "databaseDropped": "portfolio_owned_iems_qa_business_c8d238a7_cf60f459c17d41f6",
+      "result": true
+    },
+    {
+      "databaseDropped": "portfolio_test_voice_130a99f133b947a3b9a7ab34f4cd2ef1",
+      "result": true
+    },
+    {
+      "databaseDropped": "portfolio_test_workforce_7de471a9b8764c3ab80e206db266359e",
+      "result": true
+    }
+  ],
+  "taskScratchMongoProcesses": [],
+  "browserProfile": "NONE",
+  "dependencies": "3 ignored local node_modules junctions reuse existing business QA dependency trees; no dependency target mutated",
+  "earlierObservation": "cleanup-initial.json recorded one remaining listener observation at58397 after close; subsequent targeted check returned no socket and no original HTTP PID15408. Final all-port check confirms absent. No process was killed or port reused."
+}
