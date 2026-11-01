@@ -1,0 +1,22 @@
+{
+  "base": "96037c9a1b98013b4cef57dfec80cd85d69d44c2",
+  "originalEightCases": [
+    "quota and audit abort roll back receipt/control/usage before child work",
+    "root selection and receipt immutable; concurrent continuation counts no child usage",
+    "empty request freezes approved drafts; new independent child intent charges once",
+    "ambiguous child claim never invokes; explicit same-parent retry proves ownership",
+    "all effect status kinds and tenant status perform zero actual database writes",
+    "private message content never enters the four orchestration collections",
+    "human not-submitted receipt creates a new fenced ordinal only before provider BEGIN",
+    "suspend/stop drains actual parent and delayed child without publishing"
+  ],
+  "scenarioAndAssertionsByteIdentical": true,
+  "providerFaultAndTransportOptionsByteIdentical": true,
+  "parentTimeoutMs": 180000,
+  "helperByteIdentical": true,
+  "productionChanges": false,
+  "sha256": {
+    "packages/tenant-lifecycle/automation-recovery-v15.test.mjs": "944f51919389917cf1f71978664993067a0f8319271f12e26f6d0dfef7491d10",
+    "apps/portfolio-api/test/support/owned-mongo.mjs": "abb98471f6dbe03bd8c14f0c10da017e418e3094d9c5744b654f4c96aacd8aa9"
+  }
+}

@@ -1,10 +1,16 @@
-import test from 'node:test';import assert from 'node:assert/strict';import{randomUUID}from'node:crypto';
+import test,{before,after} from 'node:test';import assert from 'node:assert/strict';import{randomUUID}from'node:crypto';
 import{startOwned}from'../../apps/portfolio-api/test/support/owned-mongo.mjs';import{admissionProfile}from'./admission.mjs';
 import{effectHash}from'./effects.mjs';
 process.env.MONGOMS_RUNTIME_DOWNLOAD='false';
+let calls=0,claimLost=false,hold=null,abort=false,h;
+const cleanup=[];
+after(async()=>{for(const fn of cleanup)await fn();},{timeout:60000});
+// Cold native initialization has its own bound, leaving the recovery budget for assertions.
+before(async()=>{
+ h=await startOwned({after:fn=>cleanup.push(fn)},{integrations:{effects:{mode:'LOCAL_SIMULATED',controlFault:async(boundary,proof)=>{if(boundary==='afterClaimCommit'&&proof.command.kind==='automation.local-delivery'&&claimLost){claimLost=false;throw Error('Owned child claim ACK lost');}},transport:{execute:async()=>{calls++;if(hold)await hold.promise;}}}}});
+},{timeout:120000});
 test('v15 bounded recovery uses original receipts and private parent/child phases',{timeout:180000},async t=>{
- let calls=0,claimLost=false,hold=null,abort=false;
- const h=await startOwned(t,{integrations:{effects:{mode:'LOCAL_SIMULATED',controlFault:async(boundary,proof)=>{if(boundary==='afterClaimCommit'&&proof.command.kind==='automation.local-delivery'&&claimLost){claimLost=false;throw Error('Owned child claim ACK lost');}},transport:{execute:async()=>{calls++;if(hold)await hold.promise;}}}}}),db=h.db,a=h.seeded[0],scope=await h.scopeOf(h.alpha),cs=h.runtime.customerService,privateContent='Owned private recovery description '+randomUUID();h.runtime.automation={beforeAudit:async({action})=>{if(abort&&action==='AUTOMATION_RECOVERY')throw Error('Owned recovery acceptance abort');}};
+ const db=h.db,a=h.seeded[0],scope=await h.scopeOf(h.alpha),cs=h.runtime.customerService,privateContent='Owned private recovery description '+randomUUID();h.runtime.automation={beforeAudit:async({action})=>{if(abort&&action==='AUTOMATION_RECOVERY')throw Error('Owned recovery acceptance abort');}};
  const call=(path,body={},k=randomUUID(),cookie=h.alpha)=>h.send('/cs/automation'+path,{body,cookie,headers:{'Idempotency-Key':k}});
  const account=await h.ok('/crm/accounts',{name:'Owned recovery customer'},201),contact=await h.ok(`/crm/accounts/${account._id}/contacts`,{name:'Owned',email:'recovery@iems.local'},201),binding=await h.send('/cs/bindings',{body:{accountId:account._id,contactId:contact._id,channel:'SIMULATED',address:'+620001818181'},headers:{'Idempotency-Key':randomUUID()}});assert.equal(binding.status,201);
  const principal=await cs.resolveCustomerPrincipal({tenantId:a.tenantId,channelAccountId:'SIMULATED',providerContactId:'sim-620001818181'});let d=await cs.startComplaintDraft(principal,{requestKey:randomUUID()});for(const action of[{type:'GENERAL_INQUIRY'},{type:'SELECT_CATEGORY',category:'OTHER'},{type:'DESCRIBE',text:privateContent}])d=await cs.updateComplaintDraft(principal,{draftId:d.draftId,expectedVersion:d.version,action});const ticket=await cs.confirmComplaint(principal,{draftId:d.draftId,expectedVersion:d.version,inboundKey:randomUUID()});let v=1;for(const stage of['TRIAGED','ASSIGNED','IN_PROGRESS','RESOLVED'])await cs.transitionTicket(scope,{plantId:a.plantId,ticketId:ticket.ticketId,expectedVersion:v++,toStage:stage,...(stage==='ASSIGNED'?{assigneeId:a.userId}:{}),reason:'Owned recovery transition',commandKey:randomUUID()});

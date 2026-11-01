@@ -1,0 +1,71 @@
+TAP version 13
+# Subtest: owned fixture refuses missing and foreign teardown markers before dropping its database
+ok 1 - owned fixture refuses missing and foreign teardown markers before dropping its database
+  ---
+  duration_ms: 83051.258
+  type: 'test'
+  ...
+# Subtest: v15 bounded recovery uses original receipts and private parent/child phases
+    # Subtest: quota and audit abort roll back receipt/control/usage before child work
+    ok 1 - quota and audit abort roll back receipt/control/usage before child work
+      ---
+      duration_ms: 1133.362
+      type: 'test'
+      ...
+    # Subtest: root selection and receipt immutable; concurrent continuation counts no child usage
+    ok 2 - root selection and receipt immutable; concurrent continuation counts no child usage
+      ---
+      duration_ms: 6419.9711
+      type: 'test'
+      ...
+    # Subtest: empty request freezes approved drafts; new independent child intent charges once
+    ok 3 - empty request freezes approved drafts; new independent child intent charges once
+      ---
+      duration_ms: 1965.8574
+      type: 'test'
+      ...
+    # Subtest: ambiguous child claim never invokes; explicit same-parent retry proves ownership
+    ok 4 - ambiguous child claim never invokes; explicit same-parent retry proves ownership
+      ---
+      duration_ms: 1687.3812
+      type: 'test'
+      ...
+    # Subtest: all effect status kinds and tenant status perform zero actual database writes
+    ok 5 - all effect status kinds and tenant status perform zero actual database writes
+      ---
+      duration_ms: 2217.5938
+      type: 'test'
+      ...
+    # Subtest: private message content never enters the four orchestration collections
+    ok 6 - private message content never enters the four orchestration collections
+      ---
+      duration_ms: 7.6119
+      type: 'test'
+      ...
+    # Subtest: human not-submitted receipt creates a new fenced ordinal only before provider BEGIN
+    ok 7 - human not-submitted receipt creates a new fenced ordinal only before provider BEGIN
+      ---
+      duration_ms: 1676.2767
+      type: 'test'
+      ...
+    # Subtest: suspend/stop drains actual parent and delayed child without publishing
+    ok 8 - suspend/stop drains actual parent and delayed child without publishing
+      ---
+      duration_ms: 1556.8107
+      type: 'test'
+      ...
+    1..8
+ok 2 - v15 bounded recovery uses original receipts and private parent/child phases
+  ---
+  duration_ms: 100842.9787
+  type: 'test'
+  ...
+1..2
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 188276.6671

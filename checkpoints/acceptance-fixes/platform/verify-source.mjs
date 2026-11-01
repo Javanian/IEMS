@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+const base = '96037c9a1b98013b4cef57dfec80cd85d69d44c2';
+const test = 'packages/tenant-lifecycle/automation-recovery-v15.test.mjs';
+const helper = 'apps/portfolio-api/test/support/owned-mongo.mjs';
+const original = execFileSync('git', ['show', `${base}:${test}`], { encoding: 'utf8' });
+const current = readFileSync(test, 'utf8');
+assert.equal(current.slice(current.indexOf(' const call=')), original.slice(original.indexOf(' const call=')));
+assert.equal(current.slice(current.indexOf('{integrations:'), current.indexOf(');\n', current.indexOf('{integrations:'))), original.slice(original.indexOf('{integrations:'), original.indexOf('),db=h.db')));
+assert.match(current, /test\('v15 bounded recovery[^\n]+timeout:180000/);
+assert.equal(execFileSync('git', ['diff', base, '--', helper], { encoding: 'utf8' }), '');
+const children = [...current.matchAll(/await t.test\('([^']+)'/g)].map(x => x[1]);
+assert.equal(children.length, 8);
+const changed = execFileSync('git', ['diff', '--name-only', base], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+assert.ok(changed.every(p => p === test || p.startsWith('checkpoints/acceptance-fixes/platform/')));
+console.log(JSON.stringify({ base, originalEightCases: children, scenarioAndAssertionsByteIdentical: true, providerFaultAndTransportOptionsByteIdentical: true, parentTimeoutMs: 180000, helperByteIdentical: true, productionChanges: false, sha256: Object.fromEntries([test, helper].map(p => [p, createHash('sha256').update(readFileSync(p)).digest('hex')])) }, null, 2));

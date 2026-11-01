@@ -1,0 +1,371 @@
+{
+  "baseline": {
+    "started": "2026-11-01T05:56:40.561Z",
+    "elapsedMs": 90045,
+    "status": 0,
+    "signal": null,
+    "counts": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "cases": [
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "quota and audit abort roll back receipt/control/usage before child work",
+        "durationMs": 326.9414
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "root selection and receipt immutable; concurrent continuation counts no child usage",
+        "durationMs": 2473.8035
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "empty request freezes approved drafts; new independent child intent charges once",
+        "durationMs": 1841.6761
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "ambiguous child claim never invokes; explicit same-parent retry proves ownership",
+        "durationMs": 1707.4445
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "all effect status kinds and tenant status perform zero actual database writes",
+        "durationMs": 1086.4742
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "private message content never enters the four orchestration collections",
+        "durationMs": 6.9139
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "human not-submitted receipt creates a new fenced ordinal only before provider BEGIN",
+        "durationMs": 1435.6232
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "suspend/stop drains actual parent and delayed child without publishing",
+        "durationMs": 1283.5
+      },
+      {
+        "nested": false,
+        "result": "ok",
+        "name": "v15 bounded recovery uses original receipts and private parent/child phases",
+        "durationMs": 86037.2981
+      }
+    ],
+    "coldSetup": [
+      {
+        "ownerPid": 23404,
+        "stages": [
+          {
+            "stage": "begin",
+            "elapsedMs": 1.141099999999824
+          },
+          {
+            "stage": "replica-ready",
+            "elapsedMs": 5016.042200000001
+          },
+          {
+            "stage": "initialized-and-seeded",
+            "elapsedMs": 70439.41149999999
+          },
+          {
+            "stage": "authenticated",
+            "elapsedMs": 70796.0722
+          }
+        ]
+      }
+    ],
+    "starts": [
+      {
+        "utc": "2026-11-01T05:56:49.523Z",
+        "ownerPid": 23404,
+        "kind": "mongo-running",
+        "port": 32300,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\baseline\\mongo-rqYQ6d",
+        "pid": 17028,
+        "killerPid": 4104
+      }
+    ],
+    "stops": 1,
+    "fixtureCleanupCompleted": 1
+  },
+  "fixed": {
+    "started": "2026-11-01T05:58:45.218Z",
+    "elapsedMs": 145575,
+    "status": 1,
+    "signal": null,
+    "counts": {
+      "tests": 7,
+      "pass": 6,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "cases": [
+      {
+        "nested": false,
+        "result": "not ok",
+        "name": "v15 bounded recovery uses original receipts and private parent/child phases",
+        "durationMs": 65942.9252
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "acceptance and authoritative receipt charge once; duplicate claim invokes once",
+        "durationMs": 862.6493
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "unknown claim acknowledgement invokes nothing until same-key ownership reconciliation",
+        "durationMs": 723.5988
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "lost provider ACK reconciles durable same-attempt proof, no resend",
+        "durationMs": 691.4783
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "child phases retain exact parent attempt and cannot use a bare or unrelated capability",
+        "durationMs": 1425.5993
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "suspension stops publication but preserves observed outcome; drain waits actual begun work",
+        "durationMs": 539.634
+      },
+      {
+        "nested": false,
+        "result": "ok",
+        "name": "v15 durable component protocol, real delayed local work and barriers",
+        "durationMs": 74261.8523
+      }
+    ],
+    "coldSetup": [
+      {
+        "ownerPid": 14104,
+        "stages": [
+          {
+            "stage": "begin",
+            "elapsedMs": 1.3179999999993015
+          },
+          {
+            "stage": "replica-ready",
+            "elapsedMs": 4116.993099999999
+          },
+          {
+            "stage": "initialized-and-seeded",
+            "elapsedMs": 63732.7518
+          },
+          {
+            "stage": "authenticated",
+            "elapsedMs": 64048.686499999996
+          }
+        ]
+      },
+      {
+        "ownerPid": 22988,
+        "stages": [
+          {
+            "stage": "begin",
+            "elapsedMs": 1.0348000000000184
+          },
+          {
+            "stage": "replica-ready",
+            "elapsedMs": 5626.3461
+          },
+          {
+            "stage": "initialized-and-seeded",
+            "elapsedMs": 67282.205
+          },
+          {
+            "stage": "authenticated",
+            "elapsedMs": 67588.8953
+          }
+        ]
+      }
+    ],
+    "starts": [
+      {
+        "utc": "2026-11-01T05:58:53.780Z",
+        "ownerPid": 14104,
+        "kind": "mongo-running",
+        "port": 32300,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\fixed\\mongo-pSC3EW",
+        "pid": 22756,
+        "killerPid": 1152
+      },
+      {
+        "utc": "2026-11-01T06:00:02.120Z",
+        "ownerPid": 22988,
+        "kind": "mongo-running",
+        "port": 32300,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\fixed\\mongo-rclLg1",
+        "pid": 8124,
+        "killerPid": 21412
+      }
+    ],
+    "stops": 2,
+    "fixtureCleanupCompleted": 2
+  },
+  "final": {
+    "started": "2026-11-01T06:02:01.255Z",
+    "elapsedMs": 188356,
+    "status": 0,
+    "signal": null,
+    "counts": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "cases": [
+      {
+        "nested": false,
+        "result": "ok",
+        "name": "owned fixture refuses missing and foreign teardown markers before dropping its database",
+        "durationMs": 83051.258
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "quota and audit abort roll back receipt/control/usage before child work",
+        "durationMs": 1133.362
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "root selection and receipt immutable; concurrent continuation counts no child usage",
+        "durationMs": 6419.9711
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "empty request freezes approved drafts; new independent child intent charges once",
+        "durationMs": 1965.8574
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "ambiguous child claim never invokes; explicit same-parent retry proves ownership",
+        "durationMs": 1687.3812
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "all effect status kinds and tenant status perform zero actual database writes",
+        "durationMs": 2217.5938
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "private message content never enters the four orchestration collections",
+        "durationMs": 7.6119
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "human not-submitted receipt creates a new fenced ordinal only before provider BEGIN",
+        "durationMs": 1676.2767
+      },
+      {
+        "nested": true,
+        "result": "ok",
+        "name": "suspend/stop drains actual parent and delayed child without publishing",
+        "durationMs": 1556.8107
+      },
+      {
+        "nested": false,
+        "result": "ok",
+        "name": "v15 bounded recovery uses original receipts and private parent/child phases",
+        "durationMs": 100842.9787
+      }
+    ],
+    "coldSetup": [
+      {
+        "ownerPid": 5644,
+        "stages": [
+          {
+            "stage": "begin",
+            "elapsedMs": 1.1166000000000622
+          },
+          {
+            "stage": "replica-ready",
+            "elapsedMs": 5277.022
+          },
+          {
+            "stage": "initialized-and-seeded",
+            "elapsedMs": 80633.2392
+          },
+          {
+            "stage": "authenticated",
+            "elapsedMs": 80881.3256
+          }
+        ]
+      },
+      {
+        "ownerPid": 23456,
+        "stages": [
+          {
+            "stage": "begin",
+            "elapsedMs": 1.0480999999999767
+          },
+          {
+            "stage": "replica-ready",
+            "elapsedMs": 5136.7628
+          },
+          {
+            "stage": "initialized-and-seeded",
+            "elapsedMs": 81787.9013
+          },
+          {
+            "stage": "authenticated",
+            "elapsedMs": 82027.5242
+          }
+        ]
+      }
+    ],
+    "starts": [
+      {
+        "utc": "2026-11-01T06:02:07.608Z",
+        "ownerPid": 5644,
+        "kind": "mongo-running",
+        "port": 32300,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\final\\mongo-q0VeI6",
+        "pid": 1956,
+        "killerPid": 18844
+      },
+      {
+        "utc": "2026-11-01T06:03:31.424Z",
+        "ownerPid": 23456,
+        "kind": "mongo-running",
+        "port": 32300,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\final\\mongo-pe1T2g",
+        "pid": 18184,
+        "killerPid": 13568
+      }
+    ],
+    "stops": 2,
+    "fixtureCleanupCompleted": 2
+  }
+}

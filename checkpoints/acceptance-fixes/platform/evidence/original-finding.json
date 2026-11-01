@@ -1,0 +1,10 @@
+{
+  "id": "SEC-R01",
+  "severity": "P2",
+  "owner": "CTO -> Platform fixture/startup owner with Security Reviewer",
+  "kind": "VERIFICATION_TIMEOUT",
+  "expected": "Final human not-submitted retry and nested suspend/drain assertions finish within bounded arrangement",
+  "actual": "Original180s recovery group timed out; teardown closes server and final2 cases cannot finish; no exploit established",
+  "next": "Characterize cold setup duration; explicitly schedule bounded original assertions on same/corrected frozen candidate without blanket timeout relaxation or recovery loop",
+  "evidence": "D:\\Project AI\\GITHUB\\IEMS-evidence\\qa-parallel-20261031\\security\\runtime\\recovery-failure-excerpt.tap"
+}

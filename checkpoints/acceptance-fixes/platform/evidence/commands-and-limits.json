@@ -1,0 +1,25 @@
+{
+  "outerTimeoutMs": 420000,
+  "dirtyQualification": "Only owned test fixture arrangement plus platform handoff tooling; hashes in assertion-retention.json",
+  "nativePort": 32300,
+  "testedBase": "96037c9a1b98013b4cef57dfec80cd85d69d44c2",
+  "orchestrationFailures": [
+    "One merge attempt rejected empty injected Git identity before mutation; process-local author/committer identity used for successful merge",
+    "First corrected-hook attempt registered cleanup inside before; fixtures closed before recovery; preserved fixed-suite.tap/failed-arrangement.mjs.txt",
+    "Immediate cleanup preflight saw lingering PID; launch not prepared. Dependent shell invoked erroneously and failed ENOENT before runtime. Fresh identity audit showed all gone; no termination performed"
+  ],
+  "maxWorkers": 1,
+  "firstArrangementAndRegression": "node --import ./checkpoints/acceptance-fixes/platform/register-owned-runtime.mjs --test --test-concurrency=1 --test-reporter=tap packages/tenant-lifecycle/automation-recovery-v15.test.mjs packages/tenant-lifecycle/effects-v15.test.mjs",
+  "originalQA": "D:/Project AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/",
+  "cwd": "D:\\Project AI\\GITHUB\\IEMS-worktrees\\iems-accept-fix-20261101-platform",
+  "baseline": "node --import ./checkpoints/acceptance-fixes/platform/register-owned-runtime.mjs --test --test-concurrency=1 --test-reporter=tap packages/tenant-lifecycle/automation-recovery-v15.test.mjs",
+  "noBrowserOrProfile": true,
+  "binary": "C:/Users/Admin/.cache/mongodb-binaries/mongod-x64-win32-7.0.14.exe",
+  "model": "UNVERIFIED",
+  "runtimeVolume": "D:",
+  "apiPort": 32301,
+  "node": "24.19.0",
+  "originPort": 32302,
+  "branch": "program/iems-accept-fix-20261101-platform",
+  "final": "node --import ./checkpoints/acceptance-fixes/platform/register-owned-runtime.mjs --test --test-concurrency=1 --test-reporter=tap packages/tenant-lifecycle/automation-recovery-v15.test.mjs checkpoints/acceptance-fixes/platform/fixture-guards.test.mjs"
+}

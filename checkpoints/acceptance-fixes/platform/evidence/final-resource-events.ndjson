@@ -1,0 +1,24 @@
+{"utc":"2026-11-01T06:02:02.377Z","ownerPid":5644,"kind":"setup-timing","stage":"begin","elapsedMs":1.1166000000000622}
+{"utc":"2026-11-01T06:02:02.389Z","ownerPid":5644,"kind":"listener-preflight","port":32300}
+{"utc":"2026-11-01T06:02:02.389Z","ownerPid":5644,"kind":"mongo-prepared","port":32300,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\final\\mongo-q0VeI6","command":"C:/Users/Admin/.cache/mongodb-binaries/mongod-x64-win32-7.0.14.exe"}
+{"utc":"2026-11-01T06:02:07.608Z","ownerPid":5644,"kind":"mongo-running","port":32300,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\final\\mongo-q0VeI6","pid":1956,"killerPid":18844}
+{"utc":"2026-11-01T06:02:07.654Z","ownerPid":5644,"kind":"setup-timing","stage":"replica-ready","elapsedMs":5277.022}
+{"utc":"2026-11-01T06:03:23.011Z","ownerPid":5644,"kind":"setup-timing","stage":"initialized-and-seeded","elapsedMs":80633.2392}
+{"utc":"2026-11-01T06:03:23.043Z","ownerPid":5644,"kind":"api-running","address":{"address":"127.0.0.1","family":"IPv4","port":32301}}
+{"utc":"2026-11-01T06:03:23.043Z","ownerPid":5644,"kind":"database-owned","databaseName":"portfolio_owned_iems_qa_security_f99834a8_4352cd2b65834496","marker":"d5a61e35-5f5a-4eff-b360-d3b4d097ff33"}
+{"utc":"2026-11-01T06:03:23.259Z","ownerPid":5644,"kind":"setup-timing","stage":"authenticated","elapsedMs":80881.3256}
+{"utc":"2026-11-01T06:03:23.285Z","ownerPid":5644,"kind":"api-stopped","port":32301}
+{"utc":"2026-11-01T06:03:25.427Z","ownerPid":5644,"kind":"mongo-stopped"}
+{"utc":"2026-11-01T06:03:25.428Z","ownerPid":5644,"kind":"fixture-cleanup-completed","databaseName":"portfolio_owned_iems_qa_security_f99834a8_4352cd2b65834496","marker":"d5a61e35-5f5a-4eff-b360-d3b4d097ff33"}
+{"utc":"2026-11-01T06:03:26.287Z","ownerPid":23456,"kind":"setup-timing","stage":"begin","elapsedMs":1.0480999999999767}
+{"utc":"2026-11-01T06:03:26.300Z","ownerPid":23456,"kind":"listener-preflight","port":32300}
+{"utc":"2026-11-01T06:03:26.300Z","ownerPid":23456,"kind":"mongo-prepared","port":32300,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\final\\mongo-pe1T2g","command":"C:/Users/Admin/.cache/mongodb-binaries/mongod-x64-win32-7.0.14.exe"}
+{"utc":"2026-11-01T06:03:31.424Z","ownerPid":23456,"kind":"mongo-running","port":32300,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\final\\mongo-pe1T2g","pid":18184,"killerPid":13568}
+{"utc":"2026-11-01T06:03:31.424Z","ownerPid":23456,"kind":"setup-timing","stage":"replica-ready","elapsedMs":5136.7628}
+{"utc":"2026-11-01T06:04:48.077Z","ownerPid":23456,"kind":"setup-timing","stage":"initialized-and-seeded","elapsedMs":81787.9013}
+{"utc":"2026-11-01T06:04:48.108Z","ownerPid":23456,"kind":"api-running","address":{"address":"127.0.0.1","family":"IPv4","port":32301}}
+{"utc":"2026-11-01T06:04:48.108Z","ownerPid":23456,"kind":"database-owned","databaseName":"portfolio_owned_iems_qa_security_f99834a8_bb38c0b3875448f9","marker":"bc3ec873-65be-4a24-826e-2342d0225d5f"}
+{"utc":"2026-11-01T06:04:48.317Z","ownerPid":23456,"kind":"setup-timing","stage":"authenticated","elapsedMs":82027.5242}
+{"utc":"2026-11-01T06:05:07.139Z","ownerPid":23456,"kind":"api-stopped","port":32301}
+{"utc":"2026-11-01T06:05:09.580Z","ownerPid":23456,"kind":"mongo-stopped"}
+{"utc":"2026-11-01T06:05:09.580Z","ownerPid":23456,"kind":"fixture-cleanup-completed","databaseName":"portfolio_owned_iems_qa_security_f99834a8_bb38c0b3875448f9","marker":"bc3ec873-65be-4a24-826e-2342d0225d5f"}

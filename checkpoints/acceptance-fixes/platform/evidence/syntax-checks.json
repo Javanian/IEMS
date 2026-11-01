@@ -1,0 +1,26 @@
+[
+  {
+    "exit": 0,
+    "file": "packages/tenant-lifecycle/automation-recovery-v15.test.mjs"
+  },
+  {
+    "exit": 0,
+    "file": "checkpoints/acceptance-fixes/platform/register-owned-runtime.mjs"
+  },
+  {
+    "exit": 0,
+    "file": "checkpoints/acceptance-fixes/platform/mongo-isolation.cjs"
+  },
+  {
+    "exit": 0,
+    "file": "checkpoints/acceptance-fixes/platform/fixture-guards.test.mjs"
+  },
+  {
+    "exit": 0,
+    "file": "checkpoints/acceptance-fixes/platform/verify-source.mjs"
+  },
+  {
+    "exit": 0,
+    "file": "checkpoints/acceptance-fixes/platform/summarize-evidence.mjs"
+  }
+]

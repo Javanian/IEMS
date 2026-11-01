@@ -1,0 +1,52 @@
+{
+  "mongoStops": 5,
+  "fixtureCleanups": 5,
+  "activeRecordedProcesses": [],
+  "browserProfiles": "NONE",
+  "directories": [
+    {
+      "exists": true,
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\baseline\\mongo-rqYQ6d"
+    },
+    {
+      "exists": true,
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\fixed\\mongo-pSC3EW"
+    },
+    {
+      "exists": true,
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\fixed\\mongo-rclLg1"
+    },
+    {
+      "exists": true,
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\final\\mongo-q0VeI6"
+    },
+    {
+      "exists": true,
+      "path": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\902f6e0b-5445-4abc-a532-2b467b6fe973\\95296377-c20c-45c1-9119-06b2089fea8e\\final\\mongo-pe1T2g"
+    }
+  ],
+  "recordedPids": [
+    1152,
+    1956,
+    4104,
+    5644,
+    8124,
+    13568,
+    14104,
+    17028,
+    18184,
+    18844,
+    21412,
+    22756,
+    22988,
+    23404,
+    23456
+  ],
+  "mongoStarts": 5,
+  "observedUtc": "2026-11-01T06:05:19.4453315Z",
+  "reboundPorts": [
+    32300,
+    32301,
+    32302
+  ]
+}

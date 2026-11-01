@@ -1,0 +1,88 @@
+# Subtest: v15 bounded recovery uses original receipts and private parent/child phases
+    # Subtest: quota and audit abort roll back receipt/control/usage before child work
+    ok 1 - quota and audit abort roll back receipt/control/usage before child work
+      ---
+      duration_ms: 1644.7122
+      type: 'test'
+      ...
+    # Subtest: root selection and receipt immutable; concurrent continuation counts no child usage
+    ok 2 - root selection and receipt immutable; concurrent continuation counts no child usage
+      ---
+      duration_ms: 6951.8457
+      type: 'test'
+      ...
+    # Subtest: empty request freezes approved drafts; new independent child intent charges once
+    ok 3 - empty request freezes approved drafts; new independent child intent charges once
+      ---
+      duration_ms: 3443.645
+      type: 'test'
+      ...
+    # Subtest: ambiguous child claim never invokes; explicit same-parent retry proves ownership
+    ok 4 - ambiguous child claim never invokes; explicit same-parent retry proves ownership
+      ---
+      duration_ms: 3326.5235
+      type: 'test'
+      ...
+    # Subtest: all effect status kinds and tenant status perform zero actual database writes
+    ok 5 - all effect status kinds and tenant status perform zero actual database writes
+      ---
+      duration_ms: 1911.4918
+      type: 'test'
+      ...
+    # Subtest: private message content never enters the four orchestration collections
+    ok 6 - private message content never enters the four orchestration collections
+      ---
+      duration_ms: 3.6987
+      type: 'test'
+      ...
+    # Subtest: human not-submitted receipt creates a new fenced ordinal only before provider BEGIN
+    not ok 7 - human not-submitted receipt creates a new fenced ordinal only before provider BEGIN
+      ---
+      duration_ms: 2428.0517
+      type: 'test'
+      location: 'D:\\Project AI\\GITHUB\\IEMS-evidence\\qa-parallel-20261031\\security\\runtime\\adapted\\packages\\tenant-lifecycle\\automation-recovery-v15.test.mjs:27:10'
+      failureType: 'testCodeFailure'
+      error: "Cannot read properties of null (reading 'port')"
+      code: 'ERR_TEST_FAILURE'
+      name: 'TypeError'
+      stack: |-
+        base (file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/adapted/apps/portfolio-api/test/support/owned-mongo.mjs:21:58)
+        Object.send (file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/adapted/apps/portfolio-api/test/support/owned-mongo.mjs:37:30)
+        TestContext.<anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/adapted/packages/tenant-lifecycle/automation-recovery-v15.test.mjs:30:27)
+        process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        async Test.run (node:internal/test_runner/test:1389:7)
+        async TestContext.<anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/adapted/packages/tenant-lifecycle/automation-recovery-v15.test.mjs:27:2)
+      ...
+    # Subtest: suspend/stop drains actual parent and delayed child without publishing
+    not ok 8 - suspend/stop drains actual parent and delayed child without publishing
+      ---
+      duration_ms: 1.3718
+      type: 'test'
+      location: 'D:\\Project AI\\GITHUB\\IEMS-evidence\\qa-parallel-20261031\\security\\runtime\\adapted\\packages\\tenant-lifecycle\\automation-recovery-v15.test.mjs:32:10'
+      failureType: 'testCodeFailure'
+      error: "Cannot read properties of null (reading 'port')"
+      code: 'ERR_TEST_FAILURE'
+      name: 'TypeError'
+      stack: |-
+        base (file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/adapted/apps/portfolio-api/test/support/owned-mongo.mjs:21:58)
+        Object.send (file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/adapted/apps/portfolio-api/test/support/owned-mongo.mjs:37:30)
+        call (file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/adapted/packages/tenant-lifecycle/automation-recovery-v15.test.mjs:8:61)
+        digest (file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/adapted/packages/tenant-lifecycle/automation-recovery-v15.test.mjs:13:39)
+        TestContext.<anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/adapted/packages/tenant-lifecycle/automation-recovery-v15.test.mjs:32:119)
+        Test.runInAsyncScope (node:async_hooks:227:14)
+        Test.run (node:internal/test_runner/test:1382:25)
+        Test.start (node:internal/test_runner/test:1242:17)
+        TestContext.test (node:internal/test_runner/test:394:20)
+        TestContext.<anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-evidence/qa-parallel-20261031/security/runtime/adapted/packages/tenant-lifecycle/automation-recovery-v15.test.mjs:32:10)
+      ...
+    1..8
+not ok 34 - v15 bounded recovery uses original receipts and private parent/child phases
+  ---
+  duration_ms: 182746.4199
+  type: 'test'
+  location: 'D:\\Project AI\\GITHUB\\IEMS-evidence\\qa-parallel-20261031\\security\\runtime\\adapted\\packages\\tenant-lifecycle\\automation-recovery-v15.test.mjs:5:1'
+  failureType: 'testTimeoutFailure'
+  error: 'test timed out after 180000ms'
+  code: 'ERR_TEST_FAILURE'
+  ...
+
