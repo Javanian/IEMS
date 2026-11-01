@@ -1,0 +1,22 @@
+{
+  "originalUnadaptedStop": "browser-attempt7: default pick form; Record shipment selector absent",
+  "nativeSelections": [
+    {
+      "url": "http://127.0.0.1:32400/portfolio/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "action": "Selected existing Record direct dispatch option before original shipment selector"
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "action": "Selected existing Record direct dispatch option before original shipment selector"
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "action": "Selected existing Record direct dispatch option before original shipment selector"
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio/fulfillment/orders/4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+      "action": "Selected existing Record direct dispatch option before original shipment selector"
+    }
+  ],
+  "assertionsAndSelectorsUnchanged": true
+}

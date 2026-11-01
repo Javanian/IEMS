@@ -1,0 +1,10 @@
+{
+  "diagnosticOnly": true,
+  "fullAcceptance": false,
+  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'loading'\n- 'loaded'\n       ^\n",
+  "checks": [],
+  "exceptions": [],
+  "consoleErrors": [],
+  "network": [],
+  "networkFailures": []
+}

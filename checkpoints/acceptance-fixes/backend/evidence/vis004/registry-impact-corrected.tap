@@ -1,0 +1,17 @@
+{"topLevelSchemaExpansion":[{"name":"manufacturingWorkOrders","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsAudit","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsKeys","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsSampleRevisions","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsSamples","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"operationsTelemetryOutbox","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]},{"name":"qualityResources","disposition":"BUSINESS","added":["TransientTransactionError","hasErrorLabel"]},{"name":"voiceJobRevisions","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]},{"name":"voiceJobs","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]},{"name":"voiceZones","disposition":"RETAIN_PRIVATE_OR_TECHNICAL","added":["TransientTransactionError","hasErrorLabel"]}],"nestedGlobalFieldsUnchanged":true}
+✔ generated registry delta stays within the exact Board exception (302.0378ms)
+{"resourceStart":[{"pid":15512,"port":49856,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-4Ipssd"}],"owner":"TPR-165","at":"2026-11-01T03:51:32.629Z"}
+{"httpStart":{"address":"127.0.0.1","family":"IPv4","port":49870},"pid":16544}
+Actual domain unknown/private top-level/nested rejections PASS; revoked dashboard session401 PASS
+{"httpStop":{"address":"127.0.0.1","family":"IPv4","port":49870},"pid":16544}
+{"databaseDropped":"portfolio_owned_iems_qa_business_4bf39b48_b4deef526289461d","marker":"8ad6bc3e-13cd-410b-8ed0-6edf38e159d0","result":true}
+{"resourceStop":{"pid":15512,"port":49856,"dbPath":"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-4Ipssd"},"alive":false,"at":"2026-11-01T03:52:53.806Z"}
+✔ actual domain snapshot admits only the bounded added fields and retains schema/private guards (86841.3241ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 88178.6867

@@ -718,7 +718,7 @@
     "apps/portfolio-api/src/manufactured-dispatch.mjs": "0feba439fd186855aa3304aab61ab2506bc41391f96bb52307d701cd52fb8bf2",
     "apps/portfolio-api/src/manufacturing.mjs": "57637ac8a93a5ec90fdc1c6c0d7bc297c39ead3f8e8f1861ceea94a156ee01d6",
     "apps/portfolio-api/src/material-shortages.mjs": "5ef56c62350a6a3c4fb9505b21199b42614a753ea81aefcf060fca38792bea46",
-    "apps/portfolio-api/src/operations.mjs": "1a9f37d823cbff3f43866c9bacf7f94e5ecbeb5bcf586694d35bd369a057e576",
+    "apps/portfolio-api/src/operations.mjs": "5b633da99935e8931e7dbdc94d8387753f9ede8a16e589f7e6a503bafef48079",
     "apps/portfolio-api/src/order-reader.mjs": "9ca47db201d530885ce082c7096a38ab41b2847582081fca2cd619483100b766",
     "apps/portfolio-api/src/platform-runtime.mjs": "b4fdf53fe7957dacba202dd3e994f59ebe9f9083a304c987ef4a3c2622cdebec",
     "apps/portfolio-api/src/portals.mjs": "1ad40ed75e6c4ae24755d54ebdbfd50121b9b2d2f36ad5464b0ae78ad85f52d6",

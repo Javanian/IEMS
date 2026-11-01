@@ -1,0 +1,30 @@
+✔ operator block evidence and async source states have valid block containers (411.5763ms)
+✔ operator references keep actual document numbers and distinguish document types without changing authoritative IDs (0.3783ms)
+✔ operator summaries preserve exact source quantities and drawing item descriptions (0.1883ms)
+✔ errors explain recovery and keep diagnostics out of the primary sentence (0.2906ms)
+✔ workflow keeps repair separate and assigns quality, production and billing stages (0.2905ms)
+✔ production work queue distinguishes actual hold and source restrictions from reservable and fully reserved demand (0.1807ms)
+✔ source queries use explicit eligibility, bounded pages and encoded literal search and cursor (0.2476ms)
+✔ selected item binding stays invalid after current approval moves until explicit reselection (3.4647ms)
+✔ existing request source hydrates its captured version and revision rather than using current source metadata (0.2533ms)
+✔ vendor hydration retains identity and rejects deactivated or foreign replacement sources (0.2379ms)
+✔ late obsolete source results cannot overwrite newer results even if transport ignores abort (0.4661ms)
+✔ late obsolete errors and cancelled reads never replace a completed selection page (0.2878ms)
+✔ production reserve binds both receipt and stock versions and fails closed on stale or held stock (0.2085ms)
+✔ selected stock evidence rejects transient list data, other receipt data, loading and errors without inventing current availability (0.2124ms)
+✔ stock command eligibility requires actual positive integer receipt and stock authority versions (0.2462ms)
+✔ output attribution offers only identities actually consumed by this execution from this receipt (0.2424ms)
+✔ production attribution preserves explicit exact source quantities and identities, including empty process loss (0.3734ms)
+✔ required labor indices preserve explicit operation identity and omit absent policy in legacy planning (0.73ms)
+✔ required labor sequence chooses routing operation40 after10 and does not invent further required entries (0.1104ms)
+✔ labor command keeps exact elapsed window distinct from explicitly reported active work and omits absent active field (200.1428ms)
+✔ invalid credentials invite correction without identifying a valid account (1.3573ms)
+✔ established session failures retain expiry guidance (0.3012ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 993.3119

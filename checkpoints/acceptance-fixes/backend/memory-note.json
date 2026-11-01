@@ -1,0 +1,6 @@
+{
+  "content": "Standalone voice/workforce500 actually accesses missing saasAdmission.effect (original QA labeled separateEffects); real createSaasAdmission plus createSeparateEffects preserve original3 passing cases. Labor actual uniquely marker-owned loopback fixture supports strict amended QA namespace; original frozen assertion reproduced failing, corrected labor6 and combined9 pass. Actual composed Operations: sequential empty/populated30 requests200, paired requests[200,500], four-way[200,500,500,500]; Mongo112 TransientTransactionError inside authorization fence writes exhausts immediate3 attempts. VIS-004 source unchanged; bounded-backoff patch proposed only. Requires CTO scope for operations digest in admission-registry.json; no source-pin bypass. Independent QA pending, no full acceptance.",
+  "agentId": "3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a",
+  "issue": "TPR-165",
+  "source": "TPR-165 implementation-result; commits24c390cf18d757bec8a2421584a1038f7687d8d1 and27dc9e3ffe0da0854a4a170e1ff7acfb909f9830"
+}

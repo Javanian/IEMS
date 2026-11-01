@@ -1,0 +1,12 @@
+{
+  "origin": "http://127.0.0.1:32400",
+  "server": {
+    "listening": false,
+    "address": null
+  },
+  "lifecycle": [],
+  "commands": [],
+  "resources": [],
+  "evictedResources": 0,
+  "logs": []
+}

@@ -1,0 +1,58 @@
+{"resourceStart":[{"pid":14516,"port":58328,"dbPath":"C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-2SVfuq"}],"owner":"TPR-165","at":"2026-11-01T02:11:46.529Z"}
+{"ownedDatabase":"portfolio_owned_iems_qa_business_c8d238a7_ee507a1c68fa4560","hosts":["127.0.0.1:58328"],"marker":{"_id":"6c7f0eb4-9b27-4b18-b1fd-2c27682e94dd"},"cleanup":"fixture verifies marker then drops DB and stops owned replica"}
+▶ bounded operator labor real HTTP owned Mongo
+  ✔ persist scoped immutable operation labor and original receipt replay (124.8921ms)
+  ✔ malformed identity scope version state sequence and overlap denials leave no effects (584.239ms)
+  ✔ real ledger audit outbox validators rollback all effects; concurrent replay once (222.2364ms)
+  ✔ distinct-key cross-WO overlaps serialize; ordered adjacent second operation retains first receipt (360.7714ms)
+  ✔ same-WO distinct keys race once; terminal writes and revoked-session replay denied (286.1068ms)
+{"databaseDropped":"portfolio_owned_iems_qa_business_c8d238a7_ee507a1c68fa4560","marker":"6c7f0eb4-9b27-4b18-b1fd-2c27682e94dd","result":true}
+MongoNetworkError: read ECONNRESET
+    at Connection.onSocketError (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\portfolio-api\node_modules\mongodb\lib\cmap\connection.js:110:22)
+    at Socket.emit (node:events:521:24)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errorLabelSet: Set(0) {},
+  beforeHandshake: false,
+  [cause]: Error: read ECONNRESET
+      at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+    errno: -4077,
+    code: 'ECONNRESET',
+    syscall: 'read'
+  }
+}
+{"resourceStop":{"pid":14516,"port":58328,"dbPath":"C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-2SVfuq"},"alive":false,"at":"2026-11-01T02:11:54.078Z"}
+✔ bounded operator labor real HTTP owned Mongo (8435.7799ms)
+✔ real-model store refuses absent or unpinned tooling without making an artifact (3.0956ms)
+{"resourceStart":[{"pid":7200,"port":58346,"dbPath":"C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-suiTM7"}],"owner":"TPR-165","at":"2026-11-01T02:11:55.548Z"}
+{"databaseDropped":"portfolio_test_voice_b72a190e42b543019eff0b888f97614d","marker":"a7dcbad7-3f76-42fc-9ec3-7e0ab6c489d6","result":true}
+{"resourceStop":{"pid":7200,"port":58346,"dbPath":"C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-suiTM7"},"alive":false,"at":"2026-11-01T02:11:59.217Z"}
+✔ owned Mongo voice lifecycle with synthetic store: zone isolation, leases, receipts and recovery (4580.9515ms)
+{"resourceStart":[{"pid":10704,"port":58356,"dbPath":"C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-241pji"}],"owner":"TPR-165","at":"2026-11-01T02:12:00.692Z"}
+{"databaseDropped":"portfolio_test_workforce_4a5b6b4acdab4e059838e63a0b4cd1dc","marker":"f0820405-3072-4567-bf56-3f1f69baa219","result":true}
+MongoNetworkError: read ECONNRESET
+    at Connection.onSocketError (D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\portfolio-api\node_modules\mongodb\lib\cmap\connection.js:110:22)
+    at Socket.emit (node:events:521:24)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errorLabelSet: Set(2) { 'RetryableWriteError', 'ResetPool' },
+  beforeHandshake: false,
+  [cause]: Error: read ECONNRESET
+      at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+    errno: -4077,
+    code: 'ECONNRESET',
+    syscall: 'read'
+  }
+}
+{"resourceStop":{"pid":10704,"port":58356,"dbPath":"C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-165-c8d238a7-0a5-SwZFq8\\mongo-mem-241pji"},"alive":false,"at":"2026-11-01T02:12:02.902Z"}
+✔ owned Mongo: consent, fallback, challenge replay/error, private results and revocation (3091.8455ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18081.2071

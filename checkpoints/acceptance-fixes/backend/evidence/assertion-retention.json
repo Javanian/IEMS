@@ -1,0 +1,20 @@
+[
+  {
+    "file": "ops/operations/voice.test.mjs",
+    "originalBehaviorAssertionLinesRetained": true,
+    "originalAssertionLines": 18,
+    "sha256": "2234186bd15586bb0c9c37328b4588b072ca2b7abd371d71245b6af353fbb973"
+  },
+  {
+    "file": "ops/operations/workforce.test.mjs",
+    "originalBehaviorAssertionLinesRetained": true,
+    "originalAssertionLines": 12,
+    "sha256": "6c94a12bb813154e2189e6f2d89a30bb556c01e6d8aeea29ca288bfa4dbff626"
+  },
+  {
+    "file": "apps/portfolio-api/test/wave4c-labor.test.mjs",
+    "originalBehaviorAssertionLinesRetained": true,
+    "originalAssertionLines": 32,
+    "sha256": "94b4f9a5a6404cd0b60069770cc8928b4306a41cdd6901d355be5d75ba00df80"
+  }
+]

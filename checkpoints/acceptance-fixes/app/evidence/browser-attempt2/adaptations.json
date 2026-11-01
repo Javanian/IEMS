@@ -1,0 +1,47 @@
+{
+  "portfolio-browser.mjs": {
+    "originalSha256": "4f266e0af3242e56192c333d47e71368f0a877a0a2f19396bd5a9b0d8c387967",
+    "adaptedSha256": "d1c49007f07fc3536cdbb1a92728452d154ba99229d960c9994df635ff6bab1a",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-review-operator-browser.mjs": {
+    "originalSha256": "44125456e793b8c1461a9c322ed5e04b755a110c22ecefdf67814f1203a5f1d8",
+    "adaptedSha256": "d7f9c99d67141472b2a3f58f34b2eb0dff03140a7bdf14234e25e136e3bf08c7",
+    "journeyAssertionsRetained": true
+  },
+  "wave4f-browser-kit.mjs": {
+    "originalSha256": "60f2de3f643996fb6d8286a6325de92fdfcfe65484b19f236b8f7c3378d16ac7",
+    "adaptedSha256": "27a5ccd99c9d8497e89360a8f0b563d9aa5b751e7bdaa51245df465fbb25b636",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-review-internal-execution-browser.mjs": {
+    "originalSha256": "8f72ebc6f302052abc68887a6b999ec0c45e782066bd1eac50fd5eafe1094572",
+    "adaptedSha256": "a7a1d27509d0e7f59cc0e542ed11e72368ff50e53b22211e616bf2d2f9d8daa0",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-company-stock-browser.mjs": {
+    "originalSha256": "053b49ece023fd862217a2af4a7c082fa8198892401349613515c390ad979ec4",
+    "adaptedSha256": "f5b8091fc8f183d3c05fde0104fe27abc3da6a730bf885a3273b703db2caf8ba",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-company-stock-trace-browser.mjs": {
+    "originalSha256": "659a3d58b934c01c92c6b27757f76b17382e33dd9fa1219d8d4ed78cbc02164b",
+    "adaptedSha256": "edbad41556fc9991cb161828185f1a61f959a3787e631cf9c102ef1b728a3815",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-quote-catalog-browser.mjs": {
+    "originalSha256": "2db01106f32c3da678dfb43c7e216e02de482409d715bc52476f4b4792e58d5d",
+    "adaptedSha256": "4fc9f0cbc5a23b4b348e9cf6133f87c25637ff44bcc523b09de6baa53e651528",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-purchased-fulfillment-browser.mjs": {
+    "originalSha256": "faad97974fc5895afab5094131f03fdbd6c5a847fd9f77b0843646b4a1dffe52",
+    "adaptedSha256": "1bd4c4a0ad7b6028fd02fa30573bd81e9250810d7aa5d183ac84512b05feda90",
+    "journeyAssertionsRetained": true
+  },
+  "portfolio-review-e01-browser.mjs": {
+    "originalSha256": "b083f2704dc459c50b9760b94f353c03ecaf08d09f85f052bd117d8006a01085",
+    "adaptedSha256": "6e0ffe5c02d8ebe0415827b68e6acd88ae1a39f3cc6adfbb00230c98f095ae94",
+    "journeyAssertionsRetained": true
+  }
+}

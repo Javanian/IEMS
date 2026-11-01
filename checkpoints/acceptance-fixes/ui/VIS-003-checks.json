@@ -1,0 +1,25 @@
+{
+  "cssParse": "PASS",
+  "tailwindCompile": "PASS",
+  "warnings": [],
+  "header": [
+    11,
+    18,
+    32
+  ],
+  "oldFocus": [
+    29,
+    78,
+    216
+  ],
+  "newFocus": [
+    255,
+    255,
+    255
+  ],
+  "oldContrast": 2.793818300211271,
+  "newContrast": 18.723104130860587,
+  "lightSurfaceBlueContrast": 6.701618401398807,
+  "scope": "workspace.css header focus override; base outline width/style/offset unchanged",
+  "runtime": "NOT_RUN per assignment"
+}

@@ -1,0 +1,176 @@
+{
+  "at": "2026-11-01T03:53:24.6456996Z",
+  "sourceCommit": "a057def5fce1f4e2d3fabdf0371c3ebeb0718c85",
+  "mongo": [
+    {
+      "pid": 11228,
+      "pidAlive": false,
+      "port": 60637,
+      "listeners": [],
+      "dataPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-dwlxp2",
+      "dataPathExists": false
+    },
+    {
+      "pid": 16772,
+      "pidAlive": false,
+      "port": 50713,
+      "listeners": [],
+      "dataPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-NWSHxK",
+      "dataPathExists": false
+    },
+    {
+      "pid": 16752,
+      "pidAlive": false,
+      "port": 50850,
+      "listeners": [],
+      "dataPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-tTDJHx",
+      "dataPathExists": false
+    },
+    {
+      "pid": 16064,
+      "pidAlive": false,
+      "port": 50866,
+      "listeners": [],
+      "dataPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-3r0vHK",
+      "dataPathExists": false
+    },
+    {
+      "pid": 17420,
+      "pidAlive": false,
+      "port": 49821,
+      "listeners": [],
+      "dataPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-s2VWk1",
+      "dataPathExists": false
+    },
+    {
+      "pid": 15512,
+      "pidAlive": false,
+      "port": 49856,
+      "listeners": [],
+      "dataPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-4Ipssd",
+      "dataPathExists": false
+    }
+  ],
+  "http": [
+    {
+      "port": 50689,
+      "listeners": []
+    },
+    {
+      "port": 50778,
+      "listeners": []
+    },
+    {
+      "port": 50858,
+      "listeners": []
+    },
+    {
+      "port": 50873,
+      "listeners": []
+    },
+    {
+      "port": 49847,
+      "listeners": []
+    },
+    {
+      "port": 49870,
+      "listeners": [
+        {
+          "LocalPort": 49870,
+          "OwningProcess": 0
+        }
+      ]
+    }
+  ],
+  "databaseDrops": [
+    {
+      "databaseDropped": "portfolio_owned_iems_qa_business_4bf39b48_7c796f2242b84b72",
+      "marker": "f1874122-1a34-460a-96a4-ee9d88ac62f5",
+      "result": true
+    },
+    {
+      "databaseDropped": "portfolio_owned_iems_qa_business_4bf39b48_e28f94bfa4984863",
+      "marker": "6cca14db-1231-4d49-b4eb-ec8f538c2129",
+      "result": true
+    },
+    {
+      "databaseDropped": "portfolio_test_voice_e26a58da6aed4946b637c47dc97d509d",
+      "marker": "9a75dde9-7c17-46f0-80cb-46334dd652f0",
+      "result": true
+    },
+    {
+      "databaseDropped": "portfolio_test_workforce_292d4b5fb3534d44887d98579a103cf6",
+      "marker": "3155f768-7de2-4b0f-8e4c-0ae418ee9645",
+      "result": true
+    },
+    {
+      "databaseDropped": "portfolio_owned_iems_qa_business_4bf39b48_95fd5d799c5f4f79",
+      "marker": "95d8fb7b-6e63-402d-b796-b73eb649a5d4",
+      "result": true
+    },
+    {
+      "databaseDropped": "portfolio_owned_iems_qa_business_4bf39b48_b4deef526289461d",
+      "marker": "8ad6bc3e-13cd-410b-8ed0-6edf38e159d0",
+      "result": true
+    }
+  ],
+  "resourceStops": [
+    {
+      "resourceStop": {
+        "pid": 11228,
+        "port": 60637,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-dwlxp2"
+      },
+      "alive": false,
+      "at": "2026-11-01T03:47:18.73Z"
+    },
+    {
+      "resourceStop": {
+        "pid": 16772,
+        "port": 50713,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-NWSHxK"
+      },
+      "alive": false,
+      "at": "2026-11-01T03:48:41.506Z"
+    },
+    {
+      "resourceStop": {
+        "pid": 16752,
+        "port": 50850,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-tTDJHx"
+      },
+      "alive": false,
+      "at": "2026-11-01T03:49:01.919Z"
+    },
+    {
+      "resourceStop": {
+        "pid": 16064,
+        "port": 50866,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-3r0vHK"
+      },
+      "alive": false,
+      "at": "2026-11-01T03:49:17.74Z"
+    },
+    {
+      "resourceStop": {
+        "pid": 17420,
+        "port": 49821,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-s2VWk1"
+      },
+      "alive": false,
+      "at": "2026-11-01T03:51:12.634Z"
+    },
+    {
+      "resourceStop": {
+        "pid": 15512,
+        "port": 49856,
+        "dbPath": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-165\\3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a\\runtime\\4bf39b48-52ee-4513-9945-d060042fc42e\\mongo-mem-4Ipssd"
+      },
+      "alive": false,
+      "at": "2026-11-01T03:52:53.806Z"
+    }
+  ],
+  "remainingOwnMongoProcesses": [],
+  "browserProfile": "NONE",
+  "runtimeRoot": "D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/TPR-165/3f28ceb5-2fcb-4ee8-b4a4-ebd6bdb5716a/runtime/4bf39b48-52ee-4513-9945-d060042fc42e"
+}

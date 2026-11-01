@@ -1,0 +1,19 @@
+{
+  "diagnosticOnly": true,
+  "fullAcceptance": false,
+  "error": "Error: Timed out: document.querySelector('[name=username]'). Page: ",
+  "checks": [
+    "explicit synthetic foundation seed with two actual fixture operators, fresh owned DB, real MongoDB 7.0.14 replica set"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "network": [],
+  "networkFailures": [
+    {
+      "url": "http://127.0.0.1:32400/src/features/portfolio/portfolio.css",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    }
+  ]
+}

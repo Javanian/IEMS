@@ -1,0 +1,33 @@
+{
+  "base": "010ec3b4e826d05b7e1f191286da042fe5a2bd42",
+  "unchanged": [
+    {
+      "path": "apps/web/test/portfolio-review-e01-browser.mjs",
+      "sha256": "b083f2704dc459c50b9760b94f353c03ecaf08d09f85f052bd117d8006a01085",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/src/features/portfolio/CommercialWorkspace.jsx",
+      "sha256": "83be7528d7287f21d7533ef49e825026001ba7183f2742bb0a6bb321ccf16389",
+      "unchanged": true
+    }
+  ],
+  "retained": [
+    {
+      "folder": "browser-continuation",
+      "name": "portfolio-browser.mjs",
+      "originalAssertions": 71,
+      "retained": true,
+      "originalSha256": "4f266e0af3242e56192c333d47e71368f0a877a0a2f19396bd5a9b0d8c387967",
+      "adaptedSha256": "3643a623a2a791c4fd7a4a9f1b10a6d90f769bf73c7f55c623359ef14f12c01d"
+    },
+    {
+      "folder": "browser-continuation",
+      "name": "portfolio-review-e01-browser.mjs",
+      "originalAssertions": 83,
+      "retained": true,
+      "originalSha256": "b083f2704dc459c50b9760b94f353c03ecaf08d09f85f052bd117d8006a01085",
+      "adaptedSha256": "6e0ffe5c02d8ebe0415827b68e6acd88ae1a39f3cc6adfbb00230c98f095ae94"
+    }
+  ]
+}

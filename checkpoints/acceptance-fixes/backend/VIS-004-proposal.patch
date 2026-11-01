@@ -1,0 +1,29 @@
+diff --git a/apps/portfolio-api/src/operations.mjs b/apps/portfolio-api/src/operations.mjs
+index 34f78f8..25c3db1 100644
+--- a/apps/portfolio-api/src/operations.mjs
++++ b/apps/portfolio-api/src/operations.mjs
+@@ -72,6 +72,15 @@ function summary(row, kind, now) {
+ async function grant(runtime, req, action, session) {
+   return runtime.foundation.authorizeInTransaction(req.scope, { ...req.filter, action }, { session });
+ }
++async function dashboardSnapshot(runtime, read) {
++  for (let attempt = 0; attempt < 5; attempt++) {
++    try { return await boundedTransaction(runtime.client, read, { attempts: 1 }); }
++    catch (error) {
++      if (!error.hasErrorLabel?.('TransientTransactionError') || attempt === 4) throw error;
++      await new Promise(resolve => setTimeout(resolve, 50 * 2 ** attempt));
++    }
++  }
++}
+ export function invoiceBalance(order, invoices, complete = true) {
+   const base = { orderId: order.id, currency: order.currency, orderAmount: order.orderAmount, invoiceCount: invoices.length, basis: 'ISSUED_INVOICES_ONLY_EXCLUDES_UNALLOCATED_DEPOSITS' };
+   if (!invoices.length || !complete) return { ...base, status: invoices.length ? 'INCOMPLETE' : 'NO_DATA', invoicedAmount: null, paidAmount: null, creditedAmount: null, outstandingAmount: null };
+@@ -134,7 +143,7 @@ export function installOperations(app, runtime, helpers, { legacyAdapters = [],
+   } });
+   const transaction=actorScopedTransaction(runTransaction);
+   app.get(`${root}/dashboard`, async (req, res) => {
+-    const data = await boundedTransaction(runtime.client, async session => {
++    const data = await dashboardSnapshot(runtime, async session => {
+       await grant(runtime, req, 'operations.read', session);
+       const now = businessNow(runtime), metrics = {};
+       for (const kind of Object.keys(sources)) metrics[kind] = await readSource(runtime, req, kind, session, now);
