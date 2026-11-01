@@ -1,0 +1,6 @@
+{
+  "content": "SEC-R01 measured native fixture setup70.8s baseline/82.0s corrected; unchanged baseline9PASS and corrected original recovery+actual marker negatives10PASS, effects regression6PASS. Separate module before120000ms and module after60000ms retain original parent180000ms and all eight assertion bodies/options. Register cleanup at module level: after() called inside before() binds to before-hook lifetime and closed fixture prematurely (preserved failed attempt). Helper/production/source pins unchanged.15 recorded PIDs absent,5 starts/stops/cleanup receipts,security32300/1/2 rebound. Local implementation QA pending; original QA timeout retained; CTO integration and independent security QA required.",
+  "issue": "TPR-168",
+  "source": "TPR-168 implementation-result; commit971c2c2f2eab756daf649dfb82caa12494cbf46f; checkpoints/acceptance-fixes/platform/IMPLEMENTATION-RESULT.md",
+  "agentId": "95296377-c20c-45c1-9119-06b2089fea8e"
+}
