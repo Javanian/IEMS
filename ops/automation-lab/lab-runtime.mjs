@@ -102,8 +102,10 @@ async function startEngine() {
     let code;
     const deadline = Date.now() + 60000;
     while (Date.now() < deadline) {
-      const response = await fetch(`${n8nBase}/webhook/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(2000) });
-      code = response.status;
+      try {
+        const response = await fetch(`${n8nBase}/webhook/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(2000) });
+        code = response.status;
+      } catch { code = 'UNREACHABLE'; }
       if (code === 403) break;
       await wait(1000);
     }
@@ -160,7 +162,9 @@ try {
   ]);
   await cli('import-credentials', ['import:credentials', `--input=${credentialsPath}`]);
   const workflowIds = ['wf-sla-escalation', 'wf-cs-weekly-digest', 'wf-approved-resolution', 'wf-automation-recovery', 'wf-automation-error'];
-  for (const workflowId of workflowIds) await cli(`import-${workflowId}`, ['import:workflow', `--input=${join(repo, 'ops', 'automation-lab', 'workflows', workflowId + '.json')}`]);
+  const workflowsPath = join(root, 'n8n-workflows.json');
+  save(workflowsPath, workflowIds.map(workflowId => json(join(repo, 'ops', 'automation-lab', 'workflows', workflowId + '.json'))));
+  await cli('import-workflows', ['import:workflow', `--input=${workflowsPath}`]);
   for (const workflowId of workflowIds.filter(id => id !== 'wf-automation-error')) await cli(`activate-${workflowId}`, ['update:workflow', `--id=${workflowId}`, '--active=true']);
   status({ phase: 'starting-engine' }); await startEngine();
   launch('web', [join(repo, 'apps', 'web', 'node_modules', 'vite', 'bin', 'vite.js'), join(repo, 'apps', 'web'), '--host', '127.0.0.1', '--port', String(config.ports.web), '--strictPort'], { VITE_PORTFOLIO_API_BASE: base, VITE_PORTFOLIO_PROXY_TARGET: base });
