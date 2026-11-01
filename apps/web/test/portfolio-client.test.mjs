@@ -33,6 +33,8 @@ test('money stays a canonical decimal string at the currency scale', () => {
 test('recovery messages distinguish expired, forbidden, conflict and uncertain writes', () => {
   assert.match(errorMessage({ status: 401 }), /expired|Sign in/i);
   assert.match(errorMessage({ status: 403 }), /permission|denied/i);
-  assert.match(errorMessage({ status: 409 }), /Refresh/i);
+  const conflict=errorMessage({ status: 409 });
+  assert.match(conflict,/Review the record and its history.*reconcile.*before starting a new one/i);
+  for(const code of ['COMMAND_SCOPE_CHANGED','COMMAND_RECONCILIATION_REQUIRED'])assert.equal(errorMessage({status:409,code,message:'Reconcile the retained attempt'}),'Reconcile the retained attempt');
   assert.match(errorMessage({ status: 0 }, true), /check|before/i);
 });
