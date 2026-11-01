@@ -1,0 +1,165 @@
+{
+  "remainingOwnedRuntimeProcesses": [],
+  "resources": [
+    {
+      "attempt": "browser-attempt3",
+      "profileExists": false,
+      "pid": null,
+      "profile": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-attempt3\\portfolio-chrome-QWcXIJ",
+      "sameOwnedIdentityAlive": false,
+      "mongoStopped": true,
+      "kind": "browser",
+      "exitCode": null,
+      "markerVerifiedDrop": true
+    },
+    {
+      "sameOwnedIdentityAlive": false,
+      "pid": 11584,
+      "kind": "mongo",
+      "attempt": "browser-attempt4",
+      "pathExists": false,
+      "path": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-attempt4\\mongo-mem-AvOU6q",
+      "port": 32402
+    },
+    {
+      "attempt": "browser-attempt4",
+      "profileExists": false,
+      "pid": 12088,
+      "profile": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-attempt4\\portfolio-chrome-l5Jt6v",
+      "sameOwnedIdentityAlive": false,
+      "mongoStopped": true,
+      "kind": "browser",
+      "exitCode": 0,
+      "markerVerifiedDrop": true
+    },
+    {
+      "sameOwnedIdentityAlive": false,
+      "pid": 9288,
+      "kind": "mongo",
+      "attempt": "browser-attempt5",
+      "pathExists": false,
+      "path": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-attempt5\\mongo-mem-UrGUs5",
+      "port": 32402
+    },
+    {
+      "attempt": "browser-attempt5",
+      "profileExists": false,
+      "pid": 12308,
+      "profile": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-attempt5\\portfolio-chrome-2AJOz4",
+      "sameOwnedIdentityAlive": false,
+      "mongoStopped": true,
+      "kind": "browser",
+      "exitCode": 0,
+      "markerVerifiedDrop": true
+    },
+    {
+      "sameOwnedIdentityAlive": false,
+      "pid": 4456,
+      "kind": "mongo",
+      "attempt": "browser-attempt6",
+      "pathExists": false,
+      "path": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-attempt6\\mongo-mem-QBjEJF",
+      "port": 32402
+    },
+    {
+      "attempt": "browser-attempt6",
+      "profileExists": false,
+      "pid": 15868,
+      "profile": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-attempt6\\portfolio-chrome-uLJ9re",
+      "sameOwnedIdentityAlive": false,
+      "mongoStopped": true,
+      "kind": "browser",
+      "exitCode": 0,
+      "markerVerifiedDrop": true
+    },
+    {
+      "sameOwnedIdentityAlive": false,
+      "pid": 19052,
+      "kind": "mongo",
+      "attempt": "browser-attempt7",
+      "pathExists": false,
+      "path": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-attempt7\\mongo-mem-GfSomA",
+      "port": 32402
+    },
+    {
+      "attempt": "browser-attempt7",
+      "profileExists": false,
+      "pid": 11784,
+      "profile": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-attempt7\\portfolio-chrome-4dt1C7",
+      "sameOwnedIdentityAlive": false,
+      "mongoStopped": true,
+      "kind": "browser",
+      "exitCode": 0,
+      "markerVerifiedDrop": true
+    },
+    {
+      "sameOwnedIdentityAlive": false,
+      "pid": 15196,
+      "kind": "mongo",
+      "attempt": "browser-continuation",
+      "pathExists": false,
+      "path": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-continuation\\mongo-mem-1gGPsj",
+      "port": 32402
+    },
+    {
+      "attempt": "browser-continuation",
+      "profileExists": false,
+      "pid": 22220,
+      "profile": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-continuation\\portfolio-chrome-VJxQUo",
+      "sameOwnedIdentityAlive": false,
+      "mongoStopped": true,
+      "kind": "browser",
+      "exitCode": 0,
+      "markerVerifiedDrop": true
+    },
+    {
+      "sameOwnedIdentityAlive": false,
+      "pid": 7572,
+      "kind": "mongo",
+      "attempt": "browser-e02",
+      "pathExists": false,
+      "path": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-e02\\mongo-mem-MfwXcS",
+      "port": 32402
+    },
+    {
+      "attempt": "browser-e02",
+      "profileExists": false,
+      "pid": 18200,
+      "profile": "C:\\Users\\Admin\\AppData\\Local\\Temp\\paperclip-run-tpr-166-71bdea23-955-p3N7ze\\browser-e02\\portfolio-chrome-bYLJCT",
+      "sameOwnedIdentityAlive": false,
+      "mongoStopped": true,
+      "kind": "browser",
+      "exitCode": 0,
+      "markerVerifiedDrop": true
+    }
+  ],
+  "at": "2026-11-01T04:14:01.7352040Z",
+  "headingPreflight": {
+    "attempt3ReceiptCorrection": "No Mongo/API/client was created in attempt3; unconditional original receipt booleans were inaccurate. Trace preflight was closed with owned CDP Browser.close; profile removed.",
+    "pidAlive": false,
+    "pid": 19136,
+    "profileExists": false
+  },
+  "ports": [
+    {
+      "bindClose": "PASS",
+      "port": 32400
+    },
+    {
+      "bindClose": "PASS",
+      "port": 32401
+    },
+    {
+      "bindClose": "PASS",
+      "port": 32402
+    },
+    {
+      "bindClose": "PASS",
+      "port": 32403
+    },
+    {
+      "bindClose": "PASS",
+      "port": 62253
+    }
+  ]
+}

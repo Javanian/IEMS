@@ -1,0 +1,2032 @@
+{
+  "mockedHttpApi": true,
+  "productionComponent": "CompanyStockTrace",
+  "baselineRef": null,
+  "planned": 24,
+  "passed": 21,
+  "failed": 1,
+  "notRun": 2,
+  "version": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/156.0.8078.79",
+    "revision": "@a21ce95c24ce3964416f09ae1862f53f319eb4d0",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "jsVersion": "15.6.75.27"
+  },
+  "initialGuard": {
+    "at": "2026-11-01T04:02:30.698Z",
+    "freeBytes": 6694780928,
+    "minimumGiB": 2
+  },
+  "records": [
+    {
+      "name": "historical-push-desktop-360",
+      "serial": "QA_COMP_4D880C6B_TRACE_LEAF",
+      "kiosk": false,
+      "width": 360,
+      "startedAt": "2026-11-01T04:02:44.609Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:15.330Z",
+        "width": 360,
+        "height": 1000,
+        "mobile": true,
+        "acknowledgedAt": "2026-11-01T04:03:15.336Z"
+      },
+      "geometry": {
+        "innerWidth": 360,
+        "innerHeight": 1000,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-push-desktop-360",
+        "timeOrigin": 1793505764621.4,
+        "kiosk": "false",
+        "text": "Trace for serial QA_COMP_4D880C6B_TRACE_LEAF",
+        "heading": {
+          "x": 50,
+          "y": 636,
+          "width": 260,
+          "height": 76.5,
+          "top": 636,
+          "right": 310,
+          "bottom": 712.5,
+          "left": 50
+        },
+        "textRects": [
+          {
+            "x": 50,
+            "y": 637,
+            "width": 112.25,
+            "height": 22,
+            "top": 637,
+            "right": 162.25,
+            "bottom": 659,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 662.5,
+            "width": 249.140625,
+            "height": 22,
+            "top": 662.5,
+            "right": 299.140625,
+            "bottom": 684.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 688,
+            "width": 19.96875,
+            "height": 22,
+            "top": 688,
+            "right": 69.96875,
+            "bottom": 710,
+            "left": 50
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 66
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:15.371Z"
+    },
+    {
+      "name": "historical-push-desktop-768",
+      "serial": "QA_COMP_4D880C6B_TRACE_LEAF",
+      "kiosk": false,
+      "width": 768,
+      "startedAt": "2026-11-01T04:03:15.421Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:16.870Z",
+        "width": 768,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:16.873Z"
+      },
+      "geometry": {
+        "innerWidth": 768,
+        "innerHeight": 1000,
+        "clientWidth": 753,
+        "scrollWidth": 753,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-push-desktop-768",
+        "timeOrigin": 1793505795436.5,
+        "kiosk": "false",
+        "text": "Trace for serial QA_COMP_4D880C6B_TRACE_LEAF",
+        "heading": {
+          "x": 74,
+          "y": 542,
+          "width": 605,
+          "height": 25.5,
+          "top": 542,
+          "right": 679,
+          "bottom": 567.5,
+          "left": 74
+        },
+        "textRects": [
+          {
+            "x": 74,
+            "y": 543,
+            "width": 116.921875,
+            "height": 22,
+            "top": 543,
+            "right": 190.921875,
+            "bottom": 565,
+            "left": 74
+          },
+          {
+            "x": 190.921875,
+            "y": 543,
+            "width": 269.265625,
+            "height": 22,
+            "top": 543,
+            "right": 460.1875,
+            "bottom": 565,
+            "left": 190.921875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:16.906Z"
+    },
+    {
+      "name": "historical-push-desktop-1440",
+      "serial": "QA_COMP_4D880C6B_TRACE_LEAF",
+      "kiosk": false,
+      "width": 1440,
+      "startedAt": "2026-11-01T04:03:16.906Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:19.084Z",
+        "width": 1440,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:19.085Z"
+      },
+      "geometry": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "clientWidth": 1425,
+        "scrollWidth": 1425,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-push-desktop-1440",
+        "timeOrigin": 1793505796918.7,
+        "kiosk": "false",
+        "text": "Trace for serial QA_COMP_4D880C6B_TRACE_LEAF",
+        "heading": {
+          "x": 154.5,
+          "y": 502,
+          "width": 1116,
+          "height": 25.5,
+          "top": 502,
+          "right": 1270.5,
+          "bottom": 527.5,
+          "left": 154.5
+        },
+        "textRects": [
+          {
+            "x": 154.5,
+            "y": 503,
+            "width": 116.921875,
+            "height": 22,
+            "top": 503,
+            "right": 271.421875,
+            "bottom": 525,
+            "left": 154.5
+          },
+          {
+            "x": 271.421875,
+            "y": 503,
+            "width": 269.265625,
+            "height": 22,
+            "top": 503,
+            "right": 540.6875,
+            "bottom": 525,
+            "left": 271.421875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:19.103Z"
+    },
+    {
+      "name": "historical-push-kiosk-360",
+      "serial": "QA_COMP_4D880C6B_TRACE_LEAF",
+      "kiosk": true,
+      "width": 360,
+      "startedAt": "2026-11-01T04:03:19.103Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:34.892Z",
+        "width": 360,
+        "height": 1000,
+        "mobile": true,
+        "acknowledgedAt": "2026-11-01T04:03:34.898Z"
+      },
+      "geometry": {
+        "innerWidth": 360,
+        "innerHeight": 1000,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-push-kiosk-360",
+        "timeOrigin": 1793505799112.9,
+        "kiosk": "true",
+        "text": "Trace for serial QA_COMP_4D880C6B_TRACE_LEAF",
+        "heading": {
+          "x": 50,
+          "y": 644,
+          "width": 260,
+          "height": 76.5,
+          "top": 644,
+          "right": 310,
+          "bottom": 720.5,
+          "left": 50
+        },
+        "textRects": [
+          {
+            "x": 50,
+            "y": 645,
+            "width": 112.25,
+            "height": 22,
+            "top": 645,
+            "right": 162.25,
+            "bottom": 667,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 670.5,
+            "width": 249.140625,
+            "height": 22,
+            "top": 670.5,
+            "right": 299.140625,
+            "bottom": 692.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 696,
+            "width": 19.96875,
+            "height": 22,
+            "top": 696,
+            "right": 69.96875,
+            "bottom": 718,
+            "left": 50
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 66
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:34.925Z"
+    },
+    {
+      "name": "historical-push-kiosk-768",
+      "serial": "QA_COMP_4D880C6B_TRACE_LEAF",
+      "kiosk": true,
+      "width": 768,
+      "startedAt": "2026-11-01T04:03:34.974Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:36.307Z",
+        "width": 768,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:36.311Z"
+      },
+      "geometry": {
+        "innerWidth": 768,
+        "innerHeight": 1000,
+        "clientWidth": 753,
+        "scrollWidth": 753,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-push-kiosk-768",
+        "timeOrigin": 1793505814984.3,
+        "kiosk": "true",
+        "text": "Trace for serial QA_COMP_4D880C6B_TRACE_LEAF",
+        "heading": {
+          "x": 74,
+          "y": 554,
+          "width": 605,
+          "height": 25.5,
+          "top": 554,
+          "right": 679,
+          "bottom": 579.5,
+          "left": 74
+        },
+        "textRects": [
+          {
+            "x": 74,
+            "y": 555,
+            "width": 116.921875,
+            "height": 22,
+            "top": 555,
+            "right": 190.921875,
+            "bottom": 577,
+            "left": 74
+          },
+          {
+            "x": 190.921875,
+            "y": 555,
+            "width": 269.265625,
+            "height": 22,
+            "top": 555,
+            "right": 460.1875,
+            "bottom": 577,
+            "left": 190.921875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:36.342Z"
+    },
+    {
+      "name": "historical-push-kiosk-1440",
+      "serial": "QA_COMP_4D880C6B_TRACE_LEAF",
+      "kiosk": true,
+      "width": 1440,
+      "startedAt": "2026-11-01T04:03:36.342Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:36.606Z",
+        "width": 1440,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:36.607Z"
+      },
+      "geometry": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "clientWidth": 1425,
+        "scrollWidth": 1425,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-push-kiosk-1440",
+        "timeOrigin": 1793505816348.8,
+        "kiosk": "true",
+        "text": "Trace for serial QA_COMP_4D880C6B_TRACE_LEAF",
+        "heading": {
+          "x": 154.5,
+          "y": 514,
+          "width": 1116,
+          "height": 25.5,
+          "top": 514,
+          "right": 1270.5,
+          "bottom": 539.5,
+          "left": 154.5
+        },
+        "textRects": [
+          {
+            "x": 154.5,
+            "y": 515,
+            "width": 116.921875,
+            "height": 22,
+            "top": 515,
+            "right": 271.421875,
+            "bottom": 537,
+            "left": 154.5
+          },
+          {
+            "x": 271.421875,
+            "y": 515,
+            "width": 269.265625,
+            "height": 22,
+            "top": 515,
+            "right": 540.6875,
+            "bottom": 537,
+            "left": 271.421875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:36.626Z"
+    },
+    {
+      "name": "historical-pr-desktop-360",
+      "serial": "QA_COMP_279E2EB2_TRACE_LEAF",
+      "kiosk": false,
+      "width": 360,
+      "startedAt": "2026-11-01T04:03:36.626Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:37.107Z",
+        "width": 360,
+        "height": 1000,
+        "mobile": true,
+        "acknowledgedAt": "2026-11-01T04:03:37.112Z"
+      },
+      "geometry": {
+        "innerWidth": 360,
+        "innerHeight": 1000,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-pr-desktop-360",
+        "timeOrigin": 1793505816630,
+        "kiosk": "false",
+        "text": "Trace for serial QA_COMP_279E2EB2_TRACE_LEAF",
+        "heading": {
+          "x": 50,
+          "y": 636,
+          "width": 260,
+          "height": 76.5,
+          "top": 636,
+          "right": 310,
+          "bottom": 712.5,
+          "left": 50
+        },
+        "textRects": [
+          {
+            "x": 50,
+            "y": 637,
+            "width": 112.25,
+            "height": 22,
+            "top": 637,
+            "right": 162.25,
+            "bottom": 659,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 662.5,
+            "width": 255.5625,
+            "height": 22,
+            "top": 662.5,
+            "right": 305.5625,
+            "bottom": 684.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 688,
+            "width": 8.546875,
+            "height": 22,
+            "top": 688,
+            "right": 58.546875,
+            "bottom": 710,
+            "left": 50
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 66
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:37.142Z"
+    },
+    {
+      "name": "historical-pr-desktop-768",
+      "serial": "QA_COMP_279E2EB2_TRACE_LEAF",
+      "kiosk": false,
+      "width": 768,
+      "startedAt": "2026-11-01T04:03:37.142Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:38.456Z",
+        "width": 768,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:38.459Z"
+      },
+      "geometry": {
+        "innerWidth": 768,
+        "innerHeight": 1000,
+        "clientWidth": 753,
+        "scrollWidth": 753,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-pr-desktop-768",
+        "timeOrigin": 1793505817150.5,
+        "kiosk": "false",
+        "text": "Trace for serial QA_COMP_279E2EB2_TRACE_LEAF",
+        "heading": {
+          "x": 74,
+          "y": 542,
+          "width": 605,
+          "height": 25.5,
+          "top": 542,
+          "right": 679,
+          "bottom": 567.5,
+          "left": 74
+        },
+        "textRects": [
+          {
+            "x": 74,
+            "y": 543,
+            "width": 116.921875,
+            "height": 22,
+            "top": 543,
+            "right": 190.921875,
+            "bottom": 565,
+            "left": 74
+          },
+          {
+            "x": 190.921875,
+            "y": 543,
+            "width": 264.109375,
+            "height": 22,
+            "top": 543,
+            "right": 455.03125,
+            "bottom": 565,
+            "left": 190.921875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:38.492Z"
+    },
+    {
+      "name": "historical-pr-desktop-1440",
+      "serial": "QA_COMP_279E2EB2_TRACE_LEAF",
+      "kiosk": false,
+      "width": 1440,
+      "startedAt": "2026-11-01T04:03:38.492Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:38.654Z",
+        "width": 1440,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:38.655Z"
+      },
+      "geometry": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "clientWidth": 1425,
+        "scrollWidth": 1425,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-pr-desktop-1440",
+        "timeOrigin": 1793505818499,
+        "kiosk": "false",
+        "text": "Trace for serial QA_COMP_279E2EB2_TRACE_LEAF",
+        "heading": {
+          "x": 154.5,
+          "y": 502,
+          "width": 1116,
+          "height": 25.5,
+          "top": 502,
+          "right": 1270.5,
+          "bottom": 527.5,
+          "left": 154.5
+        },
+        "textRects": [
+          {
+            "x": 154.5,
+            "y": 503,
+            "width": 116.921875,
+            "height": 22,
+            "top": 503,
+            "right": 271.421875,
+            "bottom": 525,
+            "left": 154.5
+          },
+          {
+            "x": 271.421875,
+            "y": 503,
+            "width": 264.109375,
+            "height": 22,
+            "top": 503,
+            "right": 535.53125,
+            "bottom": 525,
+            "left": 271.421875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:38.691Z"
+    },
+    {
+      "name": "historical-pr-kiosk-360",
+      "serial": "QA_COMP_279E2EB2_TRACE_LEAF",
+      "kiosk": true,
+      "width": 360,
+      "startedAt": "2026-11-01T04:03:38.691Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:38.986Z",
+        "width": 360,
+        "height": 1000,
+        "mobile": true,
+        "acknowledgedAt": "2026-11-01T04:03:38.991Z"
+      },
+      "geometry": {
+        "innerWidth": 360,
+        "innerHeight": 1000,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-pr-kiosk-360",
+        "timeOrigin": 1793505818695.5,
+        "kiosk": "true",
+        "text": "Trace for serial QA_COMP_279E2EB2_TRACE_LEAF",
+        "heading": {
+          "x": 50,
+          "y": 644,
+          "width": 260,
+          "height": 76.5,
+          "top": 644,
+          "right": 310,
+          "bottom": 720.5,
+          "left": 50
+        },
+        "textRects": [
+          {
+            "x": 50,
+            "y": 645,
+            "width": 112.25,
+            "height": 22,
+            "top": 645,
+            "right": 162.25,
+            "bottom": 667,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 670.5,
+            "width": 255.5625,
+            "height": 22,
+            "top": 670.5,
+            "right": 305.5625,
+            "bottom": 692.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 696,
+            "width": 8.546875,
+            "height": 22,
+            "top": 696,
+            "right": 58.546875,
+            "bottom": 718,
+            "left": 50
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 66
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:39.025Z"
+    },
+    {
+      "name": "historical-pr-kiosk-768",
+      "serial": "QA_COMP_279E2EB2_TRACE_LEAF",
+      "kiosk": true,
+      "width": 768,
+      "startedAt": "2026-11-01T04:03:39.025Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:39.308Z",
+        "width": 768,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:39.312Z"
+      },
+      "geometry": {
+        "innerWidth": 768,
+        "innerHeight": 1000,
+        "clientWidth": 753,
+        "scrollWidth": 753,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-pr-kiosk-768",
+        "timeOrigin": 1793505819033.7,
+        "kiosk": "true",
+        "text": "Trace for serial QA_COMP_279E2EB2_TRACE_LEAF",
+        "heading": {
+          "x": 74,
+          "y": 554,
+          "width": 605,
+          "height": 25.5,
+          "top": 554,
+          "right": 679,
+          "bottom": 579.5,
+          "left": 74
+        },
+        "textRects": [
+          {
+            "x": 74,
+            "y": 555,
+            "width": 116.921875,
+            "height": 22,
+            "top": 555,
+            "right": 190.921875,
+            "bottom": 577,
+            "left": 74
+          },
+          {
+            "x": 190.921875,
+            "y": 555,
+            "width": 264.109375,
+            "height": 22,
+            "top": 555,
+            "right": 455.03125,
+            "bottom": 577,
+            "left": 190.921875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:39.342Z"
+    },
+    {
+      "name": "historical-pr-kiosk-1440",
+      "serial": "QA_COMP_279E2EB2_TRACE_LEAF",
+      "kiosk": true,
+      "width": 1440,
+      "startedAt": "2026-11-01T04:03:39.342Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:39.805Z",
+        "width": 1440,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:39.805Z"
+      },
+      "geometry": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "clientWidth": 1425,
+        "scrollWidth": 1425,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/historical-pr-kiosk-1440",
+        "timeOrigin": 1793505819349.4,
+        "kiosk": "true",
+        "text": "Trace for serial QA_COMP_279E2EB2_TRACE_LEAF",
+        "heading": {
+          "x": 154.5,
+          "y": 514,
+          "width": 1116,
+          "height": 25.5,
+          "top": 514,
+          "right": 1270.5,
+          "bottom": 539.5,
+          "left": 154.5
+        },
+        "textRects": [
+          {
+            "x": 154.5,
+            "y": 515,
+            "width": 116.921875,
+            "height": 22,
+            "top": 515,
+            "right": 271.421875,
+            "bottom": 537,
+            "left": 154.5
+          },
+          {
+            "x": 271.421875,
+            "y": 515,
+            "width": 264.109375,
+            "height": 22,
+            "top": 515,
+            "right": 535.53125,
+            "bottom": 537,
+            "left": 271.421875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:39.830Z"
+    },
+    {
+      "name": "long-desktop-360",
+      "serial": "TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+      "kiosk": false,
+      "width": 360,
+      "startedAt": "2026-11-01T04:03:39.830Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:40.225Z",
+        "width": 360,
+        "height": 1000,
+        "mobile": true,
+        "acknowledgedAt": "2026-11-01T04:03:40.235Z"
+      },
+      "geometry": {
+        "innerWidth": 360,
+        "innerHeight": 1000,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/long-desktop-360",
+        "timeOrigin": 1793505819835.4,
+        "kiosk": "false",
+        "text": "Trace for serial TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+        "heading": {
+          "x": 50,
+          "y": 636,
+          "width": 260,
+          "height": 255,
+          "top": 636,
+          "right": 310,
+          "bottom": 891,
+          "left": 50
+        },
+        "textRects": [
+          {
+            "x": 50,
+            "y": 637,
+            "width": 112.25,
+            "height": 22,
+            "top": 637,
+            "right": 162.25,
+            "bottom": 659,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 662.5,
+            "width": 254.578125,
+            "height": 22,
+            "top": 662.5,
+            "right": 304.578125,
+            "bottom": 684.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 688,
+            "width": 246.296875,
+            "height": 22,
+            "top": 688,
+            "right": 296.296875,
+            "bottom": 710,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 713.5,
+            "width": 246.296875,
+            "height": 22,
+            "top": 713.5,
+            "right": 296.296875,
+            "bottom": 735.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 739,
+            "width": 246.296875,
+            "height": 22,
+            "top": 739,
+            "right": 296.296875,
+            "bottom": 761,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 764.5,
+            "width": 246.296875,
+            "height": 22,
+            "top": 764.5,
+            "right": 296.296875,
+            "bottom": 786.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 790,
+            "width": 246.296875,
+            "height": 22,
+            "top": 790,
+            "right": 296.296875,
+            "bottom": 812,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 815.5,
+            "width": 246.296875,
+            "height": 22,
+            "top": 815.5,
+            "right": 296.296875,
+            "bottom": 837.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 841,
+            "width": 246.296875,
+            "height": 22,
+            "top": 841,
+            "right": 296.296875,
+            "bottom": 863,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 866.5,
+            "width": 180.609375,
+            "height": 22,
+            "top": 866.5,
+            "right": 230.609375,
+            "bottom": 888.5,
+            "left": 50
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 66
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:40.258Z"
+    },
+    {
+      "name": "long-desktop-768",
+      "serial": "TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+      "kiosk": false,
+      "width": 768,
+      "startedAt": "2026-11-01T04:03:40.306Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:40.573Z",
+        "width": 768,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:40.577Z"
+      },
+      "geometry": {
+        "innerWidth": 768,
+        "innerHeight": 1000,
+        "clientWidth": 753,
+        "scrollWidth": 753,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/long-desktop-768",
+        "timeOrigin": 1793505820315,
+        "kiosk": "false",
+        "text": "Trace for serial TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+        "heading": {
+          "x": 74,
+          "y": 542,
+          "width": 605,
+          "height": 127.5,
+          "top": 542,
+          "right": 679,
+          "bottom": 669.5,
+          "left": 74
+        },
+        "textRects": [
+          {
+            "x": 74,
+            "y": 543,
+            "width": 112.25,
+            "height": 22,
+            "top": 543,
+            "right": 186.25,
+            "bottom": 565,
+            "left": 74
+          },
+          {
+            "x": 74,
+            "y": 568.5,
+            "width": 599.375,
+            "height": 22,
+            "top": 568.5,
+            "right": 673.375,
+            "bottom": 590.5,
+            "left": 74
+          },
+          {
+            "x": 74,
+            "y": 594,
+            "width": 591.09375,
+            "height": 22,
+            "top": 594,
+            "right": 665.09375,
+            "bottom": 616,
+            "left": 74
+          },
+          {
+            "x": 74,
+            "y": 619.5,
+            "width": 591.09375,
+            "height": 22,
+            "top": 619.5,
+            "right": 665.09375,
+            "bottom": 641.5,
+            "left": 74
+          },
+          {
+            "x": 74,
+            "y": 645,
+            "width": 377.640625,
+            "height": 22,
+            "top": 645,
+            "right": 451.640625,
+            "bottom": 667,
+            "left": 74
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:40.609Z"
+    },
+    {
+      "name": "long-desktop-1440",
+      "serial": "TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+      "kiosk": false,
+      "width": 1440,
+      "startedAt": "2026-11-01T04:03:40.609Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:40.773Z",
+        "width": 1440,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:40.774Z"
+      },
+      "geometry": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "clientWidth": 1425,
+        "scrollWidth": 1425,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/long-desktop-1440",
+        "timeOrigin": 1793505820617.3,
+        "kiosk": "false",
+        "text": "Trace for serial TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+        "heading": {
+          "x": 154.5,
+          "y": 502,
+          "width": 1116,
+          "height": 76.5,
+          "top": 502,
+          "right": 1270.5,
+          "bottom": 578.5,
+          "left": 154.5
+        },
+        "textRects": [
+          {
+            "x": 154.5,
+            "y": 503,
+            "width": 112.25,
+            "height": 22,
+            "top": 503,
+            "right": 266.75,
+            "bottom": 525,
+            "left": 154.5
+          },
+          {
+            "x": 154.5,
+            "y": 528.5,
+            "width": 1108.375,
+            "height": 22,
+            "top": 528.5,
+            "right": 1262.875,
+            "bottom": 550.5,
+            "left": 154.5
+          },
+          {
+            "x": 154.5,
+            "y": 554,
+            "width": 1050.8125,
+            "height": 22,
+            "top": 554,
+            "right": 1205.3125,
+            "bottom": 576,
+            "left": 154.5
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:40.808Z"
+    },
+    {
+      "name": "long-kiosk-360",
+      "serial": "TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+      "kiosk": true,
+      "width": 360,
+      "startedAt": "2026-11-01T04:03:40.808Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:41.073Z",
+        "width": 360,
+        "height": 1000,
+        "mobile": true,
+        "acknowledgedAt": "2026-11-01T04:03:41.082Z"
+      },
+      "geometry": {
+        "innerWidth": 360,
+        "innerHeight": 1000,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/long-kiosk-360",
+        "timeOrigin": 1793505820812.4,
+        "kiosk": "true",
+        "text": "Trace for serial TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+        "heading": {
+          "x": 50,
+          "y": 644,
+          "width": 260,
+          "height": 255,
+          "top": 644,
+          "right": 310,
+          "bottom": 899,
+          "left": 50
+        },
+        "textRects": [
+          {
+            "x": 50,
+            "y": 645,
+            "width": 112.25,
+            "height": 22,
+            "top": 645,
+            "right": 162.25,
+            "bottom": 667,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 670.5,
+            "width": 254.578125,
+            "height": 22,
+            "top": 670.5,
+            "right": 304.578125,
+            "bottom": 692.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 696,
+            "width": 246.296875,
+            "height": 22,
+            "top": 696,
+            "right": 296.296875,
+            "bottom": 718,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 721.5,
+            "width": 246.296875,
+            "height": 22,
+            "top": 721.5,
+            "right": 296.296875,
+            "bottom": 743.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 747,
+            "width": 246.296875,
+            "height": 22,
+            "top": 747,
+            "right": 296.296875,
+            "bottom": 769,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 772.5,
+            "width": 246.296875,
+            "height": 22,
+            "top": 772.5,
+            "right": 296.296875,
+            "bottom": 794.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 798,
+            "width": 246.296875,
+            "height": 22,
+            "top": 798,
+            "right": 296.296875,
+            "bottom": 820,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 823.5,
+            "width": 246.296875,
+            "height": 22,
+            "top": 823.5,
+            "right": 296.296875,
+            "bottom": 845.5,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 849,
+            "width": 246.296875,
+            "height": 22,
+            "top": 849,
+            "right": 296.296875,
+            "bottom": 871,
+            "left": 50
+          },
+          {
+            "x": 50,
+            "y": 874.5,
+            "width": 180.609375,
+            "height": 22,
+            "top": 874.5,
+            "right": 230.609375,
+            "bottom": 896.5,
+            "left": 50
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 66
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:41.108Z"
+    },
+    {
+      "name": "long-kiosk-768",
+      "serial": "TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+      "kiosk": true,
+      "width": 768,
+      "startedAt": "2026-11-01T04:03:41.171Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:41.431Z",
+        "width": 768,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:41.434Z"
+      },
+      "geometry": {
+        "innerWidth": 768,
+        "innerHeight": 1000,
+        "clientWidth": 753,
+        "scrollWidth": 753,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/long-kiosk-768",
+        "timeOrigin": 1793505821180.6,
+        "kiosk": "true",
+        "text": "Trace for serial TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+        "heading": {
+          "x": 74,
+          "y": 554,
+          "width": 605,
+          "height": 127.5,
+          "top": 554,
+          "right": 679,
+          "bottom": 681.5,
+          "left": 74
+        },
+        "textRects": [
+          {
+            "x": 74,
+            "y": 555,
+            "width": 112.25,
+            "height": 22,
+            "top": 555,
+            "right": 186.25,
+            "bottom": 577,
+            "left": 74
+          },
+          {
+            "x": 74,
+            "y": 580.5,
+            "width": 599.375,
+            "height": 22,
+            "top": 580.5,
+            "right": 673.375,
+            "bottom": 602.5,
+            "left": 74
+          },
+          {
+            "x": 74,
+            "y": 606,
+            "width": 591.09375,
+            "height": 22,
+            "top": 606,
+            "right": 665.09375,
+            "bottom": 628,
+            "left": 74
+          },
+          {
+            "x": 74,
+            "y": 631.5,
+            "width": 591.09375,
+            "height": 22,
+            "top": 631.5,
+            "right": 665.09375,
+            "bottom": 653.5,
+            "left": 74
+          },
+          {
+            "x": 74,
+            "y": 657,
+            "width": 377.640625,
+            "height": 22,
+            "top": 657,
+            "right": 451.640625,
+            "bottom": 679,
+            "left": 74
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:41.458Z"
+    },
+    {
+      "name": "long-kiosk-1440",
+      "serial": "TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+      "kiosk": true,
+      "width": 1440,
+      "startedAt": "2026-11-01T04:03:41.458Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:41.719Z",
+        "width": 1440,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:41.720Z"
+      },
+      "geometry": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "clientWidth": 1425,
+        "scrollWidth": 1425,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/long-kiosk-1440",
+        "timeOrigin": 1793505821465.5,
+        "kiosk": "true",
+        "text": "Trace for serial TRACE_WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+        "heading": {
+          "x": 154.5,
+          "y": 514,
+          "width": 1116,
+          "height": 76.5,
+          "top": 514,
+          "right": 1270.5,
+          "bottom": 590.5,
+          "left": 154.5
+        },
+        "textRects": [
+          {
+            "x": 154.5,
+            "y": 515,
+            "width": 112.25,
+            "height": 22,
+            "top": 515,
+            "right": 266.75,
+            "bottom": 537,
+            "left": 154.5
+          },
+          {
+            "x": 154.5,
+            "y": 540.5,
+            "width": 1108.375,
+            "height": 22,
+            "top": 540.5,
+            "right": 1262.875,
+            "bottom": 562.5,
+            "left": 154.5
+          },
+          {
+            "x": 154.5,
+            "y": 566,
+            "width": 1050.8125,
+            "height": 22,
+            "top": 566,
+            "right": 1205.3125,
+            "bottom": 588,
+            "left": 154.5
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:41.725Z"
+    },
+    {
+      "name": "short-desktop-360",
+      "serial": "TRACE-1",
+      "kiosk": false,
+      "width": 360,
+      "startedAt": "2026-11-01T04:03:41.725Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:41.973Z",
+        "width": 360,
+        "height": 1000,
+        "mobile": true,
+        "acknowledgedAt": "2026-11-01T04:03:41.982Z"
+      },
+      "geometry": {
+        "innerWidth": 360,
+        "innerHeight": 1000,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/short-desktop-360",
+        "timeOrigin": 1793505821729.3,
+        "kiosk": "false",
+        "text": "Trace for serial TRACE-1",
+        "heading": {
+          "x": 50,
+          "y": 636,
+          "width": 260,
+          "height": 25.5,
+          "top": 636,
+          "right": 310,
+          "bottom": 661.5,
+          "left": 50
+        },
+        "textRects": [
+          {
+            "x": 50,
+            "y": 637,
+            "width": 116.921875,
+            "height": 22,
+            "top": 637,
+            "right": 166.921875,
+            "bottom": 659,
+            "left": 50
+          },
+          {
+            "x": 166.921875,
+            "y": 637,
+            "width": 66.765625,
+            "height": 22,
+            "top": 637,
+            "right": 233.6875,
+            "bottom": 659,
+            "left": 166.921875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 66
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:42.008Z"
+    },
+    {
+      "name": "short-desktop-768",
+      "serial": "TRACE-1",
+      "kiosk": false,
+      "width": 768,
+      "startedAt": "2026-11-01T04:03:42.008Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:42.257Z",
+        "width": 768,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:42.260Z"
+      },
+      "geometry": {
+        "innerWidth": 768,
+        "innerHeight": 1000,
+        "clientWidth": 753,
+        "scrollWidth": 753,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/short-desktop-768",
+        "timeOrigin": 1793505822017.4,
+        "kiosk": "false",
+        "text": "Trace for serial TRACE-1",
+        "heading": {
+          "x": 74,
+          "y": 542,
+          "width": 605,
+          "height": 25.5,
+          "top": 542,
+          "right": 679,
+          "bottom": 567.5,
+          "left": 74
+        },
+        "textRects": [
+          {
+            "x": 74,
+            "y": 543,
+            "width": 116.921875,
+            "height": 22,
+            "top": 543,
+            "right": 190.921875,
+            "bottom": 565,
+            "left": 74
+          },
+          {
+            "x": 190.921875,
+            "y": 543,
+            "width": 66.765625,
+            "height": 22,
+            "top": 543,
+            "right": 257.6875,
+            "bottom": 565,
+            "left": 190.921875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:42.292Z"
+    },
+    {
+      "name": "short-desktop-1440",
+      "serial": "TRACE-1",
+      "kiosk": false,
+      "width": 1440,
+      "startedAt": "2026-11-01T04:03:42.292Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:42.553Z",
+        "width": 1440,
+        "height": 1000,
+        "mobile": false,
+        "acknowledgedAt": "2026-11-01T04:03:42.553Z"
+      },
+      "geometry": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "clientWidth": 1425,
+        "scrollWidth": 1425,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/short-desktop-1440",
+        "timeOrigin": 1793505822298.8,
+        "kiosk": "false",
+        "text": "Trace for serial TRACE-1",
+        "heading": {
+          "x": 154.5,
+          "y": 502,
+          "width": 1116,
+          "height": 25.5,
+          "top": 502,
+          "right": 1270.5,
+          "bottom": 527.5,
+          "left": 154.5
+        },
+        "textRects": [
+          {
+            "x": 154.5,
+            "y": 503,
+            "width": 116.921875,
+            "height": 22,
+            "top": 503,
+            "right": 271.421875,
+            "bottom": 525,
+            "left": 154.5
+          },
+          {
+            "x": 271.421875,
+            "y": 503,
+            "width": 66.765625,
+            "height": 22,
+            "top": 503,
+            "right": 338.1875,
+            "bottom": 525,
+            "left": 271.421875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loaded"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          },
+          {
+            "tag": "BUTTON",
+            "height": 44
+          }
+        ]
+      },
+      "state": "PASS",
+      "completedAt": "2026-11-01T04:03:42.558Z"
+    },
+    {
+      "name": "short-kiosk-360",
+      "serial": "TRACE-1",
+      "kiosk": true,
+      "width": 360,
+      "startedAt": "2026-11-01T04:03:42.558Z",
+      "targetId": "2939091220D7D480D72EF8289C4C1F25",
+      "sessionId": "4227902A00E76271FE22A3DFD13B73A2",
+      "resize": {
+        "requestedAt": "2026-11-01T04:03:42.940Z",
+        "width": 360,
+        "height": 1000,
+        "mobile": true,
+        "acknowledgedAt": "2026-11-01T04:03:42.945Z"
+      },
+      "geometry": {
+        "innerWidth": 360,
+        "innerHeight": 1000,
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "url": "http://127.0.0.1:62253/__trace-heading-case/short-kiosk-360",
+        "timeOrigin": 1793505822562.9,
+        "kiosk": "true",
+        "text": "Trace for serial TRACE-1",
+        "heading": {
+          "x": 50,
+          "y": 644,
+          "width": 260,
+          "height": 25.5,
+          "top": 644,
+          "right": 310,
+          "bottom": 669.5,
+          "left": 50
+        },
+        "textRects": [
+          {
+            "x": 50,
+            "y": 645,
+            "width": 116.921875,
+            "height": 22,
+            "top": 645,
+            "right": 166.921875,
+            "bottom": 667,
+            "left": 50
+          },
+          {
+            "x": 166.921875,
+            "y": 645,
+            "width": 66.765625,
+            "height": 22,
+            "top": 645,
+            "right": 233.6875,
+            "bottom": 667,
+            "left": 166.921875
+          }
+        ],
+        "font": {
+          "family": "\"Plus Jakarta Sans Variable\", \"Plus Jakarta Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif",
+          "status": "loading"
+        },
+        "controls": [
+          {
+            "tag": "SELECT",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 48
+          },
+          {
+            "tag": "BUTTON",
+            "height": 66
+          }
+        ]
+      },
+      "state": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'loading'\n- 'loaded'\n       ^\n"
+    }
+  ],
+  "exceptions": [],
+  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'loading'\n- 'loaded'\n       ^\n",
+  "cleanupErrors": [],
+  "resources": {
+    "browserPid": 19136,
+    "browserExitCode": 0,
+    "browserSignalCode": null,
+    "browserClosed": true,
+    "origin": "http://127.0.0.1:62253",
+    "serverClosed": true,
+    "profileRemoved": true,
+    "applicationApiOrDatabaseStarted": false
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "diagnosticOnly": true,
+  "fullAcceptance": false,
+  "error": "Error: Timed out: document.querySelector(\"h1\")?.textContent===\"Work queue\". Page: Skip to content\nIEMS Portfolio\nalpha.owner\nUse kiosk controls\nSign out\nWork queue\nWorkspaces\nOperations\nQuality\nMaintenance\nVoice\nAutomation\nAnalytics\nPlatform jobs\nAccounts\n\nRecords for your assigned plant. Open a record to review relationships and history.\n\nCurrent accounts\n\nNo accounts yet. Create an account to begin.\n\nCreate account\nAccount name (required)\n\nCreate account",
+  "checks": [
+    "explicit synthetic foundation seed with two actual fixture operators, fresh owned DB, real MongoDB 7.0.14 replica set",
+    "mounted deep-link login, genuine credentialed cookie session",
+    "HttpOnly cookie not exposed; no localStorage/sessionStorage bearer or auth data"
+  ],
+  "exceptions": [],
+  "consoleErrors": [],
+  "network": [
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/logout",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 401
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/login",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/session/me",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "status": 200
+    }
+  ],
+  "networkFailures": [
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    },
+    {
+      "url": "http://127.0.0.1:32400/portfolio-api/api/crm/accounts",
+      "method": "GET",
+      "errorText": "net::ERR_ABORTED",
+      "canceled": true
+    }
+  ]
+}

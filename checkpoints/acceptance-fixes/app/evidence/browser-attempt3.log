@@ -1,0 +1,60 @@
+Owned web origin http://127.0.0.1:32400
+11:02:38 AM [vite] (client) Re-optimizing dependencies because vite config has changed
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+
+- D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web
+- D:/Project AI/GITHUB/IEMS-worktrees/iems-qa-parallel-20261031-business/apps/web/node_modules/vite/dist/client
+
+Refer to docs https://vite.dev/config/server-options.html#server-fs-allow for configurations and more details.
+
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource\fira-code\files\fira-code-latin-500-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource-variable\plus-jakarta-sans\files\plus-jakarta-sans-latin-wght-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource\fira-code\files\fira-code-latin-500-normal.woff2" is outside of Vite serving allow list.
+The request id "D:\Project AI\GITHUB\IEMS-worktrees\iems-qa-parallel-20261031-business\apps\web\node_modules\@fontsource\fira-code\files\fira-code-latin-500-normal.woff" is outside of Vite serving allow list.
+TRACE_HEADING_REGRESSION {"passed":21,"failed":1,"notRun":2,"mockedHttpApi":true,"baselineRef":null,"evidence":"D:\\Project AI\\GITHUB\\IEMS-worktrees\\iems-accept-fix-20261101-app\\checkpoints\\acceptance-fixes\\app\\evidence\\browser-attempt3","resources":{"browserPid":19136,"browserExitCode":0,"browserSignalCode":null,"browserClosed":true,"origin":"http://127.0.0.1:62253","serverClosed":true,"profileRemoved":true,"applicationApiOrDatabaseStarted":false}}
+{"exceptions":[],"consoleErrors":[],"network":[],"networkFailures":[]}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'loading'
+- 'loaded'
+       ^
+
+    at runTraceHeadingBrowserRegression (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-company-trace-heading-browser.mjs:154:68)
+    at async file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-browser.mjs:163:48 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'loading',
+  expected: 'loaded',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

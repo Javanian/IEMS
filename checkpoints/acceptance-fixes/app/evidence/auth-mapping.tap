@@ -1,0 +1,10 @@
+✔ invalid credentials invite correction without identifying a valid account (0.9738ms)
+✔ established session failures retain expiry guidance (0.2371ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 227.086

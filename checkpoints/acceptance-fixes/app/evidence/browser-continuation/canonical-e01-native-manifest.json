@@ -1,0 +1,174 @@
+{
+  "scenario": "E01",
+  "fixtureSource": "packages/domain-test-fixtures/src/scenarios/e01ManufacturingTenUnits.js",
+  "nativeMutations": [
+    "Create customer account",
+    "Save source inquiry",
+    "Submit inquiry",
+    "Start inquiry review",
+    "Convert inquiry with original quotation R1 terms",
+    "Approve original quotation R1",
+    "Save and approve original negotiated quotation R2",
+    "Record original R2 acceptance",
+    "Convert R2 to real sales order with committed acknowledgment loss and exact retry",
+    "Draft engineering, save runtime revision2 mapping original BOM/routingB, and release actual five-source package",
+    "Plan actual work orders6/4 with serialized outputs, required genealogy and required original labor operations10/40",
+    "WO-2026-MFG-001 release from frozen engineeringB",
+    "WO-2026-MFG-001 original EMP-0104 labor operation10",
+    "WO-2026-MFG-001 record OP10",
+    "WO-2026-MFG-002 release from frozen engineeringB",
+    "WO-2026-MFG-002 original EMP-0104 labor operation10",
+    "WO-2026-MFG-002 record OP10",
+    "WO-2026-MFG-001 record OP20",
+    "WO-2026-MFG-001 record OP30",
+    "WO-2026-MFG-001 original EMP-0108 labor operation40",
+    "WO-2026-MFG-001 record OP40",
+    "WO-2026-MFG-001 record OP50",
+    "QC-REL-001 exact original serial partition",
+    "SN-2026-SLP-004 explicit five-source genealogy",
+    "SN-2026-SLP-005 explicit five-source genealogy",
+    "SN-2026-SLP-002 explicit five-source genealogy",
+    "SN-2026-SLP-003 explicit five-source genealogy",
+    "SN-2026-SLP-001 explicit five-source genealogy",
+    "SN-2026-SLP-006 explicit five-source genealogy",
+    "WO-2026-MFG-001 explicit zero loss and genealogy finalization",
+    "SHP-2026-0041 actual dispatch 6.0000 original serials",
+    "WO-2026-MFG-002 record OP20",
+    "WO-2026-MFG-002 record OP30",
+    "WO-2026-MFG-002 original EMP-0108 labor operation40",
+    "WO-2026-MFG-002 record OP40",
+    "POD-2026-0041 actual original receiver/reference/serial POD with committed response-loss exact retry",
+    "INV-2026-0104 exact original shipment billing/net/VAT/gross",
+    "WO-2026-MFG-002 record OP50",
+    "QC-REL-002 exact original serial partition",
+    "SN-2026-SLP-008 explicit five-source genealogy",
+    "SN-2026-SLP-009 explicit five-source genealogy",
+    "SN-2026-SLP-010 explicit five-source genealogy",
+    "SN-2026-SLP-007 explicit five-source genealogy",
+    "WO-2026-MFG-002 explicit zero loss and genealogy finalization",
+    "SHP-2026-0042 actual dispatch 4.0000 original serials",
+    "POD-2026-0042 actual original receiver/reference/serial POD",
+    "INV-2026-0118 exact original shipment billing/net/VAT/gross",
+    "PAY-2026-0301 original exact payment and invoice settlement",
+    "PAY-2026-0342 original exact payment and invoice settlement"
+  ],
+  "apiSetup": [
+    "Scoped procurement vendor/request/order and actual five lot/heat receipts, QA release and putaway through receiveE01MaterialSources; not a native clickthrough"
+  ],
+  "navigation": "Actual mounted routes and native controls; authoritative runtime IDs remain in URLs and form values.",
+  "engineeringDateLimitation": "Fixture engineering approval Apr15 precedes Apr17 goods receipt. The current receipt-backed adapter releases runtime revision2 on Apr17; Apr15 is a fixture reference, not a fabricated release timestamp.",
+  "engineering": {
+    "fixtureRevision": "REV-B",
+    "bom": "BOM-SLP-250-B",
+    "routing": "RTG-SLP-250-B"
+  },
+  "issueDateLimitation": "Original material issue dates are represented by native release/reservation. Physical MATERIAL_CONSUMED is recorded at the first actual operation, not backdated to reservation. Payment received_at drives business time; the later original applied_at is a fixture reference when no separate application timestamp is persisted.",
+  "supplementalOperations": "Operations20/30/50 have no original execution_session. Their native operator evidence is explicitly supplemental; original labor sessions10/40 retain their original employee, workcenter, windows and active run_hours. No telemetry, payroll or physical verification is claimed.",
+  "references": {
+    "PRT-CUST-NMR": "98ca8a35-6e05-4c0b-b823-b1c3f0f4bb25",
+    "INQ-2026-03-0012": "b59d63d9-bd77-403b-87ae-e55c99f02776",
+    "QUO-2026-0412": "aac0703a-7ce2-44a4-8e5b-189f06d1d7f0",
+    "SO-2026-0881": "4fdb84c5-ebcb-4f66-81f5-9823317f48d2",
+    "PO-2026-PRC-0914": "db748d8c-02ce-4207-8e5d-1488605b22c2",
+    "CST-HC-250": "17c817d9-2aa7-4006-8f45-d0b7ad55e3cf",
+    "SFT-4140-100": "9d67f525-bf04-4b41-8160-4f5bdd9a9a8d",
+    "SEL-VTN-100": "a2e535de-faf5-4694-a37b-e691b010dd87",
+    "BRG-SKF-22220": "b70186ee-51ab-43a9-ac29-5d11cbc013a7",
+    "FST-KIT-M24": "2f424417-d7a7-4873-abd3-ef458f142ce7",
+    "PKG-SLP-250-R2": "17d5f2c7-c5be-496c-bc30-b61626915eba",
+    "WO-2026-MFG-001": "ca099d0c-e5be-4635-85b2-660714ad917d",
+    "WO-2026-MFG-002": "f2823cdd-a9b0-484d-bb26-e8dcef11044d",
+    "SHP-2026-0041": "9536e822-e15d-47db-a8d6-dd91925d2f58",
+    "INV-2026-0104": "c31fa576-a192-4d0b-a3e3-e1de4e4db84c",
+    "SHP-2026-0042": "f3fddd7b-7761-4cf1-a7d8-1859bdae8666",
+    "INV-2026-0118": "d1fa1bf6-fd33-4cba-a3da-db9cd5067ae1",
+    "PAY-2026-0301": "07f9864a-174c-424c-bde3-3f37bf8efbd8",
+    "PAY-2026-0342": "906c4a80-feda-4ded-b950-595362406bcc"
+  },
+  "employees": {
+    "EMP-0104": {
+      "username": "alpha.operator.cnc",
+      "userId": "ac5b77df-d70c-4b88-8025-7a655c803423"
+    },
+    "EMP-0108": {
+      "username": "alpha.operator.assembly",
+      "userId": "b95504b9-bf64-4570-be97-1bd7d9f16590"
+    }
+  },
+  "timeline": [
+    "2026-03-10T08:15:00.000Z",
+    "2026-03-15T10:00:00.000Z",
+    "2026-04-02T09:30:00.000Z",
+    "2026-04-12T14:30:00.000Z",
+    "2026-04-14T11:00:00.000Z",
+    "2026-04-14T15:00:00.000Z",
+    "2026-04-17T09:45:00.000Z",
+    "2026-04-18T08:30:00.000Z",
+    "2026-04-19T17:30:00.000Z",
+    "2026-04-25T08:30:00.000Z",
+    "2026-04-26T15:00:00.000Z",
+    "2026-04-29T16:30:00.000Z",
+    "2026-05-02T16:00:00.000Z",
+    "2026-05-03T10:00:00.000Z",
+    "2026-05-04T07:00:00.000Z",
+    "2026-05-05T14:30:00.000Z",
+    "2026-05-08T14:20:00.000Z",
+    "2026-05-09T08:00:00.000Z",
+    "2026-05-10T15:30:00.000Z",
+    "2026-05-11T11:00:00.000Z",
+    "2026-05-12T07:30:00.000Z",
+    "2026-05-16T10:15:00.000Z",
+    "2026-05-17T08:00:00.000Z",
+    "2026-05-28T11:45:00.000Z",
+    "2026-06-05T09:20:00.000Z"
+  ],
+  "summary": {
+    "workOrders": [
+      {
+        "id": "ca099d0c-e5be-4635-85b2-660714ad917d",
+        "quantity": "6"
+      },
+      {
+        "id": "f2823cdd-a9b0-484d-bb26-e8dcef11044d",
+        "quantity": "4"
+      }
+    ],
+    "outputSerials": [
+      "SN-2026-SLP-001",
+      "SN-2026-SLP-002",
+      "SN-2026-SLP-003",
+      "SN-2026-SLP-004",
+      "SN-2026-SLP-005",
+      "SN-2026-SLP-006",
+      "SN-2026-SLP-007",
+      "SN-2026-SLP-008",
+      "SN-2026-SLP-009",
+      "SN-2026-SLP-010"
+    ],
+    "laborEntries": 4,
+    "materialConsumptions": 10,
+    "shipments": [
+      "9536e822-e15d-47db-a8d6-dd91925d2f58",
+      "f3fddd7b-7761-4cf1-a7d8-1859bdae8666"
+    ],
+    "deliveryConfirmations": [
+      1,
+      1
+    ],
+    "invoiceNet": [
+      "73500.00",
+      "49000.00"
+    ],
+    "invoiceTax": [
+      "8085.00",
+      "5390.00"
+    ],
+    "invoiceGross": [
+      "81585.00",
+      "54390.00"
+    ],
+    "settlement": "135975.00",
+    "runtimeOrderStatus": "OPEN",
+    "proofBoundary": "Actual local Mongo/HTTP/native Chromium proof; not PostgreSQL, production, statutory tax, verified machine execution or external carrier proof."
+  }
+}

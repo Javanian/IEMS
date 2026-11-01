@@ -1,0 +1,402 @@
+{
+  "scenario": "E02",
+  "status": "COMPLETE",
+  "completed": [
+    "intake/custody",
+    "diagnostic authorization",
+    "teardown REUSE/REPAIR/REPLACE",
+    "actual approved quotation revision2 with exact VAT",
+    "actual approved revision2 linked to case scope",
+    "accepted scope/deposit/typed service SO and WO",
+    "source-backed replacement/quarantine/failed test/rework/retest/QC",
+    "actual dispatch/POD/final invoice/deposit/6990 settlement/exact warranty",
+    "accepted and rejected mounted API chains complete"
+  ],
+  "identities": {
+    "PRT-CUST-KPC": "3a5d3f49-409d-4aa1-bac5-e5973735214c",
+    "AST-CAT-793D-CYL-88412": {
+      "assetId": "385ea1d1-45ef-4770-bf78-1dbbccad45f0",
+      "caseId": "9e95ae7e-e875-48d5-beeb-c2b19294726a",
+      "serial": "793D-SUSP-B2199",
+      "ownership": "CUSTOMER_OWNED_NON_INVENTORY"
+    },
+    "CASE-2026-RPR-0055": "9e95ae7e-e875-48d5-beeb-c2b19294726a",
+    "QUO-2026-RPR-0055": "f1dfcb32-67dd-4c1d-b49f-2c0acb5ec684",
+    "QUO-2026-RPR-0055-R2": {
+      "quoteId": "f1dfcb32-67dd-4c1d-b49f-2c0acb5ec684",
+      "revision": 2
+    },
+    "SO-2026-RPR-0055": "af8130f2-a84b-446c-a78a-866fa199f2d9",
+    "WO-2026-RPR-0055": "75d10854-415c-4aae-9e0a-c85421988bdf",
+    "PRPAY-2026-055": "ca0b485e-34ff-4020-a1b3-bb91aa2aed03",
+    "SHP-2026-RPR-001": "d8913ee8-b341-4e50-a389-a8495c5f80b9",
+    "POD-2026-RPR-001": "efca0320-ef14-4a0c-8be6-5c4254f11b50",
+    "INV-2026-RPR-01": "decc684f-05cc-410c-b43c-05b2cf85cbf7",
+    "WAR-2026-055": "cef56b92-9455-4c55-8457-d183c7970398",
+    "TST-2026-055-01": "6b12e46b-13da-42af-a91f-b073d715174e",
+    "TST-2026-055-02": "f8f4ce2d-b27d-453a-b055-04b5ab72932a",
+    "RWK-2026-055-01": "596f060e-88a1-47e9-a1f4-ef39a01e4ed4",
+    "QC-REL-RPR-0055": {
+      "caseId": "9e95ae7e-e875-48d5-beeb-c2b19294726a",
+      "eventId": "e18da643-e284-409f-9758-b941347be91f",
+      "testRun": 2
+    },
+    "DIAG-AUTH-2026-055": {
+      "caseId": "9e95ae7e-e875-48d5-beeb-c2b19294726a",
+      "eventId": "2d1ad483-c47e-430a-a907-21b875b56dad"
+    },
+    "AUTH-SCOPE-2026-055": {
+      "caseId": "9e95ae7e-e875-48d5-beeb-c2b19294726a",
+      "eventId": "f2d05fbe-aadb-4ee4-96d8-7b84de29d3f1",
+      "quoteId": "f1dfcb32-67dd-4c1d-b49f-2c0acb5ec684",
+      "quoteRevision": 2
+    },
+    "MOV-RPR-055": {
+      "reservationId": "1ddecb48-5b3b-46a7-b4ad-010b95c40db3",
+      "receiptId": "b8b241ca-f961-4f45-aa63-bd3c393bb158"
+    },
+    "PAY-2026-RPR-FINAL": "3c49d7fa-b950-4d96-a761-7c39bd1cc045",
+    "DEP-APP-2026-01": {
+      "invoiceId": "decc684f-05cc-410c-b43c-05b2cf85cbf7",
+      "depositIds": [
+        "ca0b485e-34ff-4020-a1b3-bb91aa2aed03"
+      ]
+    }
+  },
+  "notRun": [],
+  "evidenceKind": "Synthetic canonical fixture through mounted authenticated HTTP; no external or physical verification",
+  "sourceProvisioning": "Actual owner company-stock fixture supplies qualified location; supplemental producer stock is unrelated to customer property. Canonical purchased seal kit and backup ring use their own approved item/PO/receipt/inspection/putaway. Heat references and backup-ring lot are supplemental synthetic evidence because original fixture specifies none.",
+  "operatorEvidence": "Synthetic authenticated owner records fixture technician/inspector evidence; fixture employee names are references, not verified runtime identities or independent inspection.",
+  "reworkComponentBinding": "Backup-ring removal/replacement is attributed to the approved seal-kit assembly component slot; original kit remains consumed, never returned to company inventory.",
+  "authorityHashes": {
+    "source": "6eed523cdc2fc89152bb20473b971417bbee862ca3efec98e7c41ca1b421b292",
+    "pod": "124f2bc53e1d1c0a8b27cc199e1b4e5044b6d3ae623dad40a3ff4e235a94867d",
+    "serviceSalesOrder": "bdde90ad162cd4540705c8577f5ed29567cd17abc040ed86d0e03313f3f976d3",
+    "serviceWorkOrder": "fec62cfb12132c87eb1fb9a40ff6d13817b30768042ea1bccfeac60992d09b00",
+    "warrantySources": {
+      "workOrderHash": "fec62cfb12132c87eb1fb9a40ff6d13817b30768042ea1bccfeac60992d09b00",
+      "invoiceHash": "f3be65b1ca9c1345ab2ac109292cbf9db89f9e09400c6cd8825a191267b0e483",
+      "invoiceSnapshot": {
+        "_id": "decc684f-05cc-410c-b43c-05b2cf85cbf7",
+        "tenantId": "78de81f0-3802-4a12-90eb-c86e8a1c9aa9",
+        "plantId": "c584dd23-4153-4e42-ac66-b31150f89ddf",
+        "version": 2,
+        "createdBy": "a5e1b676-36e7-475c-b1f0-a9e0d37a4e4b",
+        "createdAt": "2026-11-01T04:13:11.048Z",
+        "caseId": "9e95ae7e-e875-48d5-beeb-c2b19294726a",
+        "accountId": "3a5d3f49-409d-4aa1-bac5-e5973735214c",
+        "kind": "FINAL",
+        "status": "PAID",
+        "currency": "USD",
+        "netAmount": "9000.00",
+        "taxAmount": "990.00",
+        "grossAmount": "9990.00",
+        "repairWorkOrderId": "75d10854-415c-4aae-9e0a-c85421988bdf",
+        "repairSalesOrderId": "af8130f2-a84b-446c-a78a-866fa199f2d9",
+        "total": "9990.00",
+        "depositApplied": "3000.00",
+        "depositIds": [
+          "ca0b485e-34ff-4020-a1b3-bb91aa2aed03"
+        ],
+        "paidAmount": "9990.00",
+        "remaining": "0.00",
+        "snapshot": {
+          "lines": [
+            {
+              "description": "Teardown, ultrasonic wash, MPI crack inspection, and dimensional analysis",
+              "quantity": "1.0000",
+              "uom": "SET",
+              "unitPrice": "1200.00",
+              "currency": "USD",
+              "netAmount": "1200.00",
+              "taxAmount": "132.00",
+              "grossAmount": "1332.00"
+            },
+            {
+              "description": "Precision cylinder barrel deglaze and hone bore to OEM tolerance",
+              "quantity": "1.0000",
+              "uom": "SET",
+              "unitPrice": "850.00",
+              "currency": "USD",
+              "netAmount": "850.00",
+              "taxAmount": "93.50",
+              "grossAmount": "943.50"
+            },
+            {
+              "description": "Piston rod cylindrical grind, hard-chrome plating 0.45mm, and precision finish polish",
+              "quantity": "1.0000",
+              "uom": "SET",
+              "unitPrice": "3400.00",
+              "currency": "USD",
+              "netAmount": "3400.00",
+              "taxAmount": "374.00",
+              "grossAmount": "3774.00"
+            },
+            {
+              "description": "New Parker OEM complete rod seal, wiper, buffer and gland kit (KIT-SEAL-793D-OEM)",
+              "quantity": "1.0000",
+              "uom": "SET",
+              "unitPrice": "2150.00",
+              "currency": "USD",
+              "netAmount": "2150.00",
+              "taxAmount": "236.50",
+              "grossAmount": "2386.50"
+            },
+            {
+              "description": "Cleanroom final assembly, rod gland torquing, and 700 Bar hydrostatic proof testing",
+              "quantity": "1.0000",
+              "uom": "SET",
+              "unitPrice": "1400.00",
+              "currency": "USD",
+              "netAmount": "1400.00",
+              "taxAmount": "154.00",
+              "grossAmount": "1554.00"
+            }
+          ],
+          "currency": "USD",
+          "netAmount": "9000.00",
+          "taxAmount": "990.00",
+          "grossAmount": "9990.00",
+          "taxRate": "0.11",
+          "taxPolicyVersion": 1,
+          "total": "9990.00",
+          "expiresAt": "2026-05-28T23:59:59.000Z",
+          "taxPolicy": "FIXTURE_VAT_11_V1",
+          "roundingPolicy": "LINE_HALF_UP",
+          "number": 2
+        },
+        "payments": [
+          {
+            "_id": "3c49d7fa-b950-4d96-a761-7c39bd1cc045",
+            "tenantId": "78de81f0-3802-4a12-90eb-c86e8a1c9aa9",
+            "plantId": "c584dd23-4153-4e42-ac66-b31150f89ddf",
+            "version": 1,
+            "createdBy": "a5e1b676-36e7-475c-b1f0-a9e0d37a4e4b",
+            "createdAt": "2026-11-01T04:13:11.111Z",
+            "invoiceId": "decc684f-05cc-410c-b43c-05b2cf85cbf7",
+            "caseId": "9e95ae7e-e875-48d5-beeb-c2b19294726a",
+            "accountId": "3a5d3f49-409d-4aa1-bac5-e5973735214c",
+            "currency": "USD",
+            "amount": "6990.00",
+            "reference": "KPC-WIRE-BAL-20260620",
+            "source": "OPERATOR_RECORDED"
+          }
+        ]
+      },
+      "shipmentHash": "6eed523cdc2fc89152bb20473b971417bbee862ca3efec98e7c41ca1b421b292",
+      "confirmationHash": "124f2bc53e1d1c0a8b27cc199e1b4e5044b6d3ae623dad40a3ff4e235a94867d",
+      "confirmation": {
+        "_id": "efca0320-ef14-4a0c-8be6-5c4254f11b50",
+        "tenantId": "78de81f0-3802-4a12-90eb-c86e8a1c9aa9",
+        "plantId": "c584dd23-4153-4e42-ac66-b31150f89ddf",
+        "shipmentId": "d8913ee8-b341-4e50-a389-a8495c5f80b9",
+        "sourceHash": "6eed523cdc2fc89152bb20473b971417bbee862ca3efec98e7c41ca1b421b292",
+        "ordinal": 1,
+        "quantity": "1",
+        "serials": [
+          "793D-SUSP-B2199"
+        ],
+        "deliveredAt": "2026-06-02T11:00:00.000Z",
+        "receiverName": "Agus Salim (KPC Central Workshop Receiving)",
+        "receiverReference": "KPC-CW-492",
+        "evidenceReference": "POD-2026-RPR-001",
+        "evidenceNotes": "Original synthetic E02 POD, operator recorded; no external carrier verification",
+        "recordedBy": "a5e1b676-36e7-475c-b1f0-a9e0d37a4e4b",
+        "recordedAt": "2026-11-01T04:13:10.985Z",
+        "evidenceMode": "OPERATOR_RECORDED",
+        "contentHash": "124f2bc53e1d1c0a8b27cc199e1b4e5044b6d3ae623dad40a3ff4e235a94867d"
+      }
+    }
+  },
+  "materials": [
+    {
+      "fixtureItemCode": "KIT-SEAL-793D-OEM",
+      "itemId": "b1331d47-9089-435a-b660-29c90871ef3d",
+      "receiptId": "b8b241ca-f961-4f45-aa63-bd3c393bb158",
+      "uom": "SET",
+      "quantity": "1",
+      "claim": {
+        "reservationId": "1ddecb48-5b3b-46a7-b4ad-010b95c40db3",
+        "materialLineId": "145a58ba-f89f-46a9-9cbc-d3b87c109c7a",
+        "sourceKind": "CATALOG_RECEIPT",
+        "sourceId": "b8b241ca-f961-4f45-aa63-bd3c393bb158",
+        "version": 3,
+        "contentHash": "f29f876a02b7898f50f2955b85aa59dc6250870f5e2f1fe33e8fcbdf3fc1c0eb",
+        "status": "CONSUMED",
+        "quantity": "1"
+      },
+      "replacement": {
+        "_id": "fc9f3e4c-8cad-44de-b5df-9dbf38c64155",
+        "component": "Rod Seal, Wiper, and Buffer Gland Ring Kit",
+        "cycle": 0,
+        "removedComponentId": "547c08b5-2a2b-423f-b6d6-f886a1439983",
+        "reservationId": "1ddecb48-5b3b-46a7-b4ad-010b95c40db3",
+        "sourceKind": "CATALOG_RECEIPT",
+        "sourceId": "b8b241ca-f961-4f45-aa63-bd3c393bb158",
+        "quantity": "1",
+        "uom": "SET",
+        "serials": [],
+        "sourceSnapshot": {
+          "schema": "CATALOG_RECEIPT_V2",
+          "purchaseOrderId": "8ed67eb9-04a9-4b87-a0f4-3557b4dbe41c",
+          "purchaseOrderRevision": 1,
+          "purchaseOrderLineId": "10ea3e28-743f-4da4-8613-99a3f5c42a39",
+          "purchaseOrderLineHash": "e67f9e4cd200ed705e33609f3b421de99185d6cfbeb47da46b185081d9833f3d",
+          "itemId": "b1331d47-9089-435a-b660-29c90871ef3d",
+          "itemRevision": 1,
+          "itemContentHash": "29120980a2d5d0d0dbc0834a18e1b25a73bc2cd162ae02e800ca6f472753cc27",
+          "itemVersion": 2,
+          "ownerLegalEntityId": "dc3fde82-a9b4-41c9-943b-89e1f9272d9d",
+          "uom": "SET",
+          "trackingPolicy": "LOT",
+          "approvedRevisionContentHash": "1a3bed55b38c23ec33c5188746f5ba467aa135d5d041466b0035d17a8a92f048",
+          "locationSnapshot": {
+            "_id": "9279cad8-8c09-409c-aa3b-212f0b03d831",
+            "tenantId": "78de81f0-3802-4a12-90eb-c86e8a1c9aa9",
+            "plantId": "c584dd23-4153-4e42-ac66-b31150f89ddf",
+            "ownerLegalEntityId": "dc3fde82-a9b4-41c9-943b-89e1f9272d9d",
+            "version": 2,
+            "code": "OWNER_LOCATION",
+            "binId": "c29a2328-cd68-47c1-8333-1ccfd7f4e7c5",
+            "status": "QUALIFIED",
+            "qualification": {
+              "qualifiedBy": "a5e1b676-36e7-475c-b1f0-a9e0d37a4e4b",
+              "qualifiedAt": "2026-11-01T04:12:53.218Z"
+            },
+            "binSnapshot": {
+              "_id": "c29a2328-cd68-47c1-8333-1ccfd7f4e7c5",
+              "version": 1,
+              "code": "OWNER-COMPANY-STOCK"
+            },
+            "authorityHash": "76e04bd5eb0f2beedeb6dbce3e08ab941fc9dc332956af96d96095e520248c01"
+          },
+          "lotNumber": "LOT-PRK-2026-09",
+          "heatNumber": "E02-SYNTHETIC-HEAT-1"
+        },
+        "installedBy": "a5e1b676-36e7-475c-b1f0-a9e0d37a4e4b",
+        "installedAt": "2026-05-22T08:30:00.000Z",
+        "evidence": "Primary polyurethane seal lip cracked, buffer ring extruded, gland O-rings flattened and hardened from heat cycling"
+      },
+      "removal": {
+        "componentId": "547c08b5-2a2b-423f-b6d6-f886a1439983",
+        "component": "Rod Seal, Wiper, and Buffer Gland Ring Kit",
+        "serial": "CMP-793D-SEAL-03",
+        "version": 1,
+        "status": "QUARANTINED",
+        "authorizedDisposition": "REPLACE",
+        "scopeRevision": 1,
+        "removed": {
+          "evidence": "Primary polyurethane seal lip cracked, buffer ring extruded, gland O-rings flattened and hardened from heat cycling",
+          "recordedBy": "a5e1b676-36e7-475c-b1f0-a9e0d37a4e4b",
+          "recordedAt": "2026-05-22T08:30:00.000Z"
+        }
+      },
+      "canonicalMovementProof": {
+        "evidence": "READ_ONLY_CANONICAL_MONGO_RECORDS",
+        "issueId": "2d48ea70-5e6d-4bff-839c-1b28752add1c",
+        "issueHash": "ad47fff3a4d6f50cb126a1d7922f23a0015d396e533d707b500f4596bee32ee6",
+        "consumptionId": "70054623-d3a6-45cd-be6f-0527c32aabcd",
+        "consumptionHash": "691676e13e0e391aac324e49581c1a343599910c64c7310894e344099fcd63e4",
+        "receiptId": "b8b241ca-f961-4f45-aa63-bd3c393bb158",
+        "itemId": "b1331d47-9089-435a-b660-29c90871ef3d",
+        "quantity": "1",
+        "uom": "SET"
+      }
+    },
+    {
+      "fixtureItemCode": "RNG-BKUP-04",
+      "itemId": "27c659b9-f0ad-4740-8146-cb647d08138e",
+      "receiptId": "c73b8a9a-1ad4-44ff-b9fc-60e8fe803106",
+      "uom": "UN",
+      "quantity": "1",
+      "claim": {
+        "reservationId": "979eba79-9cba-4594-988c-ddb0c9938fca",
+        "materialLineId": "9ca53a71-8dff-4212-aa96-8d04e0f3f56b",
+        "sourceKind": "CATALOG_RECEIPT",
+        "sourceId": "c73b8a9a-1ad4-44ff-b9fc-60e8fe803106",
+        "version": 3,
+        "contentHash": "22733ee35dbf6c63cfe10d4efc93fe360281674e4c70c23fbb7323894da2b40f",
+        "status": "CONSUMED",
+        "quantity": "1"
+      },
+      "replacement": {
+        "_id": "4819a19e-1d4a-4dd8-b0f3-68fae0c96ee8",
+        "component": "Rod Seal, Wiper, and Buffer Gland Ring Kit",
+        "cycle": 1,
+        "removedComponentId": "1e6adda7-3b8e-4d09-b4e8-be223581dc08",
+        "reservationId": "979eba79-9cba-4594-988c-ddb0c9938fca",
+        "sourceKind": "CATALOG_RECEIPT",
+        "sourceId": "c73b8a9a-1ad4-44ff-b9fc-60e8fe803106",
+        "quantity": "1",
+        "uom": "UN",
+        "serials": [],
+        "sourceSnapshot": {
+          "schema": "CATALOG_RECEIPT_V2",
+          "purchaseOrderId": "8ed67eb9-04a9-4b87-a0f4-3557b4dbe41c",
+          "purchaseOrderRevision": 1,
+          "purchaseOrderLineId": "43b4ae40-b5dd-456b-8308-b8c2c8aa4aea",
+          "purchaseOrderLineHash": "2b4cc2eb20634fe36ea217265849e00a136c71195d0426ad5548e4c7f9ffbeb6",
+          "itemId": "27c659b9-f0ad-4740-8146-cb647d08138e",
+          "itemRevision": 1,
+          "itemContentHash": "f3e153b125ec5b04fc1ff2e2a80f81288128825bd2921acdd27d03df97b82fb3",
+          "itemVersion": 2,
+          "ownerLegalEntityId": "dc3fde82-a9b4-41c9-943b-89e1f9272d9d",
+          "uom": "UN",
+          "trackingPolicy": "LOT",
+          "approvedRevisionContentHash": "1a3bed55b38c23ec33c5188746f5ba467aa135d5d041466b0035d17a8a92f048",
+          "locationSnapshot": {
+            "_id": "9279cad8-8c09-409c-aa3b-212f0b03d831",
+            "tenantId": "78de81f0-3802-4a12-90eb-c86e8a1c9aa9",
+            "plantId": "c584dd23-4153-4e42-ac66-b31150f89ddf",
+            "ownerLegalEntityId": "dc3fde82-a9b4-41c9-943b-89e1f9272d9d",
+            "version": 2,
+            "code": "OWNER_LOCATION",
+            "binId": "c29a2328-cd68-47c1-8333-1ccfd7f4e7c5",
+            "status": "QUALIFIED",
+            "qualification": {
+              "qualifiedBy": "a5e1b676-36e7-475c-b1f0-a9e0d37a4e4b",
+              "qualifiedAt": "2026-11-01T04:12:53.218Z"
+            },
+            "binSnapshot": {
+              "_id": "c29a2328-cd68-47c1-8333-1ccfd7f4e7c5",
+              "version": 1,
+              "code": "OWNER-COMPANY-STOCK"
+            },
+            "authorityHash": "76e04bd5eb0f2beedeb6dbce3e08ab941fc9dc332956af96d96095e520248c01"
+          },
+          "lotNumber": "E02-SUPPLEMENTAL-BACKUP-RING-LOT",
+          "heatNumber": "E02-SYNTHETIC-HEAT-2"
+        },
+        "installedBy": "a5e1b676-36e7-475c-b1f0-a9e0d37a4e4b",
+        "installedAt": "2026-05-25T11:30:00.000Z",
+        "evidence": "Disassembled wiper gland, inspected gland seat, replaced damaged backup ring with new RNG-BKUP-04, and re-torqued evenly in cross-pattern to 185 Nm"
+      },
+      "removal": {
+        "componentId": "1e6adda7-3b8e-4d09-b4e8-be223581dc08",
+        "component": "Rod Seal, Wiper, and Buffer Gland Ring Kit",
+        "serial": "E02-DAMAGED-BACKUP-RING",
+        "version": 1,
+        "status": "QUARANTINED",
+        "authorizedDisposition": "REPLACE",
+        "scopeRevision": 1,
+        "removed": {
+          "evidence": "Disassembled wiper gland, inspected gland seat, replaced damaged backup ring with new RNG-BKUP-04, and re-torqued evenly in cross-pattern to 185 Nm",
+          "recordedBy": "a5e1b676-36e7-475c-b1f0-a9e0d37a4e4b",
+          "recordedAt": "2026-05-25T11:30:00.000Z"
+        },
+        "sourceReplacementId": "fc9f3e4c-8cad-44de-b5df-9dbf38c64155"
+      },
+      "canonicalMovementProof": {
+        "evidence": "READ_ONLY_CANONICAL_MONGO_RECORDS",
+        "issueId": "33bc71a7-926c-47f2-96e3-c816240ca891",
+        "issueHash": "3300c96f5671717ec4ae405b3a859675b24c60599ca3b0e7bb772cfbde9dc8f4",
+        "consumptionId": "572d1d8b-1319-4d1e-9e02-6f1a40d56c53",
+        "consumptionHash": "3079cd8197186fbead35fc50da26ca890c4c5300f1c98c054f43879163f7d0d7",
+        "receiptId": "c73b8a9a-1ad4-44ff-b9fc-60e8fe803106",
+        "itemId": "27c659b9-f0ad-4740-8146-cb647d08138e",
+        "quantity": "1",
+        "uom": "UN"
+      }
+    }
+  ]
+}

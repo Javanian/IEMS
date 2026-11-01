@@ -1,0 +1,450 @@
+[
+  {
+    "path": "checkpoints/acceptance-fixes/app/FILES.txt",
+    "sha256": "e8003ffc8cad83e72084bdd056dd3ccaab0ec532f2c1b65863d64e1d51c8de85"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/IMPLEMENTATION-RESULT.md",
+    "sha256": "181b61a71a938cf771fa9e703b8d9d1b538b06a86b50339da487abb5d23e89e8"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/auth-mapping.test.mjs",
+    "sha256": "ac972f959642ba2b1c1a9edd2e535a566ebf0b010503d65b2c420e586e24a697"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/browser-register.mjs",
+    "sha256": "2a59dea5a9b13485601a53bc18ad6f95efc7da87dbe726f689725f55824b9871"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/browser-supplement.mjs",
+    "sha256": "323d1cdb0252a8620c5d860fe5d9b837fdc0d0c627266af377c5544cc9922a90"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/assertion-retention.json",
+    "sha256": "6f9d6c815e9e6aac007cc664191866291f08fcb38c3d8a89f9442d5d3868463a"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/auth-mapping.tap",
+    "sha256": "bad6ef007fc599a79e0262fb46a0857e1fcdbe90dcdb854049bd899c543ce24b"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt1.log",
+    "sha256": "9a2565ba56ad86289d666fdd9d58b92a77f9f632f33cb53df050a5805cdf02eb"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt1/adaptations.json",
+    "sha256": "eee52b4790783c98d9325daf955b61634856c1a8c90e5ff39e56dc9526e0cf1f"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt2.log",
+    "sha256": "78e60ab9e0758a0a5e13fc7cca05301a1f67db40aad192888700cc70bfb1106c"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt2/adaptations.json",
+    "sha256": "06aa4d41559fa75612ea88b1eb69bf0a6d7d1166cdac7a285c8dec4fb8948dd2"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt3.log",
+    "sha256": "5d08fd9fbbf7aa97b2c81a1d144aa128471f1701285b97d9dfade74006220588"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt3/adaptations.json",
+    "sha256": "d95c3ebfa642fc5912d12a64d0fdf76f1fc3b59622953cc8e58848d617f13a60"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt3/cleanup.json",
+    "sha256": "c42e7ee36b58bd67df13d2bd29cf5aedfb6e852c1c6b5afd680c9c08868bc7e2"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt3/failure-diagnostics.json",
+    "sha256": "ae2f0b08bb43b381581f42e1da8417c8262c28234293ce1a4bf585cfaf52860e"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt3/trace-heading-regression.json",
+    "sha256": "8414a87652349e0fa43c89404c2999ca17e357adfb1235f8893fbfbbd8a3058d"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt3/transport-resource-telemetry.json",
+    "sha256": "84b22da652cdf455db602fc4a1a46b4ef791d1a040a7cd96b0ab5790eb798a8d"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt3/web-transport-lifecycle.json",
+    "sha256": "c1171e4a7e516294cc3ccdd1b8f7fd64452c00dc61a9747dbd670f003a908a93"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt4.log",
+    "sha256": "1bdc43db7b4e7c7b00ad0b5e669288c494282f5953e5fe5e0b14a495fe00c4f6"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt4/adaptations.json",
+    "sha256": "6b6d6826eafc00114825a46aab72cf03589c09bc24774faeb29d7d3cff5f8a8e"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt4/cleanup.json",
+    "sha256": "49e742c63ec81a99b4d205e973002700909f3d8318f5c19057db8784aa4e4a0a"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt4/failure-diagnostics.json",
+    "sha256": "859bb6421e6bb414bb76a7295f00e8e224532381d0c6969eed0d9705059e3cd4"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt4/failure.png",
+    "sha256": "0ac4cc4e8582ff8f4d9e5c79693b322eba60f23320da0b85e49542c8e4d6d0c6"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt4/mongo-resources.json",
+    "sha256": "fa4626b934e61f6a5f85b4311f44d5644d09cefe329725c186c5a0c1bd87f49d"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt4/transport-resource-telemetry.json",
+    "sha256": "292581cdecbbf277a7710b132d0545c769077b6f6774289b4f480f70ef61c3bf"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt4/web-transport-lifecycle.json",
+    "sha256": "ed98a7271ec4d62fc07791a86fe904b758a2f06c56f8586e8fa27eda5c71fd18"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt5.log",
+    "sha256": "be7765f90cf61e4f781eba5012719e8ab182d5b2a4e94e79ce08db0797438924"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt5/adaptations.json",
+    "sha256": "6b6d6826eafc00114825a46aab72cf03589c09bc24774faeb29d7d3cff5f8a8e"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt5/cleanup.json",
+    "sha256": "cd60fa30bd8721074bdf35e319058b7e0085439321611028f2b475d45e6a5376"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt5/failure-diagnostics.json",
+    "sha256": "9378e3947ab2ea746f62f8e718d1689844bade6ab82965e5587afab1635a340e"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt5/failure.png",
+    "sha256": "06112cf522818a6af1abf141681b3bbb77b7c7d564da7b7c0a40f1450f919ec5"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt5/mongo-resources.json",
+    "sha256": "d3ff46d820ca90511bc70a94934e5164248ce7ff7933068204f462a2e4148d4f"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt5/transport-resource-telemetry.json",
+    "sha256": "191612b0bc00990354b5a68fb0bf9b26d3d436b9391bb5997180579cf63ea0eb"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt5/web-transport-lifecycle.json",
+    "sha256": "eb35928c967e37391d3179ea1da35fb49e38b90709d775ffd4d9dacc9589ead4"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt6.log",
+    "sha256": "739af8d308856dcbc8497911d50584f78458d89729191f7135c6ecaf021594e5"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt6/adaptations.json",
+    "sha256": "6b6d6826eafc00114825a46aab72cf03589c09bc24774faeb29d7d3cff5f8a8e"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt6/cleanup.json",
+    "sha256": "9de8ce3b7bf416beb725db57f39198cd682dd87bb1ad173869a523a2799266a0"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt6/failure-diagnostics.json",
+    "sha256": "0dd1700fb7a00685097bba025b626a1cbfee99435f9dcb943dd5809ad524a839"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt6/failure.png",
+    "sha256": "00c509896341ae983fa13adddfcd605c52f1bd1bfdf881f8911aacb9ddd63aaa"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt6/mongo-resources.json",
+    "sha256": "e0efbdefefa18538a0cf7b86bfdd40d7fd0e046dadb84d56a1ff3be17fa43ee0"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt6/transport-resource-telemetry.json",
+    "sha256": "9d28a0c1311247b3a50b94c4ababea07da1bccb5d43d6e24df5af1ade1c85538"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt6/web-transport-lifecycle.json",
+    "sha256": "75951d6a2e13e28e30f7659ffead0ac5efd29b265610f1e8adf0026dc5e6703f"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt7.log",
+    "sha256": "277d9ff5807248b3ec70a1f2c3aa6892ba4d5dce52998e1370107dfafdf76e45"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt7/adaptations.json",
+    "sha256": "6b6d6826eafc00114825a46aab72cf03589c09bc24774faeb29d7d3cff5f8a8e"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt7/auth-browser.json",
+    "sha256": "b1b0530d117b6416b3d49cb76b7e00e8c15de49c7ed61e8ee7526584996ef559"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt7/cleanup.json",
+    "sha256": "b6c8df7a4357a13ff7ebb231c904824142217d644998838cb716f50f551d4709"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt7/failure-diagnostics.json",
+    "sha256": "c9bfe288af4f8f76f6c520255bfe67fc3d8b3cc0a8491f278cf7796e355971d4"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt7/failure.png",
+    "sha256": "6ae4bffdf349555ab352727f8c7d99ac6c7b7ba64d6594bddd49d1707d33a059"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt7/mongo-resources.json",
+    "sha256": "cd43cb5c9e1089fcb348bc64b24ae9b2cb53ff93cb1b77d4193006217cbfeaf4"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt7/transport-resource-telemetry.json",
+    "sha256": "5918ecd3e97e26746ab5a7a1e2c3dbbb0e55c6173cdccac3ad7766a2dd3bf381"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-attempt7/web-transport-lifecycle.json",
+    "sha256": "8062a2e1bf556aea734a00dcd083c7f46afb82a5402fc2c7e78ed390066053c4"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation.log",
+    "sha256": "95f5eaf0d2c74280af957ea5b752d8d966a769f5d0c98a7af5c656dda37ebc6d"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/01-login.png",
+    "sha256": "9ce1cc557a659f7df3460ba00a56a541043674d2c8e584656db7be28948ce691"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/adaptations.json",
+    "sha256": "c70b965bbb527813ef45a6cb6a88781158dc9b800ca4611d5e8a2f7e2d02f56b"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/auth-browser.json",
+    "sha256": "b1b0530d117b6416b3d49cb76b7e00e8c15de49c7ed61e8ee7526584996ef559"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/browser-supplement.executed.mjs",
+    "sha256": "323d1cdb0252a8620c5d860fe5d9b837fdc0d0c627266af377c5544cc9922a90"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/canonical-e01-native-manifest.json",
+    "sha256": "32f7f96277c9cc5a463d2ae7c5d3fcd9b946575b6343a2413a2200dccc714ad9"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/cleanup.json",
+    "sha256": "c78e9847cb410b8d1dea9609ddb5ef136c7192f95ccec9cbc272fb3dea7df5f4"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/dispatch-continuation.json",
+    "sha256": "307544690b404f11138a1008add87de8b2e54a142487c5e857278536fd486cef"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/e02-manifest.json",
+    "sha256": "98ed4168303eea974835c48ebe3033f98270de71776448421739d91ed3d1a252"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/e02-progress.json",
+    "sha256": "7fd3fc755dd80da1d74b562df258465ec0ab72ed6b0d94c669ac4498320cd74e"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/invalid-credentials-desktop.png",
+    "sha256": "77b12353f72a107c1db086c606a8713b8428824576c2621db5f4641e3d4bdca9"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/invalid-credentials-mobile390.png",
+    "sha256": "b52a7e8a00963d3be2fe60acb2f20a2dd516c76f91345ea9ce1d016df931a90f"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/mongo-resources.json",
+    "sha256": "a394d9ef21a6622391677a21e27bcba294dbbe655d5e17fc0e8c2b04e3426338"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/portfolio-browser.mjs.adapted",
+    "sha256": "3643a623a2a791c4fd7a4a9f1b10a6d90f769bf73c7f55c623359ef14f12c01d"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/portfolio-browser.mjs.original",
+    "sha256": "4f266e0af3242e56192c333d47e71368f0a877a0a2f19396bd5a9b0d8c387967"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/portfolio-review-e01-browser.mjs.adapted",
+    "sha256": "6e0ffe5c02d8ebe0415827b68e6acd88ae1a39f3cc6adfbb00230c98f095ae94"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/portfolio-review-e01-browser.mjs.original",
+    "sha256": "b083f2704dc459c50b9760b94f353c03ecaf08d09f85f052bd117d8006a01085"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/return-browser.json",
+    "sha256": "6887703fe7e03272dafae3391b03a40a3ddb3e663b7b979adf1902ad2dd002aa"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/return-source-1440.png",
+    "sha256": "d3c5779d09bf89d35b158333bbfe49cd6723623e06c203ed83f430345616c7d7"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/return-source-390.png",
+    "sha256": "23e9702a6825df2c29ca903a4114a39f6d351dc521f663af0edb8037116e17c5"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-debug-results.json",
+    "sha256": "fae342e981e61cc23bd0a5fb255a27d72a03e0836ec05786238b34e0882e9128"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-planned-six-four-1440.png",
+    "sha256": "29a1a00e6d0f1e7c78c9b430c29f9979f343cddcf777134d921404b7f2c8172b"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-planned-six-four-360.png",
+    "sha256": "699261a7821c9cb4b8ef261a36ed7b0df106f6a4022130eda4ef7de527fa93b2"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-planned-six-four-768.png",
+    "sha256": "b3500914b200fb5d4fa9c94ebd883684bf99549da145b1c7dfd4ad71f073e706"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-pod-1-1440.png",
+    "sha256": "8b444369378775f240d5d74363712084bfff9f2a619c7e0ec20c22c4fcf7d022"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-pod-1-360.png",
+    "sha256": "2e5782eaa276a7bf3236dbc4037d5272c4a2a6993e1575b80f9ae78b38618229"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-pod-1-768.png",
+    "sha256": "dadfb997b68046c4404157479095abbe802db5765153ae8329e0d339708f97a1"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-pod-2-1440.png",
+    "sha256": "c0e85ed5d666f22d19a46370990220b9e444d0eb84efb8cd629cd4d4277aab7f"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-pod-2-360.png",
+    "sha256": "f10576f0642a7b775fda3531b42b01e49cf1e0b89af4dcc76232903e9a417d1d"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-pod-2-768.png",
+    "sha256": "ee3cf96ddfe160cf834c164b47464c52fde52db3d9f9872a28ec4bbefa454ea7"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-qc-and-complete-genealogy-1440.png",
+    "sha256": "719876b53863b393464a5827c1ee19fd805cb23b760c3b60684a87d123c4ccfe"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-qc-and-complete-genealogy-360.png",
+    "sha256": "99c9d20382edbb3f539934c02621e6edc07ac62515dc9dbf8c33491519e97ef4"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-qc-and-complete-genealogy-768.png",
+    "sha256": "31c75312b79e63656bd71e50acab639e10dad27928836440a6e4f4ccd45ab573"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-quotation-r2-1440.png",
+    "sha256": "0bc47202bd80ea8d8e56ea431522b9cad5b8ce233fabf4fc4a4743bd87bc5a5d"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-quotation-r2-360.png",
+    "sha256": "572301f56daa693a8b9a82efa73f4a934fe32e9060d2de017ba9cc5b7fcb550b"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-quotation-r2-768.png",
+    "sha256": "878742fc3453b198b288b211a6d405f0ac01bfbdab993082532b81909ae97a53"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-settled-invoice-1440.png",
+    "sha256": "33d99c098cb3e53318f5c6b0baae0392d9b9f47c5d35c6a9a9c86b2ce5fa1768"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-settled-invoice-360.png",
+    "sha256": "d049beed3dff7fbd954b84a0918daf26aaba8af9191bdaed677a5a0d7912130b"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/review-e01-settled-invoice-768.png",
+    "sha256": "08d903323713d86d575e57b729fef838ecb68d99e3e5010124fa3d7cfb515c3d"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/stale-session-mobile390.png",
+    "sha256": "258459cd2232585ac58a043e9b7e38aebdf690dd72e0fe506bd68edf2ba3a4b4"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/transport-resource-telemetry.json",
+    "sha256": "05d481f9aed08cda8e23d878395da5ce4971a2825014cf37363e6266c3bbc9cd"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-continuation/web-transport-lifecycle.json",
+    "sha256": "9d50dc62e23467e0a499c9f3311fa0329040b5d284cd952ada9d69d28c7cbb11"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02.log",
+    "sha256": "274649827e868b9a148185ac46457347a6fef0d9fcf5aec96c2e7bb358be1ea4"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02/adaptations.json",
+    "sha256": "2a000020d814fc4372a2c68061c12f92ad4417a51aba97e967dc46ae2400c69c"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02/auth-browser.json",
+    "sha256": "b1b0530d117b6416b3d49cb76b7e00e8c15de49c7ed61e8ee7526584996ef559"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02/cleanup.json",
+    "sha256": "1e1c4b23737d5b5e1d59e5ad7b26e4f2dcfe811f0f9e7310c493db1560b4c581"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02/e02-manifest.json",
+    "sha256": "0710c534262e0d9aa12f8ff091227cd219e588e5c6b09ee3078ffdd745237888"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02/e02-progress.json",
+    "sha256": "f6efd84806070022cd5196a63d2f704cbc30b6ac086ba175b242db7b295a6d69"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02/failure-diagnostics.json",
+    "sha256": "05590c0815cf7e10740c2a13e7a62fea25a26166e0d5152d7674cf0c02607943"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02/failure.png",
+    "sha256": "3856bf9c13b4941d777e474358b53d8518d588d6537107af29052601bd78115f"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02/mongo-resources.json",
+    "sha256": "2aa60c9673faa96afe3b993d0f5f269d9099bcc0bd7e1bb362766241e7cbe590"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02/transport-resource-telemetry.json",
+    "sha256": "7864923bf2006012b2f7f5dbde3244ee5c55f5611aded01d008cc3cfe27202e3"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/browser-e02/web-transport-lifecycle.json",
+    "sha256": "8baeaf508b9d166ddad58d6f7c07bd598ca05bbece0e5b838b39b1e910e53355"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/cleanup-audit.json",
+    "sha256": "7516b1306bff5df85eb696a2a9ccd42d19195e6c81ff62786ee8d8d1787a5877"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/compile.json",
+    "sha256": "d4085c7cd55773c8623c7dc9c82e315e89ab0ba2acc377d3e2b1a17dfb66078b"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/descendant-cleanup-audit.json",
+    "sha256": "f75111c57c89be77ea751b774e31dcca9e8115704545c203a73b33ae5afadee7"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/focused.tap",
+    "sha256": "85eb83b3760e1e5eaae83e3dc0ba993e9d50937c8dd1c1cf8c78879facc7e5a2"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/memory-save.json",
+    "sha256": "d8374e4c0f267d38e178c0aef9cd9b240ea0f09e164c0d62689d12faac6633ac"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/source-pins.json",
+    "sha256": "46d46702a55bf77ef2e2b3f7ccff314c259678d80a7923710906a6c7c6351112"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/memory-note.json",
+    "sha256": "b73128d269c7950606832be4828ed178de47b1629d340f05340a7b40eb35c409"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/verify-evidence.mjs",
+    "sha256": "43b44fe69d4da9b58b08cea397e2e1fb74ab4fa891d8b5b7c4663e54ae3fa120"
+  }
+]
