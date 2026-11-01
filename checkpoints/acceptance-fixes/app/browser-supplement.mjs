@@ -3,20 +3,6 @@ import { bindBusinessClock } from '../../../apps/portfolio-api/src/business-cloc
 import { runE02Flow } from '../../../apps/portfolio-api/test/support/review-e02-flow.mjs';
 
 const js = JSON.stringify, api = 'http://127.0.0.1:32401';
-export function dispatchReadyCall(kit) {
-  const selections = [];
-  return async (method, params, ...rest) => {
-    const result = await kit.call(method, params, ...rest);
-    if (method === 'Page.navigate' && /\/portfolio\/fulfillment\/orders\//.test(params.url)) {
-      await kit.wait('[...document.querySelectorAll("label")].some(label=>label.textContent.startsWith("Dispatch step")&&label.querySelector("select"))');
-      await kit.evaluate('(()=>{const select=[...document.querySelectorAll("label")].find(label=>label.textContent.startsWith("Dispatch step")).querySelector("select");Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value").set.call(select,"ship");select.dispatchEvent(new Event("change",{bubbles:true}));})()');
-      await kit.wait('document.querySelector(\'form[aria-label="Record shipment"]\')');
-      selections.push({url:params.url,action:'Selected existing Record direct dispatch option before original shipment selector'});
-      await kit.writeEvidence('dispatch-continuation.json',{originalUnadaptedStop:'browser-attempt7: default pick form; Record shipment selector absent',nativeSelections:selections,assertionsAndSelectorsUnchanged:true});
-    }
-    return result;
-  };
-}
 export async function supplementalBefore({ call,wait,evaluate,click,fill,screenshot,check,headers,password,web,writeEvidence }) {
   await click('Sign out');
   await wait('document.querySelector("[name=username]")');

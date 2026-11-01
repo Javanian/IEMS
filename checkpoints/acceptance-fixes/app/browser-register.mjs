@@ -34,9 +34,8 @@ registerHooks({ load(url, context, next) {
     replace("'--remote-debugging-port=0'", "'--remote-debugging-port=32403'");
     replace('  if(reviewMode.e01){', `  await supplementalBefore({...reviewKit,runtime,marker});\n  if(reviewMode.e01){`);
     replace('  if(reviewMode.internalExecution)', '  await supplementalAfter({...reviewKit,runtime,marker});\n  if(reviewMode.internalExecution)');
-    if (process.env.TPR166_DIRECT_DISPATCH === '1') replace('canonicalE01Journey({...reviewKit,setBusinessTime:', 'canonicalE01Journey({...reviewKit,call:dispatchReadyCall(reviewKit),setBusinessTime:');
     replace("  await resourceTelemetry.sample('after-main-cleanup');", "  await resourceTelemetry.sample('after-main-cleanup');\n  await writeFile(join(evidence,'cleanup.json'),JSON.stringify({at:new Date().toISOString(),database,markerVerifiedDrop:Boolean(runtime),clientClosed:Boolean(runtime),mongoStopped:Boolean(mongo),apiClosed:!api?.listening,viteClosed:!vite?.httpServer?.listening,browserPid:chrome?.pid,browserExitCode:chrome?.exitCode,browserSignal:chrome?.signalCode,profile,profileRemoved:true},null,2));");
-    source = `import { supplementalBefore,supplementalAfter,dispatchReadyCall } from '${new URL('./browser-supplement.mjs', import.meta.url).href}';\n` + source;
+    source = `import { supplementalBefore,supplementalAfter } from '${new URL('./browser-supplement.mjs', import.meta.url).href}';\n` + source;
   }
   if (source === original) return next(url, context);
   const assertionLines = text => text.split('\n').filter(line => /\bassert[.(]/.test(line));

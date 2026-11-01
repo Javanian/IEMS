@@ -1,6 +1,7 @@
 apps/web/src/features/portfolio/FulfillmentWorkspace.jsx
 apps/web/src/features/portfolio/PortfolioWorkspace.jsx
 apps/web/src/features/portfolio/operator.mjs
+apps/web/test/portfolio-review-e01-browser.mjs
 checkpoints/acceptance-fixes/app/FILES.txt
 checkpoints/acceptance-fixes/app/IMPLEMENTATION-RESULT.md
 checkpoints/acceptance-fixes/app/SHA256.json
@@ -111,6 +112,12 @@ checkpoints/acceptance-fixes/app/evidence/compile.json
 checkpoints/acceptance-fixes/app/evidence/descendant-cleanup-audit.json
 checkpoints/acceptance-fixes/app/evidence/focused.tap
 checkpoints/acceptance-fixes/app/evidence/memory-save.json
+checkpoints/acceptance-fixes/app/evidence/runner-assertion-retention.json
+checkpoints/acceptance-fixes/app/evidence/runner-memory-save.json
+checkpoints/acceptance-fixes/app/evidence/runner-navigation.tap
+checkpoints/acceptance-fixes/app/evidence/runner-verification.json
 checkpoints/acceptance-fixes/app/evidence/source-pins.json
 checkpoints/acceptance-fixes/app/memory-note.json
+checkpoints/acceptance-fixes/app/runner-memory-note.json
+checkpoints/acceptance-fixes/app/runner-navigation.test.mjs
 checkpoints/acceptance-fixes/app/verify-evidence.mjs
