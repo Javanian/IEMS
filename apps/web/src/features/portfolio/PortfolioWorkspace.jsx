@@ -107,7 +107,7 @@ export function MutationForm({ title, submitLabel, children, save, onSaved, keye
   const lock = useRef(false);
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  return <form className="pf-panel pf-form" onSubmit={async event => {
+  return <form className="pf-panel pf-form" aria-label={title} onSubmit={async event => {
     event.preventDefault(); if (lock.current) return;
     const form = event.currentTarget, values = Object.fromEntries(new FormData(form));
     lock.current = true; setBusy(true); setError(null); setNotice('');
