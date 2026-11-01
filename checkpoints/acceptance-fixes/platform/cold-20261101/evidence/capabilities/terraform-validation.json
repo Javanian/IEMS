@@ -1,0 +1,42 @@
+[
+  {
+    "command": "D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/tools/terraform-1.11.4/terraform.exe",
+    "durationMs": 297.7298,
+    "code": 0,
+    "args": [
+      "-chdir=D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/tools/terraform-fixture",
+      "fmt",
+      "-check"
+    ],
+    "output": "",
+    "scope": "Task-owned empty module, no provider/backend/resource/apply",
+    "startedUtc": "2026-11-01T11:44:56.1410799+00:00"
+  },
+  {
+    "command": "D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/tools/terraform-1.11.4/terraform.exe",
+    "durationMs": 268.0403,
+    "code": 0,
+    "args": [
+      "-chdir=D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/tools/terraform-fixture",
+      "init",
+      "-backend=false",
+      "-input=false"
+    ],
+    "output": "\u001b[0m\u001b[1mInitializing provider plugins...\u001b[0m\r\n\r\n\u001b[0m\u001b[1m\u001b[32mTerraform has been successfully initialized!\u001b[0m\u001b[32m\u001b[0m\r\n\u001b[0m\u001b[32m\r\nYou may now begin working with Terraform. Try running \"terraform plan\" to see\r\nany changes that are required for your infrastructure. All Terraform commands\r\nshould now work.\r\n\r\nIf you ever set or change modules or backend configuration for Terraform,\r\nrerun this command to reinitialize your working directory. If you forget, other\r\ncommands will detect it and remind you to do so if necessary.\u001b[0m\r\n",
+    "scope": "Task-owned empty module, no provider/backend/resource/apply",
+    "startedUtc": "2026-11-01T11:44:56.4447442+00:00"
+  },
+  {
+    "command": "D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/tools/terraform-1.11.4/terraform.exe",
+    "durationMs": 278.8805,
+    "code": 0,
+    "args": [
+      "-chdir=D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/902f6e0b-5445-4abc-a532-2b467b6fe973/95296377-c20c-45c1-9119-06b2089fea8e/continuation-5703bfe4/tools/terraform-fixture",
+      "validate",
+      "-json"
+    ],
+    "output": "{\r\n  \"format_version\": \"1.0\",\r\n  \"valid\": true,\r\n  \"error_count\": 0,\r\n  \"warning_count\": 0,\r\n  \"diagnostics\": []\r\n}\r\n",
+    "scope": "Task-owned empty module, no provider/backend/resource/apply",
+    "startedUtc": "2026-11-01T11:44:56.7128556+00:00"
+  }
+]

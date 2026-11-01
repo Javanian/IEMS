@@ -1,0 +1,10 @@
+{
+  "observedUtc": "2026-11-01T11:46:26.2370887Z",
+  "beforeProbeState": "Stopped (captured in first discovery)",
+  "reason": "Return exactly the task-activated existing distro to its initial stopped state after read-only CLI/venv probes. Docker/containerd remained inactive; no engine workloads or other distros started/stopped.",
+  "command": "wsl.exe --terminate IEMS-Lab",
+  "exit": 0,
+  "before": "  NAME        STATE           VERSION\r\n\r\n* IEMS-Lab    Stopped         2\r\n\r\n\r\n",
+  "after": "  NAME        STATE           VERSION\r\n\r\n* IEMS-Lab    Stopped         2\r\n\r\n\r\n",
+  "configurationChanged": false
+}
