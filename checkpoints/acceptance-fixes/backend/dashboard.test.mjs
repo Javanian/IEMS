@@ -20,16 +20,21 @@ test('composed Operations ordinary empty and populated loads', async t => {
     for (let round = 0; round < 15; round++) {
       const result = await h.req('/operations/dashboard', undefined, h.alpha);
       statuses.push(result.status);
-      if (result.status === 200) {
-        assert.equal(result.data.metrics.orders.status, populated ? 'AVAILABLE' : 'NO_DATA');
-        assert.equal(result.data.metrics.orders.total, populated ? 1 : 0);
-      }
+      assert.equal(result.status, 200);
+      assert.equal(result.data.metrics.orders.status, populated ? 'AVAILABLE' : 'NO_DATA');
+      assert.equal(result.data.metrics.orders.total, populated ? 1 : 0);
     }
     console.log(JSON.stringify({ populated, sequential: statuses }));
     for (const overlap of [2, 4]) {
-      const concurrent = await Promise.all(Array.from({ length: overlap }, () => h.req('/operations/dashboard', undefined, h.alpha)));
-      console.log(JSON.stringify({ populated, overlap, concurrent: concurrent.map(r => r.status) }));
-      if (process.env.TPR165_EXPECT_DASHBOARD_FIXED === '1') assert.deepEqual(concurrent.map(r => r.status), Array(overlap).fill(200));
+      for (let round = 0; round < 3; round++) {
+        const concurrent = await Promise.all(Array.from({ length: overlap }, () => h.req('/operations/dashboard', undefined, h.alpha)));
+        console.log(JSON.stringify({ populated, overlap, round, concurrent: concurrent.map(r => r.status) }));
+        assert.deepEqual(concurrent.map(r => r.status), Array(overlap).fill(200));
+        for (const result of concurrent) {
+          assert.equal(result.data.metrics.orders.status, populated ? 'AVAILABLE' : 'NO_DATA');
+          assert.equal(result.data.metrics.orders.total, populated ? 1 : 0);
+        }
+      }
     }
   }
   assert.equal((await h.req('/operations/dashboard')).status, 401);
