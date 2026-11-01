@@ -57,6 +57,7 @@ function Tabs({ kind }) {
   return <nav className="pf-tabs" aria-label="Fulfillment">{Object.entries(TITLES).map(([k, t]) => <Link key={k} aria-current={kind === k ? 'page' : undefined} to={`/portfolio/fulfillment/${k}`}>{t}</Link>)}<PurchasedFulfillmentLink /><Link to="/portfolio/orders">Sales orders</Link></nav>;
 }
 function rowSummary(kind, row) {
+  if (kind === 'shipments' && row.sourceKind === 'CUSTOMER_ASSET_RETURN') return <>{row.quantity} {row.uom} · Customer asset {row.serial || row.assetId} · <Link to={`/portfolio/repair/cases/${row.caseId}`}>Open repair</Link></>;
   if (kind === 'shipments') return <>{row.quantity} {row.uom} · Line {row.lineIndex + 1}</>;
   if (kind === 'invoices') return <MonetarySummary record={row} />;
   return <>{money(row.currency, row.amount)} · {row.allocations.length} allocation{row.allocations.length === 1 ? '' : 's'}</>;
