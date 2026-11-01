@@ -27,6 +27,8 @@ test('actual purchased shipment, invoice and payment detail hide account navigat
         export const IdentityContext=React.createContext(null),calls=[];let kind;
         export const setKind=value=>{kind=value;};
         export function useResource(path){calls.push(path);const delivery={version:1,shipmentId:'record',shipmentVersion:1,shipmentStatus:'SHIPPED',status:'NOT_DELIVERED',serials:[],remainingSerials:[],confirmations:[],shippedQuantity:'1',deliveredQuantity:'0',remainingQuantity:'1',remainingUnserializedQuantity:'1',uom:'UN',canConfirm:false};
+          if(path.endsWith('/ledger'))return {data:{asOf:'2026-10-26T00:00:00.000Z',complete:true,invoices:[],deposits:[]},reload(){}};
+          if(path.endsWith('/returns'))return {data:{version:1,deliveredQuantity:'0',returnedQuantity:'0',returnableQuantity:'0',uom:'UN',canReturn:false,returnableSerials:[],returns:[]},reload(){}};
           const row={_id:'record',reference:'ACTUAL-DETAIL',version:1,accountId:'account-record',salesOrderId:'order-record',schema:{shipments:'PURCHASED_SHIPMENT_V1',invoices:'PURCHASED_INVOICE_V1',payments:'PURCHASED_PAYMENT_V1'}[kind],status:kind==='invoices'?'PAID':kind==='shipments'?'SHIPPED':'ALLOCATED',quantity:'1',uom:'UN',currency:'USD',amount:'0.10',total:'0.10',paidAmount:'0.10',outstandingAmount:'0.00',lines:[],allocations:[],sources:[],createdAt:'2026-10-26T00:00:00.000Z'};
           return {data:path.startsWith('/api/deliveries/')?delivery:row,reload(){}};}
         export function Resource({resource,children}){return children(resource);}
@@ -42,6 +44,8 @@ test('actual purchased shipment, invoice and payment detail hide account navigat
       assert.doesNotMatch(reader.html,/href="\/portfolio\/accounts\/account-record"/);
       assert.match(reader.html,/href="\/portfolio\/fulfillment\/orders\/order-record\?catalog=1"/);
       assert.equal(reader.calls.some(path=>path.startsWith('/api/crm/')),false);
+      if(kind==='shipments')assert.match(reader.html,/No customer returns recorded/);
+      if(kind==='invoices')assert.match(reader.html,/Account settlement and aging/);
     }
     const authorized=module.exports.render(kind,['fulfillment.read','catalog.stock.read','crm.read']);
     assert.match(authorized.html,/href="\/portfolio\/accounts\/account-record"[^>]*>Open account<\/a>/);
