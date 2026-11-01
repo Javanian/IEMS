@@ -1,0 +1,12 @@
+✔ portfolio requests use real HTTP JSON envelopes and expose conflict status (64.4778ms)
+✔ money stays a canonical decimal string at the currency scale (0.8116ms)
+✔ recovery messages distinguish expired, forbidden, conflict and uncertain writes (0.5173ms)
+✔ UTC display normalizes offsets without losing the instant or source subsecond precision (0.5618ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 240.6123

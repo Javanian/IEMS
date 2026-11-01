@@ -1,11 +1,15 @@
 [
   {
+    "path": "checkpoints/acceptance-fixes/app/CORRECTIVE-RESULT.md",
+    "sha256": "439912052efd4d51ee2dc7e93e0dde43ada26511f56d361e501b5c90af135f9c"
+  },
+  {
     "path": "checkpoints/acceptance-fixes/app/FILES.txt",
-    "sha256": "6e76c8cfd2cb1ad1e114d48c78809889bd45a84cdaacfc9f1b80b4362bdf890b"
+    "sha256": "8d2f1df3acc71e836d865a27d60fd53ba3e451ac9ff314e4c4d17a0a5e39522d"
   },
   {
     "path": "checkpoints/acceptance-fixes/app/IMPLEMENTATION-RESULT.md",
-    "sha256": "bb69517d352d7a1ce4abd748ed3b7d54d8092abb5c326cbe4c7c7890d7b442d3"
+    "sha256": "dfc30efd1a567848d18f646804fd59c00d53130b26cb8173f02e0649f4b71e2f"
   },
   {
     "path": "checkpoints/acceptance-fixes/app/auth-mapping.test.mjs",
@@ -18,6 +22,14 @@
   {
     "path": "checkpoints/acceptance-fixes/app/browser-supplement.mjs",
     "sha256": "66fc4c56aa9bff7b556ebe4da24100c9c85ab70ec346a97b89cf4e61a2d68be9"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/corrective-contracts.mjs",
+    "sha256": "b627df8e4955c8e1010c753ef6e4aadf219524c45abf566b5b39fa9a2859dee9"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/corrective-memory-note.json",
+    "sha256": "611c8b2920153dafc0037374254a51457482a0aea86a819fab6f7951f5bedd50"
   },
   {
     "path": "checkpoints/acceptance-fixes/app/evidence/assertion-retention.json",
@@ -424,6 +436,82 @@
     "sha256": "d4085c7cd55773c8623c7dc9c82e315e89ab0ba2acc377d3e2b1a17dfb66078b"
   },
   {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/assertion-semantic-inventory.json",
+    "sha256": "674bfe2967a7f1d87fba559629f07ee5e879b81b78a78db8637df1460f9616a2"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/baseline.tap",
+    "sha256": "348cd6d3eec6021d176fa910810711bc380b46f74af5aa2304dd77e44abcd6ed"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/cleanup.json",
+    "sha256": "af79df2dec5204318881cefad491a6f01aff7595dd9671bcd747c9d31d6fb3f2"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/compile.json",
+    "sha256": "805836604bcbe93e4a9cf3bb80da98f216a97b7c6e9d6b2ec4f242045fe3812f"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/final-focused.tap",
+    "sha256": "6a54374bdefeb70fc1f0f0dec0c1ae5633c68b1801a8a128b41bd2a81ce3efe1"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/final-recorded.tap",
+    "sha256": "98d0ab69dbe704eb02e74f5ebe1acaf0edfe94bf46542288053951c35780b24d"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/maintained-current.tap",
+    "sha256": "aeb9a8b1066626a48f0fc09eb700a69f2ff8ce250d4654c6f559ecc7c3756a5c"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/manufactured-graph.tap",
+    "sha256": "16ca4113ff4f22203e700eeea7b0c7dbfe5495739fbe664cf9135c39f2de4367"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/memory-save.json",
+    "sha256": "a64eddda704ae59ca981fc0f87f8eb8677f9cdb93fd0ab5cf2dab17d782c80a2"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/purchased-contract.tap",
+    "sha256": "6874e36a0a80453d4fb10677be9f4dad31d3bebbc61184a74b01ba440591b4cd"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/reg-fe-01.tap",
+    "sha256": "fbb1c137c0267f3f5882846dbbd0978d386f69126245cf95842700ff8405e9ac"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/reg-fe-02.tap",
+    "sha256": "3dfdd7a94fa118d20b12cb9b9aca15b2567ebf6300009fa9f941544b6bbd6ec0"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/reg-fe-04.tap",
+    "sha256": "cc937bdc82638ae5c0083ab48c2e3a95c2af6ec47fe35117297ba77c3d319cb3"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/reg-fe-05-initial.tap",
+    "sha256": "3dc962653c69686a0fc69ddd139fdba988b12120baf2d8350a700c142fe89783"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/reg-fe-05.tap",
+    "sha256": "fcb197005092b01ce94473f17ee96d65148a9a73d9ebe21131116ebec52d9929"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/return-detail.tap",
+    "sha256": "1d7134b552af4e787c88b67be718aa9841824464b14957db76419f4a6fcdc4b0"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/unit-resources.ndjson",
+    "sha256": "6ec5c6575ee5a8660abf5de773771d4e165ab5b206ca60031e4fad3eb3f23253"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/utc.tap",
+    "sha256": "6a1eff3c74df2d6f8b3ed4875a0c8ff978ea3c367a7b54f03e5087ac81a5c11e"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/corrective/validation.json",
+    "sha256": "233c41335e7b69930dc0610208097ca588047a6ebf980b4565ccc7360c45d593"
+  },
+  {
     "path": "checkpoints/acceptance-fixes/app/evidence/descendant-cleanup-audit.json",
     "sha256": "f75111c57c89be77ea751b774e31dcca9e8115704545c203a73b33ae5afadee7"
   },
@@ -466,6 +554,10 @@
   {
     "path": "checkpoints/acceptance-fixes/app/runner-navigation.test.mjs",
     "sha256": "34b4c44f8fd1bdf12d93f97e36f8cfaf60689e58067934cf7f9f1a4d7a8faf4e"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/unit-resources.mjs",
+    "sha256": "dd4f3cb4a158d90744321b6becdd4c09001135dca33f844f727689f3110b7e0f"
   },
   {
     "path": "checkpoints/acceptance-fixes/app/verify-evidence.mjs",

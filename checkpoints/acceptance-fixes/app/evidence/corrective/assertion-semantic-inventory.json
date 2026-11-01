@@ -1,0 +1,333 @@
+{
+  "base": "9269ae5d504378ecf7bdaae0edf963b893afcc96",
+  "testedSource": "ad13c2c0d6993dd8654382b0d5f56cd38c77a8db",
+  "changed": [
+    "apps/web/src/features/portfolio/AnalyticsWorkspace.jsx",
+    "apps/web/src/features/portfolio/FulfillmentWorkspace.jsx",
+    "apps/web/src/features/portfolio/operator.mjs",
+    "apps/web/test/portfolio-client.test.mjs",
+    "apps/web/test/portfolio-company-stock-browser.mjs",
+    "apps/web/test/portfolio-purchased-fulfillment-browser.mjs",
+    "apps/web/test/portfolio-purchased-fulfillment.test.mjs",
+    "apps/web/test/portfolio-repair-browser.mjs",
+    "apps/web/test/portfolio-repair.test.mjs",
+    "apps/web/test/portfolio-wave3e-documents.test.mjs"
+  ],
+  "e01Unchanged": true,
+  "originalCasesRetained": true,
+  "skipsOrExclusiveCases": false,
+  "comparisons": [
+    {
+      "path": "apps/web/test/portfolio-client.test.mjs",
+      "originalSha256": "1f8b92d74e82e42898338da2b47a6f9afbb42d3df0f26c59a9ee28385bec8f6e",
+      "currentSha256": "6d13b69dfba6a1387456f0961567cf7966fd1f6a6e1369f740b3a6bda13d2601",
+      "originalCases": [
+        "portfolio requests use real HTTP JSON envelopes and expose conflict status",
+        "money stays a canonical decimal string at the currency scale",
+        "recovery messages distinguish expired, forbidden, conflict and uncertain writes"
+      ],
+      "currentCases": [
+        "portfolio requests use real HTTP JSON envelopes and expose conflict status",
+        "money stays a canonical decimal string at the currency scale",
+        "recovery messages distinguish expired, forbidden, conflict and uncertain writes",
+        "UTC display normalizes offsets without losing the instant or source subsecond precision"
+      ],
+      "originalAssertions": 14,
+      "currentAssertions": 18,
+      "removedOrReconciledExpressions": [
+        "assert.match(errorMessage({ status: 409 }), /Refresh/i)"
+      ],
+      "addedExpressions": [
+        "assert.match(conflict,/Review the record and its history.*reconcile.*before starting a new one/i)",
+        "assert.equal(errorMessage({status:409,code,message:'Reconcile the retained attempt'}),'Reconcile the retained attempt')",
+        "assert.equal(utcInstant(input),expected)",
+        "assert.equal(Date.parse(utcInstant(input)),Date.parse(input))",
+        "assert.equal(utcInstant(invalid),null)"
+      ]
+    },
+    {
+      "path": "apps/web/test/portfolio-purchased-fulfillment.test.mjs",
+      "originalSha256": "5c5e4a4494a57a8339abc60efb93de2af4e4f4ad303ca01d7312ba17b3f45a3b",
+      "currentSha256": "1612b6c0336e94aa9428eebd9c79e6d15a57607f5de70dc891875034355e3505",
+      "originalCases": [
+        "actual purchased shipment, invoice and payment detail hide account navigation unless CRM read is granted",
+        "overlapping line and reserve blockers produce one stable copy of each human hint without dropping distinct reasons",
+        "typed fulfillment document issue and download require their separate real grants, with no reader or issuer inference",
+        "purchased serial reservation captures actual UUIDs and shared stock CAS without invented unit versions",
+        "LOT command preserves exact six-place string and omits serial identity fields",
+        "release captures latest shared stock proof and only the whole remainder command, including held stock",
+        "partial serial dispatch uses selected reservation identities and exact line-bound source CAS",
+        "unsupported line, malformed UUID array, repeated claims and missing current evidence fail instead of constructing fallback sources",
+        "shipment identity labels come from immutable actual stock-unit UUIDs, not similarly named registry or serial values",
+        "released reservation copy preserves shipped custody meaning and source withdrawal recovery is actionable"
+      ],
+      "currentCases": [
+        "actual purchased shipment, invoice and payment detail hide account navigation unless CRM read is granted",
+        "overlapping line and reserve blockers produce one stable copy of each human hint without dropping distinct reasons",
+        "typed fulfillment document issue and download require their separate real grants, with no reader or issuer inference",
+        "purchased serial reservation captures actual UUIDs and shared stock CAS without invented unit versions",
+        "LOT command preserves exact six-place string and omits serial identity fields",
+        "release captures latest shared stock proof and only the whole remainder command, including held stock",
+        "partial serial dispatch uses selected reservation identities and exact line-bound source CAS",
+        "unsupported line, malformed UUID array, repeated claims and missing current evidence fail instead of constructing fallback sources",
+        "shipment identity labels come from immutable actual stock-unit UUIDs, not similarly named registry or serial values",
+        "released reservation copy preserves shipped custody meaning and source withdrawal recovery is actionable"
+      ],
+      "originalAssertions": 42,
+      "currentAssertions": 55,
+      "removedOrReconciledExpressions": [
+        "assert.match(purchasedHint({code:'PURCHASED_LINE_UNSUPPORTED'}),/Manufactured/)"
+      ],
+      "addedExpressions": [
+        "assert.match(reader.html,/No customer returns recorded/)",
+        "assert.match(reader.html,/Account settlement and aging/)",
+        "assert.match(rendered.html,/ASSET-SERIAL/)",
+        "assert.match(rendered.html,/customer-asset/)",
+        "assert.match(rendered.html,/href=\"\\/portfolio\\/repair\\/cases\\/repair-case\"/)",
+        "assert.equal(rendered.html.includes('href=\"/portfolio/accounts/account-record\"'),permissions.includes('crm.read'))",
+        "assert.doesNotMatch(rendered.html,/Open order fulfillment|Work order|Line NaN/)",
+        "assert.equal(rendered.calls.some(path=>path.endsWith('/returns')),false)",
+        "assert.match(stock.html,/actual-work-order/)",
+        "assert.match(stock.html,/UNIT-A, UNIT-B/)",
+        "assert.match(stock.html,/Frozen lot genealogy revision 3/)",
+        "assert.match(unsupported,/not purchased stock/)",
+        "assert.match(unsupported,/manufactured company stock dispatch/)",
+        "assert.throws(()=>reservePurchasedCommand(fixture(),fixture().stockSources[0],{lineIndex:'1',quantity:'1',reason:'Unsupported manufactured line'},'key'))"
+      ]
+    },
+    {
+      "path": "apps/web/test/portfolio-repair.test.mjs",
+      "originalSha256": "b22c07f0dd6709414e402bca019af3addb1b70d57b65f53ea6a768583cbcf1ac",
+      "currentSha256": "1fdda1fcecba0ea0d04c5d53df96374109631d60172c3a51e571ccd1351e203f",
+      "originalCases": [
+        "repair commands preserve exact money and freeze expected version for retry",
+        "repair lifecycle requires rework after failure and never offers QC before pass"
+      ],
+      "currentCases": [
+        "repair commands preserve exact money and freeze expected version for retry",
+        "repair lifecycle requires rework after failure and never offers QC before pass"
+      ],
+      "originalAssertions": 4,
+      "currentAssertions": 11,
+      "removedOrReconciledExpressions": [
+        "assert.deepEqual(repairActions({status:'REWORK'}),['rework','hold'])"
+      ],
+      "addedExpressions": [
+        "assert.deepEqual(failed,['rework','test-plan','hold'])",
+        "assert.equal(failed.includes(action),false)",
+        "assert.ok(failed.includes('rework'))",
+        "assert.ok(repairActions({status:'TESTING'}).includes('test'))",
+        "assert.ok(repairActions({status:'TEST_PASSED',tests:[{run:2,result:'PASS'}]}).includes('qc'))",
+        "assert.deepEqual(repairActions({status:'AUTHORIZED',serviceProfile:'REPAIR_SERVICE_V1'}),['deposit','orders','test-plan','hold'])",
+        "assert.ok(!repairActions({status:'AUTHORIZED',serviceProfile:'REPAIR_SERVICE_V1'}).includes('start'))",
+        "assert.ok(repairActions({status:'AUTHORIZED',serviceProfile:'REPAIR_SERVICE_V1',serviceOrders:{salesOrderId:'so',workOrderId:'wo'}}).includes('start'))"
+      ]
+    },
+    {
+      "path": "apps/web/test/portfolio-wave3e-documents.test.mjs",
+      "originalSha256": "5948bc79614ca9839f8c02faa61961278b8930f2567caf6a8404b966162be2e6",
+      "currentSha256": "44c74060e94637bfc63eccd27cb6a688f373d752027380105dc2ecbab6a1ff53",
+      "originalCases": [
+        "browser journeys receive the resolved evidence directory without an environment override",
+        "CS inbox routes isolate resource state when switching between ticket and conversation projections",
+        "source detail routes mount immutable documents only at issued boundaries",
+        "document panel names source identity and explicit issuance state",
+        "repair deposit guidance distinguishes the frozen maximum from start requirement"
+      ],
+      "currentCases": [
+        "browser journeys receive the resolved evidence directory without an environment override",
+        "CS inbox routes isolate resource state when switching between ticket and conversation projections",
+        "source detail routes mount immutable documents only at issued boundaries",
+        "document panel names source identity and explicit issuance state",
+        "repair deposit guidance distinguishes the frozen maximum from start requirement"
+      ],
+      "originalAssertions": 16,
+      "currentAssertions": 16,
+      "removedOrReconciledExpressions": [
+        "assert.match(po, /\\['ISSUED','CONFIRMED'\\]\\.includes\\(row.status\\)/)",
+        "assert.match(po, /<DocumentIssue[^>]*kind=\"purchaseOrder\"/)"
+      ],
+      "addedExpressions": [
+        "assert.deepEqual(module.exports.render(status,cohort),[])",
+        "assert.deepEqual(module.exports.render(status,cohort),[1,2].map(sourceVersion=>({kind,sourceId:'po-source',sourceVersion})))"
+      ]
+    },
+    {
+      "path": "apps/web/test/portfolio-repair-browser.mjs",
+      "originalSha256": "a8335abe1365fe57dd70417f0873f2920701fa0e055a44f19f19bd74e4fcb906",
+      "currentSha256": "fc65af76d7dd89f6fba8f21dbf018f89907f18b8562831441ba3967e87a101bb",
+      "originalCases": [],
+      "currentCases": [],
+      "originalAssertions": 83,
+      "currentAssertions": 98,
+      "removedOrReconciledExpressions": [
+        "assert.equal((await db.collection('repairCases').findOne({_id:id})).version,5)",
+        "assert.equal((await db.collection('repairCases').findOne({_id:id})).version,15)",
+        "assert.equal((await db.collection('repairCases').findOne({_id:id})).version,15)",
+        "assert.equal(await evaluate('document.activeElement.textContent'),'Return custody')",
+        "assert.equal(row.custody.at(-1).kind,'RETURNED_TO_CUSTOMER')",
+        "assert.equal(row.version,17)",
+        "assert.deepEqual(invoice.snapshot.lines[0],{description:'Authorized diagnostic inspection',quantity:'1',uom:'EA',unitPrice:'12.34',currency:'USD'})",
+        "assert.equal((await db.collection('repairCases').findOne({_id:rejected})).version,5)",
+        "assert.equal(returned.custody.at(-1).kind,'RETURNED_UNREPAIRED_TO_CUSTOMER')",
+        "assert.equal(audits.length,23)",
+        "assert.equal(outbox.length,23)",
+        "assert.equal(await db.collection('repairKeys').countDocuments({}),23)",
+        "assert.equal((await db.collection('repairCases').findOne({_id:id})).custody.at(-1).kind,'RETURNED_TO_CUSTOMER')"
+      ],
+      "addedExpressions": [
+        "assert.equal(delivery.status,200)",
+        "assert.equal(delivery.data.status,'DELIVERED')",
+        "assert.equal(delivery.data.custodyState,custodyState)",
+        "assert.equal(delivery.data.confirmations.length,1)",
+        "assert.deepEqual(delivery.data.deliveredSerials,[record.serial])",
+        "assert.equal((await db.collection('repairWorkOrders').findOne({_id:acceptedOrders.workOrderId})).status,'AUTHORIZED')",
+        "assert.equal((await db.collection('repairCases').findOne({_id:id})).version,6)",
+        "assert.equal(await evaluate(`[...document.querySelectorAll('form h2')].some(x=>x.textContent==='Record repair QC')`),false)",
+        "assert.equal(prematureQC.status,409)",
+        "assert.equal(prematureQC.error.code,'STATE_CONFLICT')",
+        "assert.equal((await db.collection('repairCases').findOne({_id:id})).version,11)",
+        "assert.equal((await db.collection('repairCases').findOne({_id:id})).version,16)",
+        "assert.equal((await db.collection('repairCases').findOne({_id:id})).version,16)",
+        "assert.equal(await evaluate('document.activeElement.textContent'),'Dispatch customer asset')",
+        "assert.equal(row.custody.at(-1).kind,'DISPATCHED_TO_CUSTOMER')",
+        "assert.equal(row.returnDispatch.shipmentMode,'CUSTOMER_ASSET_RETURN')",
+        "assert.equal(row.version,18)",
+        "assert.deepEqual(invoice.snapshot.lines[0],{description:'Authorized diagnostic inspection',quantity:'1',uom:'EA',unitPrice:'12.34',currency:'USD',netAmount:'12.34',taxAmount:'0.00',grossAmount:'12.34'})",
+        "assert.equal(rejectedWork.status,'CANCELLED')",
+        "assert.equal(rejectedWork.cancelledBeforeRelease,true)",
+        "assert.equal((await db.collection('repairCases').findOne({_id:rejected})).version,6)",
+        "assert.equal(returned.custody.at(-1).kind,'DISPATCHED_UNREPAIRED_TO_CUSTOMER')",
+        "assert.equal(audits.length,25)",
+        "assert.equal(outbox.length,25)",
+        "assert.equal(await db.collection('repairKeys').countDocuments({}),25)",
+        "assert.equal(audits.filter(event=>event.kind==='repair.orders').length,2)",
+        "assert.equal((await db.collection('repairCases').findOne({_id:id})).custody.at(-1).kind,'DISPATCHED_TO_CUSTOMER')",
+        "assert.equal(delivered.data.custodyState,'RETURNED_TO_CUSTOMER')"
+      ]
+    },
+    {
+      "path": "apps/web/test/portfolio-company-stock-browser.mjs",
+      "originalSha256": "053b49ece023fd862217a2af4a7c082fa8198892401349613515c390ad979ec4",
+      "currentSha256": "e4cd88b55bc0922d33d2b21bc0343d2c8f9dfbdb6c889f8b92ba0f7ee56dfbdd",
+      "originalCases": [],
+      "currentCases": [],
+      "originalAssertions": 53,
+      "currentAssertions": 80,
+      "removedOrReconciledExpressions": [],
+      "addedExpressions": [
+        "assert.equal(reusable.sourcePolicy,'MULTI_GENERATION_SOURCE')",
+        "assert.equal(reusable.availableQuantity,'1')",
+        "assert.equal(reusable.eligibleQuantity,'1')",
+        "assert.equal(reusable.blockedQuantity,'0')",
+        "assert.equal(reusable.canReserve,true)",
+        "assert.equal(reusable.canDispatch,true)",
+        "assert.equal(trace.schema,'COMPANY_UNIT_TRACE_V2')",
+        "assert.equal(trace.completeness.multiGeneration,true)",
+        "assert.equal(trace.completeness.oneGeneration,false)",
+        "assert.ok(trace.ancestry.companySources.some(source=>source.companyUnitId===sourceIds[0]))",
+        "assert.equal(trace.ancestry.companySources.some(source=>source.companyUnitId===sourceIds[1]),false)",
+        "assert.equal(reconcileInternalAttribution(head,[...reservations,...companyReservations],outputs,true),true)",
+        "assert.throws(()=>reconcileInternalAttribution(duplicate,[...reservations,...companyReservations],outputs,true),{code:'INTERNAL_EXECUTION_SOURCE_INVALID'})",
+        "assert.rejects(visitManufacturedNode(walk,executionId,()=>visitManufacturedNode(walk,executionId,async()=>null)),{code:'MANUFACTURED_GRAPH_CYCLE'})",
+        "assert.match(db.databaseName,/^portfolio_owned_/)",
+        "assert.equal(markers.length,1)",
+        "assert.match(markers[0]._id,/^[a-f0-9-]{36}$/)",
+        "assert.equal(denied.status,409)",
+        "assert.equal(denied.error.code,'COMPANY_SOURCE_TERMINAL')",
+        "assert.deepEqual(await terminalEffects(),beforeTerminal)",
+        "assert.equal((await ok(childPath)).version,child.version)",
+        "assert.equal(await checked('document.body.innerText.includes(\"Final output: further component reuse is unavailable\")'),true)",
+        "assert.equal(execution.companyStock.sourcePolicy,'MULTI_GENERATION_SOURCE')",
+        "assert.deepEqual(reused.reservations[0].companyUnitIds,[reusable.units[0]._id])",
+        "assert.equal((await ok(`/company-stock/receipts/${reusable._id}`)).reservedQuantity,'1')",
+        "assert.equal((await ok(`/company-stock/receipts/${reusable._id}`)).availableQuantity,'1')",
+        "assert.deepEqual(await negativeSnapshot(),negativeBefore)"
+      ]
+    },
+    {
+      "path": "apps/web/test/portfolio-purchased-fulfillment-browser.mjs",
+      "originalSha256": "faad97974fc5895afab5094131f03fdbd6c5a847fd9f77b0843646b4a1dffe52",
+      "currentSha256": "49f9d846a7d2ed4d82701e6f2fc1ff9e56717ec1f4b6b83577540ad06e0b2858",
+      "originalCases": [],
+      "currentCases": [],
+      "originalAssertions": 100,
+      "currentAssertions": 102,
+      "removedOrReconciledExpressions": [
+        "assert.equal(await checked('document.querySelector(\"#purchased-fulfillment\").innerText.includes(\"This manufactured line cannot use purchased stock fulfillment\")'),true)"
+      ],
+      "addedExpressions": [
+        "assert.match(manufacturedDirection,/Dispatch this manufactured line from the company stock section below/)",
+        "assert.match(manufacturedDirection,/not purchased stock.*manufactured company stock dispatch/s)",
+        "assert.equal(await checked(`[...document.querySelector(${js(RESERVE)}).querySelector('[name=lineIndex]').options].some(option=>option.value==='2')`),false)"
+      ]
+    }
+  ],
+  "authoritativeSourceHashes": [
+    {
+      "path": "apps/portfolio-api/src/repair-return.mjs",
+      "sha256": "b0cd75dc63b8ab40453fe626b6d09a6bad9389f9ec3f4fe59831ba5ce0d7c021"
+    },
+    {
+      "path": "apps/portfolio-api/src/repair.mjs",
+      "sha256": "68bf83976f85d2a193774569e7735678c68886f0d136bcb046ad4afb80e79257"
+    },
+    {
+      "path": "apps/portfolio-api/src/repair-orders.mjs",
+      "sha256": "85f28ed5fef7542b4a5a230e8a205331b3958c11eb5ef67d1a30fd3b4e5e7306"
+    },
+    {
+      "path": "apps/portfolio-api/src/fixture-tax.mjs",
+      "sha256": "bf5aaf8a1acfb9d5b5f5b50743584fe81a683d8eae886579aee220b7d2c16d1d"
+    },
+    {
+      "path": "apps/portfolio-api/src/delivery.mjs",
+      "sha256": "ac6c9e63567df966e0b5ae2f58eb121c095a93a430b9e82494e1c14afd26910f"
+    },
+    {
+      "path": "apps/portfolio-api/src/internal-execution.mjs",
+      "sha256": "e8d0538e66463b508d2379ead7e4b2e50e50195a7fcdc4a532e92b3bfdcbc7ea"
+    },
+    {
+      "path": "apps/portfolio-api/src/internal-execution-state.mjs",
+      "sha256": "759fa04db7afb5773d4ad437590f24c25fe629caeb6f339f0439a8ead3873c57"
+    },
+    {
+      "path": "apps/portfolio-api/src/company-stock.mjs",
+      "sha256": "dd94c1c600bee1f95affb60cdb2ad5a3c9e66cf7a90b63e8a04887cbc8fc63b4"
+    },
+    {
+      "path": "apps/portfolio-api/test/company-stock-use.test.mjs",
+      "sha256": "c150ecedd9deb623eb4d62be7bc9ae1728f881537c3dc553817f41f3da78d1e0"
+    },
+    {
+      "path": "packages/contracts/src/domains/planning-execution/manufactured-graph.mjs",
+      "sha256": "1df97ae2c4854a2be65d2ed1735b87424a2e068d61a138f316c1d09e7dae9efd"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/client.mjs",
+      "sha256": "126ffc64446b34d6201b04cc9ac662e1f50a9e397218ecfe3e44d08ceffdba81"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/purchased-fulfillment.mjs",
+      "sha256": "6715144d449274027389ced2d9b9f9981722baa3996b5fa61eb64984dfd0048a"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/PurchasedFulfillmentUi.jsx",
+      "sha256": "36775a244e94315e5fb8a73e8172448f6fb3a50d4f8afeb1a66fe41a41b4fbb4"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/repair.mjs",
+      "sha256": "95b47cd1589ef31c59b1b97f79f9cc6e66732c0d48545f56cc36fc7de69cbf3a"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/RepairWorkspace.jsx",
+      "sha256": "c4c3c6c66d9f287197e4c5890c7913a232b7b9929779461e46060731a622cb23"
+    },
+    {
+      "path": "apps/web/src/features/portfolio/ProcurementWorkspace.jsx",
+      "sha256": "52601593ff241fd6840de62da690a15b08f688a82a1f0e0e724d6cd4a2efc50a"
+    }
+  ],
+  "limits": "Syntax and mechanical inventory only. Changed expressions require the explicit source/semantic rationale in CORRECTIVE-RESULT.md. No native browser/Mongo execution."
+}

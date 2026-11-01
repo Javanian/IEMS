@@ -1,0 +1,13 @@
+✔ browser journeys receive the resolved evidence directory without an environment override (7.1831ms)
+✔ CS inbox routes isolate resource state when switching between ticket and conversation projections (1.9237ms)
+✔ source detail routes mount immutable documents only at issued boundaries (251.7774ms)
+✔ document panel names source identity and explicit issuance state (2.3047ms)
+✔ repair deposit guidance distinguishes the frozen maximum from start requirement (2.4767ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 430.1281

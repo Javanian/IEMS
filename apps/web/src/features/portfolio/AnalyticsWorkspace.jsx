@@ -4,6 +4,7 @@ import { portfolioRequest, errorMessage } from './client.mjs';
 import WorkspaceTable from '../../components/tables/WorkspaceTable.jsx';
 import WorkspaceState from '../../components/ui/WorkspaceState.jsx';
 import WorkspaceField from '../../components/forms/WorkspaceField.jsx';
+import { utcInstant } from './operator.mjs';
 
 const balanceColumns = [
   { key: 'order_id', label: 'Order' }, { key: 'currency', label: 'Currency' },
@@ -14,7 +15,7 @@ const balanceColumns = [
   } },
   { key: 'coverage_status', label: 'Source coverage' },
 ];
-const historyColumns = [['event_id', 'Event'], ['aggregate_id', 'Resource'], ['aggregate_version', 'Version'], ['resource_type', 'Type'], ['occurred_at', 'Occurred (UTC)'], ['available_at', 'Available (UTC)'], ['valid_to', 'Valid until (UTC)'], ['deleted', 'Deleted']].map(([key, label]) => ({ key, label, render: row => typeof row[key] === 'boolean' ? String(row[key]) : row[key] ?? 'Open' }));
+const historyColumns = [['event_id', 'Event'], ['aggregate_id', 'Resource'], ['aggregate_version', 'Version'], ['resource_type', 'Type'], ['occurred_at', 'Occurred (UTC)'], ['available_at', 'Available (UTC)'], ['valid_to', 'Valid until (UTC)'], ['deleted', 'Deleted']].map(([key, label]) => ({ key, label, render: row => typeof row[key] === 'boolean' ? String(row[key]) : row[key] == null ? 'Open' : label.includes('(UTC)') ? utcInstant(row[key]) || 'Unavailable' : row[key] }));
 const failure = error => error.code === 'DATASET_NOT_TRUSTED' ? 'The dataset is stale, corrupt, or failed a quality gate. Ask the data operator to refresh or reconcile it.' : error.code === 'REPORTING_UNAVAILABLE' ? 'Reporting is unavailable. Retry after the data operator restores the service.' : errorMessage(error);
 
 export default function AnalyticsWorkspace() {
@@ -60,9 +61,9 @@ export default function AnalyticsWorkspace() {
       {current.nextCursor && <button type="button" disabled={current.loading} onClick={() => setCursor(current.nextCursor)}>Next page</button>}
       {exportHref && !current.error && !current.loading && <a href={exportHref}>Export this snapshot as CSV</a>}
     </div>
-    {current.runId && <p>Snapshot: {current.runId}. Published (UTC): <time dateTime={current.publishedAt}>{current.publishedAt}</time>. Lineage: <code>{current.lineageHash}</code>.</p>}
-    {dataset === 'relational-orders' && !current.loading && !current.error && <p>Source coverage: {current.coverageStatus || 'NO_DATA'}. Reconciled through (UTC): {current.sourceCoverageAt || 'Unavailable'}. Latest source availability (UTC): {current.sourceAvailableAt || 'No events projected yet'}.</p>}
-    {current.observedAt && <p>Read at (UTC): <time dateTime={current.observedAt}>{current.observedAt}</time>.</p>}
+    {current.runId && <p>Snapshot: {current.runId}. Published (UTC): <time dateTime={utcInstant(current.publishedAt) || undefined}>{utcInstant(current.publishedAt) || 'Unavailable'}</time>. Lineage: <code>{current.lineageHash}</code>.</p>}
+    {dataset === 'relational-orders' && !current.loading && !current.error && <p>Source coverage: {current.coverageStatus || 'NO_DATA'}. Reconciled through (UTC): {utcInstant(current.sourceCoverageAt) || 'Unavailable'}. Latest source availability (UTC): {current.sourceAvailableAt ? utcInstant(current.sourceAvailableAt) || 'Unavailable' : 'No events projected yet'}.</p>}
+    {current.observedAt && <p>Read at (UTC): <time dateTime={utcInstant(current.observedAt) || undefined}>{utcInstant(current.observedAt) || 'Unavailable'}</time>.</p>}
     <WorkspaceTable caption={dataset === 'resource-history' ? 'Governed resource history' : 'Order balances'} columns={dataset === 'resource-history' ? historyColumns : balanceColumns} rows={current.data || []} rowKey={row => row.event_id || row.order_id} loading={current.loading} error={current.error && failure(current.error)} retry={() => setAttempt(n => n + 1)} empty="No reporting records are available for your selected plant." />
     {exportHref && <p>CSV exports require current permission, retain lineage, and are limited to 10,000 rows. The server reports unavailable or denied exports directly.</p>}
   </section>;

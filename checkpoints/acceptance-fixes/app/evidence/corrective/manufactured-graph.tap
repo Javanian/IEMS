@@ -1,0 +1,12 @@
+✔ a shared upstream producer is valid while a back edge fails closed (1.8354ms)
+✔ oversized genealogy is rejected before unbounded reads and raw ancestry keeps all generations (1.1227ms)
+✔ serialized manufactured components have one parent or loss and conserve consumed quantity (1.2689ms)
+✔ operator can select actual multi-generation stock while legacy terminal output stays unavailable (0.5046ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 142.5427

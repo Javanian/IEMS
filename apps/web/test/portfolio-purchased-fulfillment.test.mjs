@@ -14,7 +14,7 @@ test('actual purchased shipment, invoice and payment detail hide account navigat
       import {MemoryRouter,Routes,Route} from 'react-router-dom';
       import {FulfillmentDetail} from '../src/features/portfolio/FulfillmentWorkspace.jsx';
       import {IdentityContext,setKind,calls} from '../src/features/portfolio/PortfolioWorkspace.jsx';
-      export function render(kind,permissions){setKind(kind);calls.length=0;return {html:renderToStaticMarkup(
+      export function render(kind,permissions,record){setKind(kind,record);calls.length=0;return {html:renderToStaticMarkup(
         React.createElement(MemoryRouter,{initialEntries:['/portfolio/fulfillment/'+kind+'/record']},
           React.createElement(IdentityContext.Provider,{value:permissions===undefined?{}:{permissions}},
             React.createElement(Routes,null,React.createElement(Route,{path:'/portfolio/fulfillment/:kind/:id',element:React.createElement(FulfillmentDetail,{kind})}))))),calls:[...calls]};}
@@ -24,11 +24,13 @@ test('actual purchased shipment, invoice and payment detail hide account navigat
       bundler.onResolve({filter:/PortfolioWorkspace\.jsx$/},()=>({path:'fulfillment-resources',namespace:'fixture'}));
       bundler.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:`
         import React from 'react';
-        export const IdentityContext=React.createContext(null),calls=[];let kind;
-        export const setKind=value=>{kind=value;};
+        export const IdentityContext=React.createContext(null),calls=[];let kind,record;
+        export const setKind=(value,override)=>{kind=value;record=override;};
         export function useResource(path){calls.push(path);const delivery={version:1,shipmentId:'record',shipmentVersion:1,shipmentStatus:'SHIPPED',status:'NOT_DELIVERED',serials:[],remainingSerials:[],confirmations:[],shippedQuantity:'1',deliveredQuantity:'0',remainingQuantity:'1',remainingUnserializedQuantity:'1',uom:'UN',canConfirm:false};
+          if(path.endsWith('/ledger'))return {data:{asOf:'2026-10-26T00:00:00.000Z',complete:true,invoices:[],deposits:[]},reload(){}};
+          if(path.endsWith('/returns'))return {data:{version:1,deliveredQuantity:'0',returnedQuantity:'0',returnableQuantity:'0',uom:'UN',canReturn:false,returnableSerials:[],returns:[]},reload(){}};
           const row={_id:'record',reference:'ACTUAL-DETAIL',version:1,accountId:'account-record',salesOrderId:'order-record',schema:{shipments:'PURCHASED_SHIPMENT_V1',invoices:'PURCHASED_INVOICE_V1',payments:'PURCHASED_PAYMENT_V1'}[kind],status:kind==='invoices'?'PAID':kind==='shipments'?'SHIPPED':'ALLOCATED',quantity:'1',uom:'UN',currency:'USD',amount:'0.10',total:'0.10',paidAmount:'0.10',outstandingAmount:'0.00',lines:[],allocations:[],sources:[],createdAt:'2026-10-26T00:00:00.000Z'};
-          return {data:path.startsWith('/api/deliveries/')?delivery:row,reload(){}};}
+          return {data:path.startsWith('/api/deliveries/')?delivery:record||row,reload(){}};}
         export function Resource({resource,children}){return children(resource);}
         export function Failure(){return null;}
       `,resolveDir:fileURLToPath(new URL('../',import.meta.url))}));
@@ -42,10 +44,25 @@ test('actual purchased shipment, invoice and payment detail hide account navigat
       assert.doesNotMatch(reader.html,/href="\/portfolio\/accounts\/account-record"/);
       assert.match(reader.html,/href="\/portfolio\/fulfillment\/orders\/order-record\?catalog=1"/);
       assert.equal(reader.calls.some(path=>path.startsWith('/api/crm/')),false);
+      if(kind==='shipments')assert.match(reader.html,/No customer returns recorded/);
+      if(kind==='invoices')assert.match(reader.html,/Account settlement and aging/);
     }
     const authorized=module.exports.render(kind,['fulfillment.read','catalog.stock.read','crm.read']);
     assert.match(authorized.html,/href="\/portfolio\/accounts\/account-record"[^>]*>Open account<\/a>/);
   }
+  for(const shipmentMode of ['CUSTOMER_ASSET_RETURN','RETURN_UNREPAIRED']){
+    const record={_id:'return-record',reference:'ACTUAL-RETURN',version:1,sourceKind:'CUSTOMER_ASSET_RETURN',schema:'REPAIR_RETURN_SHIPMENT_V1',caseId:'repair-case',assetId:'customer-asset',serial:'ASSET-SERIAL',accountId:'account-record',quantity:'1',uom:'SET',shipmentMode,status:'SHIPPED',createdAt:'2026-10-26T00:00:00.000Z'};
+    for(const permissions of [[],['fulfillment.read','crm.read']]){
+      const rendered=module.exports.render('shipments',permissions,record);
+      assert.match(rendered.html,/ASSET-SERIAL/);assert.match(rendered.html,/customer-asset/);
+      assert.match(rendered.html,/href="\/portfolio\/repair\/cases\/repair-case"/);
+      assert.equal(rendered.html.includes('href="/portfolio/accounts/account-record"'),permissions.includes('crm.read'));
+      assert.doesNotMatch(rendered.html,/Open order fulfillment|Work order|Line NaN/);
+      assert.equal(rendered.calls.some(path=>path.endsWith('/returns')),false);
+    }
+  }
+  const stock=module.exports.render('shipments',['fulfillment.read'],{_id:'stock',reference:'STOCK',status:'SHIPPED',quantity:'2',uom:'UN',sources:[{sourceType:'WORK_ORDER',sourceId:'actual-work-order',quantity:'2',serials:['UNIT-A','UNIT-B'],genealogy:{workOrderId:'actual-work-order',revision:3}}],createdAt:'2026-10-26T00:00:00.000Z'});
+  assert.match(stock.html,/actual-work-order/);assert.match(stock.html,/UNIT-A, UNIT-B/);assert.match(stock.html,/Frozen lot genealogy revision 3/);
 });
 test('overlapping line and reserve blockers produce one stable copy of each human hint without dropping distinct reasons',()=>{const codes=['PURCHASED_LINE_UNSUPPORTED','PURCHASED_ITEM_CHANGED','PURCHASED_LINE_UNSUPPORTED','UNKNOWN_CODE','PURCHASED_ITEM_CHANGED'],before=[...codes],unsupported=purchasedHint({code:'PURCHASED_LINE_UNSUPPORTED'}),changed=purchasedHint({code:'PURCHASED_ITEM_CHANGED'});assert.deepEqual(purchasedBlockerHints(codes),[unsupported,changed]);assert.deepEqual(codes,before);assert.deepEqual(purchasedBlockerHints(['PURCHASED_ITEM_CHANGED','PURCHASED_LINE_UNSUPPORTED']),[changed,unsupported]);assert.deepEqual(purchasedBlockerHints(['UNKNOWN_CODE']),[]);assert.deepEqual(purchasedBlockerHints(),[]);});
 test('typed fulfillment document issue and download require their separate real grants, with no reader or issuer inference',()=>{for(const permissions of [undefined,null,[],['fulfillment.read'],['catalog.stock.read','fulfillment.read'],['document.issue','document.read']]){const access=purchasedDocumentAccess(permissions);assert.match(access.issueBlockedReason,/permission/);assert.match(access.downloadBlockedReason,/permission/);}const issueOnly=purchasedDocumentAccess(['fulfillment.read','document.issue']);assert.equal(issueOnly.issueBlockedReason,'');assert.match(issueOnly.downloadBlockedReason,/read documents/);const readOnly=purchasedDocumentAccess(['fulfillment.read','document.read']);assert.match(readOnly.issueBlockedReason,/issue documents/);assert.equal(readOnly.downloadBlockedReason,'');assert.deepEqual(purchasedDocumentAccess(['fulfillment.read','document.issue','document.read']),{issueBlockedReason:'',downloadBlockedReason:''});});
@@ -55,4 +72,4 @@ test('release captures latest shared stock proof and only the whole remainder co
 test('partial serial dispatch uses selected reservation identities and exact line-bound source CAS',()=>{const view=fixture(),body=shipPurchasedCommand(view,{lineIndex:'0',reservationId0:'claim',quantity0:'1',unitIds0:['unit-b'],reference:'DISPATCH-1',reason:'Actual dispatch'},1,'key');assert.deepEqual(body.sources,[{reservationId:'claim',expectedReservationVersion:4,expectedReceiptVersion:3,expectedStockVersion:9,quantity:'1',unitIds:['unit-b']}]);assert.equal(body.reference,'DISPATCH-1');assert.equal(body.expectedSalesOrderVersion,1);});
 test('unsupported line, malformed UUID array, repeated claims and missing current evidence fail instead of constructing fallback sources',()=>{const view=fixture(),values={lineIndex:'0',quantity:'1',reason:'Actual selection',unitIds:'REAL-A'};assert.throws(()=>reservePurchasedCommand(view,view.stockSources[0],values,'key'),{code:'INVALID_UNITS'});assert.throws(()=>reservePurchasedCommand(view,view.stockSources[0],{...values,lineIndex:'1'},'key'));assert.throws(()=>shipPurchasedCommand(view,{...values,reservationId0:'claim',reservationId1:'claim',unitIds0:[],unitIds1:[]},2,'key'));assert.throws(()=>shipPurchasedCommand(view,values,21,'key'));assert.throws(()=>releasePurchasedCommand({...view,stockSources:[]},view.reservations[0],values,'key'));});
 test('shipment identity labels come from immutable actual stock-unit UUIDs, not similarly named registry or serial values',()=>{const view=fixture(),source=view.stockSources[0];assert.deepEqual(purchasedUnitLabels(source,['unit-b']),[source.units[1]]);assert.deepEqual(purchasedUnitLabels(source,['REAL-B']),[]);assert.deepEqual(purchasedUnitLabels(undefined,['unit-b']),[]);});
-test('released reservation copy preserves shipped custody meaning and source withdrawal recovery is actionable',()=>{assert.equal(purchasedReservationStatus('RELEASED'),'Released unshipped remainder');assert.match(purchasedHint({code:'STOCK_ENCUMBERED'}),/release an unshipped/);assert.match(purchasedHint({code:'PURCHASED_LINE_UNSUPPORTED'}),/Manufactured/);assert.match(purchasedHint({code:'CATALOG_DEPENDENCY_CHANGED'}),/recorded shipments/);assert.match(purchasedHint({code:'PURCHASED_FULFILLMENT_MODE_CONFLICT'}),/cannot mix/);assert.equal(purchasedOrderUrl('order'),'/portfolio/fulfillment/orders/order?catalog=1');});
+test('released reservation copy preserves shipped custody meaning and source withdrawal recovery is actionable',()=>{assert.equal(purchasedReservationStatus('RELEASED'),'Released unshipped remainder');assert.match(purchasedHint({code:'STOCK_ENCUMBERED'}),/release an unshipped/);const unsupported=purchasedHint({code:'PURCHASED_LINE_UNSUPPORTED'});assert.match(unsupported,/not purchased stock/);assert.match(unsupported,/manufactured company stock dispatch/);assert.throws(()=>reservePurchasedCommand(fixture(),fixture().stockSources[0],{lineIndex:'1',quantity:'1',reason:'Unsupported manufactured line'},'key'));assert.match(purchasedHint({code:'CATALOG_DEPENDENCY_CHANGED'}),/recorded shipments/);assert.match(purchasedHint({code:'PURCHASED_FULFILLMENT_MODE_CONFLICT'}),/cannot mix/);assert.equal(purchasedOrderUrl('order'),'/portfolio/fulfillment/orders/order?catalog=1');});

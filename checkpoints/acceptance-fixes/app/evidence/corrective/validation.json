@@ -1,0 +1,56 @@
+{
+  "finalFocused": {
+    "command": "node --import ./checkpoints/acceptance-fixes/app/unit-resources.mjs --test --test-concurrency=1 apps/web/test/portfolio-client.test.mjs apps/web/test/portfolio-purchased-fulfillment.test.mjs apps/web/test/portfolio-repair.test.mjs apps/web/test/portfolio-wave3e-documents.test.mjs apps/web/test/portfolio-review-operator.test.mjs apps/web/test/portfolio-quote-catalog.test.mjs packages/contracts/src/domains/planning-execution/manufactured-graph.test.mjs",
+    "fail": 0,
+    "pass": 52,
+    "exit": 0,
+    "skip": 0,
+    "files": 7
+  },
+  "affectedMaintained": {
+    "exit": 0,
+    "fail": 0,
+    "pass": 21,
+    "skip": 0
+  },
+  "jsx": "PASS2 esbuild transform; compile.json",
+  "base": "9269ae5d504378ecf7bdaae0edf963b893afcc96",
+  "baseline": {
+    "exit": 1,
+    "fail": 5,
+    "pass": 15,
+    "skip": 0,
+    "files": 4
+  },
+  "at": "2026-11-01T11:52:19.2737656Z",
+  "native": "NOT_RUN: source/syntax/semantic work only; Platform heavy owner",
+  "syntax": {
+    "commands": [
+      "node --check apps/web/src/features/portfolio/operator.mjs",
+      "node --check apps/web/test/portfolio-repair-browser.mjs",
+      "node --check apps/web/test/portfolio-company-stock-browser.mjs",
+      "node --check apps/web/test/portfolio-purchased-fulfillment-browser.mjs"
+    ],
+    "exit": 0
+  },
+  "secrets": "PASS: added-line scan and manual diff; no live secrets/credentials",
+  "diffWhitespace": "PASS: git diff --check9269ae5..HEAD and dirty handoff",
+  "ownership": {
+    "result": "PASS",
+    "changedSourceTestFiles": [
+      "apps/web/src/features/portfolio/AnalyticsWorkspace.jsx",
+      "apps/web/src/features/portfolio/FulfillmentWorkspace.jsx",
+      "apps/web/src/features/portfolio/operator.mjs",
+      "apps/web/test/portfolio-client.test.mjs",
+      "apps/web/test/portfolio-company-stock-browser.mjs",
+      "apps/web/test/portfolio-purchased-fulfillment-browser.mjs",
+      "apps/web/test/portfolio-purchased-fulfillment.test.mjs",
+      "apps/web/test/portfolio-repair-browser.mjs",
+      "apps/web/test/portfolio-repair.test.mjs",
+      "apps/web/test/portfolio-wave3e-documents.test.mjs"
+    ]
+  },
+  "cleanup": "Short-lived HTTP fixture normal close, PID24904/port55171 absent; no Mongo/browser/native engine/DB/profile/cache/install",
+  "e01": "UNCHANGED",
+  "testedSource": "ad13c2c0d6993dd8654382b0d5f56cd38c77a8db"
+}

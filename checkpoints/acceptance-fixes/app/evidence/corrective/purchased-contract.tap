@@ -1,0 +1,18 @@
+✔ actual purchased shipment, invoice and payment detail hide account navigation unless CRM read is granted (340.0811ms)
+✔ overlapping line and reserve blockers produce one stable copy of each human hint without dropping distinct reasons (1.2081ms)
+✔ typed fulfillment document issue and download require their separate real grants, with no reader or issuer inference (0.3633ms)
+✔ purchased serial reservation captures actual UUIDs and shared stock CAS without invented unit versions (0.5091ms)
+✔ LOT command preserves exact six-place string and omits serial identity fields (0.2398ms)
+✔ release captures latest shared stock proof and only the whole remainder command, including held stock (0.2584ms)
+✔ partial serial dispatch uses selected reservation identities and exact line-bound source CAS (0.4054ms)
+✔ unsupported line, malformed UUID array, repeated claims and missing current evidence fail instead of constructing fallback sources (0.7173ms)
+✔ shipment identity labels come from immutable actual stock-unit UUIDs, not similarly named registry or serial values (0.2583ms)
+✔ released reservation copy preserves shipped custody meaning and source withdrawal recovery is actionable (0.4505ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 508.8239

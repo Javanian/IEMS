@@ -1,5 +1,9 @@
 # TPR-166 implementation result
 
+## Current corrective continuation after independent169–171
+
+**IMPLEMENTED_QA_PENDING; product UNACCEPTED.** The new typed return detail/UTC fixes and maintained/native contract reconciliation are documented in [CORRECTIVE-RESULT.md](CORRECTIVE-RESULT.md), including the exact9-commit COMMIT-LEDGER, source-authority hashes, original/current semantic inventory, checks, cleanup and remaining native matrix. Baseline20cases reproduced5failures; current affected cases21PASS; final focused selection52PASS/0FAIL/0skip. No heavy browser/Mongo stack or native journey was launched in this continuation. E01 remains unchanged. Original failures and all prior handoff sections below remain historical evidence tied to their named SHAs. CTO integrates/freezes; independent QA/Designer/Security own acceptance.
+
 ## Current runner continuation — 2026-11-01
 
 **IMPLEMENTED_QA_PENDING.** CTO plan revision `c5e834b8-b801-4239-9a6e-d8eb6c37a7d3` and comment `ef745cd9-57d9-41d5-96f4-f7b2ee22db45` explicitly added only `apps/web/test/portfolio-review-e01-browser.mjs` plus this issue's handoff files. The original three fixes remain completed.

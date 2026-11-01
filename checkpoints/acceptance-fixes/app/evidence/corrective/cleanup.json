@@ -1,0 +1,15 @@
+{
+  "browser": "NOT_STARTED",
+  "heavyMongo": "NOT_STARTED",
+  "listenerPresent": false,
+  "command": "\"C:\\Program Files\\nodejs\\node.exe\" --use-largepages=off --trace-event-file-pattern=node_trace.${rotation}.log --v8-pool-size=4 --node-snapshot --cpu-prof-interval=1000 --report-signal=SIGUSR2 --tls-cipher-list=TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA256:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA --secure-heap=0 --secure-heap-min=2 --stack-trace-limit=10 --test-isolation=process --network-family-autoselection-attempt-timeout=250 --experimental-addon-modules --heapsnapshot-near-heap-limit=0 --heap-prof-interval=524288 --max-http-header-size=16384 --test-concurrency=1 --test-timeout=0 --test-coverage-branches=0 --test-coverage-functions=0 --test-coverage-lines=0 --watch-kill-signal=SIGTERM --import=./checkpoints/acceptance-fixes/app/unit-resources.mjs --inspect-port=127.0.0.1:9229 --inspect-publish-uid=stderr,http --import ./checkpoints/acceptance-fixes/app/unit-resources.mjs apps\\web\\test\\portfolio-client.test.mjs",
+  "pid": 24904,
+  "profile": "NONE",
+  "sameIdentityAlive": false,
+  "at": "2026-11-01T11:49:19.6495136Z",
+  "OSCreationReceipt": "2026-11-01T11:48:30.048Z",
+  "port": 55171,
+  "limits": "Five earlier lightweight HTTP unit-test launches did not capture PID/port/OS creation. Their exact command/exit and source-finally close remain; no retroactive identity invented. Initial immediate audit threw incomplete cleanup before saving details; subsequent read-only audit confirms absent process/listener and persisted normal close. No process was stopped.",
+  "database": "NONE",
+  "normalCloseEvent": true
+}

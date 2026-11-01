@@ -1,0 +1,198 @@
+✔ portfolio requests use real HTTP JSON envelopes and expose conflict status (73.9007ms)
+✔ money stays a canonical decimal string at the currency scale (0.7333ms)
+✖ recovery messages distinguish expired, forbidden, conflict and uncertain writes (1.608ms)
+✖ actual purchased shipment, invoice and payment detail hide account navigation unless CRM read is granted (2762.51ms)
+✔ overlapping line and reserve blockers produce one stable copy of each human hint without dropping distinct reasons (3.8588ms)
+✔ typed fulfillment document issue and download require their separate real grants, with no reader or issuer inference (0.4116ms)
+✔ purchased serial reservation captures actual UUIDs and shared stock CAS without invented unit versions (0.4292ms)
+✔ LOT command preserves exact six-place string and omits serial identity fields (0.3163ms)
+✔ release captures latest shared stock proof and only the whole remainder command, including held stock (0.2426ms)
+✔ partial serial dispatch uses selected reservation identities and exact line-bound source CAS (0.3859ms)
+✔ unsupported line, malformed UUID array, repeated claims and missing current evidence fail instead of constructing fallback sources (0.6518ms)
+✔ shipment identity labels come from immutable actual stock-unit UUIDs, not similarly named registry or serial values (0.2398ms)
+✖ released reservation copy preserves shipped custody meaning and source withdrawal recovery is actionable (0.7828ms)
+✔ repair commands preserve exact money and freeze expected version for retry (1.3756ms)
+✖ repair lifecycle requires rework after failure and never offers QC before pass (1.3664ms)
+✔ browser journeys receive the resolved evidence directory without an environment override (28.6805ms)
+✔ CS inbox routes isolate resource state when switching between ticket and conversation projections (2.1116ms)
+✖ source detail routes mount immutable documents only at issued boundaries (13.2457ms)
+✔ document panel names source identity and explicit issuance state (2.0845ms)
+✔ repair deposit guidance distinguishes the frozen maximum from start requirement (2.2527ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 15
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3601.2889
+
+✖ failing tests:
+
+test at apps\web\test\portfolio-client.test.mjs:33:1
+✖ recovery messages distinguish expired, forbidden, conflict and uncertain writes (1.608ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Refresh/i. Input:
+  
+  'This record changed or its stage is closed. Review the record and its history to reconcile the submitted command before starting a new one.'
+  
+      at TestContext.<anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-client.test.mjs:36:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'This record changed or its stage is closed. Review the record and its history to reconcile the submitted command before starting a new one.',
+    expected: /Refresh/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps\web\test\portfolio-purchased-fulfillment.test.mjs:9:1
+✖ actual purchased shipment, invoice and payment detail hide account navigation unless CRM read is granted (2762.51ms)
+  TypeError: Cannot read properties of undefined (reading 'length')
+      at children (eval at <anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:37:29), <anonymous>:43156:21)
+      at Resource (eval at <anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:37:29), <anonymous>:42836:10)
+      at Object.react_stack_bottom_frame (eval at <anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:37:29), <anonymous>:19746:18)
+      at renderWithHooks (eval at <anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:37:29), <anonymous>:16402:24)
+      at renderElement (eval at <anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:37:29), <anonymous>:16662:25)
+      at retryNode (eval at <anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:37:29), <anonymous>:17376:43)
+      at renderNodeDestructive (eval at <anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:37:29), <anonymous>:17336:270)
+      at renderNode (eval at <anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:37:29), <anonymous>:17733:20)
+      at renderChildrenArray (eval at <anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:37:29), <anonymous>:17562:143)
+      at retryNode (eval at <anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:37:29), <anonymous>:17399:15)
+
+test at apps\web\test\portfolio-purchased-fulfillment.test.mjs:58:1
+✖ released reservation copy preserves shipped custody meaning and source withdrawal recovery is actionable (0.7828ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Manufactured/. Input:
+  
+  'This line is not purchased stock. Use the manufactured company stock dispatch section for this line.'
+  
+      at TestContext.<anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-purchased-fulfillment.test.mjs:58:287)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'This line is not purchased stock. Use the manufactured company stock dispatch section for this line.',
+    expected: /Manufactured/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps\web\test\portfolio-repair.test.mjs:8:1
+✖ repair lifecycle requires rework after failure and never offers QC before pass (1.3664ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'rework',
+  +   'test-plan',
+      'hold'
+    ]
+  
+      at TestContext.<anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-repair.test.mjs:9:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'rework', 'test-plan', 'hold' ],
+    expected: [ 'rework', 'hold' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps\web\test\portfolio-wave3e-documents.test.mjs:19:1
+✖ source detail routes mount immutable documents only at issued boundaries (13.2457ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /<DocumentIssue[^>]*kind="purchaseOrder"/. Input:
+  
+  "import { AuditDetails } from './OperatorUi.jsx';\n" +
+    "import { displayReference,operatorStatus } from './operator.mjs';\n" +
+    "import { useContext, useEffect, useRef, useState } from 'react';\n" +
+    "import { DocumentIssue } from './DocumentIssue.jsx';\n" +
+    "import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';\n" +
+    "import { portfolioRequest as request, useStableCommand } from './client.mjs';\n" +
+    "import { Failure, Resource, useResource,IdentityContext,MutationForm,CommandAttemptState } from './PortfolioWorkspace.jsx';\n" +
+    "import { Lines } from './CommercialWorkspace.jsx';\n" +
+    "import { procurementContent, procurementConversion } from './procurement.mjs';\n" +
+    "import WorkspaceField from '../../components/forms/WorkspaceField.jsx';\n" +
+    "import { InquiryCommand } from './InquiryWorkspace.jsx';\n" +
+    '\n' +
+    "const base = '/portfolio/procurement';\n" +
+    'function Input({ label, ...props }) { return <label className="pf-field">{label}<input {...props} /></label>; }\n' +
+    'function ShortageSource({ sourceId }) {\n' +
+    '  const resource = useResource(`/api/procurement/material-shortages/${sourceId}`);\n' +
+    '  const [created, setCreated] = useState(null);\n' +
+    '  return <Resource resource={resource}>{({ data: { snapshot: source, claims } }) => <section className="pf-panel">\n' +
+    '    <h3>Material shortage: {source.materialLineId}</h3>\n' +
+    "    <p>Evidence revision {source.revision}, observed {new Date(source.observedAt).toLocaleString('en-US')}. Required {source.requiredQuantity} {source.uom}; eligible stock {source.eligibleQuantity}; active claims at observation {source.activeClaimQuantity}; uncovered {source.shortageQuantity}. Claiming revalidates current demand and stock.</p>\n" +
+    '    <AuditDetails action="procurement.read"><p>Source {source.sourceId}; hash {source.authorityHash}</p></AuditDetails>\n' +
+    `    <InquiryCommand title="Create catalog PR from shortage" permission="procurement.write" action="/api/procurement/requests/from-shortage" build={(values, key) => ({ sourceId: source.sourceId, sourceRevision: source.revision, sourceHash: source.authorityHash, materialLineId: source.materialLineId, quantity: values.quantity, vendorId: values.vendorId, pricing: { unitPrice: values.unitPrice, currency: values.currency, taxPolicy: 'NO_TAX', roundingPolicy: 'LINE_HALF_UP' }, reason: values.reason, idempotencyKey: key })} onSaved={result => { setCreated(result); resource.reload(); }}>\n` +
+    '      <WorkspaceField label="Vendor ID" name="vendorId" required />\n' +
+    '      <WorkspaceField label={`Quantity (${source.uom})`} name="quantity" inputMode="decimal" required />\n' +
+    '      <WorkspaceField label="Unit price" name="unitPrice" inputMode="decimal" required />\n' +
+    `      <WorkspaceField as="select" label="Currency" name="currency">{['USD','EUR','GBP','IDR','JPY','KWD'].map(currency => <option key={currency}>{currency}</option>)}</WorkspaceField>\n` +
+    '      <WorkspaceField label="Procurement reason" name="reason" minLength={3} maxLength={500} required />\n' +
+    '    </InquiryCommand>\n' +
+    '    {created && <p role="status"><Link to={`/portfolio/catalog-procurement/requests/${created.requestId}`}>Open created catalog purchase request</Link></p>}\n' +
+    '    <h4>Claims</h4>{!claims.length ? <p>No procurement claims.</p> : claims.map(claim => <section key={`${claim.claimId}:${claim.version}`}><p>{claim.status}: {claim.quantity} {source.uom}. <Link to={`/portfolio/catalog-procurement/requests/${claim.requestId}`}>Open catalog PR</Link></p>\n' +
+    '      {claim.status === \'ACTIVE\' && <InquiryCommand title="Release unconverted claim" permission="procurement.write" action={`/api/procurement/material-shortages/${sourceId}/release`} build={(values, key) => ({ claimId: claim.claimId, expectedClaimVersion: claim.version, expectedRequestVersion: Number(values.expectedRequestVersion), reason: values.reason, idempotencyKey: key })} onSaved={resource.reload}>\n' +
+    '        <p>Only a wholly unconverted PR can be cancelled. Read its current version before releasing. Converted commitments require an approved amendment.</p>\n' +
+    '        <WorkspaceField label="Current PR version" name="expectedRequestVersion" type="number" min="1" step="1" required />\n' +
+    '        <WorkspaceField label="Cancellation reason" name="reason" minLength={3} maxLength={500} required />\n' +
+    '      </InquiryCommand>}\n' +
+    '    </section>)}\n' +
+    '    <button type="button" onClick={resource.reload}>Refresh shortage and claims</button>\n' +
+    '  </section>}</Resource>;\n' +
+    '}\n' +
+    'function ShortageProcurement() {\n' +
+    "  const [sources, setSources] = useState([]), [sourceId, setSourceId] = useState(''), [refreshed, setRefreshed] = useState(false);\n" +
+    '  return <section className="pf-panel"><h2>Approved demand shortages</h2><p>Refresh evidence from approved internal production demand. Purchased material claims create catalog PRs. This evidence does not reserve stock. Requires manufacturing and catalog stock access.</p>\n' +
+    '    <InquiryCommand title="Refresh shortage evidence" permission="procurement.write" action="/api/procurement/material-shortages/refresh" build={(values, key) => ({ demandId: values.demandId, expectedDemandVersion: Number(values.expectedDemandVersion), engineeringRevision: Number(values.engineeringRevision), expectedShortageRevision: Number(values.expectedShortageRevision), ...(values.materialLineId.trim() ? { materialLineId: values.materialLineId.trim() } : {}), reason: values.reason, idempotencyKey: key })} onSaved={result => { setSources(result.snapshots.map(source => source.sourceId)); setRefreshed(true); }}>\n' +
+    '      <WorkspaceField label="Internal production demand ID" name="demandId" required />\n' +
+    '      <WorkspaceField label="Engineering material line ID (optional: refresh one line)" name="materialLineId" hint="Use a line ID when material lines have different evidence revisions or a newly approved line needs its first snapshot." />\n' +
+    '      <WorkspaceField label="Demand version" name="expectedDemandVersion" type="number" min="1" step="1" required />\n' +
+    '      <WorkspaceField label="Approved engineering revision" name="engineeringRevision" type="number" min="1" step="1" required />\n' +
+    '      <WorkspaceField label="Previous shortage revision (0 for first refresh)" name="expectedShortageRevision" type="number" min="0" step="1" defaultValue="0" required />\n' +
+    '      <WorkspaceField label="Refresh reason" name="reason" minLength={3} maxLength={500} required />\n' +
+    '    </InquiryCommand>\n' +
+    '    {refreshed && !sources.length && <p role="status">No purchased material shortages were produced for this approved demand. Company output materials use manufacturing supply planning.</p>}\n' +
+    `    <form className="pf-form" onSubmit={event => { event.preventDefault(); setSourceId(new FormData(event.currentTarget).get('sourceId')); }}><WorkspaceField label="Existing shortage source ID" name="sourceId" required /><button>Open shortage</button></form>\n` +
+    '    {[...new Set([...sources, ...(sourceId ? [sourceId] : [])])].map(id => <ShortageSource key={id} sourceId={id} />)}\n' +
+    '  </section>;\n' +
+    '}\n' +
+    'export function ProcurementList({ kind }) {\n' +
+    '  const location = useLocation(), navigate = useNavigate();\n' +
+    "  const cursor = new URLSearchParams(location.search).get('cursor');\n" +
+    "  const resource = useResource(`/api/procurement/${kind}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`);\n" +
+    '  const [error, setError] = useState(null), [busy, setBusy] = useState(false);\n' +
+    '  const lock = useRef(false);\n' +
+    "  const title = { vendors: 'Vendors', requests: 'Purchase requests', orders: 'Purchase orders' }[kind];\n" +
+    '  return <><h1>{title}</h1>{kind === \'requests\' && <ShortageProcurement />}<nav className="pf-actions" aria-label="Procurement"><Link to={`${base}/vendors`}>Vendors</Link><Link to={`${base}/requests`}>Purchase requests</Link><Link to={`${base}/orders`}>Purchase orders</Link></nav><p>Owned procurement documents. Issue is local only; no purchasing dispatch, stock receipt or payment occurs here.</p>{kind === \'requests\' && <Link to={`${base}/requests/new`}>Create purchase request</Link>}<section className="pf-panel"><Resource resource={resource}>{({ data, page }) => <>{!data.length ? <p>No {title.toLowerCase()} in this plant yet. {kind === \'vendors\' ? \'Create a vendor below.\' : kind === \'requests\' ? \'Create a request for an existing vendor.\' : \'Approve and convert a purchase request first.\'}</p> : <ul className="pf-list">{data.map(row => <li key={row._id}><Link to={`${base}/${kind}/${row._id}`}>{row.name || displayReference(kind === "orders" ? "purchaseOrder" : "request",row)}</Link>{row.status && <span>{operatorStatus(row.status)}</span>}</li>)}</ul>}<div className="pf-actions">{cursor && <Link to={`${base}/${kind}`}>First page</Link>}{page.nextCursor && <Link to={`?cursor=${page.nextCursor}`}>Next page</Link>}</div></>}</Resource></section>{kind===\'vendors\'&&<MutationForm keyed commandSlot="procurement:vendor:new" title="Create vendor" submitLabel="Create vendor" save={(body,send)=>send(\'/api/procurement/vendors\',{body})} onSaved={data=>navigate(`${base}/vendors/${data._id}`)}><Input label="Vendor name" name="name" required maxLength={200}/></MutationForm>}</>;\n' +
+    '}\n' +
+    'export function NewPurchaseRequest() {\n' +
+    '  const navigate = useNavigate(), [count, setCount] = useState(1), [busy, setBusy] = useState(false), [error, setError] = useState(null);\n' +
+    '  const lock = useRef(false);\n' +
+    '  return <><h1>Create purchase request</h1><Link to={`${base}/vendors`}>Find vendor ID</Link><MutationForm keyed commandSlot="procurement:request:new" title="Purchase request" submitLabel="Save purchase request" save={(values,send)=>send(\'/api/procurement/requests\',{body:procurementContent(values,count)})} onSaved={data=>navigate(`${base}/requests/${data._id}`)}><Input label="Vendor ID" name="vendorId" required /><p>Use exact decimal strings and one currency. Server applies NO_TAX and LINE_HALF_UP; no FX or UOM conversion.</p>{Array.from({ length: count }, (_, i) => <fieldset key={i}><legend>Line {i + 1}</legend><div className="pf-fields"><Input label="Description" name={`description${i}`} required maxLength={200} /><Input label="Quantity (exact decimal)" name={`quantity${i}`} inputMode="decimal" required /><Input label="UOM" name={`uom${i}`} pattern="[A-Z][A-Z0-9_]{0,15}" required /'... 17164 more characters
+  
+      at TestContext.<anonymous> (file:///D:/Project%20AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-app/apps/web/test/portfolio-wave3e-documents.test.mjs:24:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'import { AuditDetails } from \'./OperatorUi.jsx\';\nimport { displayReference,operatorStatus } from \'./operator.mjs\';\nimport { useContext, useEffect, useRef, useState } from \'react\';\nimport { DocumentIssue } from \'./DocumentIssue.jsx\';\nimport { Link, useLocation, useNavigate, useParams } from \'react-router-dom\';\nimport { portfolioRequest as request, useStableCommand } from \'./client.mjs\';\nimport { Failure, Resource, useResource,IdentityContext,MutationForm,CommandAttemptState } from \'./PortfolioWorkspace.jsx\';\nimport { Lines } from \'./CommercialWorkspace.jsx\';\nimport { procurementContent, procurementConversion } from \'./procurement.mjs\';\nimport WorkspaceField from \'../../components/forms/WorkspaceField.jsx\';\nimport { InquiryCommand } from \'./InquiryWorkspace.jsx\';\n\nconst base = \'/portfolio/procurement\';\nfunction Input({ label, ...props }) { return <label className="pf-field">{label}<input {...props} /></label>; }\nfunction ShortageSource({ sourceId }) {\n  const resource = useResource(`/api/procurement/material-shortages/${sourceId}`);\n  const [created, setCreated] = useState(null);\n  return <Resource resource={resource}>{({ data: { snapshot: source, claims } }) => <section className="pf-panel">\n    <h3>Material shortage: {source.materialLineId}</h3>\n    <p>Evidence revision {source.revision}, observed {new Date(source.observedAt).toLocaleString(\'en-US\')}. Required {source.requiredQuantity} {source.uom}; eligible stock {source.eligibleQuantity}; active claims at observation {source.activeClaimQuantity}; uncovered {source.shortageQuantity}. Claiming revalidates current demand and stock.</p>\n    <AuditDetails action="procurement.read"><p>Source {source.sourceId}; hash {source.authorityHash}</p></AuditDetails>\n    <InquiryCommand title="Create catalog PR from shortage" permission="procurement.write" action="/api/procurement/requests/from-shortage" build={(values, key) => ({ sourceId: source.sourceId, sourceRevision: source.revision, sourceHash: source.authorityHash, materialLineId: source.materialLineId, quantity: values.quantity, vendorId: values.vendorId, pricing: { unitPrice: values.unitPrice, currency: values.currency, taxPolicy: \'NO_TAX\', roundingPolicy: \'LINE_HALF_UP\' }, reason: values.reason, idempotencyKey: key })} onSaved={result => { setCreated(result); resource.reload(); }}>\n      <WorkspaceField label="Vendor ID" name="vendorId" required />\n      <WorkspaceField label={`Quantity (${source.uom})`} name="quantity" inputMode="decimal" required />\n      <WorkspaceField label="Unit price" name="unitPrice" inputMode="decimal" required />\n      <WorkspaceField as="select" label="Currency" name="currency">{[\'USD\',\'EUR\',\'GBP\',\'IDR\',\'JPY\',\'KWD\'].map(currency => <option key={currency}>{currency}</option>)}</WorkspaceField>\n      <WorkspaceField label="Procurement reason" name="reason" minLength={3} maxLength={500} required />\n    </InquiryCommand>\n    {created && <p role="status"><Link to={`/portfolio/catalog-procurement/requests/${created.requestId}`}>Open created catalog purchase request</Link></p>}\n    <h4>Claims</h4>{!claims.length ? <p>No procurement claims.</p> : claims.map(claim => <section key={`${claim.claimId}:${claim.version}`}><p>{claim.status}: {claim.quantity} {source.uom}. <Link to={`/portfolio/catalog-procurement/requests/${claim.requestId}`}>Open catalog PR</Link></p>\n      {claim.status === \'ACTIVE\' && <InquiryCommand title="Release unconverted claim" permission="procurement.write" action={`/api/procurement/material-shortages/${sourceId}/release`} build={(values, key) => ({ claimId: claim.claimId, expectedClaimVersion: claim.version, expectedRequestVersion: Number(values.expectedRequestVersion), reason: values.reason, idempotencyKey: key })} onSaved={resource.reload}>\n        <p>Only a wholly unconverted PR can be cancelled. Read its current version before releasing. Converted commitments require an approved amendment.</p>\n        <WorkspaceField label="Current PR version" name="expectedRequestVersion" type="number" min="1" step="1" required />\n        <WorkspaceField label="Cancellation reason" name="reason" minLength={3} maxLength={500} required />\n      </InquiryCommand>}\n    </section>)}\n    <button type="button" onClick={resource.reload}>Refresh shortage and claims</button>\n  </section>}</Resource>;\n}\nfunction ShortageProcurement() {\n  const [sources, setSources] = useState([]), [sourceId, setSourceId] = useState(\'\'), [refreshed, setRefreshed] = useState(false);\n  return <section className="pf-panel"><h2>Approved demand shortages</h2><p>Refresh evidence from approved internal production demand. Purchased material claims create catalog PRs. This evidence does not reserve stock. Requires manufacturing and catalog stock access.</p>\n    <InquiryCommand title="Refresh shortage evidence" permission="procurement.write" action="/api/procurement/material-shortages/refresh" build={(values, key) => ({ demandId: values.demandId, expectedDemandVersion: Number(values.expectedDemandVersion), engineeringRevision: Number(values.engineeringRevision), expectedShortageRevision: Number(values.expectedShortageRevision), ...(values.materialLineId.trim() ? { materialLineId: values.materialLineId.trim() } : {}), reason: values.reason, idempotencyKey: key })} onSaved={result => { setSources(result.snapshots.map(source => source.sourceId)); setRefreshed(true); }}>\n      <WorkspaceField label="Internal production demand ID" name="demandId" required />\n      <WorkspaceField label="Engineering material line ID (optional: refresh one line)" name="materialLineId" hint="Use a line ID when material lines have different evidence revisions or a newly approved line needs its first snapshot." />\n      <WorkspaceField label="Demand version" name="expectedDemandVersion" type="number" min="1" step="1" required />\n      <WorkspaceField label="Approved engineering revision" name="engineeringRevision" type="number" min="1" step="1" required />\n      <WorkspaceField label="Previous shortage revision (0 for first refresh)" name="expectedShortageRevision" type="number" min="0" step="1" defaultValue="0" required />\n      <WorkspaceField label="Refresh reason" name="reason" minLength={3} maxLength={500} required />\n    </InquiryCommand>\n    {refreshed && !sources.length && <p role="status">No purchased material shortages were produced for this approved demand. Company output materials use manufacturing supply planning.</p>}\n    <form className="pf-form" onSubmit={event => { event.preventDefault(); setSourceId(new FormData(event.currentTarget).get(\'sourceId\')); }}><WorkspaceField label="Existing shortage source ID" name="sourceId" required /><button>Open shortage</button></form>\n    {[...new Set([...sources, ...(sourceId ? [sourceId] : [])])].map(id => <ShortageSource key={id} sourceId={id} />)}\n  </section>;\n}\nexport function ProcurementList({ kind }) {\n  const location = useLocation(), navigate = useNavigate();\n  const cursor = new URLSearchParams(location.search).get(\'cursor\');\n  const resource = useResource(`/api/procurement/${kind}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : \'\'}`);\n  const [error, setError] = useState(null), [busy, setBusy] = useState(false);\n  const lock = useRef(false);\n  const title = { vendors: \'Vendors\', requests: \'Purchase requests\', orders: \'Purchase orders\' }[kind];\n  return <><h1>{title}</h1>{kind === \'requests\' && <ShortageProcurement />}<nav className="pf-actions" aria-label="Procurement"><Link to={`${base}/vendors`}>Vendors</Link><Link to={`${base}/requests`}>Purchase requests</Link><Link to={`${base}/orders`}>Purchase orders</Link></nav><p>Owned procurement documents. Issue is local only; no purchasing dispatch, stock receipt or payment occurs here.</p>{kind === \'requests\' && <Link to={`${base}/requests/new`}>Create purchase request</Link>}<section className="pf-panel"><Resource resource={resource}>{({ data, page }) => <>{!data.length ? <p>No {title.toLowerCase()} in this plant yet. {kind === \'vendors\' ? \'Create a vendor below.\' : kind === \'requests\' ? \'Create a request for an existing vendor.\' : \'Approve and convert a purchase request first.\'}</p> : <ul className="pf-list">{data.map(row => <li key={row._id}><Link to={`${base}/${kind}/${row._id}`}>{row.name || displayReference(kind === "orders" ? "purchaseOrder" : "request",row)}</Link>{row.status && <span>{operatorStatus(row.status)}</span>}</li>)}</ul>}<div className="pf-actions">{cursor && <Link to={`${base}/${kind}`}>First page</Link>}{page.nextCursor && <Link to={`?cursor=${page.nextCursor}`}>Next page</Link>}</div></>}</Resource></section>{kind===\'vendors\'&&<MutationForm keyed commandSlot="procurement:vendor:new" title="Create vendor" submitLabel="Create vendor" save={(body,send)=>send(\'/api/procurement/vendors\',{body})} onSaved={data=>navigate(`${base}/vendors/${data._id}`)}><Input label="Vendor name" name="name" required maxLength={200}/></MutationForm>}</>;\n}\nexport function NewPurchaseRequest() {\n  const navigate = useNavigate(), [count, setCount] = useState(1), [busy, setBusy] = useState(false), [error, setError] = useState(null);\n  const lock = useRef(false);\n  return <><h1>Create purchase request</h1><Link to={`${base}/vendors`}>Find vendor ID</Link><MutationForm keyed commandSlot="procurement:request:new" title="Purchase request" submitLabel="Save purchase request" save={(values,send)=>send(\'/api/procurement/requests\',{body:procurementContent(values,count)})} onSaved={data=>navigate(`${base}/requests/${data._id}`)}><Input label="Vendor ID" name="vendorId" required /><p>Use exact decimal strings and one currency. Server applies NO_TAX and LINE_HALF_UP; no FX or UOM conversion.</p>{Array.from({ length: count }, (_, i) => <fieldset key={i}><legend>Line {i + 1}</legend><div className="pf-fields"><Input label="Description" name={`description${i}`} required maxLength={200} /><Input label="Quantity (exact decimal)" name={`quantity${i}`} inputMode="decimal" required /><Input label="UOM" name={`uom${i}`} pattern="[A-Z][A-Z0-9_]{0,15}" required /'... 17164 more characters,
+    expected: /<DocumentIssue[^>]*kind="purchaseOrder"/,
+    operator: 'match',
+    diff: 'simple'
+  }
