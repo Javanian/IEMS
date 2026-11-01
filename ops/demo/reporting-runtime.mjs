@@ -1,5 +1,5 @@
 import { open, readFile, realpath, lstat, unlink, link } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, isAbsolute } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
 import { canonicalJson, boundedTransaction } from '../../packages/tenant-foundation/commands.mjs';
@@ -9,8 +9,10 @@ import { SNAPSHOT_TOPIC, uuid } from '../../packages/domain-events/source-bindin
 import { createReportingSource } from '../../apps/portfolio-api/src/reporting-source.mjs';
 
 const json = value => JSON.parse(JSON.stringify(value));
+export const reportingDatabaseName = name => typeof name === 'string' && /^(?:portfolio_test_[a-f0-9]{32}|portfolio_owned_iems_qa_(?:business|visual|security)_[a-f0-9]{8}_[a-f0-9]{16})$/.test(name);
 export async function validateReportingTarget({ db, root, marker }) {
-  if (!uuid.test(marker) || !/^portfolio_test_[a-f0-9]{32}$/.test(db.databaseName)) throw new Error('EXPLICIT_SYNTHETIC_DATABASE_REQUIRED');
+  if (!uuid.test(marker) || !reportingDatabaseName(db.databaseName)) throw new Error('EXPLICIT_SYNTHETIC_DATABASE_REQUIRED');
+  if (typeof root !== 'string' || !isAbsolute(root)) throw new Error('EXPLICIT_EXTRACTION_ROOT_REQUIRED');
   const target = await realpath(root);
   if ((await lstat(root)).isSymbolicLink() || !(await db.collection('ownedRun').findOne({ _id: marker }))) throw new Error('OWNED_SYNTHETIC_TARGET_REQUIRED');
   const file = JSON.parse(await readFile(join(target, 'reporting-owner.json'), 'utf8'));

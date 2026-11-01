@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, readdir, symlink, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { startOwned, orderWithStock } from '../../apps/portfolio-api/test/support/owned-mongo.mjs';
-import { createReportingRuntime } from './reporting-runtime.mjs';
+import { createReportingRuntime, reportingDatabaseName, validateReportingTarget } from './reporting-runtime.mjs';
 import { validatePrivateConfig, runReportingCli } from './reporting-cli.mjs';
 import { relayReportingSnapshots } from '../../packages/domain-events/snapshot-source.mjs';
 import { contentHash } from '../../packages/tenant-foundation/commands.mjs';
@@ -17,12 +17,34 @@ async function extractionRoot(h, marker) {
   return root;
 }
 
+test('reporting namespace policy retains legacy names and only uniquely identified QA lanes', () => {
+  assert.equal(reportingDatabaseName(`portfolio_test_${'a'.repeat(32)}`), true);
+  for (const lane of ['business', 'visual', 'security']) assert.equal(reportingDatabaseName(`portfolio_owned_iems_qa_${lane}_01234567_${'a'.repeat(16)}`), true);
+  for (const name of ['iems', 'portfolio_owned_shared', 'portfolio_owned_iems_qa_business_', 'portfolio_owned_iems_qa_visual_54a8d657', `portfolio_owned_iems_qa_other_01234567_${'a'.repeat(16)}`, `portfolio_test_${'a'.repeat(31)}`, undefined]) assert.equal(reportingDatabaseName(name), false);
+});
+
 test('private reporting runtime: authorized source/extraction, local delivery, replay, singleton and cleanup', async t => {
   const h = await startOwned(t), order = await orderWithStock(h, { orderQuantity: '1', reserve: '1' });
   const shipment = await h.ok('/fulfillment/shipments', { salesOrderId: order.so._id, expectedVersion: order.so.version, lineIndex: 0, uom: 'KG', sources: [{ sourceType: 'RESERVATION', sourceId: order.reservation._id, quantity: '1' }], reference: 'Runtime synthetic', idempotencyKey: randomUUID() }, 201);
   const invoice = await h.ok('/fulfillment/invoices', { salesOrderId: order.so._id, expectedVersion: order.so.version, lines: [{ shipmentId: shipment._id, quantity: '1' }], idempotencyKey: randomUUID() }, 201);
   await h.ok('/fulfillment/payments', { accountId: order.account._id, amount: '0.01', currency: 'USD', reference: 'Runtime synthetic', allocations: [{ invoiceId: invoice._id, expectedVersion: invoice.version, amount: '0.01' }], idempotencyKey: randomUUID() }, 201);
   const marker = (await h.db.collection('ownedRun').findOne({}))._id, root = await extractionRoot(h, marker);
+  await t.test('actual target requires namespace, DB marker and matching nonsymlink absolute root', async () => {
+    assert.equal(await validateReportingTarget({ db: h.db, root, marker }), root);
+    await assert.rejects(validateReportingTarget({ db: h.db, root: '.', marker }), /EXPLICIT_EXTRACTION_ROOT_REQUIRED/);
+    await assert.rejects(validateReportingTarget({ db: h.db, root, marker: randomUUID() }), /OWNED_SYNTHETIC_TARGET_REQUIRED/);
+    const ownerPath = join(root, 'reporting-owner.json'), owner = await readFile(ownerPath, 'utf8');
+    await writeFile(ownerPath, JSON.stringify({ ...JSON.parse(owner), databaseName: 'portfolio_owned_shared' }));
+    try { await assert.rejects(validateReportingTarget({ db: h.db, root, marker }), /EXTRACTION_OWNERSHIP_MISMATCH/); }
+    finally { await writeFile(ownerPath, owner); }
+    for (const databaseName of ['iems', 'portfolio_owned_shared', 'portfolio_owned_iems_qa_business_01234567']) {
+      await assert.rejects(validateReportingTarget({ db: h.client.db(databaseName), root, marker }), /EXPLICIT_SYNTHETIC_DATABASE_REQUIRED/);
+    }
+    const alias = `${root}-link`;
+    await symlink(root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+    try { await assert.rejects(validateReportingTarget({ db: h.db, root: alias, marker }), /OWNED_SYNTHETIC_TARGET_REQUIRED/); }
+    finally { await unlink(alias); }
+  });
   let scope = await h.scopeOf(h.alpha), denied = false;
   const options = { ...h.runtime, root, marker, getScope: async () => scope, authorizeResource: async ({ grant, resource, session }) => {
     assert.ok(session.inTransaction()); assert.equal(resource.tenantId, grant.tenantId); assert.equal(resource.plantId, grant.plantId);
@@ -128,6 +150,10 @@ test('private reporting runtime: authorized source/extraction, local delivery, r
     await assert.rejects(validatePrivateConfig({ ...config, uri: 'mongodb://example.com:27017/' }), /SYNTHETIC_LOOPBACK_SOURCE_ONLY/);
     await assert.rejects(validatePrivateConfig({ ...config, databaseName: 'iems' }), /EXPLICIT_PRIVATE_SYNTHETIC_CONFIG_REQUIRED/);
     await assert.rejects(validatePrivateConfig({ ...config, marker: randomUUID() }), /EXTRACTION_OWNERSHIP_MISMATCH/);
+    for (const uri of ['mongodb://localhost:27017/', 'mongodb://127.0.0.1:27017/foreign', 'mongodb://user:pass@127.0.0.1:27017/', 'mongodb://127.0.0.1:27017/?authSource=admin']) await assert.rejects(validatePrivateConfig({ ...config, uri }), /SYNTHETIC_LOOPBACK_SOURCE_ONLY/);
+    await assert.rejects(validatePrivateConfig({ ...config, token: 'invalid' }), /EXPLICIT_PRIVATE_SYNTHETIC_CONFIG_REQUIRED/);
+    await assert.rejects(validatePrivateConfig({ ...config, extra: true }), /EXPLICIT_PRIVATE_SYNTHETIC_CONFIG_REQUIRED/);
+    await assert.rejects(validatePrivateConfig({ ...config, root: '.' }), /EXPLICIT_EXTRACTION_ROOT_REQUIRED/);
   });
 });
 
