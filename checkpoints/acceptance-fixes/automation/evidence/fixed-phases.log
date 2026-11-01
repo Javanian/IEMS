@@ -1,0 +1,45 @@
+PHASE {"phase":"owned-mongo","at":1793535546263}
+PHASE {"phase":"importing-pinned-workflows","at":1793535605193}
+CLI_BEGIN import-credentials 1793535605194
+2026-11-01T12:20:45.692Z import-credentials exit 0
+PHASE {"at":1793535645692}
+CLI_END import-credentials 1793535645693
+CLI_BEGIN import-workflows 1793535645697
+2026-11-01T12:20:51.836Z import-workflows exit 0
+PHASE {"at":1793535651836}
+CLI_END import-workflows 1793535651837
+CLI_BEGIN activate-wf-sla-escalation 1793535651838
+2026-11-01T12:20:56.927Z activate-wf-sla-escalation exit 0
+PHASE {"at":1793535656927}
+CLI_END activate-wf-sla-escalation 1793535656928
+CLI_BEGIN activate-wf-cs-weekly-digest 1793535656928
+2026-11-01T12:21:01.963Z activate-wf-cs-weekly-digest exit 0
+PHASE {"at":1793535661963}
+CLI_END activate-wf-cs-weekly-digest 1793535661964
+CLI_BEGIN activate-wf-approved-resolution 1793535661964
+2026-11-01T12:21:07.012Z activate-wf-approved-resolution exit 0
+PHASE {"at":1793535667012}
+CLI_END activate-wf-approved-resolution 1793535667013
+CLI_BEGIN activate-wf-automation-recovery 1793535667013
+2026-11-01T12:21:12.667Z activate-wf-automation-recovery exit 0
+PHASE {"at":1793535672667}
+CLI_END activate-wf-automation-recovery 1793535672668
+PHASE {"phase":"starting-engine","at":1793535672668}
+PHASE {"at":1793535697752}
+PHASE {"phase":"ready","at":1793535717019}
+2026-11-01T12:21:57.020Z Owned lab ready; credentials remain in config.json outside Git
+2026-11-01T12:22:11.235Z n8n exit null
+PHASE {"at":1793535731235}
+PHASE {"phase":"engine-stopped","at":1793535731236}
+PHASE {"at":1793535731237}
+PHASE {"at":1793535743625}
+PHASE {"phase":"ready","at":1793535743625}
+PHASE {"at":1793535743626}
+PHASE {"phase":"stopping","at":1793535813650}
+2026-11-01T12:23:33.673Z web exit null
+PHASE {"at":1793535813673}
+2026-11-01T12:23:33.707Z n8n exit null
+PHASE {"at":1793535813707}
+MARKER_DROP portfolio_owned_n8n_a64db6acff7547dfa5e5c2b6c5799dff
+PHASE {"phase":"stopped","at":1793535815926}
+PHASE {"at":1793535815927}

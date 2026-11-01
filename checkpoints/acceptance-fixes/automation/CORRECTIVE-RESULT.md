@@ -1,0 +1,44 @@
+# TPR-157 corrective continuation — partial implementation, scope decision pending
+
+Produk UNACCEPTED; effective model UNVERIFIED. Startup fix IMPLEMENTED_QA_PENDING. Assignment belum selesai: original managed native historical/inflight recovery masih NOT_RUN. Interaction CTO `f0633447-1252-4bce-ba48-9dfec3f4969b` menjadi jalur keputusan nyata; bukan early QA atau acceptance.
+
+## Provenance dan perubahan
+
+Workspace `D:/Project AI/GITHUB/IEMS-worktrees/iems-all-20261030-service_portals`, branch `program/iems-all-20261030-service_portals`. Initial clean HEAD `6a3cd735b0da84ce3241d130ad1104e9ab6684cd`; exact frozen base `9269ae5d504378ecf7bdaae0edf963b893afcc96` di-fast-forward. Clean Application `dac4759d8a65fb8ae93674d82bd03d2edc759a82` dan Platform `04284b02571943266bf88e097d829d5325165d7c` digabung tanpa konflik; composed input `4691860f635f28b07c068c38ac8eb356deb5f25a`. Kedua handoff/checkpoint dan cleanup dibaca; fresh API keduanya DONE. Frozen candidate tidak diubah.
+
+Bug commit `779d6e4` mengubah hanya `ops/automation-lab/lab-runtime.mjs` dan menambah `ops/automation-lab/readiness.test.mjs`. Lima workflow eksplisit diserialisasi sebagai satu array untuk satu import n8n1.121.3. Credential import dan empat aktivasi individual tetap; ErrorTrigger tetap inactive. Tidak memakai aktivasi `--all`. Koneksi probe webhook yang sementara gagal dipoll kembali dalam deadline60s yang sama; 200/404/unreachable tetap gagal dan semua empat endpoint harus403. Tidak mengubah timeout300s, package/lock, workflow semantics, API, adapter, admission, registry, role atau credential grant.
+
+Pinned installed `dist/commands/import/workflow.js:157` menerima JSON array. Current n8n docs diverifikasi melalui Context7; versi terpasang menjadi authority untuk pin1.121.3. Dokumen2.x tidak dipakai untuk mengganti aktivasi1.x.
+
+## Actual checks
+
+Semua command dari assigned root. Source commit779d6e4 plus own evidence-only scripts; source hashes/manifest menyertai artifact. Native adapter hanya memetakan private root, loopback ports, URL API/Origin pada salinan workflow, menambah timing dan marker-protected normal database drop. Tidak ada mock hasil engine/SMTP. Semua sebelas assertion native asli sampai batas sebelum CSS/browser dipertahankan; `ASSERTION-RETENTION.json` mencatat batas itu. Browser lama tetap historis, tidak direrun/diklaim.
+
+| Command / check | Actual result |
+| --- | --- |
+| `node --test --test-concurrency=1 ops/automation-lab/readiness.test.mjs ops/automation-lab/workflow-contract.test.mjs ops/automation-lab/transport-boundaries.test.mjs ops/automation-lab/smtp-sink.test.mjs` | Exit0;11PASS0FAIL0skip. Transient failure→403 positive;404/200/unreachable negatives fail within original60s. Scoped credentials, JSON/Origin, redirect and real loopback SMTP unit boundaries retained. |
+| Baseline `node checkpoints/acceptance-fixes/automation/cold-start.mjs E/cold-baseline-v2-3e23afde` | Exit1. Original300s gate FAIL; at301329ms still import. At433209ms readyfalse; webhook fetch failed during engine startup. No scenarios run. Native original failure retained. |
+| Fixed `$env:IEMS_RUN_SCENARIOS='1'; node checkpoints/acceptance-fixes/automation/cold-start.mjs E/cold-fixed-3e23afde` | Exit0. Fresh private marker/Mongo/SQLite ready175882ms, original300s PASS. Native scenario exit0, failures[]. |
+| Actual native scenarios | SLA, approved resolution, digest and recovery acknowledged actual execution IDs;2ACCEPTED_LOCAL SMTP receipts, attempt1 each. Core complaint created while engine stopped; restart conserved exact delivery count. Scheduled SLA advanced actual new ticket version2 while stageNEW; native scheduled recovery and actual ErrorTrigger succeeded. `native-executions.json` records executions1–12, including failed resolution11 and ErrorTrigger12. |
+| Read-only private SQLite inspection | Exit0; exact5workflow IDs, four active, error workflow inactive. No SQLite writes or exported credential values. |
+| `node --test --test-concurrency=1 apps/wa-demo-bridge/test/provider-policy.test.mjs apps/wa-demo-bridge/test/provider-reconciliation.test.mjs apps/wa-demo-bridge/test/provider-http.test.mjs apps/wa-demo-bridge/test/provider-operator-http.test.mjs` | Exit0;19PASS0FAIL0skip. Synthetic in-memory/Readable policy, HMAC, reconciliation/CAS/rollback and actor HTTP contract checks. Not actual provider/browser/Mongo acceptance. |
+| Inventory / minimal checks |20 original WA requirements retained (18+2supplemental); named source/test hashes. Syntax, owned diff and bounded credential-pattern review pass; no security clearance. No full regression/build/typecheck. |
+
+`E` is `D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/TPR-157/6e70f0a8-d639-44c1-92db-0b23cdc10ab0`. Portable sanitized subset is `evidence/`; complete phases, resource samples and private retained data are under the three named cold roots in E. Initial `cold-baseline-3e23afde` was explicitly interrupted before imports: adapter initially lacked workflow URL mapping; exact supervisor identity checked before stop, exit4294967295. No provider execution from that attempt. This harness failure is retained separately and is not a product baseline.
+
+Measured baseline credential bootstrap178481ms; five workflow imports44017ms; four activations33592ms. Fixed credential40499ms; one five-workflow import6140ms; four activations20830ms. Filesystem cache/host availability differ; do not attribute the entire setup delta to batching. This proves one cached, lock-identical, fresh-data local qualification under the requested bounds, not a physical cold-cache/production startup SLO. No original failure was erased.
+
+## Resources / cleanup
+
+One heavy stack at a time after predecessor cleanup. Cached n8n1.121.3 node_modules reused through a new junction after exact committed lock hash comparison; cache target not changed. Mongo7.0.14, one replica member,0.25GiB cache/128MiB oplog. Fresh UUID marker, `portfolio_owned_n8n_<32hex>`, private SQLite/config/TEMP. API32740, SMTP32741, inspector32742, n8n32743, web32744, Mongo32745, all loopback. Preflight RAM>=2GiB,CPU<80%,disk>=1GiB and no Mongo/Java/Docker workload. No root/user/global setup or PostgreSQL operation.
+
+Baseline and fixed normal shutdown each verified exact ownership marker then dropped only their synthetic DB; n8n/web/client/Mongo stopped. Initial interrupted data and private SQLite remain retained, without active resources. `CLEANUP.json`:0matching owned runtime,0Mongo, all six reserved ports bound/closed. Running supervisor/Mongo/engine and restart identities include actual OS CreationDate/command/PID samples. Historical per-CLI CreationDate was not captured; only actual PIDs and launch/exit timestamps exist for those short-lived processes. No identity receipt was invented. Early stored `owned-mongo` phase is historical; cleanup audit is authoritative, not a stale RUNNING claim. No unrelated termination/delete, real provider/customer send, public push, release/default merge or deploy.
+
+## Remaining contract and next owner
+
+The lab initializes without `integrations.effects`; its actual n8n/SMTP path is legacy. `PREPARED` managed records belong to `saasEffectAttempts`. `effects.mjs:52` admits only branded controlled adapters. `local-effects-adapter.mjs` observes its own Mongo provider state; native reconciliation permits AI-index/vendor receipts, not engine receipts. `automation.mjs` managed engine uses `local:<runId>` and `COMPLETED_LOCAL`. A successful native legacy restart does not establish original managed attempt/provider history, immutable receipt recovery, no-resend after native BEGIN/UNKNOWN, or native concurrent drain/revocation.
+
+CTO must identify an existing approved native history seam or review/assign the cross-domain adapter/API contract with original providerKey/attemptId/input/receipt identity and no-resend/drain proof. This continuation permits lab-only source changes; `packages/tenant-lifecycle/{effects,local-effects-adapter}.mjs` and API/authority edits require exact CTO review. No fabricated observations, mock provider BEGIN, relabeled simulation or replay of unknown effects was introduced. Native historical/inflight UNKNOWN/SENDING/PREPARED remains NOT_RUN pending that decision.
+
+`WA-CAPABILITY-INVENTORY.json` retains all original wording/historical failures and source hashes, local capability and receipt limits. Blank-browser implementation has no inbound/ready/send port; no personal provider login/send is authorized. WA15 retention/reset/export/log specifics and WA17 inbound/UI/slow-provider measurements remain local NOT_RUN beyond named receipts; no absent local probe is relabeled EXTERNAL_DEPENDENCY. Previous c1/c4/c8 evidence stays historical; downstream performance ownership remains with CTO's existing task schedule. No whole PLAT051–054 or all55 acceptance claim. CTO owns scope resolution, integration/refreeze and independent QA/Security scheduling.
+

@@ -1,0 +1,34 @@
+[
+  {
+    "ProcessId": 25992,
+    "ParentProcessId": 16872,
+    "CreationDate": "2026-11-01T19:18:59.678576+07:00",
+    "Name": "node.exe",
+    "CommandLine": "\"C:\\Program Files\\nodejs\\node.exe\" checkpoints/acceptance-fixes/automation/cold-start.mjs \"D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/TPR-157/6e70f0a8-d639-44c1-92db-0b23cdc10ab0/cold-fixed-3e23afde\"",
+    "WorkingSetSize": 65941504
+  },
+  {
+    "ProcessId": 28312,
+    "ParentProcessId": 25992,
+    "CreationDate": "2026-11-01T19:19:01.39341+07:00",
+    "Name": "node.exe",
+    "CommandLine": "\"C:\\Program Files\\nodejs\\node.exe\" \"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-157\\6e70f0a8-d639-44c1-92db-0b23cdc10ab0\\cold-fixed-3e23afde\\lab-adapted.mjs\"",
+    "WorkingSetSize": 109010944
+  },
+  {
+    "ProcessId": 24096,
+    "ParentProcessId": 28312,
+    "CreationDate": "2026-11-01T19:19:06.354609+07:00",
+    "Name": "mongod-x64-win32-7.0.14.exe",
+    "CommandLine": "C:\\Users\\Admin\\.cache\\mongodb-binaries\\mongod-x64-win32-7.0.14.exe --port 32745 --dbpath \"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-157\\6e70f0a8-d639-44c1-92db-0b23cdc10ab0\\cold-fixed-3e23afde\\mongo\" --replSet iemsAutomation --storageEngine wiredTiger --bind_ip 127.0.0.1 --noauth --wiredTigerCacheSizeGB 0.25 --oplogSize 128",
+    "WorkingSetSize": 95784960
+  },
+  {
+    "ProcessId": 9004,
+    "ParentProcessId": 28312,
+    "CreationDate": "2026-11-01T19:21:12.67508+07:00",
+    "Name": "node.exe",
+    "CommandLine": "\"C:\\Program Files\\nodejs\\node.exe\" \"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-157\\6e70f0a8-d639-44c1-92db-0b23cdc10ab0\\cold-fixed-3e23afde\\runtime\\node_modules\\n8n\\bin\\n8n\" start",
+    "WorkingSetSize": 613834752
+  }
+]

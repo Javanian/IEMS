@@ -1,0 +1,74 @@
+[
+  {
+    "executionId": 1,
+    "workflowId": "wf-automation-recovery",
+    "status": "success",
+    "mode": "trigger"
+  },
+  {
+    "executionId": 2,
+    "workflowId": "wf-sla-escalation",
+    "status": "success",
+    "mode": "webhook"
+  },
+  {
+    "executionId": 3,
+    "workflowId": "wf-approved-resolution",
+    "status": "success",
+    "mode": "webhook"
+  },
+  {
+    "executionId": 4,
+    "workflowId": "wf-cs-weekly-digest",
+    "status": "success",
+    "mode": "webhook"
+  },
+  {
+    "executionId": 5,
+    "workflowId": "wf-automation-recovery",
+    "status": "success",
+    "mode": "webhook"
+  },
+  {
+    "executionId": 6,
+    "workflowId": "wf-sla-escalation",
+    "status": "success",
+    "mode": "trigger"
+  },
+  {
+    "executionId": 7,
+    "workflowId": "wf-sla-escalation",
+    "status": "success",
+    "mode": "webhook"
+  },
+  {
+    "executionId": 8,
+    "workflowId": "wf-automation-recovery",
+    "status": "success",
+    "mode": "webhook"
+  },
+  {
+    "executionId": 9,
+    "workflowId": "wf-automation-recovery",
+    "status": "success",
+    "mode": "trigger"
+  },
+  {
+    "executionId": 10,
+    "workflowId": "wf-sla-escalation",
+    "status": "success",
+    "mode": "trigger"
+  },
+  {
+    "executionId": 11,
+    "workflowId": "wf-approved-resolution",
+    "status": "error",
+    "mode": "webhook"
+  },
+  {
+    "executionId": 12,
+    "workflowId": "wf-automation-error",
+    "status": "success",
+    "mode": "error"
+  }
+]

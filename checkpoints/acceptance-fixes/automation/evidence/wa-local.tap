@@ -1,0 +1,27 @@
+✔ exact split bytes reach verifier and receipt is returned (4.4143ms)
+✔ tampered bytes fail authentication (0.9533ms)
+✔ method, encoding and size reject before reconciliation (1.5602ms)
+✔ conflict and unknown failures expose only stable error codes without retry (1.4494ms)
+✔ all explicit actions pass the authenticated actor and exact metadata payload once (6.3927ms)
+✔ missing and denied authentication never execute commands (0.4679ms)
+✔ malformed envelopes, scope overrides, unsupported actions and invalid UTF8 are rejected (2.0611ms)
+✔ method, encoding and byte bound prevent dispatch (0.5912ms)
+✔ denial/conflict remain stable and unknown outcomes never retry or expose exception text (1.702ms)
+✔ composition fails closed without trusted foundation mapping or source verifier (0.6476ms)
+✔ policy checks metadata in the caller transaction and rechecks replay (2.6628ms)
+✔ each authority rejects a different tenant or account (1.6318ms)
+✔ pause, expiry, allowlist, prefix and version changes revoke queued authorization (1.8001ms)
+✔ missing transaction and malformed scope fail before authority access (0.4368ms)
+✔ authority failures propagate without retry (0.2856ms)
+✔ UNKNOWN reconciles without sending; exact replay is durable and terminal state never regresses (3.7536ms)
+✔ rejects event collisions, different provider IDs and conflicting terminal receipts (1.9235ms)
+✔ unknown delivery and authenticated cross-account callbacks cannot consume an event (0.5558ms)
+✔ storage failure rolls back delivery and CAS failure cannot consume an event (0.84ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 589.9827

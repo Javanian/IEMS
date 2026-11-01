@@ -1,0 +1,6 @@
+{
+  "issue": "TPR-157",
+  "agentId": "6e70f0a8-d639-44c1-92db-0b23cdc10ab0",
+  "content": "Corrective composed4691860 includes exact app dac4759 and platform04284b0 after cleanup. Native lab startup fixed by batching explicit five workflow imports; four per-ID activations and inactive error workflow retained. Transient webhook connection failures stay inside original60s loop requiring403. Baseline original300s failed; eventual433209ms fetch failure retained. Cached lock-identical fresh private data qualification175882ms PASS plus native SLA/resolution/digest/recovery/restart/scheduled/ErrorTrigger and two actual local SMTP receipts; legacy path only. Unitlab11 and local synthetic provider contracts19 pass. No managed native UNKNOWN/SENDING/PREPARED acceptance: branded controlled adapter observes Mongo provider state and native reconcile only AI/vendor. CTO scope question f0633447 pending for original history seam, no authority change/bypass.0owned runtimes/Mongo and6ports cleanupPASS. ProductUNACCEPTED/modelUNVERIFIED; no push/deploy/userPG/provider send.",
+  "source": "TPR-157#document-implementation-result; source779d6e4; checkpoints/acceptance-fixes/automation/CORRECTIVE-RESULT.md"
+}

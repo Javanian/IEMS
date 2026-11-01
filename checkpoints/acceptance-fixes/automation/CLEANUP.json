@@ -1,0 +1,119 @@
+{
+  "observedAt": "2026-11-01T12:25:07.826Z",
+  "survivors": [],
+  "mongo": [],
+  "portsBoundAndClosed": [
+    32740,
+    32741,
+    32742,
+    32743,
+    32744,
+    32745
+  ],
+  "states": [
+    {
+      "root": "cold-baseline-3e23afde",
+      "storedPhase": "owned-mongo",
+      "storedSupervisorPid": 24192,
+      "storedProcesses": {},
+      "actualOwnedProcessCount": 0,
+      "meaning": "Interrupted initial adapter: stored preflight phase is historical, all owned native processes absent. Private interrupted data retained."
+    },
+    {
+      "root": "cold-baseline-v2-3e23afde",
+      "storedPhase": "failed",
+      "storedSupervisorPid": 18616,
+      "storedProcesses": {
+        "import-credentials": {
+          "pid": 19128,
+          "exited": true
+        },
+        "import-wf-sla-escalation": {
+          "pid": 20168,
+          "exited": true
+        },
+        "import-wf-cs-weekly-digest": {
+          "pid": 23708,
+          "exited": true
+        },
+        "import-wf-approved-resolution": {
+          "pid": 27928,
+          "exited": true
+        },
+        "import-wf-automation-recovery": {
+          "pid": 23168,
+          "exited": true
+        },
+        "import-wf-automation-error": {
+          "pid": 18380,
+          "exited": true
+        },
+        "activate-wf-sla-escalation": {
+          "pid": 27376,
+          "exited": true
+        },
+        "activate-wf-cs-weekly-digest": {
+          "pid": 3792,
+          "exited": true
+        },
+        "activate-wf-approved-resolution": {
+          "pid": 18192,
+          "exited": true
+        },
+        "activate-wf-automation-recovery": {
+          "pid": 24608,
+          "exited": true
+        },
+        "n8n": {
+          "pid": 3560,
+          "exited": true
+        }
+      },
+      "actualOwnedProcessCount": 0,
+      "meaning": "Normal exact-marker database drop and supervisor shutdown in stdout.log; data/SQLite retained privately."
+    },
+    {
+      "root": "cold-fixed-3e23afde",
+      "storedPhase": "stopped",
+      "storedSupervisorPid": 28312,
+      "storedProcesses": {
+        "import-credentials": {
+          "pid": 8864,
+          "exited": true
+        },
+        "import-workflows": {
+          "pid": 21380,
+          "exited": true
+        },
+        "activate-wf-sla-escalation": {
+          "pid": 24608,
+          "exited": true
+        },
+        "activate-wf-cs-weekly-digest": {
+          "pid": 19032,
+          "exited": true
+        },
+        "activate-wf-approved-resolution": {
+          "pid": 28204,
+          "exited": true
+        },
+        "activate-wf-automation-recovery": {
+          "pid": 25840,
+          "exited": true
+        },
+        "n8n": {
+          "pid": 20032,
+          "exited": true
+        },
+        "web": {
+          "pid": 20996,
+          "exited": true
+        }
+      },
+      "actualOwnedProcessCount": 0,
+      "meaning": "Normal exact-marker database drop and supervisor shutdown in stdout.log; data/SQLite retained privately."
+    }
+  ],
+  "limitation": "CLI PIDs and launch/exit times are recorded, but historical per-CLI OS CreationDate was not sampled. Captured running supervisor/Mongo/engine OS identities are in external os-identities*.json. No identities are invented.",
+  "unrelatedStopOrDelete": false
+}

@@ -1,0 +1,454 @@
+{
+  "sourceHead": "4691860f635f28b07c068c38ac8eb356deb5f25a",
+  "originalInventoryHash": "2b9902591b9d81318681bf90c19a0cec45668cf188ad8f829c1f41d7a4541954",
+  "sourceHashes": {
+    "apps/wa-demo-bridge/src/provider-policy.mjs": "5c6c70274cd89c98be93aeb44a9c5593f9c8b87906311d2fb0728d1a51117007",
+    "apps/wa-demo-bridge/test/provider-policy.test.mjs": "b7f6d622ebae305a0560c36fd2a76f92d5254c915641f9640033a2f395340964",
+    "apps/wa-demo-bridge/src/provider-binding-source.mjs": "9c1f5bda71c75d44bc1d1a3b519a11a44037013f0fa1cec3490483840fad7614",
+    "apps/portfolio-api/test/order-reader.test.mjs": "553cc26c1a6a9cb5de2c37a77bb20755382776e06fc3e4cca72f9a50fea5ee12",
+    "apps/wa-demo-bridge/src/provider-commands.mjs": "8599975ba945895c6a72934dfffbf4129cf0f6c03b704c02db135b5be38551de",
+    "apps/wa-demo-bridge/test/provider-commands.test.mjs": "1cc6f07db225e783ea3fa3f4000be90580342c2260827b83a36778df0beea11d",
+    "apps/wa-demo-bridge/src/provider-lifecycle.mjs": "ed8a349e215c2fa7fcd908d57f352ae9d4fc819900207d0e3c79f1a5de36caee",
+    "apps/wa-demo-bridge/src/local-browser-driver.mjs": "c68bbea507d09da9351531180c10cbb4dfa6196301e3d329e0a3958e9b923cc5",
+    "apps/wa-demo-bridge/test/local-browser-driver.test.mjs": "4ba8434634407d89a7edd8f3ea82ee17a803927536bdb961dddaf0c33489b71e",
+    "apps/wa-demo-bridge/src/provider-reconciliation.mjs": "915a5415ce4e3b675e21f4ac9e362f68282e14360fe72ac5a35c407977600df5",
+    "apps/wa-demo-bridge/test/provider-reconciliation.test.mjs": "dc2cfaf9c7d8aa94020fb374dc0e31d6d78f117d1662a73e6f14072416cb4921",
+    "apps/wa-demo-bridge/src/provider-operator.mjs": "1868d8fb99175b0da8c543af0497bd87ec362ef45b67a72310a5b5b08de81862",
+    "apps/wa-demo-bridge/test/provider-operator-http.test.mjs": "9737ceeb9b4202459815fc09cc1b687ca3a8c18002636f6f3cd53f9b8c27acab",
+    "packages/customer-service/service-operations.test.mjs": "dbc42ab1ec575a024421ad399b5da52002885b3efb6330fba3cbc2d4acd061a0",
+    "apps/wa-demo-bridge/test/customer-service.test.mjs": "89d030c39dd422b794da8e8ba369bae07bf9e8588ee534e04ed06b0e7700b80d",
+    "ops/automation-lab/lab-runtime.mjs": "4b82d797d76ec307c9019ac03f1278bc90d50b303cb4486db84f28cc9c856bf1",
+    "ops/automation-lab/workflows/wf-automation-recovery.json": "48b085290ee9b36d7f805e588aa3a93078bb82c64c82a49ed0c1a8fbb084ac4a"
+  },
+  "featureIds": [
+    "PLAT-051",
+    "PLAT-052",
+    "PLAT-053",
+    "PLAT-054"
+  ],
+  "privacyBoundary": "No personal account/provider send authorized. Blank-browser driver and synthetic callbacks are not live-provider evidence. Local missing probes remain NOT_RUN, not EXTERNAL_DEPENDENCY.",
+  "rows": [
+    {
+      "id": "WA01",
+      "requirement": "Unallowlisted/group/status/history/personal text: no body persistence, reply or AI",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "EXTERNAL_DEPENDENCY",
+        "limitation": "Controlled live metadata/privacy evidence absent",
+        "evidence": [
+          "bridge.tap",
+          "customer-service.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-policy.mjs",
+        "apps/wa-demo-bridge/test/provider-policy.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA02",
+      "requirement": "Activation expiry, STOP, pause and queued cancellation",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "EXTERNAL_DEPENDENCY",
+        "limitation": "Controlled live session/STOP evidence absent",
+        "evidence": [
+          "bridge.tap",
+          "tenant-lifecycle.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-policy.mjs",
+        "apps/wa-demo-bridge/test/provider-policy.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA03",
+      "requirement": "Tenant/customer isolation and ambiguous binding",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "NOT_RUN",
+        "limitation": "Map actual scoped source and binding negatives",
+        "evidence": [
+          "customer-service.tap",
+          "all-route-denial.json"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-binding-source.mjs",
+        "apps/portfolio-api/test/order-reader.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA04",
+      "requirement": "Manufacturing partials and repair milestones match owning API",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "FAIL",
+        "limitation": "FAIL: changed stage keeps sourceVersion1; partial-ready compatibility differs",
+        "evidence": [
+          "current-order-reader.tap",
+          "browser-current-v4/failure-diagnostics.json"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-binding-source.mjs",
+        "apps/portfolio-api/test/order-reader.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA05",
+      "requirement": "Outage, timeout, stale source and unavailable ETA abstain",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "PASS",
+        "limitation": "Current registered source seam passed outage/timeout/stale/recovery; no provider claim",
+        "evidence": [
+          "current-order-reader.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-binding-source.mjs",
+        "apps/portfolio-api/test/order-reader.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA06",
+      "requirement": "Duplicate inbound/confirm/restart: one ticket and acknowledgement",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "NOT_RUN",
+        "limitation": "Map actual Mongo duplicate and restart assertions",
+        "evidence": [
+          "customer-service.tap",
+          "bridge.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-commands.mjs",
+        "apps/wa-demo-bridge/test/provider-commands.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA07",
+      "requirement": "Failed ticket transaction cannot announce uncommitted ticket",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "NOT_RUN",
+        "limitation": "Map actual corruption/rollback assertions",
+        "evidence": [
+          "customer-service.tap",
+          "bridge.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-commands.mjs",
+        "apps/wa-demo-bridge/test/provider-commands.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA08",
+      "requirement": "Agent takeover versus bot dispatch and in-flight boundary",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "NOT_RUN",
+        "limitation": "Map takeover/race and source-phase barrier assertions",
+        "evidence": [
+          "bridge.tap",
+          "tenant-lifecycle.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-operator.mjs",
+        "apps/wa-demo-bridge/test/provider-operator-http.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA09",
+      "requirement": "Manual phone reply, echo and reordered events avoid loops",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "EXTERNAL_DEPENDENCY",
+        "limitation": "Controlled live manual-origin evidence absent",
+        "evidence": [
+          "bridge.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-reconciliation.mjs",
+        "apps/wa-demo-bridge/test/provider-reconciliation.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA10",
+      "requirement": "Crash before/after accept, receipts and UNKNOWN without blind retry",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "EXTERNAL_DEPENDENCY",
+        "limitation": "Controlled live provider accept boundary absent",
+        "evidence": [
+          "bridge.tap",
+          "tenant-lifecycle.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-reconciliation.mjs",
+        "apps/wa-demo-bridge/test/provider-reconciliation.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA11",
+      "requirement": "Auth loss, disconnect, duplicate sender and one owned browser",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "EXTERNAL_DEPENDENCY",
+        "limitation": "Owned local Chrome lifecycle available; real account recovery external",
+        "evidence": [
+          "bridge.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-lifecycle.mjs",
+        "apps/wa-demo-bridge/src/local-browser-driver.mjs",
+        "apps/wa-demo-bridge/test/local-browser-driver.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Owned about:blank Chrome driver only; no inbound/ready/send interface.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA12",
+      "requirement": "Revoked queued binding/session rechecked at dispatch",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "PASS",
+        "limitation": "Independent exact-ID epoch/revocation cancellation passes locally; no real-provider claim.",
+        "evidence": [
+          "bridge.tap",
+          "tenant-lifecycle.tap",
+          "queued-cs-boundaries.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-policy.mjs",
+        "apps/wa-demo-bridge/test/provider-policy.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA13",
+      "requirement": "Core operates with n8n, Redis, Kafka and Qdrant disabled",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "PASS",
+        "limitation": "Actual core HTTP/Mongo requests completed without configured optional services",
+        "evidence": [
+          "current-order-reader.tap",
+          "api-maintained.tap",
+          "cs-performance.json"
+        ]
+      },
+      "currentSourcePaths": [
+        "packages/customer-service/service-operations.test.mjs",
+        "apps/wa-demo-bridge/test/customer-service.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA14",
+      "requirement": "Ticket/note/file permissions and injection boundaries",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "NOT_RUN",
+        "limitation": "Anonymous406route denial passed; scoped note/file specifics pending mapping",
+        "evidence": [
+          "customer-service.tap",
+          "all-route-denial.json",
+          "scoped-ai.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-operator.mjs",
+        "apps/wa-demo-bridge/test/provider-operator-http.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA15",
+      "requirement": "Retention/reset/export/log privacy",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "NOT_RUN",
+        "limitation": "No real private history used; reset/retention specifics pending mapping",
+        "evidence": [
+          "bridge.tap",
+          "tenant-lifecycle.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "packages/customer-service/service-operations.test.mjs",
+        "apps/wa-demo-bridge/test/customer-service.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Synthetic privacy/retention policy needs actual reset/export/log tests; no real private history authorized.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA16",
+      "requirement": "Real browser mobile/desktop persisted ticket/handoff and states",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "NOT_RUN",
+        "limitation": "Rendering is bounded empty-state proof; CS workflow blocked in full current browser",
+        "evidence": [
+          "rendered/rendered-audit.json",
+          "kiosk-mode/rendered-audit.json"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-operator.mjs",
+        "apps/wa-demo-bridge/test/provider-operator-http.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA17",
+      "requirement": "Latency/resource and slow provider separation",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "FAIL",
+        "limitation": "c8 p95=2902.4ms after owned suites closed, zero errors; earlier co-load4542.2ms retained. Inbound-only/UI/provider times NOT_RUN.",
+        "evidence": [
+          "cs-performance.json",
+          "benchmark-host.json",
+          "cs-performance-less-loaded.json"
+        ]
+      },
+      "currentSourcePaths": [
+        "packages/customer-service/service-operations.test.mjs",
+        "apps/wa-demo-bridge/test/customer-service.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Prior benchmark is historical local synthetic; inbound/UI/provider latency still needs separate measurement.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA18",
+      "requirement": "Binding change, unresolved JID/LID and stale queued authorization",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "EXTERNAL_DEPENDENCY",
+        "limitation": "Controlled live identity evidence absent",
+        "evidence": [
+          "bridge.tap",
+          "customer-service.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "apps/wa-demo-bridge/src/provider-binding-source.mjs",
+        "apps/portfolio-api/test/order-reader.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA19",
+      "requirement": "Native n8n restart and reminder reconciliation",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "FAIL",
+        "limitation": "Native engine actual SLA401 and recovery/error403; manual engine502; later restart/delivery stages NOT_RUN; supervisor closed.",
+        "evidence": [
+          "native-executions-sanitized.json",
+          "native-automation/result.json"
+        ]
+      },
+      "currentSourcePaths": [
+        "ops/automation-lab/lab-runtime.mjs",
+        "ops/automation-lab/workflows/wf-automation-recovery.json"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Actual pinned n8n cold setup is being measured; historical/inflight graph is not replaced by controlled effects.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    },
+    {
+      "id": "WA20",
+      "requirement": "Optional AI source revocation/injection/timeout fallback",
+      "historical": {
+        "source": "96b8bea912a52b6c9ead1f03e698666edf64df0e",
+        "verdict": "NOT_RUN",
+        "limitation": "80 pure scoped AI tests pass; native phase and browser mapping pending",
+        "evidence": [
+          "scoped-ai.tap",
+          "tenant-lifecycle.tap"
+        ]
+      },
+      "currentSourcePaths": [
+        "packages/customer-service/service-operations.test.mjs",
+        "apps/wa-demo-bridge/test/customer-service.test.mjs"
+      ],
+      "currentExecution": "NOT_RUN_ON_CORRECTIVE_COMPOSITION",
+      "controlledProviderAcceptance": "NOT_RUN",
+      "capability": "Local contract implementation/test files exist; discovery is not an execution receipt.",
+      "nextOwner": "CTO assigns independent acceptance after corrected freeze; original automation owner supplies remaining bounded native probes."
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "ProcessId": 25992,
+    "ParentProcessId": 16872,
+    "CreationDate": "2026-11-01T19:18:59.678576+07:00",
+    "Name": "node.exe",
+    "CommandLine": "\"C:\\Program Files\\nodejs\\node.exe\" checkpoints/acceptance-fixes/automation/cold-start.mjs \"D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/TPR-157/6e70f0a8-d639-44c1-92db-0b23cdc10ab0/cold-fixed-3e23afde\"",
+    "WorkingSetSize": 66191360
+  },
+  {
+    "ProcessId": 28312,
+    "ParentProcessId": 25992,
+    "CreationDate": "2026-11-01T19:19:01.39341+07:00",
+    "Name": "node.exe",
+    "CommandLine": "\"C:\\Program Files\\nodejs\\node.exe\" \"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-157\\6e70f0a8-d639-44c1-92db-0b23cdc10ab0\\cold-fixed-3e23afde\\lab-adapted.mjs\"",
+    "WorkingSetSize": 117596160
+  },
+  {
+    "ProcessId": 24096,
+    "ParentProcessId": 28312,
+    "CreationDate": "2026-11-01T19:19:06.354609+07:00",
+    "Name": "mongod-x64-win32-7.0.14.exe",
+    "CommandLine": "C:\\Users\\Admin\\.cache\\mongodb-binaries\\mongod-x64-win32-7.0.14.exe --port 32745 --dbpath \"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-157\\6e70f0a8-d639-44c1-92db-0b23cdc10ab0\\cold-fixed-3e23afde\\mongo\" --replSet iemsAutomation --storageEngine wiredTiger --bind_ip 127.0.0.1 --noauth --wiredTigerCacheSizeGB 0.25 --oplogSize 128",
+    "WorkingSetSize": 133070848
+  },
+  {
+    "ProcessId": 11180,
+    "ParentProcessId": 25992,
+    "CreationDate": "2026-11-01T19:21:57.275629+07:00",
+    "Name": "node.exe",
+    "CommandLine": "\"C:\\Program Files\\nodejs\\node.exe\" checkpoints/acceptance-fixes/automation/native-scenarios.mjs \"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-157\\6e70f0a8-d639-44c1-92db-0b23cdc10ab0\\cold-fixed-3e23afde\" \"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-157\\6e70f0a8-d639-44c1-92db-0b23cdc10ab0\\cold-fixed-3e23afde\\native-scenarios\"",
+    "WorkingSetSize": 75124736
+  },
+  {
+    "ProcessId": 20032,
+    "ParentProcessId": 28312,
+    "CreationDate": "2026-11-01T19:22:13.27099+07:00",
+    "Name": "node.exe",
+    "CommandLine": "\"C:\\Program Files\\nodejs\\node.exe\" \"D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\TPR-157\\6e70f0a8-d639-44c1-92db-0b23cdc10ab0\\cold-fixed-3e23afde\\runtime\\node_modules\\n8n\\bin\\n8n\" start",
+    "WorkingSetSize": 269967360
+  }
+]

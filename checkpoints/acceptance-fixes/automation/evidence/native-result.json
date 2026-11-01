@@ -1,0 +1,75 @@
+{
+  "sourceHead": "779d6e4e4b71ae4c7b6f08ce5ef5c2b5fc3f44e4",
+  "class": "NATIVE_N8N_1_121_3_REAL_HTTP_MONGO_SQLITE_LOCAL_SMTP_SYNTHETIC",
+  "startedAt": "2026-11-01T12:21:57.482Z",
+  "stages": {
+    "wf-sla-escalation": {
+      "runId": "c1f0d262-b6cc-482a-81ad-f7970fb19670",
+      "executionId": "7",
+      "state": "ENGINE_ACKNOWLEDGED"
+    },
+    "wf-approved-resolution": {
+      "runId": "412a0ae8-2497-45bb-a365-ea8af0a49186",
+      "executionId": "3",
+      "state": "ENGINE_ACKNOWLEDGED"
+    },
+    "wf-cs-weekly-digest": {
+      "runId": "cccaba4c-13d6-4d64-a062-216c3d4c1c60",
+      "executionId": "4",
+      "state": "ENGINE_ACKNOWLEDGED"
+    },
+    "wf-automation-recovery": {
+      "runId": "147c28e3-5f8f-4563-9e1f-e06f289d1371",
+      "executionId": "8",
+      "state": "ENGINE_ACKNOWLEDGED"
+    },
+    "coreDuringEngineOutage": {
+      "status": "PASS",
+      "ticketId": "27eadd24-b029-479e-a77c-e473400b04e6"
+    },
+    "restartAndDeliveryConservation": "PASS",
+    "scheduledSla": {
+      "ticketId": "2c63c387-d1b9-41b9-8d74-10589b32c25e",
+      "version": 2,
+      "stage": "NEW"
+    },
+    "nativeScheduledRecoveryAndError": "PASS"
+  },
+  "failures": [],
+  "workflowHashes": {
+    "wf-sla-escalation": "a16aca6fe43ca3f5ea0acc57cb3b6a9bda97cf84988e503ffc5433abfaef9bb5",
+    "wf-cs-weekly-digest": "4548c390c42cdf76b4ac656d1795a8384d80757d55a4deb180b02e73234185fe",
+    "wf-approved-resolution": "4586c77f647cbf92abe4cfbdd245f0e862d0e7bb982b7f9c23a53ad6a0e1e99b",
+    "wf-automation-recovery": "48b085290ee9b36d7f805e588aa3a93078bb82c64c82a49ed0c1a8fbb084ac4a",
+    "wf-automation-error": "b02e021c9c2e71d5b4808cc8cb3f976695dcf6caf7b4710ebe83f9ff0471e637"
+  },
+  "firstTicket": {
+    "ticketId": "0cecdfeb-afb3-4ed0-8df7-17a398161acf",
+    "ticketNumber": "CS-000001"
+  },
+  "slaTicket": {
+    "stage": "NEW",
+    "version": 2,
+    "eventKinds": [
+      "CREATED"
+    ]
+  },
+  "deliveries": [
+    {
+      "deliveryId": "71558345-f928-4f78-adec-05374eb139b2",
+      "deliveryState": "ACCEPTED_LOCAL",
+      "sinkMessageId": "2eabd552-78d6-4102-9974-02a363c8a8ad",
+      "attempt": 1
+    },
+    {
+      "deliveryId": "82d5e133-6cc5-4fab-889c-0845b11344fd",
+      "deliveryState": "ACCEPTED_LOCAL",
+      "sinkMessageId": "3d4aad20-80ac-4c45-85f0-18fd9e2ce03d",
+      "attempt": 1
+    }
+  ],
+  "sink": {
+    "count": 2
+  },
+  "finishedAt": "2026-11-01T12:23:33.362Z"
+}

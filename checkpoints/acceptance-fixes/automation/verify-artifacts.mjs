@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+const prefix='checkpoints/acceptance-fixes/automation/', manifest=prefix+'MANIFEST.sha256';
+const writing=process.argv[2]==='--write-index';
+const git=args=>execFileSync('git',args,{windowsHide:true});
+const files=git(writing?['ls-files','--cached',prefix]:['ls-tree','-r','--name-only','HEAD',prefix]).toString().trim().split(/\r?\n/).filter(p=>p&&p!==manifest);
+const rows=files.map(path=>`${createHash('sha256').update(git(['show',writing?':'+path:'HEAD:'+path])).digest('hex')}  ${path}`);
+if(writing)writeFileSync(manifest,rows.join('\n')+'\n');
+else assert.deepEqual(readFileSync(manifest,'utf8').trim().split(/\r?\n/),rows);
+console.log(`${writing?'Recorded':'Verified'} ${rows.length} Git-byte artifact hashes; manifest excluded from itself.`);

@@ -1,0 +1,20 @@
+✔ native readiness tolerates transient connection failure but still requires all four authenticated webhook denials (25.7138ms)
+✔ unregistered native webhook fails within the original60s bound (3.4817ms)
+✔ unprotected native webhook fails within the original60s bound (2.8264ms)
+✔ unreachable native webhook fails within the original60s bound (2.5241ms)
+▶ private SMTP capture persists genuine task-bound transport evidence across restart
+  ✔ HTTP cannot fabricate a receipt and private inspection requires authentication (29.7781ms)
+  ✔ real SMTP DATA creates one receipt with matching message/scope/content (13.5291ms)
+  ✔ normal restart retains exactly the accepted receipt (5.7527ms)
+✔ private SMTP capture persists genuine task-bound transport evidence across restart (82.1509ms)
+✔ transport refuses external recipients and non-loopback receipt endpoints (1.7685ms)
+✔ receipt inspection does not follow a redirect carrying the private token (48.6098ms)
+✔ all exported API nodes retain scoped credentials, trusted Origin and JSON headers (50.5575ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 854.9248

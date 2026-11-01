@@ -1,0 +1,50 @@
+PHASE {"phase":"owned-mongo","at":1793535043557}
+PHASE {"phase":"importing-pinned-workflows","at":1793535101051}
+CLI_BEGIN import-credentials 1793535101053
+2026-11-01T12:14:39.532Z import-credentials exit 0
+PHASE {"at":1793535279532}
+CLI_END import-credentials 1793535279534
+CLI_BEGIN import-wf-sla-escalation 1793535279534
+2026-11-01T12:14:49.992Z import-wf-sla-escalation exit 0
+PHASE {"at":1793535289993}
+CLI_END import-wf-sla-escalation 1793535289994
+CLI_BEGIN import-wf-cs-weekly-digest 1793535289994
+2026-11-01T12:14:58.536Z import-wf-cs-weekly-digest exit 0
+PHASE {"at":1793535298536}
+CLI_END import-wf-cs-weekly-digest 1793535298537
+CLI_BEGIN import-wf-approved-resolution 1793535298537
+2026-11-01T12:15:05.827Z import-wf-approved-resolution exit 0
+PHASE {"at":1793535305828}
+CLI_END import-wf-approved-resolution 1793535305829
+CLI_BEGIN import-wf-automation-recovery 1793535305829
+2026-11-01T12:15:14.634Z import-wf-automation-recovery exit 0
+PHASE {"at":1793535314634}
+CLI_END import-wf-automation-recovery 1793535314635
+CLI_BEGIN import-wf-automation-error 1793535314636
+2026-11-01T12:15:23.550Z import-wf-automation-error exit 0
+PHASE {"at":1793535323550}
+CLI_END import-wf-automation-error 1793535323551
+CLI_BEGIN activate-wf-sla-escalation 1793535323551
+2026-11-01T12:15:31.083Z activate-wf-sla-escalation exit 0
+PHASE {"at":1793535331083}
+CLI_END activate-wf-sla-escalation 1793535331084
+CLI_BEGIN activate-wf-cs-weekly-digest 1793535331084
+2026-11-01T12:15:38.810Z activate-wf-cs-weekly-digest exit 0
+PHASE {"at":1793535338810}
+CLI_END activate-wf-cs-weekly-digest 1793535338811
+CLI_BEGIN activate-wf-approved-resolution 1793535338811
+2026-11-01T12:15:47.928Z activate-wf-approved-resolution exit 0
+PHASE {"at":1793535347929}
+CLI_END activate-wf-approved-resolution 1793535347930
+CLI_BEGIN activate-wf-automation-recovery 1793535347930
+2026-11-01T12:15:57.142Z activate-wf-automation-recovery exit 0
+PHASE {"at":1793535357142}
+CLI_END activate-wf-automation-recovery 1793535357143
+PHASE {"phase":"starting-engine","at":1793535357143}
+2026-11-01T12:17:43.803Z BLOCKED: fetch failed
+PHASE {"phase":"stopping","at":1793535463803}
+2026-11-01T12:17:43.898Z n8n exit null
+PHASE {"at":1793535463898}
+MARKER_DROP portfolio_owned_n8n_ad360c21b18944e599753a88bead8652
+PHASE {"phase":"stopped","at":1793535466860}
+PHASE {"phase":"failed","at":1793535466860}
