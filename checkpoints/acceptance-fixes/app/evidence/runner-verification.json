@@ -1,0 +1,28 @@
+{
+  "at": "2026-11-01T06:14:44.3347276Z",
+  "runnerSHA256": "247fb01d3ae09595f3a60490b8b2ffd4500efaf16e4f506e82cdc2dc4ca8d68e",
+  "resources": {
+    "browser": "NONE",
+    "database": "NONE",
+    "profile": "NONE",
+    "mongo": "NONE",
+    "ports": []
+  },
+  "integratedBase": "0d5137e67c036df9f62caf00ee844cbd751fb203",
+  "heavyRuntime": "NOT_RUN by CTO instruction",
+  "diffWhitespace": "PASS",
+  "assertions": "83 exact original calls, same order; entire file outside navigate helper byte-identical",
+  "ownership": "PASS: runner plus own handoff only",
+  "secrets": "PASS: added-line pattern scan and manual diff inspection; no credentials added",
+  "syntax": {
+    "browserSupplement": "PASS",
+    "runner": "PASS",
+    "browserRegister": "PASS"
+  },
+  "navigationSequenceCheck": {
+    "skip": 0,
+    "fail": 0,
+    "pass": 2,
+    "kind": "In-memory extracted-helper sequence, not actual browser"
+  }
+}
