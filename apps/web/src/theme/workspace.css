@@ -12,7 +12,8 @@
 .portfolio-root .pf-sidebar a { color: white; text-decoration: none; padding: .625rem .75rem; border-radius: .5rem; }
 .portfolio-root .pf-sidebar a:hover { background: rgb(255 255 255 / .1); }
 .portfolio-root .pf-sidebar a[aria-current="page"] { background: rgb(var(--brand-700)); font-weight: 700; }
-.portfolio-root .pf-sidebar :is(a, summary):focus-visible { outline-color: white; }
+.portfolio-root .pf-sidebar :is(a, summary):focus-visible,
+.portfolio-root .pf-header :is(a, button, input, select, textarea, summary):focus-visible { outline-color: white; }
 .pf-queue-link { display: flex !important; font-weight: 700; }
 .pf-workspace-menu > summary { padding: .625rem .75rem; font-weight: 600; }
 .pf-workspace-menu nav { padding-top: .5rem; }
