@@ -1,11 +1,11 @@
 [
   {
     "path": "checkpoints/acceptance-fixes/app/FILES.txt",
-    "sha256": "e8003ffc8cad83e72084bdd056dd3ccaab0ec532f2c1b65863d64e1d51c8de85"
+    "sha256": "6e76c8cfd2cb1ad1e114d48c78809889bd45a84cdaacfc9f1b80b4362bdf890b"
   },
   {
     "path": "checkpoints/acceptance-fixes/app/IMPLEMENTATION-RESULT.md",
-    "sha256": "181b61a71a938cf771fa9e703b8d9d1b538b06a86b50339da487abb5d23e89e8"
+    "sha256": "bb69517d352d7a1ce4abd748ed3b7d54d8092abb5c326cbe4c7c7890d7b442d3"
   },
   {
     "path": "checkpoints/acceptance-fixes/app/auth-mapping.test.mjs",
@@ -13,11 +13,11 @@
   },
   {
     "path": "checkpoints/acceptance-fixes/app/browser-register.mjs",
-    "sha256": "2a59dea5a9b13485601a53bc18ad6f95efc7da87dbe726f689725f55824b9871"
+    "sha256": "971b7bcdf1c3c2dce5318891d45228bf95f4f4bf21343033ca62d15c456e1494"
   },
   {
     "path": "checkpoints/acceptance-fixes/app/browser-supplement.mjs",
-    "sha256": "323d1cdb0252a8620c5d860fe5d9b837fdc0d0c627266af377c5544cc9922a90"
+    "sha256": "66fc4c56aa9bff7b556ebe4da24100c9c85ab70ec346a97b89cf4e61a2d68be9"
   },
   {
     "path": "checkpoints/acceptance-fixes/app/evidence/assertion-retention.json",
@@ -436,6 +436,22 @@
     "sha256": "d8374e4c0f267d38e178c0aef9cd9b240ea0f09e164c0d62689d12faac6633ac"
   },
   {
+    "path": "checkpoints/acceptance-fixes/app/evidence/runner-assertion-retention.json",
+    "sha256": "8279d114f456810ebd2988cc9a70ff70d0ae6841b3803f5cff1e2c177656d556"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/runner-memory-save.json",
+    "sha256": "ceec7403810cf09317b87c3da894dde398482dac6714eff1352db57ca1d2dc47"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/runner-navigation.tap",
+    "sha256": "6b1bf5067c0357a51b483c7301000273fe46a089aacf21541fa2594f2644ff95"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/evidence/runner-verification.json",
+    "sha256": "72b59d4b141a7c7332cd7b9c97dac2bed9902d756a8799b204b750d7b7a6c0b3"
+  },
+  {
     "path": "checkpoints/acceptance-fixes/app/evidence/source-pins.json",
     "sha256": "46d46702a55bf77ef2e2b3f7ccff314c259678d80a7923710906a6c7c6351112"
   },
@@ -444,7 +460,15 @@
     "sha256": "b73128d269c7950606832be4828ed178de47b1629d340f05340a7b40eb35c409"
   },
   {
+    "path": "checkpoints/acceptance-fixes/app/runner-memory-note.json",
+    "sha256": "a7cdb1068439e015772decbf2a8e2dbb5c53021934fca4c02cd9c2ffc7d9fd20"
+  },
+  {
+    "path": "checkpoints/acceptance-fixes/app/runner-navigation.test.mjs",
+    "sha256": "34b4c44f8fd1bdf12d93f97e36f8cfaf60689e58067934cf7f9f1a4d7a8faf4e"
+  },
+  {
     "path": "checkpoints/acceptance-fixes/app/verify-evidence.mjs",
-    "sha256": "43b44fe69d4da9b58b08cea397e2e1fb74ab4fa891d8b5b7c4663e54ae3fa120"
+    "sha256": "782baab2ef3faf72948b8f810b7294540f9d12540f49bfc40f65f967f8b7378e"
   }
 ]
