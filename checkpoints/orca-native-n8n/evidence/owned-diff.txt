@@ -1,0 +1,13 @@
+M	apps/portfolio-api/src/app.mjs
+A	apps/portfolio-api/test/native-n8n-composition.test.mjs
+A	checkpoints/orca-native-n8n/NATIVE-CONTRACT.md
+A	checkpoints/orca-native-n8n/evidence/registry-provenance.json
+M	packages/tenant-lifecycle/admission-registry.json
+M	packages/tenant-lifecycle/build-admission-registry.mjs
+M	packages/tenant-lifecycle/build-registry.mjs
+M	packages/tenant-lifecycle/domain-registry.json
+M	packages/tenant-lifecycle/effects.mjs
+A	packages/tenant-lifecycle/native-n8n-effects-adapter.mjs
+A	packages/tenant-lifecycle/native-n8n-effects-adapter.test.mjs
+A	packages/tenant-lifecycle/native-n8n-provider.mjs
+A	packages/tenant-lifecycle/native-n8n-provider.test.mjs

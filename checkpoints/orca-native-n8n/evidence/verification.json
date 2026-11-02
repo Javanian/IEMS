@@ -1,0 +1,49 @@
+{
+  "state": "IMPLEMENTED_NATIVE_INTEGRATION_PENDING",
+  "product": "UNACCEPTED",
+  "implementationCommit": "60f7efbde2061bf8eb290c2cb53cddebac2e258b",
+  "base": "34349add1ea022b6953aa00d11334f707de6367c",
+  "fullEndpointCoverage": false,
+  "tests": [
+    {
+      "command": "node --test --test-concurrency=1 packages/tenant-lifecycle/native-n8n-provider.test.mjs packages/tenant-lifecycle/native-n8n-effects-adapter.test.mjs apps/portfolio-api/test/native-n8n-composition.test.mjs packages/tenant-lifecycle/effects-v15.test.mjs packages/tenant-lifecycle/engine-v15.test.mjs packages/tenant-lifecycle/automation-delivery-v15.test.mjs packages/tenant-lifecycle/automation-recovery-v15.test.mjs packages/tenant-lifecycle/registry-integrity.test.mjs packages/tenant-lifecycle/domain-port.test.mjs packages/tenant-lifecycle/admission.test.mjs",
+      "cwd": "D:\\Project AI\\GITHUB\\IEMS-worktrees\\iems-accept-fix-20261101-platform",
+      "testedHead": "34349add1ea022b6953aa00d11334f707de6367c",
+      "treeQualification": "DIRTY_OWNED_IMPLEMENTATION before final native JSON hash and SMTP receipt cross-binding; effects/app/shared regressions unchanged subsequently",
+      "exit": 0,
+      "pass": 58,
+      "fail": 0,
+      "skip": 0,
+      "rawEvidence": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\orca-iems-20261102\\native-provider\\regression.tap",
+      "sha256": "f7107ddccbeb4b5c9c307f552f7f5f388f04a262c4af36774560ec6904a35954",
+      "shutdownDiagnostic": "MongoNetworkError ECONNRESET retained; test and cleanup hooks passed"
+    },
+    {
+      "command": "node --test --test-concurrency=1 packages/tenant-lifecycle/native-n8n-provider.test.mjs packages/tenant-lifecycle/native-n8n-effects-adapter.test.mjs apps/portfolio-api/test/native-n8n-composition.test.mjs packages/tenant-lifecycle/registry-integrity.test.mjs",
+      "cwd": "D:\\Project AI\\GITHUB\\IEMS-worktrees\\iems-accept-fix-20261101-platform",
+      "testedHead": "60f7efbde2061bf8eb290c2cb53cddebac2e258b",
+      "treeQualification": "CLEAN_IMPLEMENTATION_COMMIT",
+      "exit": 0,
+      "pass": 17,
+      "fail": 0,
+      "skip": 0,
+      "rawEvidence": "D:\\Project AI\\GITHUB\\IEMS-evidence\\agent-checkpoints\\orca-iems-20261102\\native-provider\\committed-source.tap",
+      "sha256": "9bf39565d55865ee5099aa0e50c6f90cb7c521f068b1cf9eee8f60048350174c",
+      "shutdownDiagnostic": "MongoNetworkError ECONNRESET retained; test and cleanup hooks passed"
+    }
+  ],
+  "nativeRuntimeExecution": "NOT_RUN_STAGE_B",
+  "syntheticFixturesMintRuntimeObservations": false,
+  "nativeWorkflowSchemaReadOnlyCompatibility": {
+    "snapshots": 5,
+    "result": "PASS",
+    "historicalExecutionsPromoted": false
+  },
+  "sourceReview": {
+    "scope": "exact owned paths plus approved two source-list additions",
+    "newDependencies": false,
+    "existingTestsChanged": false,
+    "routeInventoryChanged": false,
+    "collectionDispositionChanged": false
+  }
+}
