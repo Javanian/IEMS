@@ -11,6 +11,7 @@ import {createRequire} from 'node:module';
 import {MongoClient} from '../../apps/portfolio-api/node_modules/mongodb/lib/index.js';
 
 export const wait=ms=>new Promise(r=>setTimeout(r,ms));
+export const nativeOwnerPassword=()=>`Iems-${randomBytes(32).toString('base64url')}9a`;
 export const read=path=>JSON.parse(readFileSync(path,'utf8'));
 export function save(path,value){writeFileSync(path+'.tmp',JSON.stringify(value,null,2),{mode:0o600});renameSync(path+'.tmp',path);}
 export async function until(predicate,ms=30000){const end=Date.now()+ms;while(Date.now()<end){const value=await predicate();if(value)return value;await wait(50);}throw Error('NATIVE_PROBE_DEADLINE');}
@@ -43,7 +44,7 @@ export async function startNativeLab(){
   assert.ok(preflight.freeRamBytes>=3584*1024**2&&preflight.cpuPercent<80&&preflight.freeDiskBytes>=1024**3,'Original resource guards must pass');
   const others=JSON.parse(execFileSync('powershell.exe',['-NoProfile','-Command',"@(Get-CimInstance Win32_Process | Where-Object {$_.Name -like 'mongod*' -or $_.Name -in @('java.exe','docker.exe')} | Select-Object ProcessId,CreationDate,Name) | ConvertTo-Json -Compress"],{encoding:'utf8',windowsHide:true})||'[]');save(join(root,'exclusive.json'),others);assert.equal(others.length,0,'Another heavy runtime owns the host');
   const secret=()=>randomBytes(32).toString('hex'),marker=randomUUID();
-  const config={native:true,marker,instanceId:randomUUID(),username:'alpha.owner',password:secret(),n8nEmail:'operator@iems.local',n8nPassword:'Iems-'+secret()+'9a',sinkToken:secret(),webhookToken:secret(),encryptionKey:secret(),ports:{api:32740,smtp:32741,inspector:32742,n8n:32743,web:32744,mongo:32745,proxy:32746},database:'portfolio_owned_native_'+marker.replaceAll('-',''),n8nPackageRoot:process.env.IEMS_N8N_PACKAGE_ROOT??'D:/IEMS-Automation-Lab/TPR-157-e4efd721-native/runtime/node_modules/n8n'};
+  const config={native:true,marker,instanceId:randomUUID(),username:'alpha.owner',password:secret(),n8nEmail:'operator@iems.local',n8nPassword:nativeOwnerPassword(),sinkToken:secret(),webhookToken:secret(),encryptionKey:secret(),ports:{api:32740,smtp:32741,inspector:32742,n8n:32743,web:32744,mongo:32745,proxy:32746},database:'portfolio_owned_native_'+marker.replaceAll('-',''),n8nPackageRoot:process.env.IEMS_N8N_PACKAGE_ROOT??'D:/IEMS-Automation-Lab/TPR-157-e4efd721-native/runtime/node_modules/n8n'};
   assert.equal(read(join(config.n8nPackageRoot,'package.json')).version,'1.121.3');
   const hash=path=>createHash('sha256').update(readFileSync(path)).digest('hex');assert.equal(hash(resolve(config.n8nPackageRoot,'../../package-lock.json')),hash(join(repo,'ops/automation-lab/runtime-package-lock.json')),'Existing dependency cache must match the pinned lock');
   save(join(root,'config.json'),config);save(join(root,'source-review.json'),{sha,reviewedAt:new Date().toISOString(),marker});
