@@ -1,5 +1,11 @@
 # CS entry queue: IMPLEMENTED_QA_PENDING
 
+Later verification: the original 96-cell candidate matrix is now complete and
+its bounded performance criteria are met. See
+[PERFORMANCE-ACCEPTANCE.md](PERFORMANCE-ACCEPTANCE.md). The implementation-time
+evidence and pending-gate statements below are retained as the earlier checkpoint;
+independent product QA remains pending.
+
 The measured shared-tenant authority conflicts caused repeated transaction aborts and durability waits. The approved change admits one top-level operator transaction per tenant per service instance before creating its transaction session. **Performance improvement is not yet established.** The original full 96-cell acceptance benchmark has not run on this candidate.
 
 Base: `4ab4d59f01c5621ecb7d37c1d9644adbc8f247c4`, normally adopted with rollback ref `codex/backend-performance-before-native-20261102` retained at `cab39faf03622dbe9b5a99e16bcd54d3b06f3999`. Authority: coordinator `lead/BACKEND-QUEUE-REVIEW.md`, task `task_086258cfe666`, dispatch `ctx_f6a458fdcf3e`. Current source/commit identities are recorded in the external final checkpoint. Local development only; remote/CI UNKNOWN, no publication or product acceptance.
