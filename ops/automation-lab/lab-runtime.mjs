@@ -19,7 +19,7 @@ const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const save = (path, value) => { writeFileSync(path + '.tmp', JSON.stringify(value, null, 2), { mode: 0o600 }); renameSync(path + '.tmp', path); };
 const configPath = join(root, 'config.json');
 const config = existsSync(configPath) ? json(configPath) : { marker: randomUUID(), username: 'alpha.owner', password: randomBytes(24).toString('base64url'), n8nEmail: 'operator@iems.local', n8nPassword: 'Iems-' + randomBytes(24).toString('base64url') + '9a', sinkToken: randomBytes(32).toString('hex'), webhookToken: randomBytes(32).toString('hex'), encryptionKey: randomBytes(32).toString('hex'), ports: { api: 4319, smtp: 2527, inspector: 8027, n8n: 5687, web: 5187, mongo: 27197 }, database: 'portfolio_owned_n8n_corrective_20261027' };
-const nativeWorkflows=config.native?nativeWorkflowRevisions({apiPort:config.ports.api,smtpPort:config.ports.smtp,webPort:config.ports.web}):null;
+const nativeWorkflows=config.native?nativeWorkflowRevisions({apiPort:config.ports.api,smtpPort:config.ports.smtp,webPort:config.ports.web,n8nPackageRoot:config.n8nPackageRoot}):null;
 if(config.native){
   if(!config.instanceId||!config.n8nPackageRoot||!Object.values(config.ports).every(port=>Number.isInteger(port)&&port>=32740&&port<=32759))throw Error('NATIVE_CONFIG_REQUIRED');
   assertFreshNativeDatabase(root);

@@ -1,7 +1,25 @@
 import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {join} from 'node:path';
 import {nativeN8nWorkflowHash} from '../../packages/tenant-lifecycle/native-n8n-provider.mjs';
 
-export function nativeWorkflowRevisions({apiPort,smtpPort,webPort}) {
+export function materializeNativeNodeDefaults(workflows,packageRoot=process.env.IEMS_N8N_PACKAGE_ROOT??'D:/IEMS-Automation-Lab/TPR-157-e4efd721-native/runtime/node_modules/n8n'){
+  const require=createRequire(join(packageRoot,'package.json'));
+  if(require('./package.json').version!=='1.121.3')throw Error('NATIVE_PINNED_NODE_SCHEMAS_REQUIRED');
+  const schemas=require('../n8n-nodes-base/dist/types/nodes.json'),{NodeHelpers}=require('n8n-workflow');
+  const versions={scheduleTrigger:1.2,httpRequest:4.2,if:2.2,splitOut:1,set:3.4,webhook:2,code:2,errorTrigger:1};
+  for(const workflow of workflows)for(const node of workflow.nodes){
+    const name=node.type.slice('n8n-nodes-base.'.length);
+    if(node.type!==`n8n-nodes-base.${name}`||versions[name]!==node.typeVersion)throw Error('NATIVE_NODE_SCHEMA_UNSUPPORTED');
+    const matches=schemas.filter(schema=>schema.name===name&&[].concat(schema.version).includes(node.typeVersion));
+    if(matches.length!==1)throw Error('NATIVE_NODE_SCHEMA_AMBIGUOUS');
+    // Freeze the same defaults n8n adds before execution, before binding the workflow revision.
+    node.parameters=NodeHelpers.getNodeParameters(matches[0].properties,node.parameters,true,false,node,matches[0])??{};
+  }
+  return workflows;
+}
+
+export function nativeWorkflowRevisions({apiPort,smtpPort,webPort,n8nPackageRoot}) {
   if(![apiPort,smtpPort,webPort].every(port=>Number.isInteger(port)&&port>=32740&&port<=32759))throw Error('NATIVE_OWNED_PORT_REQUIRED');
   const result=[];
   for(const id of ['wf-sla-escalation','wf-cs-weekly-digest','wf-approved-resolution','wf-automation-recovery','wf-automation-error']){
@@ -19,7 +37,7 @@ export function nativeWorkflowRevisions({apiPort,smtpPort,webPort}) {
     for(const node of schedules)delete template.connections[node.name];
     result.push(template);
   }
-  return result;
+  return materializeNativeNodeDefaults(result,n8nPackageRoot);
 }
 
 export function nativeWorkflowBindings(workflows,n8nPort){

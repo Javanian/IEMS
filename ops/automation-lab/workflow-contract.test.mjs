@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import {nativeWorkflowRevisions,nativeWorkflowBindings} from './native-workflows.mjs';
+import {createRequire} from 'node:module';
+import {join} from 'node:path';
+import {nativeWorkflowRevisions,nativeWorkflowBindings,materializeNativeNodeDefaults} from './native-workflows.mjs';
 import {nativeN8nWorkflowHash} from '../../packages/tenant-lifecycle/native-n8n-provider.mjs';
 
 test('all exported API nodes retain scoped credentials, trusted Origin and JSON headers', async () => {
@@ -42,4 +44,38 @@ test('native webhook revisions freeze fractional node versions and separate muta
   const schedules=workflows.filter(w=>w.id.endsWith('-schedule'));assert.equal(schedules.length,3);
   for(const workflow of schedules){assert.ok(!workflow.nodes.some(n=>n.type.endsWith('.webhook')));assert.ok(workflow.nodes.some(n=>n.type.endsWith('.scheduleTrigger')));}
   assert.throws(()=>nativeWorkflowRevisions({apiPort:4319,smtpPort:2527,webPort:5187}),/NATIVE_OWNED_PORT_REQUIRED/);
+});
+
+test('native revisions freeze pinned n8n execution defaults before hashing, without hiding later drift',()=>{
+  const workflows=nativeWorkflowRevisions({apiPort:32740,smtpPort:32741,webPort:32744});
+  assert.deepEqual(materializeNativeNodeDefaults(structuredClone(workflows)),workflows,'Runtime defaults must be idempotent');
+  const digest=workflows.find(w=>w.id==='wf-cs-weekly-digest');
+  const webhook=digest.nodes.find(n=>n.type==='n8n-nodes-base.webhook');
+  assert.equal(webhook.parameters.multipleMethods,false);
+  assert.equal(webhook.parameters.responseData,'firstEntryJson');
+  for(const node of digest.nodes.filter(n=>n.type==='n8n-nodes-base.code')){
+    assert.equal(node.parameters.mode,'runOnceForAllItems');
+    assert.equal(node.parameters.language,'javaScript');
+  }
+  const altered=structuredClone(digest);altered.nodes.find(n=>n.type==='n8n-nodes-base.webhook').parameters.responseData='allEntries';
+  assert.notEqual(nativeN8nWorkflowHash(altered),nativeN8nWorkflowHash(digest));
+  const unsupported=structuredClone(workflows);unsupported[0].nodes[0].typeVersion=999;
+  assert.throws(()=>materializeNativeNodeDefaults(unsupported),/NATIVE_NODE_SCHEMA_UNSUPPORTED/);
+});
+
+test('materialized parameters remain identical under the actual pinned runtime node descriptions',()=>{
+  const packageRoot=process.env.IEMS_N8N_PACKAGE_ROOT??'D:/IEMS-Automation-Lab/TPR-157-e4efd721-native/runtime/node_modules/n8n';
+  const require=createRequire(join(packageRoot,'package.json')),{NodeHelpers}=require('n8n-workflow');
+  const known=require('../n8n-nodes-base/dist/known/nodes.json'),types=new Map();
+  for(const workflow of nativeWorkflowRevisions({apiPort:32740,smtpPort:32741,webPort:32744,n8nPackageRoot:packageRoot}))for(const node of workflow.nodes){
+    const name=node.type.slice('n8n-nodes-base.'.length);
+    if(!types.has(name)){
+      const entry=known[name],Node=require('../n8n-nodes-base/'+entry.sourcePath)[entry.className];
+      types.set(name,new Node());
+    }
+    const type=types.get(name),description=(type.getNodeType?.(node.typeVersion)??type).description;
+    const actual=NodeHelpers.getNodeParameters(description.properties,node.parameters,true,false,node,description)??{};
+    assert.deepEqual(actual,node.parameters,`${node.type}@${node.typeVersion} ${node.name}`);
+  }
+  assert.equal(types.size,8);
 });
