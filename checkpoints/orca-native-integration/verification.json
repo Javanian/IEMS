@@ -144,5 +144,36 @@
     "fail": 0,
     "exit": 0,
     "skip": 0
-  }
+  },
+  "nativeSecond": {
+    "pass": 0,
+    "state": "RESOURCE_BLOCKED_BEFORE_ROOT_OR_SERVICES",
+    "skip": 0,
+    "ramObservation": {
+      "observedAt": "2026-11-02T03:57:32.916Z",
+      "freeRamBytes": 3469914112,
+      "freeRamMiB": 3309.16796875,
+      "totalRamBytes": 17110343680,
+      "requiredFreeMiB": 3584
+    },
+    "exit": 1,
+    "sha256": "b66a9cc32189666b93c0f3e20329517715698a518209960c78a1bc149501cebe",
+    "error": "Existing 3584 MiB startup guard",
+    "testedSha": "a60ca641dc7a3d15100bd15b5ad00d878c1ad6d5",
+    "noResourcesLog": "native-second-no-resources.json",
+    "durationMs": 547.6368,
+    "noResourcesSha256": "ce23f1a3f27cbe780d579f1ef28018779e6c74359bf3ae4289dcd03532c7172f",
+    "log": "native-second.tap",
+    "command": "node --test --test-concurrency=1 ops/automation-lab/native-history.test.mjs",
+    "fail": 1
+  },
+  "finalSourceVerifiers": {
+    "log": "final-source-verifiers.log",
+    "sourceSchemas": "PASS",
+    "exit": 0,
+    "testedSha": "a60ca641dc7a3d15100bd15b5ad00d878c1ad6d5",
+    "sha256": "a8b5a158716f6315a783f45a8529c662360ccd914161955a9ce47d9a4220fefe",
+    "admissionSources": "PASS"
+  },
+  "outcome": "BLOCKED_NATIVE_CAPACITY_AND_STARTUP_DIAGNOSIS"
 }
