@@ -1,0 +1,263 @@
+{
+  "outcome": "PRODUCER_NATIVE_INTEGRATION_PASS",
+  "implementationAndTestedSha": "24171d8469297d26777c926bbeb6bd41ad4e2492",
+  "treeAtNativeRun": "CLEAN",
+  "product": "UNACCEPTED",
+  "fullEndpointCoverage": false,
+  "independentAcceptance": "PENDING_COORDINATOR_REVIEW",
+  "publication": "LOCAL_ONLY",
+  "remoteCI": "UNKNOWN",
+  "environment": {
+    "node": "24.19.0",
+    "n8n": "1.121.3",
+    "MONGOMS_RUNTIME_DOWNLOAD": "false",
+    "IEMS_NATIVE_EVIDENCE_ROOT": "Assigned private external runs root",
+    "IEMS_NATIVE_REVIEWED_SHA": "24171d8469297d26777c926bbeb6bd41ad4e2492"
+  },
+  "runs": [
+    {
+      "name": "native-first",
+      "sha": "771f84fb666f338a2cedebabaf28c5a0a29009ad",
+      "command": "node --test --test-concurrency=1 ops/automation-lab/native-history.test.mjs",
+      "exit": 1,
+      "pass": 0,
+      "fail": 1,
+      "skip": 0,
+      "durationMs": 205691.9944,
+      "state": "API_NOT_READY",
+      "log": "native-first.tap",
+      "sha256": "2dc4bbf746f8f22c09dfc6ccfce6cdabe5cd28e2d7c2d91c6a71fff6452662d8",
+      "qualification": "Historical previous dispatch evidence, preserved and rehashed, not rerun here"
+    },
+    {
+      "name": "native-second",
+      "sha": "a60ca641dc7a3d15100bd15b5ad00d878c1ad6d5",
+      "command": "node --test --test-concurrency=1 ops/automation-lab/native-history.test.mjs",
+      "exit": 1,
+      "pass": 0,
+      "fail": 1,
+      "skip": 0,
+      "durationMs": 547.6368,
+      "state": "RAM_GUARD_BEFORE_ROOT",
+      "log": "native-second.tap",
+      "sha256": "b66a9cc32189666b93c0f3e20329517715698a518209960c78a1bc149501cebe",
+      "qualification": "Historical previous dispatch evidence, preserved and rehashed, not rerun here"
+    },
+    {
+      "name": "native-third",
+      "sha": "927398476684bd705800e1d92fc1f450ddb18b08",
+      "command": "node --test --test-concurrency=1 ops/automation-lab/native-history.test.mjs",
+      "exit": 1,
+      "pass": 0,
+      "fail": 1,
+      "skip": 0,
+      "durationMs": 314854.5906,
+      "state": "SETUP_TIMEOUT",
+      "log": "native-third.tap",
+      "sha256": "6c61f0bc44490a2d5666ce1c121364ee7e04d2166bad39cc536030e0dd7ef792",
+      "qualification": "Failed setup/preflight; native scenario assertions not run"
+    },
+    {
+      "name": "native-fourth",
+      "sha": "a2c5274e0f58053c20ce3bb4cad1bded35fc858e",
+      "command": "node --test --test-concurrency=1 ops/automation-lab/native-history.test.mjs",
+      "exit": 1,
+      "pass": 0,
+      "fail": 1,
+      "skip": 0,
+      "durationMs": 220960.0489,
+      "state": "OWNER_SETUP400_INVALID_FIXTURE_PASSWORD",
+      "log": "native-fourth.tap",
+      "sha256": "5b411146f50693c21f977fc99e52ea85f0ca8f6446364ed6c84c4f6f13c46a59",
+      "qualification": "Failed setup/preflight; native scenario assertions not run"
+    },
+    {
+      "name": "native-fifth",
+      "sha": "366c477632701f87a6b78c8f436f5522b68d5c86",
+      "command": "node --test --test-concurrency=1 ops/automation-lab/native-history.test.mjs",
+      "exit": 1,
+      "pass": 0,
+      "fail": 1,
+      "skip": 0,
+      "durationMs": 3688.3273,
+      "state": "CPU_GUARD_BEFORE_SERVICES",
+      "log": "native-fifth.tap",
+      "sha256": "502ef2b8f26fcc85622737332a753dbbdcb443dd5a9f6a3a9f7e11c1fe7ec173",
+      "qualification": "Failed setup/preflight; native scenario assertions not run"
+    },
+    {
+      "name": "native-sixth",
+      "sha": "366c477632701f87a6b78c8f436f5522b68d5c86",
+      "command": "node --test --test-concurrency=1 ops/automation-lab/native-history.test.mjs",
+      "exit": 1,
+      "pass": 1,
+      "fail": 11,
+      "skip": 0,
+      "durationMs": 263779.2433,
+      "state": "NATIVE_WORKFLOW_REVISION_MISMATCH",
+      "log": "native-sixth.tap",
+      "sha256": "90b2364f840809971f1df3368df0883eee90ad8f5e50e69b3ca81fb9080af334",
+      "qualification": "Parent included; first workflow-revision mismatch causes dependent undefined-variable/deadline failures"
+    },
+    {
+      "name": "native-seventh",
+      "sha": "24171d8469297d26777c926bbeb6bd41ad4e2492",
+      "command": "node --test --test-concurrency=1 ops/automation-lab/native-history.test.mjs",
+      "exit": 0,
+      "pass": 12,
+      "fail": 0,
+      "skip": 0,
+      "durationMs": 144712.1871,
+      "state": "PASS",
+      "log": "native-seventh.tap",
+      "sha256": "4cfdc8f674d3a5d4b4dfa4f995a24ad18a638a43ae933fedba70c2cf27380259",
+      "qualification": "11 scenarios plus parent; actual owned services and strict proof; no product acceptance"
+    }
+  ],
+  "focused": {
+    "command": "node --test --test-concurrency=1 ops/automation-lab/native-probe-support.test.mjs ops/automation-lab/native-activation.test.mjs ops/automation-lab/readiness.test.mjs ops/automation-lab/workflow-contract.test.mjs ops/automation-lab/smtp-sink.test.mjs ops/automation-lab/transport-boundaries.test.mjs",
+    "env": "IEMS_NATIVE_TEST_ROOT=external owned synthetic-node-defaults directory",
+    "exit": 0,
+    "pass": 24,
+    "fail": 0,
+    "skip": 0,
+    "durationMs": 4422.5983,
+    "qualification": "Final owned source dirty on366c477, identical source committed24171d8; not counted as native executions",
+    "log": "node-defaults-focused.tap",
+    "sha256": "942a0a2b63caa92c5e6f8dacbe015cd3955b3308661b717d9a590912798276e3"
+  },
+  "cleanup": {
+    "databaseDrop": "EXACT_MARKER_CHECKED",
+    "originalProcessIdentitiesGone": 12,
+    "reservedPortsFree": [
+      32740,
+      32741,
+      32742,
+      32743,
+      32744,
+      32745,
+      32746,
+      32747,
+      32748,
+      32749,
+      32750,
+      32751,
+      32752,
+      32753,
+      32754,
+      32755,
+      32756,
+      32757,
+      32758,
+      32759
+    ],
+    "liveOwnedResources": "NONE",
+    "prePruneExecutions": 8,
+    "retainedExecutions": 7,
+    "localSmtpReceipts": 6,
+    "deliveryQualification": "ACCEPTED_LOCAL_ONLY"
+  },
+  "evidence": [
+    {
+      "log": "resource-ready-sixth-samples.json",
+      "sha256": "1a865a2e2c7eb5a2d1ad2a1115baea32a64dbc60d5c148e136b368985c87ef10"
+    },
+    {
+      "log": "resource-ready-sixth-samples-2.json",
+      "sha256": "3fe960894aab4c8f604309c47e72874988edf13037bf3e809057582a9d43c6d3"
+    },
+    {
+      "log": "resource-sixth-stability-window.json",
+      "sha256": "803dcbe1df2c646fbbd43ea0374a040def2333dd4fa0ec9f19c83df0a6fe1463"
+    },
+    {
+      "log": "resource-seventh-stability-window.json",
+      "sha256": "feb09d9028394e8e28a154340be4b5548309221e976a50b3797909c561a00674"
+    },
+    {
+      "log": "runs/native-Su9JKV/cleanup-independent.json",
+      "sha256": "4a83dbba2226999182be73f1a5f6bfdee4d0bc15f102e895c7b33c6bc57131a2"
+    },
+    {
+      "log": "runs/native-1h8hvd/cleanup-independent.json",
+      "sha256": "e8c4f12db5b663171d9b226552c6198edec8ea754c5f20f7180e248ee0017bcb"
+    },
+    {
+      "log": "native-fifth-no-resources.json",
+      "sha256": "387cfcc131f4b4045d27824616b262174dc1ae2decff00df9f15ba37ab9e0b0d"
+    },
+    {
+      "log": "runs/native-6gKOwL/cleanup-independent.json",
+      "sha256": "d9077fcc2d33cf37ce1c445862bd81f5439808b626c57a0e23579425ca3a7891"
+    },
+    {
+      "log": "runs/native-5XIRNT/cleanup.json",
+      "sha256": "adae97f8b64bf652e51119d00e9dc98c2351ac0019c36e4957e5010394a58e06"
+    },
+    {
+      "log": "runs/native-5XIRNT/cleanup-independent.json",
+      "sha256": "6de3e8345779e2f1e4e33e7e02abb7b02d3437334e8341f09239bdc3d3c77c8d"
+    },
+    {
+      "log": "runs/native-5XIRNT/assertion-ledger.json",
+      "sha256": "e03f25e809eb3e40d3057d03e8f426d28c602dec7eab08650795332147c6a196"
+    },
+    {
+      "log": "runs/native-5XIRNT/pre-prune-history.private.json",
+      "sha256": "41bfe4cce3ddcac8a41331829421304276b434716beaf0eba64841ae4e3fde78"
+    },
+    {
+      "log": "runs/native-5XIRNT/smtp/receipts.ndjson",
+      "sha256": "34aee6a9547b773d4640365318b44d5f8a568008649fb0c45209cf7b2a0d0aad"
+    }
+  ],
+  "sourceFiles": [
+    {
+      "path": "ops/automation-lab/lab-runtime.mjs",
+      "sha256": "b051da2e435e632f880f8f82e940b8990d5f2d62a7333a114abe0073bf95b421"
+    },
+    {
+      "path": "ops/automation-lab/native-activation.mjs",
+      "sha256": "3fec1d0980da5e260cc1d40f4138dd03c6b50845154e666e01bc2c72376afff8"
+    },
+    {
+      "path": "ops/automation-lab/native-activation.test.mjs",
+      "sha256": "27cf8f69cbd59dc68737b0e2f3b0de290226494a1c6ca88fb3db6ffc981dde3b"
+    },
+    {
+      "path": "ops/automation-lab/native-probe-support.mjs",
+      "sha256": "8813881b14eca7adcbabc67824145e68660cc2adcc6c41e669e336b7aa8e3626"
+    },
+    {
+      "path": "ops/automation-lab/native-probe-support.test.mjs",
+      "sha256": "6e812338b0771284187a9e2222ddfa383a8257df2ce9918aac6c0ec792b813c4"
+    },
+    {
+      "path": "ops/automation-lab/native-workflows.mjs",
+      "sha256": "cfe33d60bab19a6047c7bdfbd38f53a1b39152935f6f6d7ffce7a346bf27cb49"
+    },
+    {
+      "path": "ops/automation-lab/workflow-contract.test.mjs",
+      "sha256": "f413d25035db8de39dd40f07772ea9c769769eb8b6b948bbb6ceb00a99312b44"
+    }
+  ],
+  "sourcePinDelta": "NONE in this continuation; no registry/generator/app/provider/adapter/lockfile change",
+  "guards": {
+    "apiSeconds": 120,
+    "setupSeconds": 300,
+    "parentSeconds": 180,
+    "teardownSeconds": 60,
+    "minRamMiB": 3584,
+    "maxCpuPercentExclusive": 80,
+    "minDiskGiB": 1
+  },
+  "remaining": [
+    "independent producer/product acceptance",
+    "native ErrorTrigger original-attempt correlation",
+    "automatic scheduled-child continuation",
+    "WA15/17",
+    "PREPARED document-intent recovery",
+    "Automation Center and independent QA",
+    "other contract-review gaps outside bounded native integration"
+  ]
+}
