@@ -338,7 +338,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     const row=await c(runtime,'sessions').findOneAndUpdate({_id:sessionId,tenantId:req.scope.tenantId,selectedPlantId:req.scope.selectedPlantId,automationService:true},{$inc:{credentialFence:1}},{session,returnDocument:'after'});
     if(!row||expected&&(row.userId!==expected.userId||row.membershipId!==expected.membershipId||row.label!==expected.label||new Date(row.expiresAt).toISOString()!==new Date(expected.expiresAt).toISOString()))fail(404,'NOT_FOUND');
     const member=await c(runtime,'memberships').findOne({_id:row.membershipId,userId:row.userId,tenantId:req.scope.tenantId,active:true},{session});const user=await c(runtime,'users').findOne({_id:row.userId,active:true},{session});
-    if(!member||!user||!member.plantIds.includes(req.scope.selectedPlantId)||!member.roles.some(r=>r.role==='automationService'||nativeMode&&r.role==='nativeAutomationService'))fail(403,'SOURCE_AUTHORITY_CHANGED');return row;
+    if(!member||!user||!member.plantIds.includes(req.scope.selectedPlantId)||!member.roles.some(r=>['automationService','nativeAutomationService'].includes(r.role)))fail(403,'SOURCE_AUTHORITY_CHANGED');return row;
   };
   const recheckDelivery=async(req,session,deliveryId,expected,readOnly=false)=>{
     const d=readOnly?await c(runtime,'cs_outbox').findOne({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{session}):await c(runtime,'cs_outbox').findOneAndUpdate({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{$inc:{automationFence:1}},{session,returnDocument:'after'});
@@ -424,7 +424,9 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
       await c(runtime,'audit').insertOne({_id:randomUUID(),tenantId:req.scope.tenantId,kind:'sessions.issued',subjectId:sessionId,occurredAt:createdAt},{session});
       return {sessionId,userId,membershipId,label,expiresAt:expiresAt.toISOString(),deliveryProtocol:'ONE_TIME_NO_RECOVERY_V1'};
     });
-    res.set('Cache-Control','no-store');res.status(out.replayed?200:201).json({data:{...out,...(!out.replayed?{token:secret}:{tokenAvailable:false,recovery:'REVOKE_AND_REISSUE'}),scope:scope(req),grants:[...automationRoles[serviceRole]]}});
+    const issuedMember=await c(runtime,'memberships').findOne({_id:out.membershipId,tenantId:req.scope.tenantId,userId:out.userId,active:true});
+    const issuedRole=issuedMember?.roles.find(r=>['automationService','nativeAutomationService'].includes(r.role))?.role;if(!issuedRole)fail(403,'SOURCE_AUTHORITY_CHANGED');
+    res.set('Cache-Control','no-store');res.status(out.replayed?200:201).json({data:{...out,...(!out.replayed?{token:secret}:{tokenAvailable:false,recovery:'REVOKE_AND_REISSUE'}),scope:scope(req),grants:[...automationRoles[issuedRole]]}});
   });
   app.post('/api/cs/automation/service-credentials/:id/revoke',async(req,res)=>{
     await human(req,'cs.automation.admin');fields(req.body,[]);const sessionId=id(req.params.id);

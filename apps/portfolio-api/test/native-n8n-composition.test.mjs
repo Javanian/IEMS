@@ -40,6 +40,14 @@ test('native composition is explicit and owned; existing simulation identity is 
   assert.equal(native.separateEffects.supports('automation.recovery'), true);
   assert.equal(native.separateEffects.supports('automation.engine'), false);
   assert.equal(native.separateEffects.supports('automation.local-delivery'), false);
+  const nativeServer=createApp(native,{origins:['http://localhost:4173']}).listen(0,'127.0.0.1'),switchedServer=createApp(local,{origins:['http://localhost:4173']}).listen(0,'127.0.0.1');
+  await Promise.all([nativeServer,switchedServer].map(server=>new Promise(r=>server.once('listening',r))));
+  try{
+    const key=randomUUID(),body={label:'Native role survives mode switch',ttlMinutes:30},request=async(server,path,payload,k)=>{const response=await fetch(`http://127.0.0.1:${server.address().port}/api/cs/automation${path}`,{method:'POST',headers:{origin:'http://localhost:4173','content-type':'application/json',cookie:h.alpha,'Idempotency-Key':k},body:JSON.stringify(payload)});return {status:response.status,...await response.json()};};
+    const issued=await request(nativeServer,'/service-credentials',body,key);assert.equal(issued.status,201,JSON.stringify(issued));assert.deepEqual(issued.data.grants,['cs.automation.read','cs.automation.execute','saas.use']);
+    const replay=await request(switchedServer,'/service-credentials',body,key);assert.equal(replay.status,200,JSON.stringify(replay));assert.equal(replay.data.sessionId,issued.data.sessionId);assert.equal(replay.data.tokenAvailable,false);assert.equal(replay.data.token,undefined);assert.deepEqual(replay.data.grants,issued.data.grants);
+    const revoked=await request(switchedServer,`/service-credentials/${issued.data.sessionId}/revoke`,{},randomUUID());assert.equal(revoked.status,200,JSON.stringify(revoked));assert.equal((await h.db.collection('sessions').findOne({_id:issued.data.sessionId})).revoked,true);
+  }finally{await Promise.all([nativeServer,switchedServer].map(server=>new Promise(r=>server.close(r))));}
   await assert.rejects(initialize({ ...options, integrations: { effects: { mode: 'NATIVE_UNVERIFIED' } } }), { code: 'EFFECT_LOCAL_OWNED_DATABASE_REQUIRED' });
   await assert.rejects(initialize({ ...options, ownedRunMarker: randomUUID(), integrations: { effects: { mode: 'NATIVE_LOCAL_N8N', nativeN8n } } }), { code: 'NATIVE_OWNERSHIP_REQUIRED' });
 });

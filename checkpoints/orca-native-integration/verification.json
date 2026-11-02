@@ -107,5 +107,17 @@
     },
     "decision": "msg_846e1f78532d native-only service role",
     "skip": 0
+  },
+  "roleModeSwitch": {
+    "log": "role-mode-switch-final.tap",
+    "skip": 0,
+    "command": "node --test --test-concurrency=1 apps/portfolio-api/test/native-n8n-composition.test.mjs packages/tenant-lifecycle/registry-integrity.test.mjs",
+    "exit": 0,
+    "decision": "msg_fbf2a3dbad83",
+    "fail": 0,
+    "base": "3385ba5d0bdd2593a42f32f65f8f28df275755e7",
+    "qualification": "Final source dirty on3385ba5; source bytes to be committed; no n8n",
+    "pass": 2,
+    "sha256": "52edc08849e4f44fd86d83ea82e524c8b0f830605084fc8bec1b9791baa28f42"
   }
 }
