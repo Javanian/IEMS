@@ -335,7 +335,7 @@
       ]
     },
     "apps/portfolio-api/src/automation.mjs": {
-      "sha256": "7f01aa582a535ed604b657c56d1d400e38f760abe71addde742d47b246d1a011",
+      "sha256": "30a88795e140671d86ef65e48d80f71ebab6ec4bf8559f63eac4e516169c765d",
       "fields": [
         "ABANDON",
         "ACCEPTED",
@@ -581,6 +581,7 @@
         "automationApprovalFence",
         "automationFence",
         "automationOperator",
+        "automationRoles",
         "automationService",
         "automationViewer",
         "automation_audit_logs",
@@ -775,6 +776,7 @@
         "name",
         "namespace",
         "native",
+        "nativeAutomationService",
         "nativeN8n",
         "nativeN8nProvider",
         "ne",
@@ -987,6 +989,7 @@
         "updatedAt",
         "upsert",
         "url",
+        "use",
         "userId",
         "users",
         "value",

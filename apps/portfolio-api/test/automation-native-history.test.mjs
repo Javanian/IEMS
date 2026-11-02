@@ -38,6 +38,22 @@ test('native handlers preserve original intent and refuse synthetic settlement',
   const digest=async()=>{const result=await call('/digest/dispatch',{mode:'DEMO',periodKey:randomUUID()});assert.equal(result.status,200,JSON.stringify(result));return db.collection('cs_outbox').findOne({_id:result.data.deliveryId});};
   const control=(id,phase,action='continue')=>send(`/saas/effects/${id}/${action}`,{body:phase?{phase}:{}});
   let delivery,parentId,attempt;
+  await t.test('enrolled scoped service owns its intent, replays once and cannot perform human or subscription administration',async()=>{
+    const cookie='portfolio_session='+service.token,key=randomUUID(),payload={mode:'DEMO',periodKey:randomUUID()},before=BigInt((await sub()).usage.apiCalls);
+    assert.deepEqual(service.grants,['cs.automation.read','cs.automation.execute','saas.use']);
+    assert.equal((await db.collection('memberships').findOne({_id:service.membershipId})).roles[0].role,'nativeAutomationService');
+    const request=()=>send('/cs/automation/digest/dispatch',{body:payload,cookie,headers:{'Idempotency-Key':key}}),first=await request();assert.equal(first.status,200,JSON.stringify(first));
+    const d=await db.collection('cs_outbox').findOne({_id:first.data.deliveryId}),command=await db.collection('saasEffectCommands').findOne({_id:d.controlCommandId});assert.equal(command.actor.userId,service.userId);assert.equal(command.actor.membershipId,service.membershipId);
+    assert.equal(BigInt((await sub()).usage.apiCalls),before+1n);assert.equal((await request()).data.deliveryId,d._id);assert.equal(BigInt((await sub()).usage.apiCalls),before+1n);
+    const human=await control(command._id,d._id);assert.equal(human.status,403);assert.equal(human.error.code,'EFFECT_ORIGINAL_ACTOR_CHANGED');assert.equal(await db.collection('saasEffectAttempts').countDocuments({commandId:command._id}),0);
+    assert.equal((await send(`/saas/effects/${command._id}`,{cookie})).status,200);assert.equal((await send(`/saas/effects/${command._id}`,{cookie:h.beta})).status,404);
+    for(const [path,body] of [['/cs/automation/pause',{paused:true}],['/cs/automation/service-credentials',{label:'Forbidden service mint'}],['/saas/subscribe',{key:randomUUID(),expectedRevision:1,reason:'Forbidden service administration',plan:'pilot',admissionProfile}]])assert.equal((await send(path,{body,cookie,headers:{'Idempotency-Key':randomUUID()}})).status,403,path);
+    await db.collection('sessions').updateOne({_id:service.sessionId},{$set:{revoked:true}});try{assert.equal((await request()).status,401);}finally{await db.collection('sessions').updateOne({_id:service.sessionId},{$set:{revoked:false}});}
+    assert.equal(BigInt((await sub()).usage.apiCalls),before+1n);
+    const other=await call('/service-credentials',{label:'Revocable native service',ttlMinutes:30});assert.equal(other.status,201,JSON.stringify(other));
+    assert.equal((await send(`/cs/automation/service-credentials/${other.data.sessionId}/revoke`,{body:{},cookie:h.beta,headers:{'Idempotency-Key':randomUUID()}})).status,404);
+    const revoked=await call(`/service-credentials/${other.data.sessionId}/revoke`,{});assert.equal(revoked.status,200,JSON.stringify(revoked));assert.equal((await db.collection('sessions').findOne({_id:other.data.sessionId})).revoked,true);
+  });
   await t.test('recovery uses a frozen native child; BEGIN stays unknown and never becomes preview proof',async()=>{
     delivery=await digest();const child=await db.collection('saasEffectCommands').findOne({_id:delivery.controlCommandId});assert.equal(child.kind,'automation.native-delivery');assert.equal(child.plan.native.providerId,'native.n8n');
     const accepted=await call('/reconcile',{deliveryIds:[delivery._id]});assert.equal(accepted.status,202,JSON.stringify(accepted));parentId=accepted.effect.commandId;

@@ -21,6 +21,11 @@ test('native composition is explicit and owned; existing simulation identity is 
   const local = await initialize({ ...options, integrations: { effects: { mode: 'LOCAL_SIMULATED' } } });
   for (const id of ['local.engine', 'local.cs', 'local.ai-index', 'local.vendor']) assert.equal(local.separateEffects.hasAdapter(id), true);
   assert.equal(local.separateEffects.hasAdapter('native.n8n'), false);
+  const localServer=createApp(local,{origins:['http://localhost:4173']}).listen(0,'127.0.0.1');await new Promise(r=>localServer.once('listening',r));
+  try{
+    const response=await fetch(`http://127.0.0.1:${localServer.address().port}/api/cs/automation/service-credentials`,{method:'POST',headers:{origin:'http://localhost:4173','content-type':'application/json',cookie:h.alpha,'Idempotency-Key':randomUUID()},body:JSON.stringify({label:'Unchanged simulated service',ttlMinutes:30})});assert.equal(response.status,201);
+    const issued=(await response.json()).data;assert.deepEqual(issued.grants,['cs.automation.read','cs.automation.execute']);assert.equal((await h.db.collection('memberships').findOne({_id:issued.membershipId})).roles[0].role,'automationService');
+  }finally{await new Promise(r=>localServer.close(r));}
   const nativeN8n = { root, instanceId, evidenceClass: 'SYNTHETIC', webhookToken: randomUUID(),
     n8nPackageRoot: process.env.IEMS_N8N_PACKAGE_ROOT ?? 'D:/IEMS-Automation-Lab/TPR-157-e4efd721-native/runtime/node_modules/n8n',
     workflows: [{ workflowId: 'fixture', workflowHash: contentHash('fixture'), inputNode: 'IEMS_NATIVE_INPUT', resultNode: 'IEMS_NATIVE_RESULT', webhookUrl: 'http://127.0.0.1:32743/webhook/not-called' }] };

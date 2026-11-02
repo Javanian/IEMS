@@ -7,7 +7,8 @@ export const automationRoles = {
   automationViewer: ['cs.automation.read'],
   automationOperator: ['cs.automation.read', 'cs.automation.execute'],
   automationAdmin: ['cs.automation.read', 'cs.automation.execute', 'cs.automation.admin'],
-  automationService: ['cs.automation.read', 'cs.automation.execute']
+  automationService: ['cs.automation.read', 'cs.automation.execute'],
+  nativeAutomationService: ['cs.automation.read', 'cs.automation.execute', 'saas.use']
 };
 export const automationActions = ['cs.automation.read', 'cs.automation.execute', 'cs.automation.admin'];
 const c = (runtime, name) => runtime.db.collection(name);
@@ -337,7 +338,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     const row=await c(runtime,'sessions').findOneAndUpdate({_id:sessionId,tenantId:req.scope.tenantId,selectedPlantId:req.scope.selectedPlantId,automationService:true},{$inc:{credentialFence:1}},{session,returnDocument:'after'});
     if(!row||expected&&(row.userId!==expected.userId||row.membershipId!==expected.membershipId||row.label!==expected.label||new Date(row.expiresAt).toISOString()!==new Date(expected.expiresAt).toISOString()))fail(404,'NOT_FOUND');
     const member=await c(runtime,'memberships').findOne({_id:row.membershipId,userId:row.userId,tenantId:req.scope.tenantId,active:true},{session});const user=await c(runtime,'users').findOne({_id:row.userId,active:true},{session});
-    if(!member||!user||!member.plantIds.includes(req.scope.selectedPlantId)||!member.roles.some(r=>r.role==='automationService'))fail(403,'SOURCE_AUTHORITY_CHANGED');return row;
+    if(!member||!user||!member.plantIds.includes(req.scope.selectedPlantId)||!member.roles.some(r=>r.role==='automationService'||nativeMode&&r.role==='nativeAutomationService'))fail(403,'SOURCE_AUTHORITY_CHANGED');return row;
   };
   const recheckDelivery=async(req,session,deliveryId,expected,readOnly=false)=>{
     const d=readOnly?await c(runtime,'cs_outbox').findOne({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{session}):await c(runtime,'cs_outbox').findOneAndUpdate({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{$inc:{automationFence:1}},{session,returnDocument:'after'});
@@ -412,18 +413,18 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     await human(req, 'cs.automation.admin'); fields(req.body, ['label', 'ttlMinutes']);
     const label = text(req.body.label || 'n8n local orchestrator', 80), ttlMinutes = Number(req.body.ttlMinutes ?? 60);
     if (!Number.isSafeInteger(ttlMinutes) || ttlMinutes < 1 || ttlMinutes > 1440) fail(400, 'INVALID_EXPIRY');
-    let secret;
+    let secret;const serviceRole=nativeMode?'nativeAutomationService':'automationService';
     const out=await adminOperation(req,'SERVICE_CREDENTIAL_ISSUE','service-credential:create',{label,ttlMinutes},async session=>{
       const grant=await auth(req,'cs.automation.admin',session),plant=await c(runtime,'plants').findOne({_id:req.scope.selectedPlantId,tenantId:req.scope.tenantId,active:true},{session});
       if(!plant||plant.legalEntityId!==grant.legalEntityId)fail(404,'NOT_FOUND');
       const userId=randomUUID(),membershipId=randomUUID(),sessionId=randomUUID(),token=randomBytes(32).toString('base64url'),createdAt=new Date(),expiresAt=new Date(createdAt.getTime()+ttlMinutes*60000);secret=token;
       await c(runtime,'users').insertOne({_id:userId,active:true,version:1},{session});
-      await c(runtime,'memberships').insertOne({_id:membershipId,tenantId:req.scope.tenantId,userId,legalEntityIds:[plant.legalEntityId],plantIds:[plant._id],tenantWide:false,roles:[{role:'automationService',plantIds:[plant._id],tenantWide:false}],active:true,version:1},{session});
+      await c(runtime,'memberships').insertOne({_id:membershipId,tenantId:req.scope.tenantId,userId,legalEntityIds:[plant.legalEntityId],plantIds:[plant._id],tenantWide:false,roles:[{role:serviceRole,plantIds:[plant._id],tenantWide:false}],active:true,version:1},{session});
       await c(runtime,'sessions').insertOne({_id:sessionId,userId,tenantId:req.scope.tenantId,selectedPlantId:plant._id,membershipId,membershipVersion:1,tokenHash:hashText(token),expiresAt,revoked:false,automationService:true,label},{session});
       await c(runtime,'audit').insertOne({_id:randomUUID(),tenantId:req.scope.tenantId,kind:'sessions.issued',subjectId:sessionId,occurredAt:createdAt},{session});
       return {sessionId,userId,membershipId,label,expiresAt:expiresAt.toISOString(),deliveryProtocol:'ONE_TIME_NO_RECOVERY_V1'};
     });
-    res.set('Cache-Control','no-store');res.status(out.replayed?200:201).json({data:{...out,...(!out.replayed?{token:secret}:{tokenAvailable:false,recovery:'REVOKE_AND_REISSUE'}),scope:scope(req),grants:['cs.automation.read','cs.automation.execute']}});
+    res.set('Cache-Control','no-store');res.status(out.replayed?200:201).json({data:{...out,...(!out.replayed?{token:secret}:{tokenAvailable:false,recovery:'REVOKE_AND_REISSUE'}),scope:scope(req),grants:[...automationRoles[serviceRole]]}});
   });
   app.post('/api/cs/automation/service-credentials/:id/revoke',async(req,res)=>{
     await human(req,'cs.automation.admin');fields(req.body,[]);const sessionId=id(req.params.id);

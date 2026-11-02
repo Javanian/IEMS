@@ -82,5 +82,30 @@
     "IEMS_NATIVE_TEST_ROOT": "task-owned external synthetic-resume directory",
     "node": "24.19.0"
   },
-  "product": "UNACCEPTED"
+  "product": "UNACCEPTED",
+  "serviceCorrection": {
+    "log": "native-role-final.tap",
+    "priorApproval": "SUSPENDED before runtime",
+    "command": "node --test --test-concurrency=1 apps/portfolio-api/test/automation-native-history.test.mjs apps/portfolio-api/test/native-n8n-composition.test.mjs packages/tenant-lifecycle/registry-integrity.test.mjs",
+    "priorReviewedSha": "39f9c1e05a05ec72328064b8e453e4f0fa826d53",
+    "qualification": "Final native-only role; same owned dirty source to be committed",
+    "fail": 0,
+    "sha256": "701993cf6c93f3c014f5d01ab9f7d10eef4e2942fbb32aab46e44087d5ca4f32",
+    "exit": 0,
+    "confirmedFailure": {
+      "sha256": "5efc660e32efa0d6135110b2bc678157f70d2466f6c20b901356125b1da27863",
+      "code": "SCOPE_DENIED",
+      "log": "service-authority-probe.log",
+      "serviceStatus": 403
+    },
+    "pass": 12,
+    "interim": {
+      "qualification": "Superseded broad-role variant, not final source",
+      "sha256": "f0c2d0c1c7b5e8b37081ffb76df159c066109671251487f0da55fdc62c582e0e",
+      "log": "service-correction.tap",
+      "pass": 18
+    },
+    "decision": "msg_846e1f78532d native-only service role",
+    "skip": 0
+  }
 }

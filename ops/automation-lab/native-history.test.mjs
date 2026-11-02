@@ -29,10 +29,11 @@ after(async()=>{if(lab)await lab.close();},{timeout:60000});
 
 test('actual owned n8n history and SMTP preserve managed attempt identity',{skip:!enabled,timeout:180000},async t=>{
   const sub=()=>db.collection('saasSubscriptions').findOne({tenantId:tenant});
-  const control=(commandId,phase,action='continue')=>send(`/saas/effects/${commandId}/${action}`,phase?{phase}:{});
+  const actors=new Map();
+  const control=(commandId,phase,action='continue')=>send(`/saas/effects/${commandId}/${action}`,phase?{phase}:{},{cookie:actors.get(commandId)??cookie});
   const attempt=commandId=>db.collection('saasEffectAttempts').findOne({commandId},{sort:{ordinal:-1}});
   const digest=async()=>{const result=await call('/digest/dispatch',{mode:'DEMO',periodKey:randomUUID()});assert.equal(result.status,200,JSON.stringify(result));return db.collection('cs_outbox').findOne({_id:result.data.deliveryId});};
-  const recover=async delivery=>{const r=await call('/reconcile',{deliveryIds:[delivery._id]});assert.equal(r.status,202,JSON.stringify(r));return r.effect.commandId;};
+  const recover=async delivery=>{const child=await db.collection('saasEffectCommands').findOne({_id:delivery.controlCommandId}),service=await db.collection('sessions').findOne({_id:lab.config.serviceSessionId}),actor=child.actor.userId===service.userId?'portfolio_session='+lab.config.serviceToken:cookie;const r=await call('/reconcile',{deliveryIds:[delivery._id]},randomUUID(),{cookie:actor});assert.equal(r.status,202,JSON.stringify(r));actors.set(delivery.controlCommandId,actor);actors.set(r.effect.commandId,actor);return r.effect.commandId;};
   const exact=async delivery=>{
     const a=await attempt(delivery.controlCommandId),binding=nativeN8nBinding(a,{providerId:'native.n8n',instanceId:lab.config.instanceId}),workflow=lab.config.nativeBindings.find(w=>w.workflowId===binding.workflowId);
     const proof=await until(()=>{const p=inspectNativeN8nHistory({binding,workflow,executions:history(lab),mail:mail(lab)});return p.state==='TERMINAL'&&p;});
@@ -57,7 +58,7 @@ test('actual owned n8n history and SMTP preserve managed attempt identity',{skip
     originalParent=await recover(original);const usage=(await sub()).usage.apiCalls;
     assert.equal(BigInt(usage),initialUsage+3n,'One separate explicit recovery selection root; its delivery child is nonbillable');
     const outcomes=await Promise.all([control(originalParent),control(originalParent)]);assert.ok(outcomes.some(r=>r.status===200),JSON.stringify(outcomes));
-    originalProof=await exact(original);if((await attempt(original.controlCommandId)).state!=='SETTLED')assert.equal((await send(`/saas/effects/${originalParent}/children/${original.controlCommandId}/continue`,{phase:original._id})).status,200);
+    originalProof=await exact(original);if((await attempt(original.controlCommandId)).state!=='SETTLED')assert.equal((await send(`/saas/effects/${originalParent}/children/${original.controlCommandId}/continue`,{phase:original._id},{cookie:actors.get(originalParent)})).status,200);
     assert.equal((await db.collection('cs_outbox').findOne({_id:original._id})).deliveryState,'ACCEPTED_LOCAL');assert.equal((await sub()).usage.apiCalls,usage);
     assert.deepEqual((await db.collection('automation_audit_logs').findOne({_id:engineReceipt._id})).result,engineReceipt.result);
     const child=await db.collection('saasEffectCommands').findOne({_id:original.controlCommandId});assert.deepEqual((await db.collection('automation_audit_logs').findOne(child.owner.identity)).result,child.acceptedResult);
@@ -88,12 +89,12 @@ test('actual owned n8n history and SMTP preserve managed attempt identity',{skip
 
   await t.test('all status reads and scoped negatives leave the database unchanged',async()=>{
     const snapshot=async()=>{const rows={};for(const {name} of await db.listCollections().toArray())rows[name]=await db.collection(name).find({}).sort({_id:1}).toArray();return rows;};
-    const before=await snapshot();for(const id of [original.controlCommandId,originalParent])assert.equal((await send(`/saas/effects/${id}`)).status,200);
+    const before=await snapshot();for(const id of [original.controlCommandId,originalParent])assert.equal((await send(`/saas/effects/${id}`,undefined,{cookie:actors.get(id)})).status,200);
     assert.equal((await send(`/saas/effects/${original.controlCommandId}`,undefined,{cookie:beta})).status,404);
     assert.deepEqual(await snapshot(),before);
     assert.equal((await call('/reconcile',{mode:'LOCAL_OBSERVE_V1',deliveryIds:[original._id]})).status,409);
     assert.equal((await call('/reconcile',{deliveryIds:[original._id]},randomUUID(),{headers:{origin:'http://untrusted.invalid'}})).status,403);
-    assert.equal((await send(`/saas/effects/${originalParent}/children/${randomUUID()}/continue`,{phase:original._id})).status,404);
+    assert.equal((await send(`/saas/effects/${originalParent}/children/${randomUUID()}/continue`,{phase:original._id},{cookie:actors.get(originalParent)})).status,404);
   });
 
   await t.test('service revocation and source mutation before BEGIN prevent native send',async()=>{
