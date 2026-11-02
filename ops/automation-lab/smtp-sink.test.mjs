@@ -7,7 +7,7 @@ import { createSmtpSink } from './smtp-sink.mjs';
 import { submitLocalMail } from '../../apps/portfolio-api/src/automation-transport.mjs';
 
 test('private SMTP capture persists genuine task-bound transport evidence across restart', async t => {
-  const scratch = process.env.PAPERCLIP_RUN_SCRATCH_DIR || process.env.PAPERCLIP_SCRATCH_DIR;
+  const scratch = process.env.IEMS_NATIVE_TEST_ROOT || process.env.PAPERCLIP_RUN_SCRATCH_DIR || process.env.PAPERCLIP_SCRATCH_DIR;
   assert.ok(scratch, 'Run-owned Paperclip scratch directory is required');
   const directory = mkdtempSync(join(scratch, 'iems-smtp-owned-'));
   const token = randomUUID(), dataFile = join(directory, 'receipts.jsonl');
@@ -41,5 +41,16 @@ test('private SMTP capture persists genuine task-bound transport evidence across
     await restarted.start();
     assert.equal(restarted.emails.length, 1);
     assert.equal(restarted.emails[0].headers['message-id'], delivery.messageId);
+  });
+  await t.test('native DATA binds the actual acceptance UUID and deduplicates only the identical wire message', async () => {
+    const ports = await (async()=>{await restarted.stop();restarted=createSmtpSink({smtpPort:0,httpPort:0,token,dataFile});return restarted.start();})();
+    const options={smtpPort:ports.smtpPort,native:{correlationId:createHash('sha256').update('native-correlation').digest('hex'),bindingHash:createHash('sha256').update('binding').digest('hex')}};
+    const first=await submitLocalMail(delivery,options),second=await submitLocalMail(delivery,options);
+    assert.equal(first.receiptId,second.receiptId);
+    const rows=restarted.emails.filter(row=>row.headers['x-iems-native-correlation']===options.native.correlationId);
+    assert.equal(rows.length,1);assert.equal(rows[0].id,first.receiptId);
+    assert.equal(rows[0].headers['x-iems-native-binding'],options.native.bindingHash);
+    await assert.rejects(submitLocalMail({...delivery,body:'conflicting content'},options),/SMTP_REJECTED/);
+    assert.equal(restarted.emails.length,2);
   });
 });

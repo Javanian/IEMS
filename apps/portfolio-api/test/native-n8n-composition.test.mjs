@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { startOwned } from './support/owned-mongo.mjs';
-import { initialize } from '../src/app.mjs';
+import { initialize, createApp } from '../src/app.mjs';
 import { contentHash } from '../../../packages/tenant-foundation/commands.mjs';
 import { isNativeN8nProvider } from '../../../packages/tenant-lifecycle/native-n8n-provider.mjs';
 
@@ -25,10 +25,16 @@ test('native composition is explicit and owned; existing simulation identity is 
     n8nPackageRoot: process.env.IEMS_N8N_PACKAGE_ROOT ?? 'D:/IEMS-Automation-Lab/TPR-157-e4efd721-native/runtime/node_modules/n8n',
     workflows: [{ workflowId: 'fixture', workflowHash: contentHash('fixture'), inputNode: 'IEMS_NATIVE_INPUT', resultNode: 'IEMS_NATIVE_RESULT', webhookUrl: 'http://127.0.0.1:32743/webhook/not-called' }] };
   const native = await initialize({ ...options, integrations: { effects: { mode: 'NATIVE_LOCAL_N8N', nativeN8n } } });
+  createApp(native,{origins:['http://localhost:4173']});
   assert.ok(isNativeN8nProvider(native.nativeN8nProvider)); assert.equal(native.nativeN8nProvider.evidenceClass, 'SYNTHETIC');
   assert.equal(native.separateEffects.hasAdapter('native.n8n'), true); assert.equal(native.separateEffects.hasAdapter('local.engine'), false);
-  assert.equal(native.separateEffects.supports('automation.native-engine'), false);
-  assert.equal(native.separateEffects.supports('automation.native-delivery'), false);
+  assert.equal(native.separateEffects.hasAdapter('local.automation-recovery'), true);
+  assert.equal(native.separateEffects.hasAdapter('local.cs'), false);
+  assert.equal(native.separateEffects.supports('automation.native-engine'), true);
+  assert.equal(native.separateEffects.supports('automation.native-delivery'), true);
+  assert.equal(native.separateEffects.supports('automation.recovery'), true);
+  assert.equal(native.separateEffects.supports('automation.engine'), false);
+  assert.equal(native.separateEffects.supports('automation.local-delivery'), false);
   await assert.rejects(initialize({ ...options, integrations: { effects: { mode: 'NATIVE_UNVERIFIED' } } }), { code: 'EFFECT_LOCAL_OWNED_DATABASE_REQUIRED' });
   await assert.rejects(initialize({ ...options, ownedRunMarker: randomUUID(), integrations: { effects: { mode: 'NATIVE_LOCAL_N8N', nativeN8n } } }), { code: 'NATIVE_OWNERSHIP_REQUIRED' });
 });

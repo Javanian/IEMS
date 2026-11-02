@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { submitLocalMail } from '../../apps/portfolio-api/src/automation-transport.mjs';
 
 const credential = { httpHeaderAuth: { id: 'iems-service-api', name: 'IEMS scoped automation service' } };
 const api = 'http://127.0.0.1:4319/api/cs/automation';
@@ -33,14 +34,44 @@ const resolution = make('wf-approved-resolution', 'IEMS - Approved resolution no
 ], [['Operator trigger', 'Read approved draft'], ['Read approved draft', 'Dispatch approved immutable content'], ['Dispatch approved immutable content', 'Execution reference']]);
 const recovery = make('wf-automation-recovery', 'IEMS - Durable delivery reconciliation', [
   webhook('iems-automation-recovery'), schedule('Recovery schedule', { field: 'minutes', minutesInterval: 1 }),
-  http('Reconcile durable tasks', '/reconcile', 'POST', '={}', null, 460), result(740)
+  http('Reconcile durable tasks', '/reconcile', 'POST', '={}', '={{ "recovery:" + $now.toUTC().startOf("minute").toFormat("yyyyMMddHHmm") }}', 460), result(740)
 ], [['Operator trigger', 'Reconcile durable tasks'], ['Recovery schedule', 'Reconcile durable tasks'], ['Reconcile durable tasks', 'Execution reference']]);
 const errors = make('wf-automation-error', 'IEMS - Record sanitized engine failure', [
   node('Engine failure', 'errorTrigger', 1, {}, 160),
   http('Record failure reference', '/engine-error', 'POST', '={{ { executionId: String($json.execution?.id || "unknown"), workflowId: String($json.workflow?.id || "unknown"), message: "n8n execution failed; inspect the local execution reference" } }}', null, 460)
 ], [['Engine failure', 'Record failure reference']], false);
 for (const workflow of [sla, digest, resolution, recovery, errors]) {
+  if (workflow !== errors) addNativeBoundary(workflow);
   const hash = createHash('sha256').update(JSON.stringify(workflow)).digest('hex');
   workflow.versionId = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
   writeFileSync(fileURLToPath(new URL(`./workflows/${workflow.id}.json`, import.meta.url)), JSON.stringify(workflow, null, 2) + '\n');
+}
+
+// The imported revision pins the SMTP endpoint; webhook payloads cannot select a transport.
+function addNativeBoundary(workflow) {
+  const input = node('IEMS_NATIVE_INPUT', 'code', 2, { jsCode: 'return $input.all();' }, 280);
+  const branch = node('Native mail delivery', 'if', 2.2, { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 }, conditions: [{ id: 'native-mail', leftValue: '={{ !!$json.body?.iemsNative?.deliveryId }}', rightValue: true, operator: { type: 'boolean', operation: 'true', singleValue: true } }], combinator: 'and' }, options: {} }, 340);
+  const normalize = node('Original operation input', 'code', 2, { jsCode: 'const request=$json;return [{json:request.body?.iemsNative?{...request,body:request.body.payload}:request}];' }, 380);
+  const hashing = `const crypto=require('crypto');const canonical=v=>v===null||typeof v!=='object'?JSON.stringify(v):Array.isArray(v)?'['+v.map(canonical).join(',')+']':'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';const hash=v=>crypto.createHash('sha256').update(canonical(v)).digest('hex');`;
+  const send = node('Native SMTP DATA', 'code', 2, { jsCode: `${hashing}
+const net=require('net');
+${submitLocalMail.toString()}
+const {iemsNative:binding,payload}= $json.body;
+if(hash(payload)!==binding.payloadHash||payload._id!==binding.deliveryId||payload.messageId!==binding.messageId||payload.tenantId!==binding.tenantId||payload.plantId!==binding.plantId)throw new Error('NATIVE_PAYLOAD_MISMATCH');
+const receipt=await submitLocalMail(payload,{smtpPort:2527,timeoutMs:5000,native:{correlationId:binding.correlationId,bindingHash:hash(binding)}});
+return [{json:{state:'ACCEPTED_LOCAL',smtpReceiptId:receipt.receiptId,messageId:payload.messageId}}];` }, 900, 100);
+  const terminal = node('IEMS_NATIVE_RESULT', 'code', 2, { jsCode: `${hashing}
+let binding;try{binding=$('IEMS_NATIVE_INPUT').first().json.body?.iemsNative;}catch{return $input.all();}
+if(!binding)return $input.all();
+const result=$json;
+return [{json:{iemsNativeResult:{schema:'IEMS_NATIVE_N8N_RESULT_V1',bindingHash:hash(binding),state:'COMPLETED',resultHash:hash(result),smtpReceiptId:binding.deliveryId?result.smtpReceiptId:null}}}];` }, 1340);
+  const first = workflow.connections['Operator trigger'].main[0][0].node;
+  const edge = to => ({ main: [[{ node: to, type: 'main', index: 0 }]] });
+  workflow.nodes.push(input, branch, normalize, send, terminal);
+  workflow.connections['Operator trigger'] = edge(input.name);
+  workflow.connections[input.name] = edge(branch.name);
+  workflow.connections[branch.name] = { main: [[{ node: send.name, type: 'main', index: 0 }], [{ node: normalize.name, type: 'main', index: 0 }]] };
+  workflow.connections[normalize.name] = edge(first);
+  workflow.connections[send.name] = edge(terminal.name);
+  workflow.connections['Execution reference'] = edge(terminal.name);
 }

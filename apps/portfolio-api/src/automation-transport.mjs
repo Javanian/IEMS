@@ -20,6 +20,11 @@ export async function submitLocalMail(delivery, options = {}) {
     `X-IEMS-Tenant-ID: ${delivery.tenantId}`, `X-IEMS-Plant-ID: ${delivery.plantId}`,
     `X-IEMS-Content-Hash: ${delivery.contentHash}`, 'Content-Type: text/plain; charset=utf-8'
   ];
+  if (options.native) {
+    const { correlationId, bindingHash } = options.native;
+    if (![correlationId, bindingHash].every(value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value))) throw new Error('INVALID_NATIVE_MAIL_BINDING');
+    headers.push(`X-IEMS-Native-Correlation: ${correlationId}`, `X-IEMS-Native-Binding: ${bindingHash}`);
+  }
   const body = delivery.body.replace(/\r?\n/g, '\r\n').replace(/^\./gm, '..');
   return new Promise((resolve, reject) => {
     const socket = net.createConnection({ host: '127.0.0.1', port });
@@ -48,7 +53,11 @@ export async function submitLocalMail(delivery, options = {}) {
         if (step === 2) socket.write(`RCPT TO:<${delivery.recipient}>\r\n`);
         if (step === 3) socket.write('DATA\r\n');
         if (step === 4) { submitted = true; socket.write(`${headers.join('\r\n')}\r\n\r\n${body}\r\n.\r\n`); }
-        if (step === 5) return done(null, { submitted: true });
+        if (step === 5) {
+          const receiptId = /queued as ([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(line)?.[1];
+          if (options.native && !receiptId) return done(new Error('SMTP_ACCEPTANCE_ID_REQUIRED'));
+          return done(null, { submitted: true, ...(receiptId ? { receiptId } : {}) });
+        }
         step += 1;
       }
     });

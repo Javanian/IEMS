@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { submitLocalMail, verifiedSinkReceipt, localUrl, hashText } from './automation-transport.mjs';
 import { effectHash, effectTransaction } from '../../../packages/tenant-lifecycle/effects.mjs';
+import { contentHash } from '../../../packages/tenant-foundation/commands.mjs';
 
 export const automationRoles = {
   automationViewer: ['cs.automation.read'],
@@ -35,6 +36,24 @@ export async function initializeAutomation(db) {
 export function installAutomation(app, runtime, { fail, id, fields }) {
   const cfg = () => runtime.automation || {};
   const effects=runtime.separateEffects,recoveryRequests=new WeakMap(),intentCandidates=new WeakMap();
+  const nativeMode = Boolean(runtime.nativeN8nProvider && effects?.hasAdapter('native.n8n'));
+  const deliveryKind = nativeMode ? 'automation.native-delivery' : 'automation.local-delivery';
+  const engineKind = nativeMode ? 'automation.native-engine' : 'automation.engine';
+  const effectMode = nativeMode ? 'NATIVE_LOCAL_N8N' : 'LOCAL_SIMULATED';
+  const nativePlan = workflowId => {
+    const workflow = runtime.integrations.effects.nativeN8n.workflows.find(row => row.workflowId === workflowId);
+    if (!workflow) fail(503, 'NATIVE_WORKFLOW_NOT_CONFIGURED');
+    return { providerId: runtime.nativeN8nProvider.id, instanceId: runtime.nativeN8nProvider.instanceId, workflowId, workflowHash: workflow.workflowHash };
+  };
+  const nativeMailPayload = d => Object.fromEntries(['_id','tenantId','plantId','recipient','subject','body','contentHash','messageId'].map(k => [k,d[k]]));
+  async function nativeService(command, session, readOnly=false) {
+    const token=cfg().serviceToken||process.env.IEMS_AUTOMATION_SERVICE_TOKEN;
+    if(!token)fail(503,'ENGINE_SERVICE_NOT_CONFIGURED');
+    let actor;try{actor=await runtime.foundation.authenticate(token);}catch{fail(403,'ENGINE_SERVICE_CREDENTIAL_EXPIRED');}
+    const grant=readOnly?await runtime.foundation.authorize(actor,{tenantId:command.tenantId,plantId:command.plantId,action:'cs.automation.execute'}):await runtime.foundation.authorizeInTransaction(actor,{tenantId:command.tenantId,plantId:command.plantId,action:'cs.automation.execute'},{session});
+    const row=await c(runtime,'sessions').findOne({_id:command.plan.serviceSessionId,tenantId:command.tenantId,userId:grant.userId,membershipId:grant.membershipId,tokenHash:hashText(token),automationService:true,revoked:false,expiresAt:{$gt:new Date()}},{session});
+    if(!row||actor.selectedPlantId!==command.plantId||grant.legalEntityId!==command.legalEntityId)fail(403,'ENGINE_SCOPE_DENIED');
+  }
   const auth = async (req, action = 'cs.automation.read', session) => session
     ? runtime.foundation.authorizeInTransaction(req.scope, { ...scope(req), action }, { session })
     : runtime.foundation.authorize(req.scope, { ...scope(req), action });
@@ -96,7 +115,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
           const mark=result=>Object.defineProperty(result,localIntent,{value:admission?.state!=='LEGACY_UNENROLLED'});
           if (previous) {await reviewManagedRetry(req,session,action,previous,idem);return mark(previous);}
           const result = await effect(session);
-          if(['RESOLUTION_DISPATCH_INTENT','DIGEST_DISPATCH_INTENT'].includes(action)&&effects?.supports('automation.local-delivery'))await managedDeliveryIntent(req,session,{action,entityId,payload,idem,result});
+          if(['RESOLUTION_DISPATCH_INTENT','DIGEST_DISPATCH_INTENT'].includes(action)&&effects?.supports(deliveryKind))await managedDeliveryIntent(req,session,{action,entityId,payload,idem,result});
           const row = await audit(req, session, action, entityId, result, { idempotencyKey: idem, payloadHash: digest(payload) });
           await reviewManagedRetry(req,session,action,result,idem);return mark({ ...result, auditId: row._id, idempotencyKey: idem, replayed: false });
         },admittedOperations.has(action)?'RECEIPTED':'UNSUPPORTED');
@@ -155,16 +174,16 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     }
   }
   const deliveryOrigin=(actorScope,plan)=>({context:{scope:actorScope},authorize:async({command,session,observation})=>{
-    const request={scope:actorScope},grant=await auth(request,'cs.automation.execute',session);if(!observation){await runtime.saasAdmission.authorize(actorScope,{plantId:grant.plantId,session});if((await c(runtime,'automation_settings').findOne({_id:`${grant.tenantId}:${grant.plantId}`},{session}))?.paused)fail(409,'AUTOMATION_PAUSED');}await validateDeliverySource(request,command,session);return grant;
+    const request={scope:actorScope},grant=await auth(request,'cs.automation.execute',session);if(!observation){await runtime.saasAdmission.authorize(actorScope,{plantId:grant.plantId,session});if((await c(runtime,'automation_settings').findOne({_id:`${grant.tenantId}:${grant.plantId}`},{session}))?.paused)fail(409,'AUTOMATION_PAUSED');}await validateDeliverySource(request,command,session);if(command.kind==='automation.native-delivery')await nativeService(command,session);return grant;
   }});
   async function managedDeliveryIntent(req,session,{action,entityId,payload,idem,result}){
-    const candidate=intentCandidates.get(session);if(candidate?.transaction!==session.serverSession?.txnNumber?.toString()||!candidate.ids.has(result.deliveryId))fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');const grant=await auth(req,'cs.automation.execute',session),identity={tenantId:grant.tenantId,idempotencyKey:idem},delivery=await c(runtime,'cs_outbox').findOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION'},{session});if(!delivery)fail(409,'DELIVERY_RECEIPT_SOURCE_CHANGED');const approvalHash=delivery.draftId?(await getDraft(req,delivery.draftId,session)).approvalHash:null,plan={action,entityId,payload,deliveryIds:[result.deliveryId],proofs:{[result.deliveryId]:{contentHash:delivery.contentHash,payloadHash:delivery.payloadHash,recipientHash:hashText(delivery.recipient),messageId:delivery.messageId,approvalHash}}},command=await effects.accept({session,grant,actor:{type:'USER',userId:grant.userId,membershipId:grant.membershipId},owner:{namespace:'automation_audit_logs',identity,hashField:'payloadHash',payloadHash:digest(payload),resultPath:'result',resultHash:effectHash(result)},kind:'automation.local-delivery',plan,accepted:result,origin:deliveryOrigin(req.scope,plan)});
-    const changed=await c(runtime,'cs_outbox').updateOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION',controlCommandId:{$exists:false}},{$set:{controlCommandId:command._id}},{session});if(changed.matchedCount!==1)fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');
+    const candidate=intentCandidates.get(session);if(candidate?.transaction!==session.serverSession?.txnNumber?.toString()||!candidate.ids.has(result.deliveryId))fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');const grant=await auth(req,'cs.automation.execute',session),identity={tenantId:grant.tenantId,idempotencyKey:idem},delivery=await c(runtime,'cs_outbox').findOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION'},{session});if(!delivery)fail(409,'DELIVERY_RECEIPT_SOURCE_CHANGED');const approvalHash=delivery.draftId?(await getDraft(req,delivery.draftId,session)).approvalHash:null,plan={action,entityId,payload,deliveryIds:[result.deliveryId],proofs:{[result.deliveryId]:{contentHash:delivery.contentHash,payloadHash:delivery.payloadHash,recipientHash:hashText(delivery.recipient),messageId:delivery.messageId,approvalHash}}};if(nativeMode){plan.native=nativePlan(delivery.kind==='DIGEST'?'wf-cs-weekly-digest':'wf-approved-resolution');const token=cfg().serviceToken||process.env.IEMS_AUTOMATION_SERVICE_TOKEN;const service=token&&await c(runtime,'sessions').findOne({tenantId:grant.tenantId,tokenHash:hashText(token),automationService:true},{session});if(!service)fail(503,'ENGINE_SERVICE_NOT_CONFIGURED');plan.serviceSessionId=service._id;}const command=await effects.accept({session,grant,actor:{type:'USER',userId:grant.userId,membershipId:grant.membershipId},owner:{namespace:'automation_audit_logs',identity,hashField:'payloadHash',payloadHash:digest(payload),resultPath:'result',resultHash:effectHash(result)},kind:deliveryKind,plan,accepted:result,origin:deliveryOrigin(req.scope,plan)});
+    const changed=await c(runtime,'cs_outbox').updateOne({...scope(req),_id:result.deliveryId,origin:'AUTOMATION',controlCommandId:{$exists:false}},{$set:{controlCommandId:command._id,...(nativeMode?{effectMode}:{})}},{session});if(changed.matchedCount!==1)fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');
   }
-  const deliveryView = row => ({ deliveryId: row._id, draftId: row.draftId, ticketId: row.ticketId, kind: row.kind, recipient: row.recipient, subject: row.subject, body: row.body, state: row.state, deliveryState: row.deliveryState || row.state, receiptStatus: row.receiptStatus || null, sinkMessageId: row.providerMessageId || null, lastError: row.lastError || null, leaseUntil: row.leaseUntil, attempt: row.attempt, createdAt: row.createdAt, updatedAt: row.updatedAt,...(row.controlCommandId?{effect:{commandId:row.controlCommandId,phase:row._id,mode:'LOCAL_SIMULATED'}}:{}) });
+  const deliveryView = row => ({ deliveryId: row._id, draftId: row.draftId, ticketId: row.ticketId, kind: row.kind, recipient: row.recipient, subject: row.subject, body: row.body, state: row.state, deliveryState: row.deliveryState || row.state, receiptStatus: row.receiptStatus || null, sinkMessageId: row.providerMessageId || null, lastError: row.lastError || null, leaseUntil: row.leaseUntil, attempt: row.attempt, createdAt: row.createdAt, updatedAt: row.updatedAt,...(row.controlCommandId?{effect:{commandId:row.controlCommandId,phase:row._id,mode:row.effectMode??'LOCAL_SIMULATED'}}:{}) });
   async function recoveryDelivery(req,session,deliveryId,readOnly=false){
     await recheckDelivery(req,session,deliveryId,{},readOnly);const d=await c(runtime,'cs_outbox').findOne({...scope(req),_id:deliveryId,origin:'AUTOMATION'},{session});
-    if(!d.controlCommandId)fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');const command=await c(runtime,'saasEffectCommands').findOne({_id:d.controlCommandId,...scope(req),kind:'automation.local-delivery',ownerNamespace:'automation_audit_logs'},{session});if(!command||!command.plan.deliveryIds.includes(d._id))fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');
+    if(!d.controlCommandId)fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');const command=await c(runtime,'saasEffectCommands').findOne({_id:d.controlCommandId,...scope(req),kind:deliveryKind,ownerNamespace:'automation_audit_logs'},{session});if(!command||!command.plan.deliveryIds.includes(d._id))fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');
     const receipt=await c(runtime,'automation_audit_logs').findOne(command.owner.identity,{session});if(!receipt||receipt.plantId!==req.scope.selectedPlantId||receipt.action!==command.plan.action||receipt.targetEntity?.id!==command.plan.entityId||receipt.payloadHash!==command.owner.payloadHash||effectHash(receipt.result)!==command.owner.resultHash||receipt.result.deliveryId!==d._id)fail(409,'EFFECT_OWNER_RECEIPT_MISSING_OR_CONFLICT');
     if(d.draftId)await checkSource(req,await getDraft(req,d.draftId,session),session,!readOnly,readOnly);else if(d.kind!=='DIGEST'||d.recipient!=='reports@iems.local')fail(409,'SOURCE_BINDING_CHANGED');
     return {deliveryId:d._id,commandId:command._id,contentHash:d.contentHash,payloadHash:d.payloadHash,recipientHash:hashText(d.recipient)};
@@ -184,7 +203,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
       const selectedDeliveries=await c(runtime,'cs_outbox').find({...scope(req),origin:'AUTOMATION',...(payload.deliveryIds?{_id:{$in:payload.deliveryIds}}:Object.keys(payload).length?{_id:{$in:[]}}:{state:{$in:['QUEUED','FAILED','SENDING','UNKNOWN']}})},{session}).sort({createdAt:1,_id:1}).limit(100).toArray(),selectedDrafts=await c(runtime,'cs_resolution_drafts').find({...scope(req),...(payload.draftIds?{_id:{$in:payload.draftIds}}:Object.keys(payload).length?{_id:{$in:[]}}:{status:'APPROVED'})},{session}).sort({_id:1}).limit(100).toArray();
       if(payload.deliveryIds&&selectedDeliveries.length!==payload.deliveryIds.length||payload.draftIds&&selectedDrafts.length!==payload.draftIds.length)fail(404,'NOT_FOUND');
       const deliveries=[];for(const d of selectedDeliveries)deliveries.push(await recoveryDelivery(req,session,d._id));const drafts=[];for(const draft of selectedDrafts){if(draft.status!=='APPROVED')fail(409,'DRAFT_NOT_APPROVED');await checkSource(req,draft,session,true);drafts.push({draftId:draft._id,receiptKey:`resolution:${draft._id}`,approvalHash:draft.approvalHash});}
-      const recoveryId=randomUUID(),plan={deliveries,drafts},result={recoveryId,state:'ACCEPTED',deliveryIds:deliveries.map(x=>x.deliveryId),draftIds:drafts.map(x=>x.draftId)};
+      const recoveryId=randomUUID(),plan={deliveries,drafts,...(nativeMode?{deliveryKind,mode:effectMode}:{})},result={recoveryId,state:'ACCEPTED',deliveryIds:deliveries.map(x=>x.deliveryId),draftIds:drafts.map(x=>x.draftId)};
       await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'automation_audit_logs',identity,key:idem,action:'cs.automation.execute',operation:'AUTOMATION_RECOVERY',aggregateId:grant.plantId,payloadHash:digest(payload),replayed:false});
       await effects.accept({session,id:recoveryId,grant,actor:{type:'USER',userId:grant.userId,membershipId:grant.membershipId},owner:{namespace:'automation_audit_logs',identity,hashField:'payloadHash',payloadHash:digest(payload),resultPath:'result',resultHash:effectHash(result)},kind:'automation.recovery',plan,accepted:result,origin:recoveryOrigin(req.scope,plan)});const row=await audit(req,session,'AUTOMATION_RECOVERY',grant.plantId,result,{idempotencyKey:idem,payloadHash:digest(payload)});return {result:{...result,auditId:row._id,idempotencyKey:idem,replayed:false},commandId:recoveryId};
     });
@@ -335,7 +354,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     localUrl(cfg().sinkUrl||process.env.IEMS_AUTOMATION_SINK_URL,'http://127.0.0.1:8027');
     const entries=[];
     for(const deliveryId of ids){
-      const delivery=await c(runtime,'cs_outbox').findOne({...scope(req),_id:deliveryId,origin:'AUTOMATION'});if(!delivery)fail(404,'NOT_FOUND');
+      const delivery=await c(runtime,'cs_outbox').findOne({...scope(req),_id:deliveryId,origin:'AUTOMATION'});if(!delivery)fail(404,'NOT_FOUND');if(delivery.controlCommandId)fail(409,'MANAGED_NATIVE_RECONCILIATION_REQUIRED');
       if(!/^[a-z0-9._+-]+@iems\.local$/.test(delivery.recipient)||typeof delivery.body!=='string'||Buffer.byteLength(delivery.body)>65536||delivery.contentHash!==hashText(delivery.body.trim()))fail(409,'LOCAL_OBSERVATION_SOURCE_INVALID');
       const sinkBase=localUrl(cfg().sinkUrl||process.env.IEMS_AUTOMATION_SINK_URL,'http://127.0.0.1:8027'),sinkToken=cfg().sinkToken||process.env.IEMS_AUTOMATION_SINK_TOKEN;
       let receipt=null,supported=Boolean(sinkToken);
@@ -431,7 +450,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
       return engineRun;
     }));
     const capturedCount = await c(runtime, 'cs_outbox').countDocuments({ ...scope(req), origin: 'AUTOMATION', state: 'SENT', deliveryState: 'ACCEPTED_LOCAL' });
-    res.json({ data: { separateEffects:{engine:effects?.supports('automation.engine')===true,recovery:effects?.supports('automation.recovery')===true,mode:effects?.supports('automation.engine')?'LOCAL_SIMULATED':'LEGACY_UNMANAGED'},engine: { n8n: { status: engineUp ? 'HEALTHY' : 'DOWN', url: n8nUrl, mode: 'STANDALONE_SQLITE', loopbackOnly: true }, smtpSink: { status: sinkUp ? 'HEALTHY' : 'DOWN', port: Number(cfg().smtpPort || process.env.IEMS_AUTOMATION_SMTP_PORT || 2527), httpPort: Number(new URL(sinkUrl).port), capturedCount, receiptGuarantee: 'Accepted by local mail sink' } }, workflows: workflows.map(w => { const lastRun = observed.find(r => r?.workflowId === w.id) || null; return { ...w, state: setting?.paused ? 'PAUSED' : lastRun?.state || 'NOT_OBSERVED', lastRun }; }), paused: !!setting?.paused, policy: { ...policy(), label: policy().minutes < 15 ? 'Demo SLA' : 'Unassigned SLA' }, metrics: { openTicketsCount: open, totalAutomationsExecuted: audits, successfulAutomations: success, digestsGenerated: digests, pendingDraftsCount: pending } } });
+    res.json({ data: { separateEffects:{engine:effects?.supports(engineKind)===true,recovery:effects?.supports('automation.recovery')===true,mode:effects?.supports(engineKind)?effectMode:'LEGACY_UNMANAGED'},engine: { n8n: { status: engineUp ? 'HEALTHY' : 'DOWN', url: n8nUrl, mode: 'STANDALONE_SQLITE', loopbackOnly: true }, smtpSink: { status: sinkUp ? 'HEALTHY' : 'DOWN', port: Number(cfg().smtpPort || process.env.IEMS_AUTOMATION_SMTP_PORT || 2527), httpPort: Number(new URL(sinkUrl).port), capturedCount, receiptGuarantee: 'Accepted by local mail sink' } }, workflows: workflows.map(w => { const lastRun = observed.find(r => r?.workflowId === w.id) || null; return { ...w, state: setting?.paused ? 'PAUSED' : lastRun?.state || 'NOT_OBSERVED', lastRun }; }), paused: !!setting?.paused, policy: { ...policy(), label: policy().minutes < 15 ? 'Demo SLA' : 'Unassigned SLA' }, metrics: { openTicketsCount: open, totalAutomationsExecuted: audits, successfulAutomations: success, digestsGenerated: digests, pendingDraftsCount: pending } } });
   });
   app.post('/api/cs/automation/pause', async (req, res) => {
     await human(req, 'cs.automation.admin'); fields(req.body, ['paused']);
@@ -556,7 +575,7 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
   app.post('/api/cs/automation/reconcile', async (req, res) => {
     if(req.body?.mode==='LOCAL_OBSERVE_V1'){res.json({data:await localObserve(req)});return;}
     await auth(req, 'cs.automation.execute');
-    const enrolled=await tx(req,'cs.automation.execute',session=>c(runtime,'saasSubscriptions').findOne({tenantId:req.scope.tenantId},{session}),'READ');if(enrolled||effects?.supports('automation.recovery')){const accepted=await acceptRecovery(req);return res.status(202).set('Cache-Control','no-store').json({data:accepted.result,effect:{commandId:accepted.commandId,mode:'LOCAL_SIMULATED'}});}
+    const enrolled=await tx(req,'cs.automation.execute',session=>c(runtime,'saasSubscriptions').findOne({tenantId:req.scope.tenantId},{session}),'READ');if(enrolled||effects?.supports('automation.recovery')){const accepted=await acceptRecovery(req);return res.status(202).set('Cache-Control','no-store').json({data:accepted.result,effect:{commandId:accepted.commandId,mode:effectMode}});}
     fields(req.body, []);
     const expired = await tx(req, 'cs.automation.execute', async session => {
       const rows = await c(runtime, 'cs_outbox').find({ ...scope(req), origin: 'AUTOMATION', state: 'SENDING', leaseUntil: { $lte: new Date() } }, { session }).toArray();
@@ -592,6 +611,10 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     const out = await adminOperation(req,'DELIVERY_MANUAL_REVIEW',id(req.params.id),{decision:req.body.decision,evidence},async session => {
       const row = await c(runtime, 'cs_outbox').findOne({ ...scope(req), _id: id(req.params.id), origin: 'AUTOMATION', state: 'UNKNOWN' }, { session });
       if (!row) fail(409, 'UNKNOWN_DELIVERY_REQUIRED');
+      if(nativeMode&&row.controlCommandId&&req.body.decision==='CONFIRMED_NOT_SUBMITTED'){
+        const original=await c(runtime,'saasEffectAttempts').findOne({tenantId:req.scope.tenantId,commandId:row.controlCommandId,phase:row._id},{session,sort:{ordinal:-1}});
+        if(original?.provider)fail(409,'NATIVE_DELIVERY_RECONCILIATION_REQUIRED');
+      }
       const state = req.body.decision === 'ABANDON' ? 'CANCELLED' : 'FAILED';
       await c(runtime, 'cs_outbox').updateOne({ _id: row._id, state: 'UNKNOWN' }, { $set: { state, deliveryState: state, manualReview: { userId: req.scope.userId, decision: req.body.decision, evidence, at: new Date(), idempotencyKey:req.headers['idempotency-key']??null, deliveryFence:row.fence } } }, { session });
       if (row.draftId) await c(runtime, 'cs_resolution_drafts').updateOne({ _id: row.draftId, ...scope(req) }, { $set: { status: state, deliveryState: state }, $inc: { version: 1 } }, { session });
@@ -614,10 +637,73 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     const serviceGrant=await runtime.foundation.authorizeInTransaction(serviceScope,{tenantId:grant.tenantId,plantId:grant.plantId,action:'cs.automation.execute'},{session});
     const service=await c(runtime,'sessions').findOne({_id:plan.serviceSessionId,tokenHash:hashText(configured),automationService:true,tenantId:grant.tenantId},{session});
     if(!service||serviceScope.selectedPlantId!==grant.plantId||serviceGrant.legalEntityId!==grant.legalEntityId)fail(403,'ENGINE_SCOPE_DENIED');
-    if(await engineSources(userScope,plan.payload,session)!==plan.sourceHash)fail(409,'ENGINE_SOURCE_CHANGED');
+    if(await engineSources(userScope,plan.payload,session)!==plan.sourceHash)fail(409,plan.native?'ENGINE_RUN_SOURCE_CHANGED':'ENGINE_SOURCE_CHANGED');
     if(!observation){if((await c(runtime,'automation_settings').findOne({_id:`${grant.tenantId}:${grant.plantId}`},{session}))?.paused)fail(409,'AUTOMATION_PAUSED');await runtime.saasAdmission.authorize(userScope,{plantId:grant.plantId,session});}
     return grant;
   }});
+  if(nativeMode&&!effects.supports('automation.native-engine'))effects.registerKind('automation.native-engine',{
+    adapterId:'native.n8n',statusAction:'cs.automation.read',
+    readStatus:async({scope:actorScope,command,session})=>{
+      if(await engineSources(actorScope,command.plan.payload,session,true)!==command.plan.sourceHash)fail(409,'ENGINE_RUN_SOURCE_CHANGED');
+      await nativeService(command,session,true);
+      if(!await c(runtime,'automation_engine_runs').findOne({_id:command.plan.runId,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,workflowId:command.plan.workflowId},{session}))fail(409,'ENGINE_RUN_SOURCE_CHANGED');
+    },
+    rebind:async({scope:actorScope,command})=>engineOrigin(actorScope,command.plan),
+    prepare:async({command})=>({workflowId:command.plan.native.workflowId,workflowHash:command.plan.native.workflowHash,sourceHash:command.plan.sourceHash,approvalHash:contentHash({sourceHash:command.plan.sourceHash}),payloadHash:contentHash(command.plan.payload),recipientHash:contentHash([]),contentHash:contentHash({}),deliveryId:null,messageId:null}),
+    beforeInvoke:async({command,session})=>{
+      await nativeService(command,session);
+      if(!await c(runtime,'automation_engine_runs').findOne({_id:command.plan.runId,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,workflowId:command.plan.workflowId,state:'ACCEPTED',executionId:null},{session}))fail(409,'ENGINE_RUN_SOURCE_CHANGED');
+    },
+    invoke:async({command})=>command.plan.payload,
+    publish:async({command,observation,session})=>{
+      const proof=observation.result;
+      if(proof.state!=='TERMINAL'||proof.workflowId!==command.plan.native.workflowId||proof.workflowHash!==command.plan.native.workflowHash||proof.deliveryState!==null)fail(409,'ENGINE_RUN_SOURCE_CHANGED');
+      const result={runId:command.plan.runId,executionId:proof.executionId,state:'COMPLETED_LOCAL',mode:'NATIVE_LOCAL_N8N'};
+      const changed=await c(runtime,'automation_engine_runs').updateOne({_id:command.plan.runId,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,state:'ACCEPTED',executionId:null},{$set:{...result,providerReceiptHash:observation.proofHash,observedAt:new Date(),completedAt:new Date()}},{session});
+      if(changed.matchedCount!==1)fail(409,'ENGINE_RUN_SOURCE_CHANGED');return result;
+    }
+  });
+  if(nativeMode&&!effects.supports('automation.native-delivery'))effects.registerKind('automation.native-delivery',{
+    adapterId:'native.n8n',statusAction:'cs.automation.read',phases:command=>command.plan.deliveryIds,
+    readStatus:async({scope:actorScope,command,session})=>{await validateDeliverySource({scope:actorScope},command,session,true);await nativeService(command,session,true);},
+    rebind:async({scope:actorScope,command})=>deliveryOrigin(actorScope,command.plan),
+    prepare:async({command,attempt,phase,session})=>{
+      let d=await c(runtime,'cs_outbox').findOne({_id:phase,tenantId:command.tenantId,plantId:command.plantId,origin:'AUTOMATION',controlCommandId:command._id},{session});
+      if(!d)fail(404,'NOT_FOUND');
+      if(d.state==='FAILED'&&attempt.retryOf?.review){
+        if(d.manualReview?.decision!=='CONFIRMED_NOT_SUBMITTED'||d.manualReview.idempotencyKey!==attempt.retryOf.review.identity.idempotencyKey)fail(403,'RETRY_REVIEW_INVALID');
+        d=await c(runtime,'cs_outbox').findOneAndUpdate({_id:d._id,tenantId:command.tenantId,controlCommandId:command._id,state:'FAILED',fence:d.fence},{$set:{state:'QUEUED',deliveryState:'QUEUED',nextAttemptAt:new Date()}},{session,returnDocument:'after'});
+        if(!d)fail(409,'RETRY_REVIEW_CHANGED');
+      }
+      if(d.state!=='QUEUED'||d.nextAttemptAt>new Date()||d.attempt>=3||d.fence+1!==attempt.fence)fail(409,'DELIVERY_RECONCILIATION_REQUIRED');
+      const at=new Date(),claimed=await c(runtime,'cs_outbox').findOneAndUpdate({_id:d._id,tenantId:command.tenantId,plantId:command.plantId,origin:'AUTOMATION',controlCommandId:command._id,state:'QUEUED',fence:d.fence},{$set:{state:'SENDING',deliveryState:'SENDING',leaseOwner:attempt._id,leaseUntil:new Date(at.getTime()+Number(cfg().leaseMs||30000)),updatedAt:at},$inc:{attempt:1,fence:1},$push:{history:{state:'SENDING',at}}},{session,returnDocument:'after'});
+      if(!claimed)fail(409,'DELIVERY_ALREADY_CLAIMED');
+      return {workflowId:command.plan.native.workflowId,workflowHash:command.plan.native.workflowHash,sourceHash:contentHash({proof:command.plan.proofs[phase],fence:claimed.fence}),approvalHash:contentHash(command.plan.proofs[phase].approvalHash),payloadHash:contentHash(nativeMailPayload(claimed)),recipientHash:contentHash([claimed.recipient]),contentHash:contentHash({subject:claimed.subject,body:claimed.body.replace(/\r?\n/g,'\r\n')}),deliveryId:phase,messageId:claimed.messageId};
+    },
+    reviewRetry:async({command,attempt,grant,reviewKey,receipt,session})=>{
+      const row=await c(runtime,'cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,origin:'AUTOMATION',state:'FAILED'},{session}),review=row?.manualReview;
+      if(!review||review.userId!==grant.userId||review.idempotencyKey!==reviewKey||review.decision!=='CONFIRMED_NOT_SUBMITTED'||review.deliveryFence!==attempt.fence||receipt.payloadHash!==digest({decision:review.decision,evidence:review.evidence}))fail(403,'RETRY_REVIEW_INVALID');
+    },
+    beforeInvoke:async({command,attempt,session})=>{
+      const d=await c(runtime,'cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,state:'SENDING',fence:attempt.fence,leaseOwner:attempt._id,leaseUntil:{$gt:new Date()}},{session});
+      if(!d||contentHash(nativeMailPayload(d))!==attempt.input.payloadHash||contentHash({proof:command.plan.proofs[attempt.phase],fence:d.fence})!==attempt.input.sourceHash)fail(409,'STALE_DELIVERY_FENCE');
+      await nativeService(command,session);
+    },
+    invoke:async({command,attempt})=>{
+      const d=await c(runtime,'cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,fence:attempt.fence});
+      if(!d)fail(409,'STALE_DELIVERY_FENCE');return nativeMailPayload(d);
+    },
+    publish:async({command,attempt,observation,session,context})=>{
+      const proof=observation.result;
+      if(proof.state!=='TERMINAL'||proof.deliveryState!=='ACCEPTED_LOCAL'||!proof.smtp?.receiptId||proof.workflowHash!==command.plan.native.workflowHash)fail(409,'STALE_DELIVERY_FENCE');
+      const result={deliveryId:attempt.phase,state:'ACCEPTED_LOCAL',deliveryState:'ACCEPTED_LOCAL',mode:'NATIVE_LOCAL_N8N',executionId:proof.executionId,sinkMessageId:proof.smtp.receiptId,proofHash:observation.proofHash},at=new Date();
+      const changed=await c(runtime,'cs_outbox').updateOne({_id:attempt.phase,tenantId:command.tenantId,plantId:command.plantId,origin:'AUTOMATION',controlCommandId:command._id,state:{$in:['SENDING','UNKNOWN']},fence:attempt.fence},{$set:{state:'SENT',deliveryState:'ACCEPTED_LOCAL',receiptStatus:'Accepted by local mail sink',providerMessageId:proof.smtp.receiptId,leaseUntil:null,leaseOwner:null,updatedAt:at},$push:{history:{state:'SENT',mode:'NATIVE_LOCAL_N8N',proofHash:observation.proofHash,at}}},{session});
+      if(changed.matchedCount!==1)fail(409,'STALE_DELIVERY_FENCE');
+      const d=await c(runtime,'cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId},{session});
+      if(d.draftId){const draft=await getDraft({scope:context.scope},d.draftId,session);const update=await c(runtime,'cs_resolution_drafts').updateOne({_id:d.draftId,tenantId:command.tenantId,plantId:command.plantId,version:draft.version},{$set:{status:'DISPATCHED',deliveryState:'ACCEPTED_LOCAL',deliveryProof:proof.smtp.receiptId,updatedAt:at},$inc:{version:1}},{session});if(update.matchedCount!==1)fail(409,'STALE_DELIVERY_FENCE');}
+      await audit({scope:context.scope,headers:{}},session,d.kind==='DIGEST'?'DIGEST_DELIVERY_RESULT':'RESOLUTION_DELIVERY_RESULT',d._id,result);return result;
+    }
+  });
   if(effects?.hasAdapter('local.engine')&&!effects.supports('automation.engine'))effects.registerKind('automation.engine',{
     adapterId:'local.engine',statusAction:'cs.automation.read',readStatus:async({scope:actorScope,command,session})=>{const plan=command.plan;if(await engineSources(actorScope,plan.payload,session,true)!==plan.sourceHash)fail(409,'ENGINE_SOURCE_CHANGED');const configured=cfg().serviceToken||process.env.IEMS_AUTOMATION_SERVICE_TOKEN;if(!configured)fail(503,'ENGINE_SERVICE_NOT_CONFIGURED');let serviceScope;try{serviceScope=await runtime.foundation.authenticate(configured);}catch{fail(403,'ENGINE_SERVICE_CREDENTIAL_EXPIRED');}const grant=await runtime.foundation.authorize(serviceScope,{tenantId:command.tenantId,plantId:command.plantId,action:'cs.automation.execute'}),service=await c(runtime,'sessions').findOne({_id:plan.serviceSessionId,tenantId:command.tenantId,userId:grant.userId,membershipId:grant.membershipId,tokenHash:hashText(configured),automationService:true,revoked:false,expiresAt:{$gt:new Date()}},{session});if(!service||serviceScope.selectedPlantId!==command.plantId||grant.legalEntityId!==command.legalEntityId)fail(403,'ENGINE_SCOPE_DENIED');if(!await c(runtime,'automation_engine_runs').findOne({_id:plan.runId,tenantId:command.tenantId,plantId:command.plantId,controlCommandId:command._id,workflowId:plan.workflowId,executionId:plan.executionId},{session}))fail(409,'ENGINE_RUN_SOURCE_CHANGED');},rebind:async({scope:actorScope,command})=>engineOrigin(actorScope,command.plan),
     childEvents:['ENGINE_ERROR_OBSERVED'],authorizeChild:async({scope:serviceScope,command,attempt,session})=>{const grant=await runtime.foundation.authorizeInTransaction(serviceScope,{tenantId:command.tenantId,plantId:command.plantId,action:'cs.automation.execute'},{session});const service=await c(runtime,'sessions').findOne({_id:command.plan.serviceSessionId,tenantId:command.tenantId,userId:grant.userId,membershipId:grant.membershipId,automationService:true,revoked:false,expiresAt:{$gt:new Date()}},{session});if(!service||attempt.input.executionId!==command.plan.executionId)fail(403,'ENGINE_ERROR_UNCORRELATED');return grant;},
@@ -640,9 +726,9 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
       const d=await c(runtime,'cs_outbox').findOne({_id:attempt.phase,tenantId:command.tenantId},{session});if(d.draftId){const draft=await getDraft({scope:context.scope},d.draftId,session),update=await c(runtime,'cs_resolution_drafts').updateOne({_id:d.draftId,tenantId:command.tenantId,plantId:command.plantId,version:draft.version},{$set:{status:'DISPATCHED',deliveryState:'PREVIEWED',updatedAt:at},$inc:{version:1}},{session});if(update.matchedCount!==1)fail(409,'STALE_DRAFT');}await audit({scope:context.scope,headers:{}},session,d.kind==='DIGEST'?'DIGEST_DELIVERY_RESULT':'RESOLUTION_DELIVERY_RESULT',d._id,result);return result;
     }
   });
-  if(effects?.hasAdapter('local.engine')&&!effects.supports('automation.recovery'))effects.registerKind('automation.recovery',{
-    adapterId:'local.engine',statusAction:'cs.automation.read',readStatus:async({scope:actorScope,command,session})=>{const request={scope:actorScope};for(const proof of command.plan.deliveries)if(effectHash(await recoveryDelivery(request,session,proof.deliveryId,true))!==effectHash(proof))fail(409,'RECOVERY_SOURCE_CHANGED');for(const selected of command.plan.drafts){const draft=await getDraft(request,selected.draftId,session);if(!['APPROVED','DISPATCHED','QUEUED','UNKNOWN','FAILED'].includes(draft.status)||draft.approvalHash!==selected.approvalHash)fail(409,'RECOVERY_SOURCE_CHANGED');await checkSource(request,draft,session,false,true);}},rebind:async({scope:actorScope,command})=>recoveryOrigin(actorScope,command.plan),
-    allowsChild:async({parent,child,phase})=>child.kind==='automation.local-delivery'&&child.plan.deliveryIds.includes(phase)&&(parent.plan.deliveries.some(x=>x.commandId===child._id&&x.deliveryId===phase)||parent.plan.drafts.some(x=>x.draftId===child.plan.entityId&&x.receiptKey===child.owner.identity.idempotencyKey)),
+  if((effects?.hasAdapter('local.engine')||effects?.hasAdapter('local.automation-recovery'))&&!effects.supports('automation.recovery'))effects.registerKind('automation.recovery',{
+    adapterId:nativeMode?'local.automation-recovery':'local.engine',statusAction:'cs.automation.read',readStatus:async({scope:actorScope,command,session})=>{const request={scope:actorScope};for(const proof of command.plan.deliveries)if(effectHash(await recoveryDelivery(request,session,proof.deliveryId,true))!==effectHash(proof))fail(409,'RECOVERY_SOURCE_CHANGED');for(const selected of command.plan.drafts){const draft=await getDraft(request,selected.draftId,session);if(!['APPROVED','DISPATCHED','QUEUED','UNKNOWN','FAILED'].includes(draft.status)||draft.approvalHash!==selected.approvalHash)fail(409,'RECOVERY_SOURCE_CHANGED');await checkSource(request,draft,session,false,true);}},rebind:async({scope:actorScope,command})=>recoveryOrigin(actorScope,command.plan),
+    allowsChild:async({parent,child,phase})=>child.kind===(parent.plan.deliveryKind??'automation.local-delivery')&&child.plan.deliveryIds.includes(phase)&&(parent.plan.deliveries.some(x=>x.commandId===child._id&&x.deliveryId===phase)||parent.plan.drafts.some(x=>x.draftId===child.plan.entityId&&x.receiptKey===child.owner.identity.idempotencyKey)),
     prepare:async({command})=>({deliveryIds:command.plan.deliveries.map(x=>x.deliveryId),draftIds:command.plan.drafts.map(x=>x.draftId)}),
     invoke:async({command,capability,context})=>{
       const items=[],seen=new Set(),request={scope:context.scope};
@@ -658,19 +744,19 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
         const child=Object.freeze({scope:context.scope,headers:Object.freeze({'idempotency-key':selected.receiptKey})});recoveryRequests.set(child,{capability,draftId:selected.draftId});
         try{const intent=await resolutionIntent(child,selected.draftId),d=await c(runtime,'cs_outbox').findOne({...scope(request),_id:intent.deliveryId,origin:'AUTOMATION'});if(!d?.controlCommandId)fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');await recover(d._id,d.controlCommandId);}catch(error){items.push({draftId:selected.draftId,state:'NEEDS_REVIEW',code:typeof error.code==='string'?error.code:'RECOVERY_CHILD_UNCERTAIN'});}
       }
-      return {mode:'LOCAL_SIMULATED',status:items.some(x=>x.state!=='PREVIEWED')?'NEEDS_REVIEW':'RECONCILED_LOCAL',items};
+      const complete=command.plan.deliveryKind==='automation.native-delivery'?'ACCEPTED_LOCAL':'PREVIEWED';return {mode:command.plan.mode??'LOCAL_SIMULATED',orchestration:'LOCAL_CONTROL_ONLY',status:items.some(x=>x.state!==complete)?'NEEDS_REVIEW':'RECONCILED_LOCAL',items};
     },
-    publish:async({command,observation,session,context})=>{for(const item of observation.result.items)if(item.state==='PREVIEWED'){const proof=await c(runtime,'saasEffectAttempts').findOne({tenantId:command.tenantId,commandId:item.commandId,phase:item.deliveryId,state:'SETTLED'},{session,sort:{ordinal:-1}});if(!proof||effectHash(proof.phaseResult)!==item.phaseResultHash)fail(409,'RECOVERY_PHASE_PROOF_CHANGED');}await audit({scope:context.scope,headers:{}},session,'AUTOMATION_RECOVERY_RESULT',command.plantId,observation.result);return observation.result;}
+    publish:async({command,observation,session,context})=>{for(const item of observation.result.items)if(item.state===(command.plan.deliveryKind==='automation.native-delivery'?'ACCEPTED_LOCAL':'PREVIEWED')){const proof=await c(runtime,'saasEffectAttempts').findOne({tenantId:command.tenantId,commandId:item.commandId,phase:item.deliveryId,state:'SETTLED'},{session,sort:{ordinal:-1}});if(!proof||effectHash(proof.phaseResult)!==item.phaseResultHash)fail(409,'RECOVERY_PHASE_PROOF_CHANGED');}await audit({scope:context.scope,headers:{}},session,'AUTOMATION_RECOVERY_RESULT',command.plantId,observation.result);return observation.result;}
   });
   const acceptEngine=async(req,wf)=>effectTransaction(runtime.client,async session=>{
     const grant=await human(req,'cs.automation.execute',session),idem=key(req),payload={...req.body},previous=await replay(req,session,'AUTOMATION_ENGINE_RUN',wf.id,payload,idem),identity={tenantId:grant.tenantId,idempotencyKey:idem};
     if(previous){const command=await effects.managed('automation_audit_logs',identity,{session});if(!command)fail(409,'HISTORICAL_EFFECT_BINDING_REQUIRED');await effects.accept({session,grant,actor:command.actor,owner:command.owner,kind:command.kind,plan:command.plan,accepted:command.acceptedResult,origin:engineOrigin(req.scope,command.plan)});await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'automation_audit_logs',identity,key:idem,action:'cs.automation.execute',operation:'AUTOMATION_ENGINE_RUN',aggregateId:wf.id,payloadHash:digest(payload),replayed:true});return {result:previous,commandId:command._id};}
-    if(!effects?.supports('automation.engine'))fail(503,'EFFECT_ADAPTER_UNPROVEN');
+    if(!effects?.supports(engineKind))fail(503,'EFFECT_ADAPTER_UNPROVEN');
     const configured=cfg().serviceToken||process.env.IEMS_AUTOMATION_SERVICE_TOKEN;if(!configured)fail(503,'ENGINE_SERVICE_NOT_CONFIGURED');
     const service=await c(runtime,'sessions').findOne({tenantId:grant.tenantId,tokenHash:hashText(configured),automationService:true},{session});if(!service)fail(403,'ENGINE_SERVICE_CREDENTIAL_EXPIRED');
-    const runId=randomUUID(),plan={runId,workflowId:wf.id,executionId:`local:${runId}`,payload,serviceSessionId:service._id,sourceHash:await engineSources(req.scope,payload,session)},result={runId,state:'ACCEPTED'};
+    const runId=randomUUID(),plan={runId,workflowId:wf.id,executionId:nativeMode?null:`local:${runId}`,payload,serviceSessionId:service._id,sourceHash:await engineSources(req.scope,payload,session),...(nativeMode?{native:nativePlan(wf.id)}:{})},result={runId,state:'ACCEPTED'};
     await runtime.saasAdmission.effect({scope:req.scope,session,namespace:'automation_audit_logs',identity,key:idem,action:'cs.automation.execute',operation:'AUTOMATION_ENGINE_RUN',aggregateId:wf.id,payloadHash:digest(payload),replayed:false});
-    const command=await effects.accept({session,id:runId,grant,actor:{type:'USER',userId:grant.userId,membershipId:grant.membershipId},owner:{namespace:'automation_audit_logs',identity,hashField:'payloadHash',payloadHash:digest(payload),resultPath:'result',resultHash:effectHash(result)},kind:'automation.engine',plan,accepted:result,origin:engineOrigin(req.scope,plan)});
+    const command=await effects.accept({session,id:runId,grant,actor:{type:'USER',userId:grant.userId,membershipId:grant.membershipId},owner:{namespace:'automation_audit_logs',identity,hashField:'payloadHash',payloadHash:digest(payload),resultPath:'result',resultHash:effectHash(result)},kind:engineKind,plan,accepted:result,origin:engineOrigin(req.scope,plan)});
     await c(runtime,'automation_engine_runs').insertOne({_id:runId,...scope(req),workflowId:wf.id,executionId:plan.executionId,state:'ACCEPTED',startedAt:new Date(),observedAt:new Date(),controlCommandId:command._id,serviceSessionId:plan.serviceSessionId},{session});
     const row=await audit(req,session,'AUTOMATION_ENGINE_RUN',wf.id,result,{idempotencyKey:idem,payloadHash:digest(payload)});return {result:{...result,auditId:row._id,idempotencyKey:idem,replayed:false},commandId:command._id};
   });
@@ -679,9 +765,9 @@ export function installAutomation(app, runtime, { fail, id, fields }) {
     const wf = [...workflows, { id: 'wf-automation-recovery', path: 'iems-automation-recovery' }].find(w => w.id === req.params.workflowId);
     if (!wf) fail(404, 'NOT_FOUND');
     const enrolled=await tx(req,'cs.automation.execute',session=>c(runtime,'saasSubscriptions').findOne({tenantId:req.scope.tenantId},{session}),'READ');
-    if(enrolled||effects?.supports('automation.engine')){
+    if(enrolled||effects?.supports(engineKind)){
       for(const name of ['draftId','ticketId'])if(req.body[name]!==undefined)id(req.body[name]);for(const name of ['mode','periodKey'])if(req.body[name]!==undefined&&text(req.body[name],100)!==req.body[name])fail(400,'INVALID_TEXT');
-      const accepted=await acceptEngine(req,wf);return res.status(202).set('Cache-Control','no-store').json({data:accepted.result,effect:{commandId:accepted.commandId,mode:'LOCAL_SIMULATED'}});
+      const accepted=await acceptEngine(req,wf);return res.status(202).set('Cache-Control','no-store').json({data:accepted.result,effect:{commandId:accepted.commandId,mode:effectMode}});
     }
     const url = localUrl(cfg().n8nUrl || process.env.IEMS_AUTOMATION_N8N_URL, 'http://127.0.0.1:5687'), token = cfg().webhookToken || process.env.IEMS_AUTOMATION_WEBHOOK_TOKEN;
     if (!token) fail(503, 'ENGINE_NOT_CONFIGURED');

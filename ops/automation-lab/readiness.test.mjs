@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
 const source = readFileSync(new URL('./lab-runtime.mjs', import.meta.url), 'utf8');
-const engine = source.slice(source.indexOf('async function startEngine()'), source.indexOf('async function stopAll()'));
+const start = source.indexOf('async function startEngine('), end = source.indexOf('async function stopAll()');
+assert.ok(start >= 0 && end > start, 'readiness fixture must extract the actual engine function');
+const engine = source.slice(start, end);
 function fixture(webhook) {
   let now = 0, healthy = false;
   const calls = [];

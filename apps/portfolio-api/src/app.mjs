@@ -100,6 +100,7 @@ export async function initialize({ client, db, customerService = {}, businessClo
     }else{
       runtime.nativeN8nProvider=await createNativeN8nProvider({...integrations.effects.nativeN8n,client,db,ownedRunMarker});
       runtime.separateEffects.registerAdapter(createNativeN8nEffectsAdapter({client,db,provider:runtime.nativeN8nProvider}));
+      runtime.separateEffects.registerAdapter(createControlledLocalAdapter({client,db,id:'local.automation-recovery',fault:integrations.effects.adapterFault}));
     }
   }
   runtime.saasAdmission = createSaasAdmission({ ...runtime, coverage: integrations.tenantLifecycle?.admissionCoverage ?? admissionProfile,

@@ -581,7 +581,7 @@
     "packages/tenant-lifecycle/local-ai-provider.mjs"
   ],
   "system": "Private reporting relay, authorization/source/read fences, internal job retries and init/index creation are not independent billable user commands. Public job ingress owns one foundation receipt with same-session rate consumption.",
-  "externalEnrollment": "Legacy/unmanaged engine/vendor history and CS SENDING/UNKNOWN remain denied. Fresh managed LOCAL_SIMULATED history requires current owner/source authority and verified closed-epoch high-water/complete-attempt barrier; ACK, timeout and missing promises never prove stopped.",
+  "externalEnrollment": "Native managed history requires actual n8n/SMTP receipts plus exact original source and attempt binding and native barriers; local recovery completion is orchestration-only. Legacy/unmanaged engine/vendor history and CS SENDING/UNKNOWN remain denied. Fresh managed LOCAL_SIMULATED history requires current owner/source authority and verified closed-epoch high-water/complete-attempt barrier; ACK, timeout and missing promises never prove stopped.",
   "separateEffects": {
     "schema": "SEPARATE_EFFECTS_V1",
     "collections": {
@@ -654,6 +654,19 @@
         "meter": "INHERITS_ORIGINAL_ROOT",
         "proof": "Original content/payload/recipient/approval hashes, actual local provider receipt; never SMTP SENT"
       },
+      "automation.native-engine": {
+        "owner": "automation_audit_logs",
+        "action": "AUTOMATION_ENGINE_RUN",
+        "phase": "EFFECT",
+        "meter": "ONE_ROOT_COMMAND",
+        "proof": "Actual n8n execution ID and exact original native workflow/input binding; ACK is not proof"
+      },
+      "automation.native-delivery": {
+        "owner": "automation_audit_logs",
+        "phase": "EXACT_DELIVERY_ID",
+        "meter": "INHERITS_ORIGINAL_ROOT",
+        "proof": "Actual original n8n execution and fsynced SMTP acceptance UUID; ACCEPTED_LOCAL only, never customer delivery"
+      },
       "cs.local-preview": {
         "owner": "cs_idempotency",
         "phase": "EXACT_DELIVERY_ID",
@@ -666,8 +679,11 @@
       "NATIVE_LOCAL_N8N_OWNED_MARKER_DATABASE_ONLY"
     ],
     "nativeN8n": {
-      "state": "IMPLEMENTED_NATIVE_INTEGRATION_PENDING",
-      "admittedKinds": [],
+      "state": "IMPLEMENTED_NATIVE_PROBES_PENDING",
+      "admittedKinds": [
+        "automation.native-engine",
+        "automation.native-delivery"
+      ],
       "reservedKinds": [
         "automation.native-engine",
         "automation.native-delivery"
@@ -689,10 +705,10 @@
   },
   "sources": {
     "apps/portfolio-api/src/analytics.mjs": "321a9a29dc738b64cac746d7b4123f9cfcaece1c1af643c7b159aac53b007833",
-    "apps/portfolio-api/src/app.mjs": "b01f0c3d1decfcd719e2e7b91a9b9bcbe5dc9887b72b72036430d9a9a907366d",
+    "apps/portfolio-api/src/app.mjs": "dde3a14d4b58822fb3b0c245b273849b72f72f2456db637f7a215e9a56e9b2f5",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
-    "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
-    "apps/portfolio-api/src/automation.mjs": "60a47c27a52d76ed28b8eba44349db66f26035ac0ca1a2a74b973e0cd9c4dfa3",
+    "apps/portfolio-api/src/automation-transport.mjs": "e17f2067e6ab977b6aed0818fd54db5f3aeeba2eaef2e44a81c4fbc42798c23c",
+    "apps/portfolio-api/src/automation.mjs": "7f01aa582a535ed604b657c56d1d400e38f760abe71addde742d47b246d1a011",
     "apps/portfolio-api/src/business-clock.mjs": "75ac403414331887f6df0e944a7f6f6a0415aa62c4ae62b76124c28adb8f2188",
     "apps/portfolio-api/src/catalog-disposition-state.mjs": "14bdaae9188d604a15ea90ef63b2adf025600b26b3a4af58364ee24f4d99f875",
     "apps/portfolio-api/src/catalog-disposition.mjs": "1835a7e3235460873335e53979a409360f3ffea0d8814e6737317f7ef3dbb49f",
@@ -792,7 +808,7 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/effects.mjs": "c5afa7cb63a42aebcc4f70c414bd09c2aca6b7de7967f5e0f2b5cfa7f3efab7c",
+    "packages/tenant-lifecycle/effects.mjs": "43ab8c424bda56613ce3244a77a89b3e743c13fc3e2d4090d7ab62711a40720f",
     "packages/tenant-lifecycle/local-effects-adapter.mjs": "3203b873403b1c57e9e446142b943328c993b49d721aadf057ebb4fd90a294e8",
     "packages/tenant-lifecycle/native-n8n-provider.mjs": "d8f1b55d1e7a88a54923684510cf45897cec1aa859777ae276550cf4d985ee78",
     "packages/tenant-lifecycle/native-n8n-effects-adapter.mjs": "0112c5552597952bfc339da6ec44ae8f7bdf9c948edc3a1e290be503e6d8c6e2",
@@ -2091,7 +2107,7 @@
       "state": "CONDITIONAL_RECEIPTED",
       "receipt": "automation_audit_logs",
       "meter": "ONE_COMMAND",
-      "condition": "Explicit bounded LOCAL_OBSERVE_V1 or registered LOCAL_SIMULATED AUTOMATION_RECOVERY with original audit receipt/frozen selection/private parent child contexts; unmanaged legacy recovery remains gated."
+      "condition": "Explicit bounded LOCAL_OBSERVE_V1 or registered local-control AUTOMATION_RECOVERY with mode-bound simulated or native children with original audit receipt/frozen selection/private parent child contexts; unmanaged legacy recovery remains gated."
     },
     {
       "route": "POST /api/cs/automation/resolution-draft",
@@ -2133,7 +2149,7 @@
       "state": "CONDITIONAL_RECEIPTED",
       "receipt": "automation_audit_logs",
       "meter": "ONE_COMMAND",
-      "condition": "Managed engine LOCAL_SIMULATED adapter and real current human/service session; AUTOMATION_ENGINE_RUN keeps existing tenant/key digest and immutable accepted result; legacy engine remains separate-effect gated."
+      "condition": "Explicit LOCAL_SIMULATED or NATIVE_LOCAL_N8N managed engine and real current human/service session; AUTOMATION_ENGINE_RUN keeps existing tenant/key digest and immutable accepted result; legacy engine remains separate-effect gated."
     },
     {
       "route": "POST /api/cs/automation/service-credentials",

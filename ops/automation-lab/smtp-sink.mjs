@@ -29,6 +29,7 @@ export function createSmtpSink({ smtpPort = 2527, httpPort = 8027, host = '127.0
         const colon = line.indexOf(':');
         if (colon < 1) throw new Error('Malformed header');
         key = line.slice(0, colon).toLowerCase();
+        if (['x-iems-native-correlation','x-iems-native-binding','message-id'].includes(key) && Object.hasOwn(headers,key)) throw new Error('Duplicate receipt identity header');
         headers[key] = line.slice(colon + 1).trim();
       }
     }
@@ -40,6 +41,14 @@ export function createSmtpSink({ smtpPort = 2527, httpPort = 8027, host = '127.0
       body: raw.slice(boundary + 4).replace(/^\.\./gm, '.'), raw,
       receiptStatus: 'Accepted by local mail sink'
     };
+    if (headers['x-iems-native-correlation'] || headers['x-iems-native-binding']) {
+      if (!['x-iems-native-correlation','x-iems-native-binding'].every(name => /^[0-9a-f]{64}$/.test(headers[name] || ''))) throw new Error('Invalid native receipt identity');
+      const prior = emails.find(row => row.headers['x-iems-native-correlation'] === headers['x-iems-native-correlation']);
+      if (prior) {
+        if (prior.raw !== raw || prior.envelopeFrom !== envelope.from || JSON.stringify(prior.envelopeTo) !== JSON.stringify(envelope.to)) throw new Error('Native receipt identity conflict');
+        return prior;
+      }
+    }
     // Persist SMTP DATA before returning a transport acceptance response.
     if (dataFile) {
       const fd = openSync(dataFile, 'a');

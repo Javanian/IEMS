@@ -114,6 +114,92 @@
         "jsonOutput": "={{ { n8nExecutionId: $execution.id, result: $json.data || $json } }}",
         "options": {}
       }
+    },
+    {
+      "id": "iems-native-input",
+      "name": "IEMS_NATIVE_INPUT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        240
+      ],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "native-mail-delivery",
+      "name": "Native mail delivery",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        340,
+        240
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "native-mail",
+              "leftValue": "={{ !!$json.body?.iemsNative?.deliveryId }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "original-operation-input",
+      "name": "Original operation input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        240
+      ],
+      "parameters": {
+        "jsCode": "const request=$json;return [{json:request.body?.iemsNative?{...request,body:request.body.payload}:request}];"
+      }
+    },
+    {
+      "id": "native-smtp-data",
+      "name": "Native SMTP DATA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const crypto=require('crypto');const canonical=v=>v===null||typeof v!=='object'?JSON.stringify(v):Array.isArray(v)?'['+v.map(canonical).join(',')+']':'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';const hash=v=>crypto.createHash('sha256').update(canonical(v)).digest('hex');\nconst net=require('net');\nasync function submitLocalMail(delivery, options = {}) {\n  if ([delivery.recipient, delivery.subject, delivery.messageId, delivery._id, delivery.tenantId, delivery.plantId, delivery.contentHash].some(value => typeof value !== 'string' || /[\\r\\n]/.test(value))) throw new Error('INVALID_MAIL_HEADERS');\n  if (!/^[a-z0-9._+-]+@iems\\.local$/.test(delivery.recipient) || typeof delivery.body !== 'string' || Buffer.byteLength(delivery.body) > 65536) throw new Error('SYNTHETIC_MAIL_REQUIRED');\n  const port = Number(options.smtpPort || process.env.IEMS_AUTOMATION_SMTP_PORT || 2527);\n  if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw new Error('INVALID_SMTP_PORT');\n  const headers = [\n    'From: automation@iems.local', `To: ${delivery.recipient}`, `Subject: ${delivery.subject}`,\n    `Message-ID: ${delivery.messageId}`, `X-IEMS-Delivery-ID: ${delivery._id}`,\n    `X-IEMS-Tenant-ID: ${delivery.tenantId}`, `X-IEMS-Plant-ID: ${delivery.plantId}`,\n    `X-IEMS-Content-Hash: ${delivery.contentHash}`, 'Content-Type: text/plain; charset=utf-8'\n  ];\n  if (options.native) {\n    const { correlationId, bindingHash } = options.native;\n    if (![correlationId, bindingHash].every(value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value))) throw new Error('INVALID_NATIVE_MAIL_BINDING');\n    headers.push(`X-IEMS-Native-Correlation: ${correlationId}`, `X-IEMS-Native-Binding: ${bindingHash}`);\n  }\n  const body = delivery.body.replace(/\\r?\\n/g, '\\r\\n').replace(/^\\./gm, '..');\n  return new Promise((resolve, reject) => {\n    const socket = net.createConnection({ host: '127.0.0.1', port });\n    let buffer = '', step = 0, submitted = false, finished = false;\n    const done = (error, result) => {\n      if (finished) return;\n      finished = true;\n      socket.destroy();\n      if (error) { error.submitted = submitted; reject(error); } else resolve(result);\n    };\n    socket.setTimeout(options.timeoutMs || 5000, () => done(new Error('SMTP_TIMEOUT')));\n    socket.on('error', () => done(new Error('SMTP_UNAVAILABLE')));\n    socket.on('close', () => { if (!finished) done(new Error('SMTP_CONNECTION_CLOSED')); });\n    socket.on('data', chunk => {\n      buffer += chunk.toString('utf8');\n      if (buffer.length > 8192) return done(new Error('SMTP_RESPONSE_TOO_LARGE'));\n      while (buffer.includes('\\r\\n')) {\n        const end = buffer.indexOf('\\r\\n'), line = buffer.slice(0, end);\n        buffer = buffer.slice(end + 2);\n        if (!/^\\d{3} /.test(line)) continue;\n        const code = Number(line.slice(0, 3));\n        const expected = [220, 250, 250, 250, 354, 250][step];\n        if (code !== expected) return done(new Error('SMTP_REJECTED'));\n        if (step === 0) socket.write('EHLO iems.local\\r\\n');\n        if (step === 1) socket.write('MAIL FROM:<automation@iems.local>\\r\\n');\n        if (step === 2) socket.write(`RCPT TO:<${delivery.recipient}>\\r\\n`);\n        if (step === 3) socket.write('DATA\\r\\n');\n        if (step === 4) { submitted = true; socket.write(`${headers.join('\\r\\n')}\\r\\n\\r\\n${body}\\r\\n.\\r\\n`); }\n        if (step === 5) {\n          const receiptId = /queued as ([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(line)?.[1];\n          if (options.native && !receiptId) return done(new Error('SMTP_ACCEPTANCE_ID_REQUIRED'));\n          return done(null, { submitted: true, ...(receiptId ? { receiptId } : {}) });\n        }\n        step += 1;\n      }\n    });\n  });\n}\nconst {iemsNative:binding,payload}= $json.body;\nif(hash(payload)!==binding.payloadHash||payload._id!==binding.deliveryId||payload.messageId!==binding.messageId||payload.tenantId!==binding.tenantId||payload.plantId!==binding.plantId)throw new Error('NATIVE_PAYLOAD_MISMATCH');\nconst receipt=await submitLocalMail(payload,{smtpPort:2527,timeoutMs:5000,native:{correlationId:binding.correlationId,bindingHash:hash(binding)}});\nreturn [{json:{state:'ACCEPTED_LOCAL',smtpReceiptId:receipt.receiptId,messageId:payload.messageId}}];"
+      }
+    },
+    {
+      "id": "iems-native-result",
+      "name": "IEMS_NATIVE_RESULT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        240
+      ],
+      "parameters": {
+        "jsCode": "const crypto=require('crypto');const canonical=v=>v===null||typeof v!=='object'?JSON.stringify(v):Array.isArray(v)?'['+v.map(canonical).join(',')+']':'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';const hash=v=>crypto.createHash('sha256').update(canonical(v)).digest('hex');\nlet binding;try{binding=$('IEMS_NATIVE_INPUT').first().json.body?.iemsNative;}catch{return $input.all();}\nif(!binding)return $input.all();\nconst result=$json;\nreturn [{json:{iemsNativeResult:{schema:'IEMS_NATIVE_N8N_RESULT_V1',bindingHash:hash(binding),state:'COMPLETED',resultHash:hash(result),smtpReceiptId:binding.deliveryId?result.smtpReceiptId:null}}}];"
+      }
     }
   ],
   "connections": {
@@ -121,7 +207,7 @@
       "main": [
         [
           {
-            "node": "Create and dispatch authoritative digest",
+            "node": "IEMS_NATIVE_INPUT",
             "type": "main",
             "index": 0
           }
@@ -149,6 +235,68 @@
           }
         ]
       ]
+    },
+    "IEMS_NATIVE_INPUT": {
+      "main": [
+        [
+          {
+            "node": "Native mail delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Native mail delivery": {
+      "main": [
+        [
+          {
+            "node": "Native SMTP DATA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Original operation input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Original operation input": {
+      "main": [
+        [
+          {
+            "node": "Create and dispatch authoritative digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Native SMTP DATA": {
+      "main": [
+        [
+          {
+            "node": "IEMS_NATIVE_RESULT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execution reference": {
+      "main": [
+        [
+          {
+            "node": "IEMS_NATIVE_RESULT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -160,5 +308,5 @@
   },
   "pinData": {},
   "tags": [],
-  "versionId": "59198d51-9c3d-46e1-a520-3bb095bbf2d0"
+  "versionId": "9d53234b-3e4f-46e1-a55d-89a20464c2cf"
 }

@@ -1,0 +1,86 @@
+{
+  "nativeRuntime": "NOT_RUN",
+  "fullEndpointCoverage": false,
+  "receipts": [
+    {
+      "totals": [
+        "ℹ tests 42",
+        "ℹ pass 41",
+        "ℹ fail 1",
+        "ℹ skipped 0",
+        "ℹ duration_ms 62070.0202"
+      ],
+      "sha256": "9689883cf21012b5c2a354fff91709f1070b0f3a0733a1f4717d52dca5253496",
+      "log": "focused-resume.tap"
+    },
+    {
+      "totals": [
+        "ℹ tests 6",
+        "ℹ pass 6",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ duration_ms 4230.2703"
+      ],
+      "sha256": "0be7a4eccdddc1e3cc6cba6cb4a66c574ba061487b68aa81433f85f4f12feed9",
+      "log": "smtp-registry-resume.tap"
+    },
+    {
+      "totals": [
+        "ℹ tests 47",
+        "ℹ pass 47",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ duration_ms 119441.4493"
+      ],
+      "sha256": "c93b69960dcb6ef948e19c6ee5d75c8a797e8ab07f6d6fa85f6207734106f015",
+      "log": "focused-final.tap"
+    },
+    {
+      "totals": [
+        "ℹ tests 6",
+        "ℹ pass 6",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ duration_ms 161.1801"
+      ],
+      "sha256": "66eee8eae065e10b1e3c6361f8e15e3c39ae2998cb6e4de50fd97ae028169079",
+      "log": "lab-final.tap"
+    },
+    {
+      "totals": [
+        "ℹ tests 16",
+        "ℹ pass 16",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ duration_ms 27566.7667"
+      ],
+      "sha256": "68bd7199246d882e420abf6f7dd6475f9d6efcf1b12c768ae61cae84338f8332",
+      "log": "engine-source-final.tap"
+    },
+    {
+      "totals": [
+        "ℹ tests 1",
+        "ℹ pass 1",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ duration_ms 1665.5719"
+      ],
+      "sha256": "6f74b39f6b5d996b77fa441effb82a6cb157413c82e169efcabc91842efecfca",
+      "log": "registry-final.tap"
+    }
+  ],
+  "base": "da4bb20c5d2fe0cbe476aeef92f25828bbeac24c",
+  "commands": {
+    "registryFinal": "node --test packages/tenant-lifecycle/registry-integrity.test.mjs",
+    "focused": "node --test --test-concurrency=1 apps/portfolio-api/test/automation-native-history.test.mjs apps/portfolio-api/test/native-n8n-composition.test.mjs packages/tenant-lifecycle/native-n8n-provider.test.mjs packages/tenant-lifecycle/native-n8n-effects-adapter.test.mjs packages/tenant-lifecycle/automation-recovery-v15.test.mjs packages/tenant-lifecycle/registry-integrity.test.mjs ops/automation-lab/workflow-contract.test.mjs ops/automation-lab/smtp-sink.test.mjs ops/automation-lab/readiness.test.mjs ops/automation-lab/transport-boundaries.test.mjs",
+    "engineFollowup": "node --test --test-concurrency=1 apps/portfolio-api/test/automation-native-history.test.mjs packages/tenant-lifecycle/engine-v15.test.mjs",
+    "labFollowup": "node --test ops/automation-lab/readiness.test.mjs ops/automation-lab/workflow-contract.test.mjs"
+  },
+  "qualification": "Owned dirty implementation; focused47 before native engine source-code correction, affected native/legacy engine16 and actual registry1 after correction; lab6 after setup cleanup change; native harness syntax only NOT_RUN",
+  "environment": {
+    "MONGOMS_RUNTIME_DOWNLOAD": "false",
+    "IEMS_NATIVE_TEST_ROOT": "task-owned external synthetic-resume directory",
+    "node": "24.19.0"
+  },
+  "product": "UNACCEPTED"
+}
