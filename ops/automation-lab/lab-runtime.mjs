@@ -9,6 +9,7 @@ import { MongoMemoryReplSet } from '../../apps/portfolio-api/node_modules/mongod
 import { MongoClient } from '../../apps/portfolio-api/node_modules/mongodb/lib/index.js';
 import { createSmtpSink } from './smtp-sink.mjs';
 import { nativeWorkflowRevisions, nativeWorkflowBindings } from './native-workflows.mjs';
+import { assertFreshNativeDatabase, activateNativeWorkflows } from './native-activation.mjs';
 
 const root = resolve(process.env.IEMS_AUTOMATION_LAB_ROOT || 'D:/IEMS-Automation-Lab/n8n-corrective-acceptance-20261027');
 const repo = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -21,6 +22,7 @@ const config = existsSync(configPath) ? json(configPath) : { marker: randomUUID(
 const nativeWorkflows=config.native?nativeWorkflowRevisions({apiPort:config.ports.api,smtpPort:config.ports.smtp,webPort:config.ports.web}):null;
 if(config.native){
   if(!config.instanceId||!config.n8nPackageRoot||!Object.values(config.ports).every(port=>Number.isInteger(port)&&port>=32740&&port<=32759))throw Error('NATIVE_CONFIG_REQUIRED');
+  assertFreshNativeDatabase(root);
   config.nativeBindings=nativeWorkflowBindings(nativeWorkflows,config.ports.proxy??config.ports.n8n);
   const owner={schema:'IEMS_NATIVE_N8N_OWNER_V1',marker:config.marker,instanceId:config.instanceId,databaseName:config.database,n8nVersion:'1.121.3',evidenceClass:'NATIVE_RUNTIME'};
   if(existsSync(join(root,'native-owner.json'))&&JSON.stringify(json(join(root,'native-owner.json')))!==JSON.stringify(owner))throw Error('NATIVE_OWNER_CONFLICT');
@@ -84,8 +86,10 @@ const n8nEnv = {
   NODE_OPTIONS: '--max-old-space-size=1536'
 };
 async function cli(name, args) {
+  const started=Date.now();log(`${name} start`);
   const child = launch(name, [n8nBin, ...args], n8nEnv);
   const code = await new Promise(resolveExit => child.once('exit', resolveExit));
+  log(`${name} completed in ${Date.now()-started}ms with ${code}`);
   if (code !== 0) throw new Error(`${name} failed with ${code}; inspect owned logs`);
 }
 async function startEngine(packageRoot=join(root,'runtime','node_modules','n8n')) {
@@ -223,7 +227,12 @@ try {
   const workflowsPath = join(root, 'n8n-workflows.json');
   save(workflowsPath, nativeWorkflows??workflowIds.map(workflowId => json(join(repo, 'ops', 'automation-lab', 'workflows', workflowId + '.json'))));
   await cli('import-workflows', ['import:workflow', `--input=${workflowsPath}`]);
-  for (const workflowId of workflowIds.filter(id => id !== 'wf-automation-error')) await cli(`activate-${workflowId}`, ['update:workflow', `--id=${workflowId}`, '--active=true']);
+  if(config.native){
+    const activation=await activateNativeWorkflows({root,config,db,workflows:nativeWorkflows,cli,assertStopped:()=>{if(children.has('n8n')||closing)throw Error('NATIVE_ACTIVATION_REQUIRES_STOPPED_ENGINE');}});
+    save(join(root,'native-activation.json'),activation);
+  }else{
+    for (const workflowId of workflowIds.filter(id => id !== 'wf-automation-error')) await cli(`activate-${workflowId}`, ['update:workflow', `--id=${workflowId}`, '--active=true']);
+  }
   status({ phase: 'starting-engine' }); await startEngine(n8nPackageRoot);
   if(!config.native){launch('web', [join(repo, 'apps', 'web', 'node_modules', 'vite', 'bin', 'vite.js'), join(repo, 'apps', 'web'), '--host', '127.0.0.1', '--port', String(config.ports.web), '--strictPort'], { VITE_PORTFOLIO_API_BASE: base, VITE_PORTFOLIO_PROXY_TARGET: base });await ready(webBase + '/portfolio/login');}
   if(setupControl)clearInterval(setupControl);
