@@ -13,7 +13,6 @@ import { nativeWorkflowRevisions, nativeWorkflowBindings } from './native-workfl
 const root = resolve(process.env.IEMS_AUTOMATION_LAB_ROOT || 'D:/IEMS-Automation-Lab/n8n-corrective-acceptance-20261027');
 const repo = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const sourceHashes = Object.fromEntries(['app.mjs', 'automation.mjs', 'automation-transport.mjs'].map(name => [name, createHash('sha256').update(readFileSync(join(repo, 'apps', 'portfolio-api', 'src', name))).digest('hex')]));
-const { createApp, initialize, seedSynthetic } = await import('../../apps/portfolio-api/src/app.mjs');
 for (const directory of ['logs', 'mongo', 'n8n-user', 'runtime']) mkdirSync(join(root, directory), { recursive: true });
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const save = (path, value) => { writeFileSync(path + '.tmp', JSON.stringify(value, null, 2), { mode: 0o600 }); renameSync(path + '.tmp', path); };
@@ -174,6 +173,7 @@ try {
     const mongo=repl.servers[0]?.instanceInfo;save(join(root,'logs','mongo.identity.json'),{marker:config.marker,port:config.ports.mongo,root:join(root,'mongo'),identity:processIdentity(mongo?.instance?.mongodProcess?.pid)});
     await startNativeApi();
   }else{
+    const { createApp, initialize, seedSynthetic } = await import('../../apps/portfolio-api/src/app.mjs');
     const runtime = await initialize({ client, db });
     if (!await db.collection('credentials').countDocuments()) await seedSynthetic(runtime, { password: config.password });
     server = createApp(runtime, { origins: [webBase, 'http://localhost:4173'] }).listen(config.ports.api, '127.0.0.1');

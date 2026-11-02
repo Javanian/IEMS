@@ -119,5 +119,30 @@
     "qualification": "Final source dirty on3385ba5; source bytes to be committed; no n8n",
     "pass": 2,
     "sha256": "52edc08849e4f44fd86d83ea82e524c8b0f830605084fc8bec1b9791baa28f42"
+  },
+  "nativeFirst": {
+    "cleanupSha256": "b6814b0ea4a55c1f28afae8ffb7ab7483cd53a5d497f1099b167fc479d4b7f08",
+    "state": "SETUP_FAILED_BEFORE_N8N_SMTP",
+    "command": "node --test --test-concurrency=1 ops/automation-lab/native-history.test.mjs",
+    "error": "NATIVE_API_NOT_READY; cleanup-reporting control-ack race",
+    "sha256": "2dc4bbf746f8f22c09dfc6ccfce6cdabe5cd28e2d7c2d91c6a71fff6452662d8",
+    "testedSha": "771f84fb666f338a2cedebabaf28c5a0a29009ad",
+    "log": "native-first.tap",
+    "cleanupLog": "runs/native-I9y4TC/cleanup-independent.json",
+    "pass": 0,
+    "cleanup": "Marker database drop recorded; three exact process identities gone and seven reserved ports free independently verified",
+    "fail": 1,
+    "exit": 1,
+    "skip": 0
+  },
+  "startupCleanupCorrection": {
+    "command": "node --test --test-concurrency=1 ops/automation-lab/native-probe-support.test.mjs ops/automation-lab/readiness.test.mjs ops/automation-lab/workflow-contract.test.mjs",
+    "qualification": "Owned cleanup/module-load/timing source correction on771f84f; native rerun NOT_RUN; startup cause remains unproven",
+    "sha256": "7581bd2fbbd60fa1afe032e3ffea9bab1ea6b404326feef93cfef5096e695b85",
+    "log": "startup-cleanup-focused.tap",
+    "pass": 8,
+    "fail": 0,
+    "exit": 0,
+    "skip": 0
   }
 }

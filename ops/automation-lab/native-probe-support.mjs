@@ -14,6 +14,13 @@ export const wait=ms=>new Promise(r=>setTimeout(r,ms));
 export const read=path=>JSON.parse(readFileSync(path,'utf8'));
 export function save(path,value){writeFileSync(path+'.tmp',JSON.stringify(value,null,2),{mode:0o600});renameSync(path+'.tmp',path);}
 export async function until(predicate,ms=30000){const end=Date.now()+ms;while(Date.now()<end){const value=await predicate();if(value)return value;await wait(50);}throw Error('NATIVE_PROBE_DEADLINE');}
+export async function stopNativeSupervisor({child,state,requestStop}){
+  const exited=()=>child.exitCode!==null||child.signalCode!==null;
+  if(exited())return;
+  // Self-failure has already left the control loop; an unconsumed stop ACK cannot prove cleanup.
+  if(!['stopping','stopped','failed'].includes(state()?.phase))await requestStop();
+  await until(exited,30000);
+}
 const repo=fileURLToPath(new URL('../..',import.meta.url));
 const identity=pid=>JSON.parse(execFileSync('powershell.exe',['-NoProfile','-Command',`Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" | Select-Object ProcessId,CreationDate,ExecutablePath,CommandLine | ConvertTo-Json -Compress`],{encoding:'utf8',windowsHide:true,timeout:10000})||'null');
 
@@ -48,7 +55,7 @@ export async function startNativeLab(){
   lab.control=async action=>{const state=lab.state();assert.equal(state?.marker,marker);assert.equal(state.supervisorPid,child.pid);assert.equal(identity(child.pid)?.CreationDate,supervisor.CreationDate);const id=randomUUID();save(join(root,'control.json'),{id,action,marker,supervisorPid:child.pid,supervisorRunId:state.supervisorRunId});return until(()=>{const result=lab.state()?.lastControl;if(result?.id!==id)return null;assert.equal(result.ok,true,JSON.stringify(result));return result;},action==='start-n8n'?120000:60000);};
   lab.close=async()=>{
     if(lab.client)await lab.client.close();
-    if(child.exitCode===null&&child.signalCode===null){await lab.control('stop');await until(()=>child.exitCode!==null||child.signalCode!==null,30000);}
+    await stopNativeSupervisor({child,state:lab.state,requestStop:()=>lab.control('stop')});
     const state=lab.state();assert.equal(state?.databaseDropped,true,'Owned database must be marker-checked and dropped');
     for(const port of Object.values(config.ports))await new Promise((r,j)=>{const socket=net.createServer();socket.once('error',j);socket.listen(port,'127.0.0.1',()=>socket.close(r));});
     const checked=[];
