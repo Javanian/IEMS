@@ -1,0 +1,65 @@
+{
+  "base": "34349add1ea022b6953aa00d11334f707de6367c",
+  "generators": [
+    "node packages/tenant-lifecycle/build-registry.mjs",
+    "node packages/tenant-lifecycle/build-admission-registry.mjs"
+  ],
+  "deterministic": true,
+  "fullEndpointCoverage": false,
+  "admittedNativeKinds": [],
+  "registries": {
+    "packages/tenant-lifecycle/domain-registry.json": {
+      "sha256": "d7f631f219ee8b06ea160af1cf655471eb3fd13a838b8d0e3d5d75e26f48f27e",
+      "sourceCountBefore": 110,
+      "sourceCountAfter": 112,
+      "sourcePinDelta": [
+        {
+          "path": "packages/tenant-lifecycle/effects.mjs",
+          "before": "e88f2d25583bc2c8267a2cac0b16a990efa957e8d758bfb6827592743d0058bb",
+          "after": "c5afa7cb63a42aebcc4f70c414bd09c2aca6b7de7967f5e0f2b5cfa7f3efab7c"
+        },
+        {
+          "path": "packages/tenant-lifecycle/native-n8n-effects-adapter.mjs",
+          "before": null,
+          "after": "0112c5552597952bfc339da6ec44ae8f7bdf9c948edc3a1e290be503e6d8c6e2"
+        },
+        {
+          "path": "packages/tenant-lifecycle/native-n8n-provider.mjs",
+          "before": null,
+          "after": "d8f1b55d1e7a88a54923684510cf45897cec1aa859777ae276550cf4d985ee78"
+        }
+      ],
+      "collectionCount": 270,
+      "collectionNamesAndDispositionsUnchanged": true
+    },
+    "packages/tenant-lifecycle/admission-registry.json": {
+      "sha256": "9def8394ae119e7685c9675d4df9ba3ed68211ee360f7bbea89e09c3c7c200b9",
+      "sourceCountBefore": 114,
+      "sourceCountAfter": 116,
+      "sourcePinDelta": [
+        {
+          "path": "apps/portfolio-api/src/app.mjs",
+          "before": "04f5d429ba15f4ac70d393eb23c7de9be4bb3a02a595db142eca0441bea899ae",
+          "after": "b01f0c3d1decfcd719e2e7b91a9b9bcbe5dc9887b72b72036430d9a9a907366d"
+        },
+        {
+          "path": "packages/tenant-lifecycle/effects.mjs",
+          "before": "e88f2d25583bc2c8267a2cac0b16a990efa957e8d758bfb6827592743d0058bb",
+          "after": "c5afa7cb63a42aebcc4f70c414bd09c2aca6b7de7967f5e0f2b5cfa7f3efab7c"
+        },
+        {
+          "path": "packages/tenant-lifecycle/native-n8n-effects-adapter.mjs",
+          "before": null,
+          "after": "0112c5552597952bfc339da6ec44ae8f7bdf9c948edc3a1e290be503e6d8c6e2"
+        },
+        {
+          "path": "packages/tenant-lifecycle/native-n8n-provider.mjs",
+          "before": null,
+          "after": "d8f1b55d1e7a88a54923684510cf45897cec1aa859777ae276550cf4d985ee78"
+        }
+      ],
+      "routeCount": 406,
+      "routesAndAdmittedKindsUnchanged": true
+    }
+  }
+}

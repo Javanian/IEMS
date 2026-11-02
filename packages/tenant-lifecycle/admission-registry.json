@@ -662,8 +662,21 @@
       }
     },
     "adapterModes": [
-      "LOCAL_SIMULATED_OWNED_MARKER_DATABASE_ONLY"
+      "LOCAL_SIMULATED_OWNED_MARKER_DATABASE_ONLY",
+      "NATIVE_LOCAL_N8N_OWNED_MARKER_DATABASE_ONLY"
     ],
+    "nativeN8n": {
+      "state": "IMPLEMENTED_NATIVE_INTEGRATION_PENDING",
+      "admittedKinds": [],
+      "reservedKinds": [
+        "automation.native-engine",
+        "automation.native-delivery"
+      ],
+      "adapterId": "native.n8n",
+      "proof": "Private factory observations from pinned n8n 1.121.3 read-only execution_data plus exact local SMTP journal; original binding, durable BEGIN and single dispatch claim; no callback or ACK proof",
+      "drain": "Durable stop epoch, high-water and exact attempt/receipt set; unresolved BEGIN remains PENDING",
+      "contract": "checkpoints/orca-native-n8n/NATIVE-CONTRACT.md"
+    },
     "retryPolicy": "Original human delivery.review or DELIVERY_MANUAL_REVIEW receipt plus source fence atomically closes an attempt BEFORE provider BEGIN; new ordinal/fence binds retryOf to that immutable receipt. Begun UNKNOWN remains reconciliation-required; no ACK/timeout/human assertion as stop proof.",
     "callers": "Five scoped UI callers retain original command/key/body on uncertainty and only public intent metadata for phase recovery; actual mounted focused proof, independent QA pending.",
     "pending": [
@@ -676,7 +689,7 @@
   },
   "sources": {
     "apps/portfolio-api/src/analytics.mjs": "321a9a29dc738b64cac746d7b4123f9cfcaece1c1af643c7b159aac53b007833",
-    "apps/portfolio-api/src/app.mjs": "04f5d429ba15f4ac70d393eb23c7de9be4bb3a02a595db142eca0441bea899ae",
+    "apps/portfolio-api/src/app.mjs": "b01f0c3d1decfcd719e2e7b91a9b9bcbe5dc9887b72b72036430d9a9a907366d",
     "apps/portfolio-api/src/assistants.mjs": "2f84328eb80eeb99be246ccd02f69fbdcef6d94a0619be4c562859a9b55e34c8",
     "apps/portfolio-api/src/automation-transport.mjs": "6408a238fc3d897b2774e9e3e062bc9da88bf3080b9c7d232cd3b0283dc8cc89",
     "apps/portfolio-api/src/automation.mjs": "60a47c27a52d76ed28b8eba44349db66f26035ac0ca1a2a74b973e0cd9c4dfa3",
@@ -779,8 +792,10 @@
     "packages/durable-jobs/rabbitmq.mjs": "4d95c1b0b0f9aa02514323fc69fc4efff820e33950e5989825101e8011dc8f9a",
     "packages/cache-coordination/index.mjs": "aa5384ec3d45f81c2ece5f859a1a7d7361389a089f085966ea17616a9be47c3c",
     "packages/tenant-lifecycle/local-commands.mjs": "d6e6a3e9d0b19dc67558e5df6bb5f32ac5ed8c636b8466b091c1f55c218025fd",
-    "packages/tenant-lifecycle/effects.mjs": "e88f2d25583bc2c8267a2cac0b16a990efa957e8d758bfb6827592743d0058bb",
+    "packages/tenant-lifecycle/effects.mjs": "c5afa7cb63a42aebcc4f70c414bd09c2aca6b7de7967f5e0f2b5cfa7f3efab7c",
     "packages/tenant-lifecycle/local-effects-adapter.mjs": "3203b873403b1c57e9e446142b943328c993b49d721aadf057ebb4fd90a294e8",
+    "packages/tenant-lifecycle/native-n8n-provider.mjs": "d8f1b55d1e7a88a54923684510cf45897cec1aa859777ae276550cf4d985ee78",
+    "packages/tenant-lifecycle/native-n8n-effects-adapter.mjs": "0112c5552597952bfc339da6ec44ae8f7bdf9c948edc3a1e290be503e6d8c6e2",
     "packages/tenant-lifecycle/effect-primitives.mjs": "7c528a2602f3b46fc2d0d94dc782ebf5d0fecec9f867618bc5397d871d4fbb6f",
     "packages/tenant-lifecycle/local-ai-provider.mjs": "77a0b820116c978c5fc7b9a1bd0a210244fea23a2abc72818296dfb30063115b",
     "packages/tenant-lifecycle/indexing-effects.mjs": "f1b62820a930b6c258ba31f5a80566e8c28b8bfdfcc0dec6e531e2d54f66b319",

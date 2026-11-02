@@ -88,12 +88,19 @@ export async function initialize({ client, db, customerService = {}, businessClo
   const { createSaasAdmission, admissionProfile } = await import('../../../packages/tenant-lifecycle/admission.mjs');
   const { createSeparateEffects } = await import('../../../packages/tenant-lifecycle/effects.mjs');
   const { createControlledLocalAdapter } = await import('../../../packages/tenant-lifecycle/local-effects-adapter.mjs');
+  const { createNativeN8nProvider } = await import('../../../packages/tenant-lifecycle/native-n8n-provider.mjs');
+  const { createNativeN8nEffectsAdapter } = await import('../../../packages/tenant-lifecycle/native-n8n-effects-adapter.mjs');
   const { isControlledLocalAiProvider, controlledVendorProvider } = await import('../../../packages/tenant-lifecycle/local-ai-provider.mjs');
   runtime.separateEffects=createSeparateEffects({...runtime,admission:descriptor=>runtime.saasAdmission.effect(descriptor),fault:integrations.effects?.controlFault});
   await runtime.separateEffects.initialize();
   if(integrations.effects){
-    if(integrations.effects.mode!=='LOCAL_SIMULATED'||!/^portfolio_(owned|test)_/.test(db.databaseName)||!await db.collection('ownedRun').findOne({}))fail(503,'EFFECT_LOCAL_OWNED_DATABASE_REQUIRED');
-    for(const id of ['local.engine','local.cs','local.ai-index','local.vendor'])runtime.separateEffects.registerAdapter(createControlledLocalAdapter({...runtime,id,fault:integrations.effects.adapterFault}));
+    if(!['LOCAL_SIMULATED','NATIVE_LOCAL_N8N'].includes(integrations.effects.mode)||!/^portfolio_(owned|test)_/.test(db.databaseName)||!await db.collection('ownedRun').findOne({}))fail(503,'EFFECT_LOCAL_OWNED_DATABASE_REQUIRED');
+    if(integrations.effects.mode==='LOCAL_SIMULATED'){
+      for(const id of ['local.engine','local.cs','local.ai-index','local.vendor'])runtime.separateEffects.registerAdapter(createControlledLocalAdapter({...runtime,id,fault:integrations.effects.adapterFault}));
+    }else{
+      runtime.nativeN8nProvider=await createNativeN8nProvider({...integrations.effects.nativeN8n,client,db,ownedRunMarker});
+      runtime.separateEffects.registerAdapter(createNativeN8nEffectsAdapter({client,db,provider:runtime.nativeN8nProvider}));
+    }
   }
   runtime.saasAdmission = createSaasAdmission({ ...runtime, coverage: integrations.tenantLifecycle?.admissionCoverage ?? admissionProfile,
     controlledIndexReady:()=>isControlledLocalAiProvider(runtime.localAiProvider)&&runtime.separateEffects.supports('ai.index.rebuild')&&runtime.separateEffects.supports('ai.index.cleanup'),
