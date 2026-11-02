@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import { summarizeServiceMetrics } from './service-metrics.mjs';
 import { effectHash } from '../tenant-lifecycle/effects.mjs';
 
@@ -110,6 +111,53 @@ export function createCustomerService({ client, db, foundation, saasAdmission, s
   const principals = new WeakMap();
 
   const transactionContext = new AsyncLocalStorage();
+  const operatorQueues = new Map();
+  let waitingOperators = 0;
+  async function drainOperators(tenantId, queue) {
+    while (queue.length) {
+      const item = queue[0];
+      item.running = true;
+      clearTimeout(item.timer);
+      waitingOperators--;
+      // Timer callbacks can lag behind the previous transaction's completion.
+      if (performance.now() >= item.deadline) {
+        queue.shift();
+        item.reject(new CustomerServiceError('STATUS_UNAVAILABLE'));
+        continue;
+      }
+      try { item.resolve(await item.execute()); }
+      catch (error) { item.reject(error); }
+      finally { queue.shift(); }
+    }
+    operatorQueues.delete(tenantId);
+  }
+  function enqueueOperator(tenantId, execute) {
+    let queue = operatorQueues.get(tenantId);
+    if (!queue) {
+      if (operatorQueues.size >= 256) fail('STATUS_UNAVAILABLE');
+      queue = [];
+      operatorQueues.set(tenantId, queue);
+    }
+    if (queue.length >= 65 || waitingOperators >= 1024) {
+      if (!queue.length) operatorQueues.delete(tenantId);
+      fail('STATUS_UNAVAILABLE');
+    }
+    return new Promise((resolve, reject) => {
+      const item = { execute, resolve, reject, running: false, timer: null, deadline: performance.now() + 30000 };
+      queue.push(item);
+      waitingOperators++;
+      item.timer = setTimeout(() => {
+        if (item.running) return;
+        const position = queue.indexOf(item);
+        if (position < 0) return;
+        queue.splice(position, 1);
+        waitingOperators--;
+        reject(new CustomerServiceError('STATUS_UNAVAILABLE'));
+      }, 30000);
+      item.timer.unref();
+      if (queue.length === 1) void drainOperators(tenantId, queue);
+    });
+  }
   async function tx(fn) {
     if (transactionContext.getStore()) return fn(transactionContext.getStore().session);
     for (let attempt = 1; ; attempt++) {
@@ -170,7 +218,7 @@ export function createCustomerService({ client, db, foundation, saasAdmission, s
     return session ? foundation.authorizeInTransaction(scope, { plantId: uuid(plantId), action }, { session }) : foundation.authorize(scope, { plantId: uuid(plantId), action });
   }
   async function operatorTx(scope,plantId,action,fn,{onAdmission}={}) {
-    return tx(async session=>{
+    const execute = () => tx(async session=>{
       const grant=await operator(scope,plantId,action),context=transactionContext.getStore();
       if(saasAdmission) {
         if(['cs.ticket.read','cs.binding.read'].includes(action))await saasAdmission.authorize(scope,{plantId,session});
@@ -179,6 +227,9 @@ export function createCustomerService({ client, db, foundation, saasAdmission, s
       }else await missingPort(grant.tenantId,session);
       return transactionContext.run(Object.freeze({...context,actor:Object.freeze({scope,grant,action}),onAdmission:onAdmission??context.onAdmission}),()=>fn(session,grant));
     });
+    if (transactionContext.getStore()) return execute();
+    const grant = await foundation.authorize(scope, { plantId: uuid(plantId), action });
+    return enqueueOperator(grant.tenantId, execute);
   }
   // Expiry is enforced at query and dispatch time; an ACTIVE binding past expiresAt is treated as unusable.
   const unexpired = () => ({ $or: [{ expiresAt: null }, { expiresAt: { $gt: now() } }] });

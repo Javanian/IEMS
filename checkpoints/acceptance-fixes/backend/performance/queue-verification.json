@@ -1,0 +1,426 @@
+{
+  "status": "IMPLEMENTED_QA_PENDING",
+  "productAcceptance": "UNACCEPTED",
+  "baseSha": "4ab4d59f01c5621ecb7d37c1d9644adbc8f247c4",
+  "qualification": "Actual tests on recorded base plus owned delta; runtime and metadata bytes identical throughout; scoped test corrections and later report edits are qualified per run. Exact clean candidate SHA is in external checkpoint.",
+  "sourceFiles": [
+    {
+      "path": "packages/customer-service/index.mjs",
+      "sha256": "4c3276ae9e660e11e54ba33e6556f1dd5eb5f1c32fa91c0427cb74a2a9cf29b9"
+    },
+    {
+      "path": "packages/tenant-lifecycle/domain-registry.json",
+      "sha256": "9d1ca4644a0135aca33e61d50595b4306ed86cc0e7941bd85998cd67241096f9"
+    },
+    {
+      "path": "packages/tenant-lifecycle/admission-registry.json",
+      "sha256": "1d3e6c8507dd72cd3ad0778da26ee642b2555cba657fb1b5e072f21e9fb7ca9a"
+    }
+  ],
+  "normalizedCsSha256": "4c3276ae9e660e11e54ba33e6556f1dd5eb5f1c32fa91c0427cb74a2a9cf29b9",
+  "rows": [
+    {
+      "run": "regression-c760e066-74db-4df7-97d3-65df018f4d5e",
+      "qualification": "13 passes / 2 failures; initial implicit-session counter fixture defect plus parent failure; original nine ordering entries passed",
+      "command": {
+        "executable": "C:\\Users\\Admin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+        "args": [
+          "--import",
+          "file:///D:/Project%20AI/GITHUB/IEMS-evidence/agent-checkpoints/orca-iems-20261102/backend-performance/register-regression.mjs",
+          "--test",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "checkpoints/acceptance-fixes/backend/performance/queue-integration.test.mjs",
+          "checkpoints/review-five-findings/qa/authorization-ordering.test.mjs"
+        ],
+        "cwd": "D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend",
+        "baseSha": "4ab4d59f01c5621ecb7d37c1d9644adbc8f247c4",
+        "status": "M packages/customer-service/index.mjs\n M packages/tenant-lifecycle/admission-registry.json\n M packages/tenant-lifecycle/domain-registry.json\n?? checkpoints/acceptance-fixes/backend/performance/",
+        "marker": "c760e066-74db-4df7-97d3-65df018f4d5e",
+        "ports": [
+          32760,
+          32761
+        ],
+        "support": [
+          {
+            "file": "register-regression.mjs",
+            "sha256": "caeb7b1f6378eb28e344b4a23e2adab1e4cb9b3e2e7778c62b9928d4714fea87"
+          },
+          {
+            "file": "run-regressions.mjs",
+            "sha256": "fd94fbb7377c5ade4803b1e2e8a4db9644d0d583ba2b06e5cd786702fcd02ba1"
+          }
+        ]
+      },
+      "exit": {
+        "code": 1,
+        "signal": null,
+        "pid": 24648,
+        "closedUtc": "2026-11-02T08:36:07.753Z",
+        "logSha256": "f162105647eb3f35440c530f67da9eb1f84bba389c476752e9a6c753a426715c"
+      },
+      "counts": {
+        "tests": 15,
+        "pass": 13,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceManifestEqual": true,
+      "logSha256": "f162105647eb3f35440c530f67da9eb1f84bba389c476752e9a6c753a426715c",
+      "cleanup": {
+        "sha256": "5fd7c56b121fee01b6da8f45d88284a9372345c442b1320012cfeaff270e6746",
+        "dropCount": 2,
+        "stopCount": 2,
+        "recordedIdentityCount": 6,
+        "liveCandidates": [],
+        "freePortCount": 20
+      }
+    },
+    {
+      "run": "regression-28aafd25-19c7-40dc-80e9-23763ba2452e",
+      "qualification": "55 passes / 4 failures; two CPU setup refusals and two dependency import failures; 25 standalone CS passes lacked required runtime instrumentation and are superseded below",
+      "command": {
+        "executable": "C:\\Users\\Admin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+        "args": [
+          "--import",
+          "file:///D:/Project%20AI/GITHUB/IEMS-evidence/agent-checkpoints/orca-iems-20261102/backend-performance/register-regression.mjs",
+          "--test",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "checkpoints/acceptance-fixes/backend/performance/queue.test.mjs",
+          "checkpoints/acceptance-fixes/backend/performance/queue-integration.test.mjs",
+          "packages/tenant-foundation/transaction.test.mjs",
+          "packages/tenant-foundation/foundation.test.mjs",
+          "packages/tenant-foundation/commands.integration.test.mjs",
+          "packages/customer-service/revocation.test.mjs",
+          "packages/customer-service/customer-service.test.mjs",
+          "apps/portfolio-api/test/cs-transaction-port.test.mjs",
+          "apps/portfolio-api/test/stock-ledger.test.mjs",
+          "apps/portfolio-api/test/fulfillment-ledger.test.mjs",
+          "apps/portfolio-api/test/wave3c.test.mjs"
+        ],
+        "cwd": "D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend",
+        "baseSha": "4ab4d59f01c5621ecb7d37c1d9644adbc8f247c4",
+        "status": "M packages/customer-service/index.mjs\n M packages/tenant-lifecycle/admission-registry.json\n M packages/tenant-lifecycle/domain-registry.json\n?? checkpoints/acceptance-fixes/backend/performance/",
+        "marker": "28aafd25-19c7-40dc-80e9-23763ba2452e",
+        "ports": [
+          32760,
+          32761
+        ],
+        "support": [
+          {
+            "file": "register-regression.mjs",
+            "sha256": "caeb7b1f6378eb28e344b4a23e2adab1e4cb9b3e2e7778c62b9928d4714fea87"
+          },
+          {
+            "file": "run-queue-regressions.mjs",
+            "sha256": "0617e84c06153c5724aa13a69e795f386b9c2ffba9d52a1f251cb3f3e5b1d5c1"
+          }
+        ]
+      },
+      "exit": {
+        "code": 1,
+        "signal": null,
+        "pid": 14596,
+        "closedUtc": "2026-11-02T08:46:26.471Z",
+        "logSha256": "bdf3c66b5410df1ea6716286ac8a9057ed43c1c201ed2ab5677264716ee4b7c5"
+      },
+      "counts": {
+        "tests": 59,
+        "pass": 55,
+        "fail": 4,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceManifestEqual": true,
+      "logSha256": "bdf3c66b5410df1ea6716286ac8a9057ed43c1c201ed2ab5677264716ee4b7c5",
+      "cleanup": {
+        "sha256": "54df08f92cd0b79307b20d34d56f071334adabef21903bf4183eedc503343e3c",
+        "dropCount": 6,
+        "stopCount": 6,
+        "recordedIdentityCount": 18,
+        "liveCandidates": [],
+        "freePortCount": 20
+      }
+    },
+    {
+      "run": "regression-3cc50b6b-24dc-4fab-9f59-53571ebee875",
+      "qualification": "14 passes / 9 setup failures; queue6, schema2, commands6 passed; one foundation before-hook CPU refusal accounts for nine unexecuted cases",
+      "command": {
+        "executable": "C:\\Users\\Admin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+        "args": [
+          "--import",
+          "file:///D:/Project%20AI/GITHUB/IEMS-evidence/agent-checkpoints/orca-iems-20261102/backend-performance/register-queue-regression.mjs",
+          "--test",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "checkpoints/acceptance-fixes/backend/performance/queue-integration.test.mjs",
+          "checkpoints/acceptance-fixes/backend/performance/registry-impact.test.mjs",
+          "packages/tenant-foundation/foundation.test.mjs",
+          "packages/tenant-foundation/commands.integration.test.mjs"
+        ],
+        "cwd": "D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend",
+        "baseSha": "4ab4d59f01c5621ecb7d37c1d9644adbc8f247c4",
+        "status": "M packages/customer-service/index.mjs\n M packages/tenant-lifecycle/admission-registry.json\n M packages/tenant-lifecycle/domain-registry.json\n?? checkpoints/acceptance-fixes/backend/performance/",
+        "marker": "3cc50b6b-24dc-4fab-9f59-53571ebee875",
+        "ports": [
+          32760,
+          32761
+        ],
+        "support": [
+          {
+            "file": "register-queue-regression.mjs",
+            "sha256": "92f458166ec6a88f7a5f6f2ca54824bee6eafdce6d3f79f654da6cae9654e1bc"
+          },
+          {
+            "file": "run-queue-regressions.mjs",
+            "sha256": "833131a369ff87f29f9b586b73ddcd4e19bfff97f20e93198badefd39700805c"
+          }
+        ]
+      },
+      "exit": {
+        "code": 1,
+        "signal": null,
+        "pid": 25232,
+        "closedUtc": "2026-11-02T08:51:24.109Z",
+        "logSha256": "f8ccba81a4d3e7320ffcfab5cda5ced839dbfbf8ad3e8677f42630588094619e"
+      },
+      "counts": {
+        "tests": 23,
+        "pass": 14,
+        "fail": 9,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceManifestEqual": true,
+      "logSha256": "f8ccba81a4d3e7320ffcfab5cda5ced839dbfbf8ad3e8677f42630588094619e",
+      "cleanup": {
+        "sha256": "b6782d3508bb210e70eb5fdb366c1930d4dc2e5e26bf50003aac211b8632369d",
+        "dropCount": 3,
+        "stopCount": 3,
+        "recordedIdentityCount": 9,
+        "liveCandidates": [],
+        "freePortCount": 20
+      }
+    },
+    {
+      "run": "regression-320e4ffa-8f59-477f-9d0b-b45e596de249",
+      "qualification": "Foundation9 passed under full runtime ownership",
+      "command": {
+        "executable": "C:\\Users\\Admin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+        "args": [
+          "--import",
+          "file:///D:/Project%20AI/GITHUB/IEMS-evidence/agent-checkpoints/orca-iems-20261102/backend-performance/register-queue-regression.mjs",
+          "--test",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "packages/tenant-foundation/foundation.test.mjs"
+        ],
+        "cwd": "D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend",
+        "baseSha": "4ab4d59f01c5621ecb7d37c1d9644adbc8f247c4",
+        "status": "M packages/customer-service/index.mjs\n M packages/tenant-lifecycle/admission-registry.json\n M packages/tenant-lifecycle/domain-registry.json\n?? checkpoints/acceptance-fixes/backend/performance/",
+        "marker": "320e4ffa-8f59-477f-9d0b-b45e596de249",
+        "ports": [
+          32760,
+          32761
+        ],
+        "support": [
+          {
+            "file": "register-queue-regression.mjs",
+            "sha256": "92f458166ec6a88f7a5f6f2ca54824bee6eafdce6d3f79f654da6cae9654e1bc"
+          },
+          {
+            "file": "run-queue-regressions.mjs",
+            "sha256": "833131a369ff87f29f9b586b73ddcd4e19bfff97f20e93198badefd39700805c"
+          }
+        ]
+      },
+      "exit": {
+        "code": 0,
+        "signal": null,
+        "pid": 27412,
+        "closedUtc": "2026-11-02T08:53:02.479Z",
+        "logSha256": "1d5db495ced3a665bdd01a6e185e2dfd5d2c4e6ad3144bb82ec5656906602b75"
+      },
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceManifestEqual": true,
+      "logSha256": "1d5db495ced3a665bdd01a6e185e2dfd5d2c4e6ad3144bb82ec5656906602b75",
+      "cleanup": {
+        "sha256": "7de163402b8f0e7f2decf0a1e4bbde6ba80ed146f763afe9e7970176e7d9f85c",
+        "dropCount": 1,
+        "stopCount": 1,
+        "recordedIdentityCount": 3,
+        "liveCandidates": [],
+        "freePortCount": 20
+      }
+    },
+    {
+      "run": "regression-f25b6ecf-fedb-420b-8074-723cdc70c0f6",
+      "qualification": "Standalone CS25 passed with both declared dependency caches instrumented; replaces earlier insufficient ownership evidence",
+      "command": {
+        "executable": "C:\\Users\\Admin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+        "args": [
+          "--import",
+          "file:///D:/Project%20AI/GITHUB/IEMS-evidence/agent-checkpoints/orca-iems-20261102/backend-performance/register-queue-regression.mjs",
+          "--test",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "packages/customer-service/customer-service.test.mjs",
+          "packages/customer-service/revocation.test.mjs"
+        ],
+        "cwd": "D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend",
+        "baseSha": "4ab4d59f01c5621ecb7d37c1d9644adbc8f247c4",
+        "status": "M packages/customer-service/index.mjs\n M packages/tenant-lifecycle/admission-registry.json\n M packages/tenant-lifecycle/domain-registry.json\n?? checkpoints/acceptance-fixes/backend/performance/",
+        "marker": "f25b6ecf-fedb-420b-8074-723cdc70c0f6",
+        "ports": [
+          32760,
+          32761
+        ],
+        "support": [
+          {
+            "file": "register-queue-regression.mjs",
+            "sha256": "20dccab46bf29fcdbc4783612b16eb8125bb7cb3f19235211bb303307ed97085"
+          },
+          {
+            "file": "run-queue-regressions.mjs",
+            "sha256": "833131a369ff87f29f9b586b73ddcd4e19bfff97f20e93198badefd39700805c"
+          }
+        ]
+      },
+      "exit": {
+        "code": 0,
+        "signal": null,
+        "pid": 6296,
+        "closedUtc": "2026-11-02T09:01:54.562Z",
+        "logSha256": "94ccf7527bca884bfa79f9e0b033d3d56e9cfb210a60cd8c7251c9ddbfe121ef"
+      },
+      "counts": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceManifestEqual": true,
+      "logSha256": "94ccf7527bca884bfa79f9e0b033d3d56e9cfb210a60cd8c7251c9ddbfe121ef",
+      "cleanup": {
+        "sha256": "cf24eadaaa8dde174a147b27fed2b053a650454d10677761306d73fd34c9912d",
+        "dropCount": 2,
+        "stopCount": 2,
+        "recordedIdentityCount": 6,
+        "liveCandidates": [],
+        "freePortCount": 20
+      }
+    },
+    {
+      "run": "regression-2432eb3d-8e27-4b4f-a13c-b2c03c0f4135",
+      "qualification": "Last fractional-invoice case only after 15 passing capacity samples; original other three cases not rerun",
+      "command": {
+        "executable": "C:\\Users\\Admin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+        "args": [
+          "--test-name-pattern=^wave3c cumulative fractional invoice documents",
+          "--import",
+          "file:///D:/Project%20AI/GITHUB/IEMS-evidence/agent-checkpoints/orca-iems-20261102/backend-performance/register-queue-regression.mjs",
+          "--test",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "apps/portfolio-api/test/wave3c.test.mjs"
+        ],
+        "cwd": "D:/Project AI/GITHUB/IEMS-worktrees/iems-accept-fix-20261101-backend",
+        "baseSha": "4ab4d59f01c5621ecb7d37c1d9644adbc8f247c4",
+        "status": "M packages/customer-service/index.mjs\n M packages/tenant-lifecycle/admission-registry.json\n M packages/tenant-lifecycle/domain-registry.json\n?? checkpoints/acceptance-fixes/backend/performance/",
+        "marker": "2432eb3d-8e27-4b4f-a13c-b2c03c0f4135",
+        "ports": [
+          32760,
+          32761
+        ],
+        "support": [
+          {
+            "file": "register-queue-regression.mjs",
+            "sha256": "20dccab46bf29fcdbc4783612b16eb8125bb7cb3f19235211bb303307ed97085"
+          },
+          {
+            "file": "run-queue-regressions.mjs",
+            "sha256": "833131a369ff87f29f9b586b73ddcd4e19bfff97f20e93198badefd39700805c"
+          }
+        ]
+      },
+      "exit": {
+        "code": 0,
+        "signal": null,
+        "pid": 15252,
+        "closedUtc": "2026-11-02T09:04:19.705Z",
+        "logSha256": "df11bba45953108b65648491107b3bfd98a695ef3560ddafeab96b4d51ea69a2"
+      },
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sourceManifestEqual": true,
+      "logSha256": "df11bba45953108b65648491107b3bfd98a695ef3560ddafeab96b4d51ea69a2",
+      "cleanup": {
+        "sha256": "4cfd485bbb3a18d308dd6399f6542e6af47daa26162b9e51df2a94187f8cc503",
+        "dropCount": 1,
+        "stopCount": 1,
+        "recordedIdentityCount": 3,
+        "liveCandidates": [],
+        "freePortCount": 20
+      }
+    }
+  ],
+  "finalScheduler": {
+    "command": "node --test --test-reporter=tap checkpoints/acceptance-fixes/backend/performance/queue.test.mjs",
+    "exit": 0,
+    "pass": 7,
+    "fail": 0,
+    "skip": 0,
+    "sha256": "d85eb9628a696e2b97f0de47640c7c554187ce415400a67d4cdeff565449791e",
+    "qualification": "Actual source-extracted queue with deterministic fake monotonic clock/timers and actual CustomerServiceError, not native integration"
+  },
+  "preSpawnFailures": [
+    {
+      "path": "queue-candidate/runner-allowlist-failure.json",
+      "qualification": "Filename allowlist failed before root/runtime allocation",
+      "sha256": "2b03f504bbb0334621574b39653783cfbac744e8a9e5eafda5185d97e9d75879"
+    },
+    {
+      "path": "runs/regression-27efd337-7b15-4aad-98ef-69faf93badcd/exit.json",
+      "qualification": "Three original CPU preflight refusals, no child/runtime spawned",
+      "sha256": "401157d4cba10158903667940a482af778772af6bd08b3db1346f12ac2f6d8a1"
+    }
+  ],
+  "uniqueCompletedEntries": 88,
+  "counting": "Original ordering9 + qualified broad-run30 (55 minus25 lacking ownership receipts) + recovery14 + foundation9 + fully owned standaloneCS25 + fractional1 =88. Final scheduler7 replaces the earlier7 included in broad-run30; repeats are not added. Parent entries included.",
+  "historicalAcceptance": {
+    "complete": 17,
+    "partial": 1,
+    "untested": 78,
+    "incomplete": 79
+  },
+  "priorDiagnostic": {
+    "complete": 21,
+    "notRun": 75
+  },
+  "candidateAcceptance": {
+    "complete": 0,
+    "notRun": 96,
+    "reason": "Exact clean candidate coordinator review required before original frozen benchmark"
+  },
+  "metadataReview": {
+    "path": "queue-candidate/registry-review.json",
+    "sha256": "3fc0fae250c18c118fa16cea4f94fec429b7330cbfa1d02bbea616e3e27f6792"
+  },
+  "evidenceRoot": "D:/Project AI/GITHUB/IEMS-evidence/agent-checkpoints/orca-iems-20261102/backend-performance",
+  "publication": "LOCAL_ONLY",
+  "remoteCI": "UNKNOWN"
+}

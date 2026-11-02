@@ -777,7 +777,7 @@
     "packages/contracts/src/domains/engineering-repair/gates.mjs": "4d250c6bafc99853bdb25d69655d20c68159c9d0518c05c8129b0287c2daf3e3",
     "packages/contracts/src/domains/logistics-billing/values.mjs": "91d85580045284e070a5395a75b0875c1b7e91aaff5b9f5326794272fc335c20",
     "packages/contracts/src/domains/planning-execution/manufactured-graph.mjs": "1df97ae2c4854a2be65d2ed1735b87424a2e068d61a138f316c1d09e7dae9efd",
-    "packages/customer-service/index.mjs": "de09d4217923a359f68291c8d9da8e26382aa20be9c2f2a9a461cdeed8362ef9",
+    "packages/customer-service/index.mjs": "4c3276ae9e660e11e54ba33e6556f1dd5eb5f1c32fa91c0427cb74a2a9cf29b9",
     "packages/customer-service/order-fixtures.mjs": "a6cd15176e749a31f4c8366661b0781289129f77f7731fe3a2c39f5d11b9bcc8",
     "packages/customer-service/order-source.mjs": "2a12a9f35f54da10e2b5356ff7097e9110c9ff3b73266fd639a5ca9d606d90a1",
     "packages/customer-service/service-metrics.mjs": "469cc57b2779ef6b81d907c91c052664a6d7a73ae109882a72cfdf6910cba9b4",
