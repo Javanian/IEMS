@@ -2,86 +2,80 @@
 
 <img src="apps/web/public/brand-logo.svg" width="76" alt="IEMS logo" />
 
-# IEMS — Integrated Enterprise Management System
+# IEMS: Integrated Enterprise Management System
 
-**Shop-floor operating system for heavy-equipment manufacturing — turning NFC tap-ins, live machine telemetry, and bay schedules into verified SAP S/4HANA postings across 4 plants.**
+**Factory software that records who worked on which job, for how long, and how long each machine ran, then sends those hours to SAP without anyone typing them in again.**
 
-[![Version](https://img.shields.io/github/v/release/Javanian/IEMS?label=version&color=2563EB)](https://github.com/Javanian/IEMS/releases)
-[![License](https://img.shields.io/github/license/Javanian/IEMS?color=16A34A)](LICENSE)
 [![CI](https://github.com/Javanian/IEMS/actions/workflows/ci.yml/badge.svg)](https://github.com/Javanian/IEMS/actions/workflows/ci.yml)
 [![Release CD](https://github.com/Javanian/IEMS/actions/workflows/release.yml/badge.svg)](https://github.com/Javanian/IEMS/actions/workflows/release.yml)
-[![Production](https://img.shields.io/badge/production-4%20plant%20sites-0F172A)](#at-a-glance)
-[![Deploy](https://img.shields.io/badge/deploy-Docker%20%7C%20Offline%20LAN-64748B)](#development-setup)
+[![Version](https://img.shields.io/github/v/release/Javanian/IEMS?label=version&color=2563EB)](https://github.com/Javanian/IEMS/releases)
+[![License](https://img.shields.io/github/license/Javanian/IEMS?color=16A34A)](LICENSE)
+[![Built with Claude Code](https://img.shields.io/badge/built%20with-Claude%20Code-D97757)](docs/ai-assisted-development.md)
 
-[![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](#tech-stack)
-[![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=nodedotjs&logoColor=white)](#tech-stack)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi&logoColor=white)](#tech-stack)
-[![PostgreSQL 15](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)](#tech-stack)
-[![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-KRaft-231F20?logo=apachekafka&logoColor=white)](#tech-stack)
-[![SAP S/4HANA](https://img.shields.io/badge/SAP-S%2F4HANA%20CPI-0FAAFF?logo=sap&logoColor=white)](#sap-pipeline-script-by-script)
-
-[Why IEMS](#why-iems) · [At a Glance](#at-a-glance) · [Screenshots](#screenshots) · [Features](#what-it-does) · [Architecture](#architecture) · [Engineering Highlights](#engineering-highlights) · [Quick Start](#development-setup)
+[What it does](#what-it-does) · [Screenshots](#screenshots) · [Architecture](#architecture) · [Engineering notes](#engineering-notes) · [How it was built](#how-it-was-built) · [Run it](#run-it)
 
 </div>
 
----
+## The problem
 
-## Why IEMS?
+A heavy-equipment plant has three records of the same day's work. The operator writes hours on a paper timesheet. The machine's HMI logs its own run time in a separate SQL Server database. A planner keeps the bay schedule in a spreadsheet. At the end of the week a supervisor types the confirmed hours into SAP by hand, and that is where hours go missing, get counted twice, or land on the wrong order.
 
-In heavy-equipment manufacturing, critical factory operations often live in disconnected silos: operators fill paper timesheets, machine hours sit in separate HMI databases, workshop bays get scheduled on spreadsheets, and supervisors manually re-enter production confirmations into SAP.
+IEMS replaces that with one system that runs on the factory LAN:
 
-**IEMS unifies the entire shop-floor lifecycle into one offline-capable platform** — from an operator tapping an NFC badge at a kiosk, to automated machine-hour ETL, real-time early-warning voice alerts on the factory floor, statistical quality control (SPC), and **exactly-once posting into SAP S/4HANA**.
+1. The operator taps an NFC badge on a shop-floor tablet and starts the job operation.
+2. Machine run time comes in automatically from the HMI database and is split per shift.
+3. A supervisor validates the hours on screen.
+4. IEMS posts the confirmed hours to SAP S/4HANA. If SAP rejects a row, it shows up in a queue with the reason and a retry button.
 
-Designed and built solo as the company's sole internal developer: system architecture, frontend PWA, backend APIs, database schema, Docker infrastructure, Kafka messaging, and SAP CPI integration.
+It also tracks bay schedules, component stock and process measurements, and it calls out problems on the shop floor with a local voice: an HMI that stopped answering pings, a machine or operator below its OEE or OLE target, machine hours with no operator attached.
+
+I designed and built it alone: database, API, web app, workers, Docker setup and the SAP integration. I built it with AI coding agents under my direction; [How it was built](#how-it-was-built) explains the workflow.
 
 > [!NOTE]
-> This repository is a curated public snapshot of the production codebase. Credentials, plant data exports, internal planning notes, and non-runtime tooling are excluded, so it does not connect to live plant systems out of the box.
+> This is my own version of the system, published as a portfolio. It contains no customer data or credentials, so the workers that talk to SQL Server, SAP CPI or MS Project need your own endpoints to do anything.
 
----
+## At a glance
 
-## At a Glance
-
-| Metric | Scope |
+| | |
 | :--- | :--- |
-| **Production Footprint** | **4 plant sites** running daily on isolated, offline-first factory LANs |
-| **Per-Plant Stack** | **16 services per site** via Docker Compose (+ optional Kafka transport workers) |
-| **Frontend Application** | **142 React 19 components & views**, offline-first PWA with bundled fonts & design tokens |
-| **Database & Schema** | **101 SQL migrations** on PostgreSQL 15 behind PgBouncer connection pooling |
-| **Automation & Workers** | **30 Python scripts** handling SQL Server ETL, SAP staging/posting, Kafka relay, and local Piper TTS |
-| **Reliability Guarantee** | **Zero double-posting** to SAP via DB triggers, partial unique indexes, and idempotent Kafka keys |
-
----
+| Deployment | One self-contained Docker Compose stack per plant, 16 services, plus 7 more with the `kafka` profile |
+| Offline | Fonts, icons and the voice model are bundled, so a plant LAN with no internet still works |
+| Web app | React 19 PWA, 142 JSX components and pages |
+| Database | PostgreSQL 15 behind PgBouncer, 101 SQL migrations |
+| Workers | 27 Python scripts for ETL, SAP staging and posting, Kafka relay and voice alerts |
+| Tests | 231 JavaScript and 18 Python test cases; 5 required CI checks on `main` |
+| SAP safety | The database refuses to post the same piece of machine time to SAP twice (see [Engineering notes](#engineering-notes)) |
 
 ## Screenshots
 
-Captured from a local run using representative sample data.
+Captured from a local run with sample data.
 
-| Sign-in | Operator Kiosk (NFC Timesheet) |
+| Sign-in | Operator kiosk |
 | :---: | :---: |
 | ![Split-screen sign-in with the IEMS brand panel](docs/screenshots/login.png) | ![Timesheet kiosk with a primary Start tile and secondary action tiles](docs/screenshots/timesheet-kiosk.png) |
-| *Split-screen authentication with the IEMS design system* | *Touch-friendly shop-floor kiosk for NFC check-in & job operations* |
+| The sign-in page | What the operator sees after tapping a badge |
 
-| SAP Posting Queue & Operations Log | Statistical Process Control (SPC) Dashboard |
+| SAP posting log | Process control (SPC) |
 | :---: | :---: |
 | ![SAP posting queue with status totals and bundles that need action](docs/screenshots/sap-posting-log.png) | ![I-MR chart with out-of-control points flagged by Nelson rule 2](docs/screenshots/spc-dashboard.png) |
-| *Live staging totals, retry/correction controls & audit trail* | *I-MR control chart with automated Nelson rules (1–3) & Cp/Cpk* |
+| Every row sent to SAP, with totals and the rows that need a person | An I-MR chart flagging a drifting process by Nelson rule 2 |
 
----
+## What it does
 
-## What It Does
-
-| Module | Capabilities |
+| Module | What a user can do |
 | :--- | :--- |
-| **Labor Timesheet** | NFC-card login, check-in/check-out per job operation, hierarchical supervisor validation, and Excel export |
-| **Machine Hours ETL** | Automated extraction from factory SQL Server & HMI sources: segment splitting, normalization, per-shift bundling, and validation |
-| **SOW & Bay Scheduling** | Work-order pool, visual bay reservations on an area map and timeline, NFC confirmation, and sub-operation progress tracking |
-| **Early Warning System** | Periodic OEE, OLE, and adoption snapshots; tablet uptime via kiosk heartbeats & HMI uptime via ping logs; threshold-based issue detection; real-time SSE notifications and **local Piper TTS voice alerts** on the shop floor |
-| **SAP S/4HANA Integration** | Staging of labor timesheets and machine-hour bundles, automated posting to SAP CPI, safe retry, correction workflow, and operations queue UI — with optional **Apache Kafka** transport for orders and confirmations |
-| **Component Tracking** | Buffer transactions, receiving & shipment tracking, consumables/tools management, and kanban boards |
-| **Process Control & SPC** | Per-job process parameters, I-MR control charts with Nelson rules 1–3, and Cp/Cpk capability indices against optional specification limits |
-| **Executive & Plant Dashboards** | Live visibility into active orders, TECO status, machine productive time, pending validations, OEE, and OLE |
+| Labor timesheet | Log in with an NFC card, check in and out of each job operation, have a supervisor validate the hours, export to Excel |
+| Machine hours | See machine run time pulled from the HMI database, split per shift and checked before it goes to SAP |
+| SOW and bay scheduling | Plan work orders into bays on an area map and a timeline, confirm by NFC, track sub-operation progress |
+| Early warning | Watch OEE, OLE and system adoption per plant; get a live notification and a spoken alert when a threshold is crossed |
+| SAP integration | Watch the posting queue, retry network failures, send corrections after a day is closed, optionally move the traffic onto Kafka |
+| Component tracking | Record buffer stock, receiving and shipments, consumables, tools and kanban |
+| Process control | Record process parameters per job and read I-MR charts with Nelson rules 1 to 3, Cp and Cpk |
+| Dashboards | Active orders, technically completed orders (TECO), machine productive time, pending validation, OEE and OLE |
 
----
+### Commercial and operations (preview)
+
+A second backend, [`apps/portfolio-api`](apps/portfolio-api/README.md), extends IEMS beyond the shop floor: customers and quotes, sales orders, purchasing, warehouse stock with holds, manufacturing work orders, shipments, invoices with VAT, repair cases, issued PDF documents and a customer-service inbox. It runs on MongoDB with one transaction per change and has its own CI workflow that drives the web app in a real browser. It is a preview and is not connected to the plant stack.
 
 ## Architecture
 
@@ -90,60 +84,55 @@ Captured from a local run using representative sample data.
   <img alt="IEMS architecture: operators reach the per-plant stack through Nginx; the Express API and workers share PostgreSQL behind PgBouncer; SAP workers post confirmations to SAP CPI directly or through Kafka; SAP orders arrive through a compacted Kafka topic" src="docs/diagrams/iems-architecture-light.svg">
 </picture>
 
-The Kafka paths (dashed, through the two topics) activate when running with the `kafka` Docker Compose profile. Each diagram in [docs/diagrams](docs/diagrams) is rendered from a companion JSON spec pinning the exact source files and line ranges behind every box.
-
-Each plant runs its own self-contained stack of **16 services** (plus Kafka workers when enabled). All frontend assets and fonts are bundled locally so the entire platform operates smoothly on a factory LAN **without internet access**.
-
-### Repository Layout
+The dashed Kafka paths only run with the `kafka` Compose profile. Each diagram in [docs/diagrams](docs/diagrams) comes from a JSON spec that lists the source file and line range behind every box.
 
 ```text
 apps/
-  web/                React 19 + Vite 7 + Tailwind 3 (PWA, offline-first)
-  api/                Node.js / Express REST API
-  fastapi-msproject/  FastAPI service for MS Project synchronization
-  tts-worker/         Python local text-to-speech worker (Piper)
+  web/                React 19 + Vite 7 + Tailwind 3 (PWA, works offline)
+  api/                Node.js / Express REST API for the plant stack
+  portfolio-api/      Node.js / Express 5 + MongoDB, commercial and operations preview
+  fastapi-msproject/  FastAPI service for MS Project sync
+  tts-worker/         Local text-to-speech worker (Piper)
+  wa-demo-bridge/     Customer-service message bridge, preview only, sends nothing
+packages/             Shared contracts, test fixtures, PDF rendering, tenant sessions
 jobs/
-  etl/                Machine-hours ETL from factory SQL Server
-  sap_staging/        SAP pipeline: stage, post, operations queue, Kafka relay & poster
-  messaging/          Kafka envelope, topics, producer/consumer helpers, E2E tests
-  sow/                SOW seed and export utilities
-  machine_ping/       Machine & HMI heartbeat worker
-database/
-  migrate.js          SQL migration runner
-  migrations/         101 SQL migrations (api, deferred, legacy)
-infra/nginx/          Reverse proxy & TLS configuration
-docker-compose.yml    Full per-plant production stack
+  etl/                Machine-hours ETL from the factory SQL Server
+  sap_staging/        SAP pipeline: stage, post, operations queue, Kafka relay and poster
+  messaging/          Kafka envelope, topics, producer and consumer helpers, tests
+  sow/                SOW seed and export
+  machine_ping/       Machine heartbeat worker
+database/             Migration runner, 101 migrations, schema dump
+infra/nginx/          Reverse proxy and TLS
+docker-compose.yml    The per-plant stack
 ```
 
----
+## Engineering notes
 
-## Engineering Highlights
+**An hour reaches SAP once.** SAP's own duplicate check does not help here, because the ID IEMS sends is a staging row number: if a bundle is ever rebuilt it gets a new ID, and SAP would accept the same hours again. So IEMS records which pieces of machine time (segments) each bundle covers, and a partial unique index on that table lets a segment be marked POSTED only once. A trigger freezes a source record after it has been sent. The poster retries network failures only, never SAP business rejections, so retrying after a lost response cannot double the hours. The full reasoning is in [jobs/sap_staging/README.md](jobs/sap_staging/README.md#safeguards-do-not-remove).
 
-- **Exactly-once SAP payroll & machine posting:** Every bundle records its exact source segments. A partial unique index allows each segment to be `POSTED` only once, and a database trigger freezes source fields after posting. Retries trigger strictly on network failures — never on SAP business rejections — making retries after a lost response completely safe.
-- **Partitioned Kafka transport ([design notes](jobs/messaging/README.md)):** Confirmations are keyed by production order so SAP CPI's per-order lock is respected naturally via Kafka partitioning rather than brittle application locks. Scaling poster replicas increases throughput linearly, while row references and payload hashes drop late or duplicate deliveries. SAP orders flow through a compacted topic that each plant consumes at its own pace and can replay from the beginning.
-- **Decoupled stage / post / ops workers:** Staging, posting, and manual operator actions (retry/correction) run as separate workers, with UI buttons writing commands into `sap_ops_request` for `ops_worker.py` to execute safely.
-- **Connection-pooled multi-worker database:** The Express API and Python background workers share PostgreSQL 15 through **PgBouncer**, keeping connection overhead predictable under shop-floor load.
-- **Offline-first design system with CI enforcement:** The UI follows a unified token system ([design-system/iems/MASTER.md](design-system/iems/MASTER.md)) using CSS variables instead of raw hex colors (enforced in CI) with locally bundled `Plus Jakarta Sans` and `Fira Code` fonts.
-- **Zero-cloud shop-floor voice alerts:** Early-warning announcements synthesize locally using **Piper TTS**, avoiding any dependency on external cloud APIs.
-- **Drift-sensitive SPC statistics:** The SPC engine estimates $\sigma$ from the average moving range ($\overline{MR}$) rather than overall standard deviation, keeping control limits tight when a machining process begins to drift.
-
----
-
-### Lifecycle of an SAP Confirmation
-
-Each staged row transitions through a strict state machine. Claiming a row into `POSTING` happens in a single atomic `UPDATE`, ensuring two competing workers never post the same record, while database guards turn any would-be duplicate into `SKIPPED`.
+**Two workers cannot post the same row.** A worker claims a row by moving it from PENDING to POSTING in a single `UPDATE`. The guards turn a would-be duplicate into SKIPPED.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Javanian/IEMS/main/docs/diagrams/sap-confirmation-lifecycle-dark.svg">
   <img alt="SAP confirmation lifecycle: PENDING is claimed into POSTING directly or via QUEUED on Kafka; POSTING ends as POSTED, SKIPPED by a guard, or FAILED, which can be retried; editing the source re-stages unposted rows" src="docs/diagrams/sap-confirmation-lifecycle-light.svg">
 </picture>
 
-### SAP Pipeline, Script by Script
+**SAP's order lock becomes a partition key.** SAP CPI refuses two confirmations for the same production order at the same time. On the Kafka path the message key is the order number, so one order always sits on one partition and is posted in sequence, while different orders post in parallel. No locking code is needed, and adding poster replicas adds parallel orders. Each message carries the row ID and a payload hash; the poster re-reads the row and drops anything late or changed. Design notes: [jobs/messaging/README.md](jobs/messaging/README.md).
 
-<details open>
-<summary><strong>Part 1 — Machine data to the staging queue</strong></summary>
+**Corrections wait for a person.** Once a day has been posted, any hours that arrive later for that day become a separate correction bundle. It never auto-posts; an admin reviews it and sends it from the UI.
 
-`etl_machine_conf.py` copies raw HMI segments from SQL Server into `mch_productiondata`, `etl_mch_transaction_v3.py` resolves operator, production order, and status into `mch_transaction`, and `sap-stage-worker` runs `stage_machinehours.py` to bundle eligible rows per day into `sap_timesheet_staging` while recording source-segment provenance.
+**Buttons queue work instead of running it.** The Node API cannot run the Python scripts directly, so the "Retry failed" and "Post selected" buttons write a request row, and `ops_worker.py` runs the matching script.
+
+**Control limits that react to drift.** The SPC page estimates sigma from the average moving range instead of the overall standard deviation. When a process starts to drift, the overall deviation grows and widens the limits, which is the moment the chart has to catch it.
+
+**One design system, checked in CI.** Colors are CSS-variable tokens, fonts ship with the bundle, and CI fails a build that uses a raw hex color in a class. See [design-system/iems/MASTER.md](design-system/iems/MASTER.md).
+
+### SAP pipeline, script by script
+
+<details>
+<summary><strong>Part 1: machine data to the staging queue</strong></summary>
+
+`etl_machine_conf.py` copies raw HMI segments from SQL Server into `mch_productiondata`. `etl_mch_transaction_v3.py` resolves operator, order and status into `mch_transaction`. The `sap-stage-worker` runs `stage_machinehours.py`, which bundles eligible rows per day into `sap_timesheet_staging` and records which segments each bundle covers.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Javanian/IEMS/main/docs/diagrams/sap-pipeline-staging-dark.svg">
@@ -152,10 +141,10 @@ Each staged row transitions through a strict state machine. Claiming a row into 
 
 </details>
 
-<details open>
-<summary><strong>Part 2 — Staging queue to SAP S/4HANA</strong></summary>
+<details>
+<summary><strong>Part 2: staging queue to SAP</strong></summary>
 
-`post_sap_staging.py` claims rows, validates two duplicate guards (`sap_staging_source` and `log_timesheet_sap`), and posts to SAP CPI. With `SAP_TRANSPORT=kafka`, `sap_kafka_relay.py` and `sap_kafka_poster.py` route confirmations through `sap.confirmations.v1`. Actions from the SAP Log UI enqueue requests executed by `ops_worker.py`.
+`post_sap_staging.py` claims rows, checks two guards (`sap_staging_source` and `log_timesheet_sap`) and posts to SAP CPI. With `SAP_TRANSPORT=kafka`, `sap_kafka_relay.py` and `sap_kafka_poster.py` carry the same rows through `sap.confirmations.v1`. Buttons on the SAP log page go through `sap_ops_request` to `ops_worker.py`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Javanian/IEMS/main/docs/diagrams/sap-pipeline-posting-dark.svg">
@@ -164,94 +153,87 @@ Each staged row transitions through a strict state machine. Claiming a row into 
 
 </details>
 
----
+## How it was built
 
-## Tech Stack
+I built IEMS with AI coding agents, mainly [Claude Code](https://claude.com/claude-code). My part is the part an agent cannot do for me: knowing how the plant works, deciding what to build, writing the specification for each piece of work, and deciding whether the result is accepted.
+
+The loop for each piece of work:
+
+1. **Spec.** I write a job file: the goal, the business rules that must not break, what is out of scope, and what evidence counts as done.
+2. **Parallel build.** Agents work on separate branches and worktrees (the `feat/`, `program/` and `qa/` branches in this repository), so they cannot overwrite each other.
+3. **Cross-review.** Separate agents review the result for business logic, security and visual quality, and write down what they checked.
+4. **Evidence, not reports.** A task is accepted on a test run, a browser check or a database query against the current tree. An agent saying "done", or an old green CI run, does not count.
+5. **Pull request.** Every change lands through a PR with the required CI checks.
+
+Commits made with an agent carry a `Co-Authored-By: Claude` trailer, so GitHub shows which ones. The agent rules for this repository are in [CLAUDE.md](CLAUDE.md), and the workflow is written up in [docs/ai-assisted-development.md](docs/ai-assisted-development.md).
+
+## Tech stack
 
 | Layer | Technologies |
 | :--- | :--- |
-| **Frontend** | React 19, Vite 7, Tailwind CSS 3 (CSS-variable design tokens), Plus Jakarta Sans & Fira Code (bundled), React Router, ECharts, Recharts, dnd-kit, `vite-plugin-pwa` |
-| **Backend** | Node.js 18+, Express 4, FastAPI |
-| **Data** | PostgreSQL 15, PgBouncer, SQL Server (factory HMI ETL source) |
-| **Messaging** | Apache Kafka (KRaft), `confluent-kafka` (`librdkafka`) with idempotent producers, compacted topics & dead-letter topics |
-| **Workers** | Python (SQL Server ETL, SAP staging & posting, Kafka producers/consumers, Piper local TTS) |
-| **Infrastructure** | Docker Compose, Nginx with TLS, Linux |
-| **Enterprise Integration** | SAP S/4HANA via SAP CPI, Microsoft Project |
+| Frontend | React 19, Vite 7, Tailwind CSS 3 with design tokens, React Router, ECharts, Recharts, dnd-kit, vite-plugin-pwa |
+| Backend | Node.js 18+ with Express 4 (plant stack), Node.js 24 with Express 5 (portfolio API), FastAPI |
+| Data | PostgreSQL 15, PgBouncer, MongoDB 7 (portfolio API), SQL Server as the ETL source |
+| Messaging | Apache Kafka (KRaft), confluent-kafka with idempotent producers, compacted and dead-letter topics |
+| Workers | Python: ETL, SAP staging and posting, Kafka producers and consumers, Piper TTS |
+| Infrastructure | Docker Compose, Nginx with TLS, GitHub Actions, GHCR |
+| Integration | SAP S/4HANA through SAP CPI, Microsoft Project |
 
----
-
-## Development Setup
+## Run it
 
 ```bash
-# 1. Install dependencies
+# Dependencies
 cd apps/web && npm install
 cd ../api && npm install
 cd ../..
 
-# 2. Configure environment variables
-cp .env.example .env            # adjust database & service values
+# Environment
+cp .env.example .env            # then adjust the values
 
-# 3. Start PostgreSQL & PgBouncer, then run migrations
+# Database and connection pooler, then migrations
 docker compose up -d db pgbouncer
 node database/migrate.js
 
-# 4. Run API (port 3001) and Web UI (port 5173) in separate terminals
+# API on port 3001 and web on port 5173, in two terminals
 cd apps/api && npm run dev
 cd apps/web && npm run dev
 ```
 
-### Production Deployment (Per Plant Site)
+A full plant stack:
 
 ```bash
-# Standard per-plant stack
 docker compose up -d --build
 
-# Optional: enable Apache Kafka broker, confirmation relay/poster & order consumer
+# with the Kafka broker, SAP relay and poster, and the order consumer
 docker compose --profile kafka up -d --build
 ```
 
-ETL and SAP worker configuration variables are documented in `.env.example`.
+The ETL and SAP workers read their settings from the variables in `.env.example`.
 
----
+## Tests and CI
 
-## Automated Tests & CI/CD
+Five checks must pass before anything merges into `main`:
 
-### Continuous Integration (`ci.yml`)
-GitHub Actions enforces **5 required CI checks** on every push and pull request:
-1. **Domain contracts & fixtures** (`packages/contracts` & `packages/domain-test-fixtures`)
-2. **API unit tests** (`node --test` in `apps/api`)
-3. **Web production build** (ESLint, CSS design-token lint & `vite build`)
-4. **Python unit tests** (`jobs/messaging` & `jobs/sap_staging`)
-5. **End-to-end Kafka pipeline test** against live `apache/kafka` and `postgres:16` containers
+1. Domain contracts and test fixtures (`packages/contracts`, `packages/domain-test-fixtures`)
+2. API unit tests (`node --test` in `apps/api`)
+3. Web build: the design-token lint, ESLint on the SPC page, and `vite build`
+4. Python unit tests (`jobs/messaging`, `jobs/sap_staging`)
+5. An end-to-end Kafka test against real `apache/kafka` and PostgreSQL containers
 
-Additional acceptance workflows validate the **Customer Service preview** (`customer-service.yml`) and **Portfolio VAT document rendering** (`portfolio-vat.yml`).
+The Kafka test replaces SAP CPI with a local HTTP server and runs three competing posters. It checks that every confirmation reaches the fake SAP exactly once, that two confirmations for one order are never in flight together, that rows of one order arrive in order, and that replayed, unparsable and in-flight messages post nothing. To run it locally, see [jobs/messaging/README.md](jobs/messaging/README.md#tests).
 
-The Kafka E2E test replaces SAP CPI with a local mock HTTP server to verify that every confirmation reaches SAP **exactly once** across 3 competing poster replicas, no two confirmations for the same production order are ever in flight concurrently, rows per order arrive strictly in sequence, and replayed/unparsable/in-flight messages post nothing. See [jobs/messaging/README.md](jobs/messaging/README.md#tests) to run it locally.
+Two more workflows test the customer-service preview and the portfolio API with VAT documents, the second one in a real browser. Pushing a `v*` tag builds the API and web images, publishes them to GHCR (`ghcr.io/javanian/iems-api`, `ghcr.io/javanian/iems-web`) and creates a GitHub Release with a source archive and `SHA256SUMS.txt`.
 
-### Continuous Delivery (`release.yml`)
-Pushing a semantic version tag (`v*`) automatically runs the release pipeline:
-- Builds and publishes multi-stage Docker images to **GitHub Container Registry (GHCR)**:
-  - `ghcr.io/javanian/iems-api:<tag>`
-  - `ghcr.io/javanian/iems-web:<tag>`
-- Generates a verified source archive with `SHA256SUMS.txt` and publishes the GitHub Release with auto-generated release notes.
+## Limitations
 
----
-
-## Limitations of This Public Snapshot
-
-- Automated test coverage focuses on the SAP messaging pipeline, SPC statistics, and core units; most UI pages and standard CRUD routes are not covered by automated tests.
-- Workers connecting to SQL Server, SAP CPI, or MS Project require live enterprise endpoints and credentials that are excluded from this repository.
-- Some UI labels intentionally mix Indonesian and English to match shop-floor operator terminology.
-
----
+- Tests cover the SAP messaging path, SPC statistics, the portfolio API and selected units. Most plant API routes and UI pages have no automated tests yet.
+- The ETL and SAP workers need real SQL Server, SAP CPI and MS Project endpoints, which are not included.
+- Voice alerts are spoken in Indonesian, because that is the language of the operators who hear them.
 
 ## License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details. Production data and internal company configurations are not included in this repository.
-
----
+MIT. See [LICENSE](LICENSE).
 
 ## Author
 
-**Tee San** ([Javanian](https://github.com/Javanian)) — Full-Stack Developer & Data Engineer  
-[Portfolio](https://porto.hillteo.com) · [teesanfajar@gmail.com](mailto:teesanfajar@gmail.com)
+Tee San ([Javanian](https://github.com/Javanian)), full-stack developer and data engineer · [porto.hillteo.com](https://porto.hillteo.com) · [teesanfajar@gmail.com](mailto:teesanfajar@gmail.com)

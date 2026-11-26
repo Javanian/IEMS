@@ -1,300 +1,299 @@
-# SAP Staging Jobs
+# SAP staging jobs
 
-Menyiapkan payload timesheet & jam mesin ke `sap_timesheet_staging`, lalu mengirimkannya ke SAP.
-Semua script membaca `.env` dari root repo `MPS2/.env`.
+These scripts turn timesheet and machine-hour records into payloads in `sap_timesheet_staging`, then post them to SAP.
+Every script reads `.env` from the repository root.
 
-> **Ini jalur payroll.** Kesalahan di sini = jam kerja hilang, dobel, atau salah pemilik.
-> Baca bagian **[Pengaman](#pengaman-jangan-dilucuti)** dan **[Batas Berbahaya](#-batas-berbahaya)**
-> sebelum mengubah apa pun. Latar belakang: `docs/concepts/sap-staging-identity.md`.
-
----
-
-## Alur
-
-```
-SQL Server ──[ETL]──> mch_productiondata ──[ETL]──> mch_transaction
-                                  (+ mch_transaction_override)   │
-                                                                 │
-                          (gerbang kelayakan) ──> bundling per HARI ──┬──> NORMAL   ──> sap_timesheet_staging (PENDING)
-                                                                      └──> KOREKSI  ──> sap_timesheet_staging (PENDING, is_correction)
-                                                                                             │
-                          sap_staging_source (provenance/segmen) <───────────────────────────┤
-                                                                                             │
-                                                    post_sap_staging.py ──> SAP ──> POSTED / FAILED / SKIPPED
-```
-
-- **NORMAL** = kerja baru di hari yang belum ditutup → auto-post begitu hari selesai.
-- **KOREKSI** = jam yang baru lengkap **setelah** harinya sudah ter-post → bundel terpisah,
-  **tidak** auto-post, admin kirim manual dari UI. Konfirmasi SAP bersifat **aditif**, jadi
-  koreksi menambah jam ke order — **tanpa storno**.
+> **This is the payroll path.** A mistake here means work hours that go missing, get counted twice, or land on the wrong person.
+> Read **[Safeguards](#safeguards-do-not-remove)** and **[Dangerous limits](#dangerous-limits)**
+> before changing anything.
 
 ---
 
-## Aturan Kelayakan (mch_transaction → staging)
+## Flow
 
-Sebuah baris hanya di-stage bila **semua** benar:
+```
+SQL Server --[ETL]--> mch_productiondata --[ETL]--> mch_transaction
+                                  (+ mch_transaction_override)   |
+                                                                 |
+                       (eligibility gate) --> bundle per DAY --+--> NORMAL      --> sap_timesheet_staging (PENDING)
+                                                               +--> CORRECTION  --> sap_timesheet_staging (PENDING, is_correction)
+                                                                                         |
+                       sap_staging_source (provenance per segment) <---------------------+
+                                                                                         |
+                                                 post_sap_staging.py --> SAP --> POSTED / FAILED / SKIPPED
+```
 
-| Syarat | Kenapa |
+- **NORMAL** is new work on a day that has not been closed yet. It posts automatically once the day is over.
+- **CORRECTION** is hours that became complete **after** their day was already posted. They go into a separate bundle
+  that does **not** auto-post; an admin sends it from the UI. SAP confirmations are **additive**, so a
+  correction adds hours to the order. There is no reversal (storno).
+
+---
+
+## Eligibility rules (mch_transaction to staging)
+
+A row is staged only when **all** of these hold:
+
+| Condition | Why |
 |---|---|
-| `startdatetime`, `enddatetime` ada & `end > start` | durasi valid |
-| **`sn_employee` terisi** | tanpa ini PERNR kosong → **jam kerja tanpa pemilik** (gerbang operator, 2026-07-14) |
-| `statusid` **bukan** 0, 3, 4 | Off / Downtime / No Job — bukan kerja pada order |
-| bila `statusid` = 5 → durasi **≤ 60 detik** | Unidentified singkat = celah antar aktivitas; yang panjang tidak dikirim |
-| **salah satu jalur di bawah** | produktif **atau** unproductive |
+| `startdatetime` and `enddatetime` exist and `end > start` | valid duration |
+| **`sn_employee` is set** | without it PERNR is empty, which means **hours with no owner** (operator gate, added 2026-07-14) |
+| `statusid` is **not** 0, 3 or 4 | Off, Downtime and No Job are not work on an order |
+| if `statusid` = 5, duration is **60 seconds or less** | a short Unidentified status is the gap between activities; long ones are not sent |
+| **one of the two paths below** | productive **or** unproductive |
 
-**Dua jalur kelayakan:**
+**The two eligibility paths:**
 
-| Jalur | Syarat tambahan | Butuh `confirmation_number`? |
+| Path | Extra condition | Needs `confirmation_number`? |
 |---|---|---|
-| **Produktif** | `status_activitytype ∈ {M1, M2}` **atau** idle-promotable (`statusid=2 ∧ prev=1 ∧ ≤300 dtk`) | **Ya** — SAP butuh RUECK untuk konfirmasi order |
-| **Unproductive** | `status_activitytype` terisi, **bukan** M1/M2, **bukan** idle-promotable | **Tidak** — LSTAR tanpa order; tak ada yang dikonfirmasi |
+| **Productive** | `status_activitytype` in {M1, M2} **or** promotable idle (`statusid=2`, previous status 1, 300 s or less) | **Yes**. SAP needs RUECK to confirm an order |
+| **Unproductive** | `status_activitytype` is set, is **not** M1/M2 and is **not** promotable idle | **No**. LSTAR without an order, so nothing is confirmed |
 
-> ⚠️ **JANGAN pakai kolom `status_record` sebagai gerbang.** Definisinya punya pintu belakang
-> (`statusid IN (0,3,4) OR ...`), sehingga baris **tanpa operator tetap lolos**.
-> `status_record` = kelengkapan data untuk KPI `accuracy_machine`, **bukan** kelayakan SAP.
-> (Kelayakan SAP = dua jalur di atas; kebetulan mirip, tapi bukan kolom yang sama.)
+> **Do not use the `status_record` column as a gate.** Its definition has a back door
+> (`statusid IN (0,3,4) OR ...`), so rows **without an operator still pass**.
+> `status_record` measures data completeness for the `accuracy_machine` KPI. It is **not** SAP eligibility.
+> (The two look similar, but they are different columns with different meanings.)
 
-**Filter durasi bundel:** setelah dibundel, bundel dengan `total_seconds < 60` **dibuang** —
-SAP menolak konfirmasi < 1 menit. Jadi sekumpulan record sub-menit di hari yang sama bisa
-tergabung jadi 1 bundel yang lolos, tapi bundel < 1 menit tidak akan pernah dikirim.
+**Bundle duration filter:** after bundling, any bundle with `total_seconds < 60` is **dropped**,
+because SAP rejects confirmations shorter than one minute. Several sub-minute records on the same day can
+combine into one bundle that passes, but a bundle under one minute is never sent.
 
-### Peta `statusid` (diverifikasi dari data — 3 & 4 mudah tertukar!)
+### `statusid` map (checked against real data; 3 and 4 are easy to mix up)
 
-| id | Deskripsi | id | Deskripsi | id | Deskripsi |
+| id | Description | id | Description | id | Description |
 |---|---|---|---|---|---|
-| 0 | Off ❌ | 6 | Load (M2) | 13 | Daily PM |
+| 0 | Off (excluded) | 6 | Load (M2) | 13 | Daily PM |
 | 1 | Productive (M1) | 7 | Setting (M2) | 14 | Tool Preparation |
 | 2 | Idle | 8 | Measure (M2) | 15 | Labour Necessity |
-| **3** | **Downtime** ❌ | 9 | Unload (M2) | 16–21 | Jig/Waiting/Wait… |
-| **4** | **No Job** ❌ | 11 | Breakdown | | |
-| 5 | Unidentified (≤60 dtk saja) | 12 | Coffee Break / Lunch | | |
-
-❌ = tidak masuk staging.
+| **3** | **Downtime** (excluded) | 9 | Unload (M2) | 16 to 21 | Jig, Waiting, Wait... |
+| **4** | **No Job** (excluded) | 11 | Breakdown | | |
+| 5 | Unidentified (60 s or less only) | 12 | Coffee Break / Lunch | | |
 
 ---
 
-## Bentuk Payload
+## Payload shape
 
-| Jenis | Syarat | ZCONF_TYPE | RUECK | AUFNR/VORNR | LSTAR | ZBARCODEID |
+| Type | Condition | ZCONF_TYPE | RUECK | AUFNR/VORNR | LSTAR | ZBARCODEID |
 |---|---|---|---|---|---|---|
-| **Produktif M1** | `status_activitytype = M1` | `M1` | terisi | terisi | — | **`VA`** |
-| **Produktif M2** | `status_activitytype = M2` | `M2` | terisi | terisi | — | teks status (`Setting`, `Measure`, `Load`, `Unload`) |
-| **Idle → M2** | `statusid=2` **∧** `previoustatusid=1` **∧** durasi **≤300 dtk** | `M2` | terisi | terisi | — | **`Idle`** |
-| **Unproductive** | selain di atas | *(kosong)* | *(kosong)* | **kosong** | activity type | *(kosong)* |
+| **Productive M1** | `status_activitytype = M1` | `M1` | set | set | empty | **`VA`** |
+| **Productive M2** | `status_activitytype = M2` | `M2` | set | set | empty | status text (`Setting`, `Measure`, `Load`, `Unload`) |
+| **Idle as M2** | `statusid=2` and `previoustatusid=1` and duration **300 s or less** | `M2` | set | set | empty | **`Idle`** |
+| **Unproductive** | anything else | empty | empty | **empty** | activity type | empty |
 
-**Idle pendek setelah produksi = micro-stop**, bukan waktu terbuang → diperlakukan sebagai setup (M2).
+**A short idle right after production is a micro-stop**, not wasted time, so it is treated as setup (M2).
 
-⚠️ AUFNR/VORNR dikosongkan **di KUNCI bundling juga**, bukan cuma di payload. Kalau hanya di
-payload, dua bundel yang cuma beda order akan menghasilkan **payload kembar** dan SAP menerima keduanya.
+AUFNR and VORNR are cleared **in the bundling key too**, not only in the payload. If they were cleared only in the
+payload, two bundles that differ only by order would produce **identical payloads** and SAP would accept both.
 
-**Waktu yang dikirim ke SAP bersifat sintetis:** `ISDD/ISDZ` = jangkar ke **start asli paling awal**
-di hari itu (`source_min_start`), `IEDD/IEDZ` = jangkar + total durasi. Yang akurat adalah
-**durasi**, bukan jendela waktunya.
+**The times sent to SAP are synthetic:** `ISDD/ISDZ` is anchored to the **earliest real start**
+of that day (`source_min_start`), and `IEDD/IEDZ` is that anchor plus the total duration. The **duration** is
+accurate; the time window is not.
 
 ---
 
-## Bundling — per HARI
+## Bundling per day
 
-Satu baris staging = satu bundel **(hari × operator × order × operasi × mesin × jenis aktivitas)**.
-Baris `mch_transaction` yang melintasi tengah malam **dipotong per hari** (event 23:40→00:20 → 2 segmen).
+One staging row is one bundle of **(day, operator, order, operation, machine, activity type)**.
+A `mch_transaction` row that crosses midnight is **split per day** (an event from 23:40 to 00:20 becomes 2 segments).
 
-> Dulu bundling **per jam**; sekarang **per hari**. Alasan: bundling per jam membuang record
-> yang tiap jam-nya < 1 menit walau total sehari > 1 menit. Per hari, record sub-menit di jam
-> berbeda ikut tergabung dan lolos filter ≥ 60 detik.
+> Bundling used to be **per hour**; it is now **per day**. Hourly bundling dropped records
+> that stayed under one minute in each hour even when the daily total was over one minute. With daily bundles,
+> sub-minute records from different hours combine and pass the 60-second filter.
 
 `norm_key = md5(werks | day_bucket | employee | rueck | aufnr | vornr | flgat | plnfl |
 vornr_b | vornr_r | zconf_type | arbpl | lstar | zbarcodeid)`
 
 - **NORMAL**: `source_key = norm_key`, `is_correction = false`.
-- **KOREKSI**: `source_key = md5(norm_key | '|KOREKSI|' | seg_hash)`, `is_correction = true`
-  (kunci beda supaya koreksi tak bentrok dengan bundel normal hari yang sama).
+- **CORRECTION**: `source_key = md5(norm_key | '|KOREKSI|' | seg_hash)`, `is_correction = true`
+  (a different key, so a correction never collides with the normal bundle for the same day). The literal
+  `KOREKSI` is part of the stored key and must not be translated.
 
-> 🚨 **Mengubah komposisi md5 ini = SELURUH riwayat berganti kunci.** Lihat [Pengaman](#pengaman-jangan-dilucuti).
+> **Changing the md5 recipe re-keys the entire history.** See [Safeguards](#safeguards-do-not-remove).
 
 ---
 
-## Normal vs Koreksi (routing per HARI)
+## Normal vs correction (routed per day)
 
-Rutenya ditentukan oleh **apakah harinya sudah punya bundel POSTED**:
+The route depends on **whether the day already has a POSTED bundle**:
 
-| Kondisi hari | Mode | Ke mana | Auto-post? |
+| Day state | Mode | Goes to | Auto-post? |
 |---|---|---|---|
-| Belum ada bundel POSTED (hari terbuka) | **NORMAL** | PENDING `is_correction=false` | **Ya** — begitu hari selesai (`bucket_start < hari ini`) |
-| Sudah ada ≥1 bundel POSTED (hari ditutup) + record belum punya provenance | **KOREKSI** | PENDING `is_correction=true` | **Tidak** — admin kirim manual dari UI |
+| No POSTED bundle yet (day open) | **NORMAL** | PENDING, `is_correction=false` | **Yes**, once the day is over (`bucket_start < today`) |
+| At least one POSTED bundle (day closed), record has no provenance | **CORRECTION** | PENDING, `is_correction=true` | **No**. An admin sends it from the UI |
 
-Kenapa day-level, bukan key-level: begitu **satu** bundel hari itu ter-post, hari itu dianggap
-"ditutup". Record baru/diperbaiki untuk hari itu (operator/order yang belum pernah di-post) →
-**koreksi**, supaya masuk antrian review — bukan diam-diam auto-post ke hari yang sudah dilaporkan.
+Why per day and not per key: as soon as **one** bundle for a day is posted, that day counts as
+closed. New or repaired records for that day (an operator or order that was never posted) become
+**corrections**, so they land in a review queue instead of quietly auto-posting into a day that was already reported.
 
-**Guard hari-selesai (di poster):** auto-poster hanya klaim bundel MCH_HOURS dengan
-`bucket_start::date < hari ini` (Asia/Makassar). Hari yang masih tumbuh tidak boleh dikunci.
-`--include-today` untuk override manual.
+**Finished-day guard (in the poster):** the auto-poster only claims MCH_HOURS bundles with
+`bucket_start::date < today` (Asia/Makassar). A day that is still growing must not be locked.
+Use `--include-today` to override by hand.
 
-**Auto-poster SKIP koreksi:** `claim_rows` memfilter `is_correction = false`. Koreksi hanya
-terkirim lewat `--ids` (tombol **Post selected** di UI → aksi `post_corrections` di ops_worker).
+**The auto-poster skips corrections:** `claim_rows` filters on `is_correction = false`. Corrections are
+sent only through `--ids` (the **Post selected** button in the UI, which becomes the `post_corrections` action in ops_worker).
 
 ---
 
-## Tabel
+## Tables
 
-| Tabel | Isi |
+| Table | Contents |
 |---|---|
-| `sap_timesheet_staging` | Antrian payload. `ztimesheetid` = `id::text` (GENERATED). `is_productive` = `zconf_type IN (M1,M2)` (GENERATED). **`is_correction`** = bundel koreksi (tidak auto-post) |
-| **`sap_staging_source`** | **Provenance**: bundel ini dari record sumber mana (segmen: `source_row_id` + `bucket_start` + detik). Jangkar semua pengaman |
-| **`mch_transaction_override`** | Koreksi manual admin (job/operator) yang di-apply ETL saat menurunkan `mch_transaction` |
-| **`sap_ops_request`** | Antrian aksi dari tombol UI (`stage_catchup`/`retry_failed`/`post_corrections`). Dikonsumsi `ops_worker.py` |
-| **`sap_source_change_blocked`** | Log percobaan mengubah record yang sudah terkirim ke SAP (ditolak trigger pembekuan) |
-| `sap_stage_cursor` | Posisi terakhir staging job |
-| `sap_staging_eligibility_audit` | Audit kenapa source row belum layak |
-| `log_timesheet_sap` | Audit tiap kiriman ke SAP (dipakai guard "ZTIMESHEETID terbakar") |
+| `sap_timesheet_staging` | Payload queue. `ztimesheetid` = `id::text` (GENERATED). `is_productive` = `zconf_type IN (M1,M2)` (GENERATED). **`is_correction`** marks correction bundles (no auto-post) |
+| **`sap_staging_source`** | **Provenance**: which source records a bundle came from (segment: `source_row_id` + `bucket_start` + seconds). Every safeguard hangs off this table |
+| **`mch_transaction_override`** | Manual admin fixes (job or operator) that the ETL applies when it derives `mch_transaction` |
+| **`sap_ops_request`** | Queue of UI button actions (`stage_catchup`, `retry_failed`, `post_corrections`). Consumed by `ops_worker.py` |
+| **`sap_source_change_blocked`** | Log of attempts to change a record that was already sent to SAP (rejected by the freeze trigger) |
+| `sap_stage_cursor` | Last position of the staging job |
+| `sap_staging_eligibility_audit` | Why a source row is not eligible yet |
+| `log_timesheet_sap` | Audit of every request sent to SAP (used by the burned-ZTIMESHEETID guard) |
 
 ---
 
-## Script
+## Scripts
 
-| Script | Fungsi |
+| Script | Purpose |
 |---|---|
-| `stage_machinehours.py` | Job rutin jam mesin (cursor) + **catch-up** (menjalankan mode NORMAL **dan** KOREKSI) |
-| `stage_timesheet_transaction.py` | Job rutin timesheet operator (cursor) |
-| `stage_sap_timesheet.py` | Mesin bundling + tool manual (init-db, stage ad-hoc). Berisi SQL bundling — **inti dari semua aturan di atas**. `mode="normal"` / `mode="correction"` |
-| **`rebuild_machinehours.py`** | **Bangun ulang antrian** setelah bentuk payload/aturan berubah |
-| **`backfill_operator.py`** | Isi ulang `operatorid` di record lama dari `usernfc` (bedah, `--emp_sn`/`--all`/`--since`/`--dry-run`) |
-| `post_sap_staging.py` | Kirim payload ke SAP (paralel, ber-guard, guard hari-selesai) |
-| **`ops_worker.py`** | **Konsumen antrian `sap_ops_request`** — menjalankan script di atas saat tombol UI menitip permintaan |
-| `sap_staging_common.py` | Helper: koneksi, DDL, insert staging + provenance, builder payload, cursor |
-| `seed_sap_staging_manual.py` | Seed payload manual untuk testing |
+| `stage_machinehours.py` | Scheduled machine-hours job (cursor) plus **catch-up**, which runs both NORMAL **and** CORRECTION mode |
+| `stage_timesheet_transaction.py` | Scheduled operator timesheet job (cursor) |
+| `stage_sap_timesheet.py` | Bundling engine and manual tool (init-db, ad-hoc staging). It holds the bundling SQL, so **every rule above lives here**. `mode="normal"` or `mode="correction"` |
+| **`rebuild_machinehours.py`** | **Rebuilds the queue** after the payload shape or a rule changes |
+| **`backfill_operator.py`** | Refills `operatorid` on old records from `usernfc` (`--emp_sn`, `--all`, `--since`, `--dry-run`) |
+| `post_sap_staging.py` | Sends payloads to SAP (parallel, guarded, finished-day guard) |
+| **`ops_worker.py`** | **Consumer of the `sap_ops_request` queue**. Runs the scripts above when a UI button files a request |
+| `sap_staging_common.py` | Helpers: connections, DDL, staging plus provenance inserts, payload builder, cursor |
+| `seed_sap_staging_manual.py` | Seeds a manual payload for testing |
 
 ---
 
-## Otomatis vs Manual — siapa jalan sendiri, siapa perlu dipicu
+## What runs on its own and what needs a trigger
 
-> Inti: **bundling & posting hari selesai jalan otomatis**; **koreksi selalu manual** (review admin).
+> In short: **bundling and posting of finished days run automatically**; **corrections are always manual** (admin review).
 
-### Yang berjalan OTOMATIS (service compose, tanpa dipegang)
+### Automatic (compose services, no one has to touch them)
 
-| Service compose | Menjalankan | Tugas |
+| Compose service | Runs | Job |
 |---|---|---|
-| ETL (`docker-compose.etl.yml`) | `etl_mch_transaction_v3.py` | Turunkan `mch_transaction` + apply `mch_transaction_override` |
-| `sap-stage-worker` | loop `stage_machinehours.py --catchup` | Bundling NORMAL + KOREKSI |
-| `sap-post-worker` | loop `post_sap_staging.py` | Auto-post PENDING **non-koreksi**, **hari selesai saja** |
-| `sap-ops-worker` | `ops_worker.py --loop` | Konsumen antrian tombol UI (lihat bawah) |
+| ETL (`docker-compose.etl.yml`) | `etl_mch_transaction_v3.py` | Derives `mch_transaction` and applies `mch_transaction_override` |
+| `sap-stage-worker` | `stage_machinehours.py --catchup` in a loop | NORMAL and CORRECTION bundling |
+| `sap-post-worker` | `post_sap_staging.py` in a loop | Auto-posts PENDING **non-correction** rows, **finished days only** |
+| `sap-ops-worker` | `ops_worker.py --loop` | Consumes the UI button queue (see below) |
 
-Urutan otomatis (berulang tiap interval):
+Automatic order, repeated every interval:
 
 ```
-ETL  →  sap-stage-worker (bundling)  →  sap-post-worker (post hari selesai)
-                                         └─ KOREKSI dilewati, nunggu admin
+ETL  ->  sap-stage-worker (bundling)  ->  sap-post-worker (post finished days)
+                                          +- CORRECTION rows are skipped and wait for an admin
 ```
 
-Interval di `.env` (opsional): `SAP_STAGE_INTERVAL` (900s), `SAP_POST_INTERVAL` (1800s),
+Intervals in `.env` (optional): `SAP_STAGE_INTERVAL` (900s), `SAP_POST_INTERVAL` (1800s),
 `SAP_POST_LIMIT` (500), `SAP_POST_WORKERS` (5), `SAP_OPS_INTERVAL` (10s).
 
-### Yang MANUAL (tombol UI → antrian → ops_worker)
+### Manual (UI button, then queue, then ops_worker)
 
-`ops_worker.py` **bukan** scheduler dan **tidak** membundel sendiri. Ia menunggu baris di
-`sap_ops_request` yang ditulis API saat tombol ditekan (Node tak bisa jalankan Python langsung),
-lalu menjalankan script yang dipetakan:
+`ops_worker.py` is **not** a scheduler and does **not** bundle anything itself. It waits for rows in
+`sap_ops_request`, which the API writes when a button is pressed (Node cannot run the Python scripts directly),
+then runs the mapped script:
 
-| Tombol UI (halaman SAP-log) | Aksi antrian | Perintah yang dijalankan ops_worker |
+| UI button (SAP log page) | Queue action | Command ops_worker runs |
 |---|---|---|
 | **Stage edited records** | `stage_catchup` | `stage_machinehours.py --catchup` |
-| **Post selected** (tab Corrections) | `post_corrections` | `post_sap_staging.py --ids <…> --workers 3` |
+| **Post selected** (Corrections tab) | `post_corrections` | `post_sap_staging.py --ids <...> --workers 3` |
 | **Retry failed** | `retry_failed` | `post_sap_staging.py --failed-only` |
 
-Alur koreksi dari UI (manual, urut):
+Correction flow from the UI, in order:
 
 ```
-1. Admin edit record di tab Operator Hours (assign Job/Operator)  → tulis mch_transaction_override
-2. ETL re-derive mch_transaction (otomatis di run berikut)
-3. Klik "Stage edited records"  → ops_worker: stage_catchup  → record hari-tertutup jadi bundel KOREKSI
-4. Buka tab Corrections → review → centang → "Post selected"  → ops_worker: post_corrections → SAP
+1. Admin edits a record in the Operator Hours tab (assigns job or operator)  -> writes mch_transaction_override
+2. ETL re-derives mch_transaction (on its next run)
+3. Click "Stage edited records"  -> ops_worker: stage_catchup  -> records on closed days become CORRECTION bundles
+4. Open the Corrections tab, review, tick, "Post selected"  -> ops_worker: post_corrections -> SAP
 ```
 
 ---
 
-## Perintah (CLI langsung — untuk operator/debug)
+## Commands (direct CLI, for operators and debugging)
 
-### Staging rutin & catch-up
+### Scheduled staging and catch-up
 ```bash
 cd jobs/sap_staging
-python stage_machinehours.py                 # jam terakhir + catch-up otomatis (14 hari)
-python stage_machinehours.py --catchup                    # HANYA catch-up (NORMAL + KOREKSI)
+python stage_machinehours.py                              # last hour + automatic catch-up (14 days)
+python stage_machinehours.py --catchup                    # catch-up ONLY (NORMAL + CORRECTION)
 python stage_machinehours.py --catchup --catchup-days 20
 python stage_machinehours.py --dry-run
 python stage_machinehours.py --from-ts 2026-07-01T00:00:00 --to-ts 2026-07-02T00:00:00
 ```
-Catch-up mencari record **layak** yang **belum punya provenance** — mustahil melewatkan apa pun.
+Catch-up looks for **eligible** records that **have no provenance yet**, so it cannot skip anything.
 
-**Lantai otomatis:** catch-up tidak menyentuh tanggal sebelum bucket paling awal di antrian.
-Tanpa lantai ini, ia menemukan data lama yang **sudah terkirim ke SAP tanpa provenance** dan
-mengirimnya lagi. Override `--catchup-since` **hanya** kalau kamu paham konsekuensinya.
+**Automatic floor:** catch-up never touches dates before the earliest bucket in the queue.
+Without that floor it would find old data that **was sent to SAP before provenance existed** and
+send it again. Override `--catchup-since` **only** if you understand the consequences.
 
-### Rebuild — setelah aturan/bentuk payload berubah
+### Rebuild after a rule or payload change
 ```bash
 python rebuild_machinehours.py --from 2026-07-01 --to 2026-07-17 --dry-run
 python rebuild_machinehours.py --from 2026-07-01 --to 2026-07-17
-python rebuild_machinehours.py --full-reset --from 2026-07-01 --to 2026-07-17   # hapus SEMUA + ID→1
+python rebuild_machinehours.py --full-reset --from 2026-07-01 --to 2026-07-17   # deletes EVERYTHING, ID back to 1
 ```
-Hapus baris **BELUM terkirim**, stage ulang dengan aturan terbaru. **Baris POSTED + provenance-nya
-tidak pernah disentuh** — itulah ingatan yang mencegah double-post.
-`--full-reset` **hanya sah bila SEMUA baris POSTED sudah di-STORNO di SAP.**
+It deletes rows that were **not sent yet** and stages them again with the current rules. **POSTED rows and their
+provenance are never touched**: they are the memory that prevents double posting.
+`--full-reset` is **only valid once EVERY POSTED row has been reversed (storno) in SAP.**
 
 ### Posting
 ```bash
-python post_sap_staging.py --limit 500 --workers 5           # auto-post: PENDING non-koreksi, hari selesai
-python post_sap_staging.py --failed-only --limit 200         # tombol "Retry failed" — HANYA FAILED
-python post_sap_staging.py --ids 123,124 --workers 3         # tombol "Post selected" — koreksi tertentu
-python post_sap_staging.py --include-today --limit 500       # ikutkan hari berjalan (hati-hati)
-python post_sap_staging.py --productive-only --limit 1200 --workers 5   # selagi unproductive ditolak SAP
+python post_sap_staging.py --limit 500 --workers 5           # auto-post: PENDING non-correction, finished days
+python post_sap_staging.py --failed-only --limit 200         # "Retry failed" button: FAILED rows only
+python post_sap_staging.py --ids 123,124 --workers 3         # "Post selected" button: specific corrections
+python post_sap_staging.py --include-today --limit 500       # include the current day (careful)
+python post_sap_staging.py --productive-only --limit 1200 --workers 5   # while SAP rejects unproductive rows
 ```
 
-| Flag | Guna |
+| Flag | Use |
 |---|---|
-| `--workers N` | Kiriman paralel. **Paralel ANTAR-ORDER, serial DI DALAM order** (SAP mengunci order). Mulai 4–5 |
-| `--failed-only` | Hanya baris FAILED — tidak menyentuh PENDING (tombol "Retry failed") |
-| `--include-today` | Ikutkan bundel MCH_HOURS hari berjalan (default: hanya hari selesai) |
-| `--ids` / `--ztimesheetids` | Kirim baris tertentu (koreksi via tombol "Post selected") |
-| `--productive-only` / `--unproductive-only` | Filter `is_productive` |
-| `--retry-failed` | Ikutkan FAILED **bersama** PENDING dalam satu run |
-| `--max-retries` (3) | Retry **kegagalan jaringan** & **kunci order**, bukan penolakan bisnis |
-| `--retry-backoff` (2.0) | Jeda dasar antar retry (naik linear) |
-| `--delay-ms` (100) | Throttle per worker — naikkan kalau CPI memutus koneksi |
+| `--workers N` | Parallel requests. **Parallel across orders, serial within an order** (SAP locks the order). Start with 4 or 5 |
+| `--failed-only` | FAILED rows only, PENDING untouched ("Retry failed" button) |
+| `--include-today` | Include MCH_HOURS bundles for the current day (default: finished days only) |
+| `--ids` / `--ztimesheetids` | Send specific rows (corrections through "Post selected") |
+| `--productive-only` / `--unproductive-only` | Filter on `is_productive` |
+| `--retry-failed` | Include FAILED **together with** PENDING in one run |
+| `--max-retries` (3) | Retries **network failures** and **order locks**, never business rejections |
+| `--retry-backoff` (2.0) | Base delay between retries (grows linearly) |
+| `--delay-ms` (100) | Per-worker throttle. Raise it if CPI drops connections |
 
-**Kinerja:** 13,2 dtk/baris → **1,7 dtk/baris** setelah (a) koneksi DB dipakai ulang per thread,
-dan (b) paralel per-order. **Jalankan di server, bukan dari laptop** — koneksi DB di server ~5 ms,
-bukan 2.622 ms lewat tunnel Tailscale.
+**Performance:** 13.2 s per row went down to **1.7 s per row** after (a) reusing one DB connection per thread
+and (b) posting in parallel per order. **Run it on the server, not from a laptop**: the DB round trip is about 5 ms on the server
+and 2,622 ms through a Tailscale tunnel.
 
-### Backfill operator (record lama tanpa operatorid)
+### Operator backfill (old records with no operatorid)
 ```bash
 python backfill_operator.py --dry-run --all
-python backfill_operator.py --emp_sn 0123456789          # satu operator
+python backfill_operator.py --emp_sn 0123456789          # one operator
 python backfill_operator.py --since 2026-07-01 --all
 ```
 
 ---
 
-## Deploy service pipeline
+## Deploying the pipeline services
 
-Bagian dari stack utama (`timesheet-network` + `DB_HOST=pgbouncer`, sama seperti `api`, supaya
-worker melihat antrian yang ditulis aplikasi):
+They are part of the main stack (`timesheet-network` and `DB_HOST=pgbouncer`, the same as `api`), so the
+workers see the queue the application writes:
 
 ```bash
-# kalau sebelumnya pakai compose terpisah, buang container lama dulu:
+# if you used a separate compose file before, remove the old containers first:
 docker rm -f sap-stage-worker sap-post-worker sap-ops-worker 2>/dev/null
 
 docker compose up -d --build sap-stage-worker sap-post-worker sap-ops-worker
-docker logs sap-ops-worker --tail 20   # cari "ops_worker target DB: host=pgbouncer ..."
+docker logs sap-ops-worker --tail 20   # look for "ops_worker target DB: host=pgbouncer ..."
 ```
 
-Kode script di-mount (`./jobs/sap_staging:/app`) → perubahan kode cukup `git pull` + restart
-container (loop menjalankan script sebagai proses fresh, jadi kode baru terbaca). Rebuild image
-(`--build`) hanya perlu kalau `requirements`/Dockerfile berubah.
+The scripts are mounted (`./jobs/sap_staging:/app`), so a code change only needs `git pull` and a container
+restart (the loop starts each script as a fresh process, so it picks up new code). Rebuild the image
+(`--build`) only when `requirements` or the Dockerfile change.
 
 ---
 
-## Transport Kafka (opsional)
+## Kafka transport (optional)
 
-Selain mode langsung (`sap-post-worker`), posting bisa lewat Kafka. Detail lengkap:
+Besides direct mode (`sap-post-worker`), posting can go through Kafka. Full details:
 [`jobs/messaging/README.md`](../messaging/README.md).
 
 ```
@@ -303,135 +302,135 @@ PENDING/FAILED --sap_kafka_relay.py--> QUEUED --> sap.confirmations.v1 (key = AU
                        sap_kafka_poster.py: QUEUED -> POSTING -> guard -> post_one -> SAP
 ```
 
-- `SAP_TRANSPORT=kafka` membuat `ops_worker.py` menjalankan `sap_kafka_relay.py` (flag sama
-  dengan `post_sap_staging.py`) untuk semua tombol posting di UI.
-- Key pesan = AUFNR, jadi satu order selalu di satu partisi: **serial di dalam order, paralel
-  antar-order** tanpa kode penguncian. Tambah replika poster untuk paralelisme.
-- Pesan hanya membawa `staging_id` + hash payload. Poster membaca ulang baris dan hanya
-  mengirim bila masih `QUEUED` dengan hash sama. Pesan ganda/terlambat dibuang.
-- Status baru `QUEUED` (migrasi `20261012_sap_staging_kafka_queue.sql`) tidak disentuh
-  poster polling, ikut dihapus trigger invalidasi, dan dikembalikan ke status asal bila
-  broker tidak mengonfirmasi atau terlalu lama mengantre.
-- Semua pengaman di bawah tetap berlaku: relay menjalankan guard saat klaim, poster
-  menjalankannya lagi tepat sebelum kirim.
+- `SAP_TRANSPORT=kafka` makes `ops_worker.py` run `sap_kafka_relay.py` (same flags as
+  `post_sap_staging.py`) for every posting button in the UI.
+- The message key is AUFNR, so one order always lands on one partition: **serial within an order, parallel
+  across orders**, with no locking code. Add poster replicas for more parallelism.
+- A message carries only `staging_id` and a payload hash. The poster reads the row again and only
+  sends it if it is still `QUEUED` with the same hash. Duplicate or late messages are dropped.
+- The new `QUEUED` status (migration `20261012_sap_staging_kafka_queue.sql`) is ignored by the
+  polling poster, is removed by the invalidation trigger like PENDING, and goes back to its previous status if
+  the broker does not acknowledge it or it waits too long.
+- Every safeguard below still applies: the relay runs the guards when it claims a row, and the poster runs them
+  again right before sending.
 
 ---
 
-## Pengaman (jangan dilucuti)
+## Safeguards (do not remove)
 
-### Jebakan yang mendasari semuanya
+### The trap behind all of them
 
-`ZTIMESHEETID = sap_timesheet_staging.id::text` — **nomor baris, bukan turunan data sumber.**
-SAP menolak ZTIMESHEETID ganda, **tapi itu tidak melindungi kita**: begitu `source_key` berubah —
-karena **kode** (resep md5 diubah, `PLANT_CODE` diganti) atau karena **data** (order_no diperbaiki) —
-lahir baris staging **baru** → `id` baru → ZTIMESHEETID baru → **SAP menerimanya sebagai kiriman
-baru** → jam masuk **dua kali**.
+`ZTIMESHEETID = sap_timesheet_staging.id::text`. It is **a row number, not something derived from the source data.**
+SAP rejects a duplicate ZTIMESHEETID, **but that does not protect us**. As soon as `source_key` changes,
+either because of **code** (the md5 recipe changes, `PLANT_CODE` is renamed) or because of **data** (an order_no is fixed),
+a **new** staging row appears, with a new `id` and a new ZTIMESHEETID. **SAP accepts it as a new
+confirmation** and the hours go in **twice**.
 
-**Jangkar yang benar = SEGMEN `(proddataid, bucket_start)`** — tidak berubah walau resep md5,
-format, atau plant diubah. Bukan `proddataid` saja: bundling memotong record lintas-hari, jadi satu
-proddataid **sah** muncul di beberapa bundel (segmen).
+**The right anchor is the SEGMENT `(proddataid, bucket_start)`**, which does not change when the md5 recipe,
+format or plant changes. `proddataid` alone is not enough: bundling splits records that cross midnight, so one
+proddataid can **legitimately** appear in several bundles (segments).
 
-### Lapisan
+### Layers
 
-| # | Pengaman | Letak |
+| # | Safeguard | Where |
 |---|---|---|
-| 1 | **Unique index parsial** `WHERE posted_at IS NOT NULL` — satu segmen **mustahil** ter-POST dua kali. Database yang menolak, bukan disiplin manusia | `sap_staging_source` |
-| 2 | **Guard poster** — sebelum kirim: segmen sudah ter-POST? `source_key` **sama** → skip (re-run). **Beda** → **KONFLIK** → `SKIPPED` + "butuh storno di SAP" | `post_sap_staging.py` |
-| 3 | **Guard hari-selesai** — auto-poster hanya klaim bundel MCH_HOURS `bucket_start < hari ini`; hari yang masih tumbuh tidak dikunci | `post_sap_staging.py` |
-| 4 | **Auto-poster SKIP koreksi** — `is_correction=true` tak pernah auto-post; hanya lewat `--ids` (tombol admin) | `post_sap_staging.py` |
-| 5 | **Trigger pembekuan** — field kunci record yang **sudah terkirim** tidak bisa diubah; percobaan dicatat ke `sap_source_change_blocked`. ETL tidak putus | `mch_transaction` |
-| 6 | **Trigger invalidasi** — record sumber berubah & bundelnya masih PENDING → bundel usang **dihapus** → catch-up men-stage ulang | `mch_transaction` |
-| + | **Guard ZTIMESHEETID terbakar** — cek `log_timesheet_sap`: ID ini pernah SUCCESS di SAP? → `SKIPPED` | `post_sap_staging.py` |
+| 1 | **Partial unique index** `WHERE posted_at IS NOT NULL`: one segment **cannot** be POSTED twice. The database refuses it, not human discipline | `sap_staging_source` |
+| 2 | **Poster guard**: before sending, is the segment already POSTED? Same `source_key` means skip (a re-run). A **different** one is a **CONFLICT**: `SKIPPED` with "needs storno in SAP" | `post_sap_staging.py` |
+| 3 | **Finished-day guard**: the auto-poster only claims MCH_HOURS bundles with `bucket_start < today`, so a day that is still growing is not locked | `post_sap_staging.py` |
+| 4 | **Auto-poster skips corrections**: `is_correction=true` never auto-posts, only through `--ids` (admin button) | `post_sap_staging.py` |
+| 5 | **Freeze trigger**: key fields of a record that **was already sent** cannot change; the attempt is logged in `sap_source_change_blocked`. The ETL keeps running | `mch_transaction` |
+| 6 | **Invalidation trigger**: when a source record changes and its bundle is still PENDING, the stale bundle is **deleted** and catch-up stages it again | `mch_transaction` |
+| + | **Burned ZTIMESHEETID guard**: checks `log_timesheet_sap`. Did SAP ever return SUCCESS for this ID? Then `SKIPPED` | `post_sap_staging.py` |
 
-### Lingkaran perbaikan data
+### The data repair loop
 
 ```
-EWS accuracy_machine menunjuk record tak lengkap
-   → admin memperbaiki (mch_transaction_override) → ETL re-derive mch_transaction
-   → trigger invalidasi hapus bundel PENDING usang
-   → catch-up men-stage ulang (NORMAL bila hari terbuka, KOREKSI bila hari sudah ditutup)
-   → poster (auto untuk normal / manual untuk koreksi) mengirim
+EWS accuracy_machine points at an incomplete record
+   -> admin fixes it (mch_transaction_override) -> ETL re-derives mch_transaction
+   -> invalidation trigger deletes the stale PENDING bundle
+   -> catch-up stages it again (NORMAL if the day is open, CORRECTION if it is closed)
+   -> poster sends it (automatically for normal, by hand for corrections)
 ```
 
 ---
 
-## ⚠️ Batas Berbahaya
+## Dangerous limits
 
-1. **JANGAN ubah komposisi md5 `source_key`** tanpa rencana. Semua riwayat berganti kunci →
-   dianggap baru → dikirim ulang ke SAP. (Guard segmen akan menangkapnya, tapi jangan uji nasib.)
-2. **JANGAN reset sequence `id`** tanpa storno semua POSTED di SAP dulu. ZTIMESHEETID yang pernah
-   diterima SAP akan terpakai ulang → penolakan duplikat pada baris yang sah.
-3. **JANGAN rebuild/catch-up tanggal di luar rentang yang dikelola.** Data lama (mis. Juni) sudah
-   terkirim ke SAP **tanpa provenance** — men-stage-nya lagi = jam masuk dua kali.
-4. **JANGAN pertahankan `status_record` sebagai gerbang** (lihat atas).
-5. **JANGAN paksa `--include-today`** pada hari berjalan kecuali kamu memang mau mengunci hari itu —
-   record yang masuk setelahnya jadi KOREKSI (harus dikirim manual).
-6. **Jangan tulis tanda persen (`%`) di komentar SQL** yang dieksekusi psycopg2 — dibaca sebagai
-   placeholder format, seluruh query gagal.
-
----
-
-## Masalah Terbuka
-
-- **Unproductive ditolak SAP**: *"Enter activity type only in conjunction with cost center"*.
-  Payload **tidak punya field KOSTL**, dan `cost_center` di `mch_transaction` hanya terisi ~14%.
-  Perbaikan ada **di sisi SAP** (kemungkinan menurunkan KOSTL dari work center/ARBPL).
-  Sementara itu: kirim dengan `--productive-only`.
-- **Tidak ada STORNO**: guard hanya **mendeteksi** konflik; pembatalan kiriman salah di SAP masih manual.
+1. **Do not change the md5 recipe of `source_key`** without a plan. The whole history is re-keyed,
+   looks new, and is sent to SAP again. (The segment guard will catch it, but do not test your luck.)
+2. **Do not reset the `id` sequence** before every POSTED row has been reversed in SAP. ZTIMESHEETIDs that SAP
+   already accepted would be reused, and legitimate rows would be rejected as duplicates.
+3. **Do not rebuild or catch up dates outside the managed range.** Old data (June, for example) was sent to SAP
+   **without provenance**. Staging it again puts the hours in twice.
+4. **Do not bring back `status_record` as a gate** (see above).
+5. **Do not force `--include-today`** on the current day unless you really mean to lock it. Records that
+   arrive afterwards become CORRECTIONS and must be sent by hand.
+6. **Do not write a percent sign (`%`) in SQL comments** that psycopg2 executes. It is read as a format
+   placeholder and the whole query fails.
 
 ---
 
-## Membaca Error SAP
+## Open issues
 
-| Pesan | Arti | Aksi |
+- **SAP rejects unproductive rows**: *"Enter activity type only in conjunction with cost center"*.
+  The payload **has no KOSTL field**, and `cost_center` in `mch_transaction` is filled for only about 14% of rows.
+  The fix belongs **on the SAP side** (probably deriving KOSTL from the work center, ARBPL).
+  Until then, post with `--productive-only`.
+- **No storno**: the guards only **detect** a conflict. Reversing a wrong posting in SAP is still manual.
+
+---
+
+## Reading SAP errors
+
+| Message | Meaning | Action |
 |---|---|---|
-| `Order X is already being processed by SAPCI` | Kunci order sementara — dua kiriman untuk order sama bersamaan | Otomatis di-retry. Kalau sering: turunkan `--workers` |
-| `User status TECO is active` | Order sudah *technically complete* — tidak bisa menerima konfirmasi | Keputusan bisnis: buka TECO di SAP, atau relakan |
-| `Enter activity type only in conjunction with cost center` | Baris unproductive (LSTAR tanpa KOSTL) | Tunggu perbaikan sisi SAP |
-| `SSL: UNEXPECTED_EOF` / `read operation timed out` | **Jaringan**, bukan penolakan SAP. Request mungkin sampai, mungkin tidak | Retry **aman** (ID sama → SAP tolak duplikat, tidak dobel) |
+| `Order X is already being processed by SAPCI` | Temporary order lock: two requests for the same order at once | Retried automatically. If it happens often, lower `--workers` |
+| `User status TECO is active` | The order is *technically complete* and cannot take confirmations | Business decision: reopen TECO in SAP, or let it go |
+| `Enter activity type only in conjunction with cost center` | Unproductive row (LSTAR without KOSTL) | Wait for the SAP-side fix |
+| `SSL: UNEXPECTED_EOF` / `read operation timed out` | **Network**, not an SAP rejection. The request may or may not have arrived | Retrying is **safe** (same ID, so SAP rejects the duplicate) |
 
 ---
 
-## Audit Cepat
+## Quick audit
 
 ```sql
--- Bundel ini dari record mana saja?
+-- Which records did this bundle come from?
 SELECT source_row_id, seconds FROM sap_staging_source WHERE staging_id = 163449;
 
--- Record ini sudah pernah ke SAP?
+-- Has this record ever gone to SAP?
 SELECT t.id, t.status, t.posted_at FROM sap_staging_source s
 JOIN sap_timesheet_staging t ON t.id = s.staging_id
 WHERE s.source_row_id = '501523';
 
--- Kondisi antrian (normal vs koreksi)
+-- Queue state (normal vs correction)
 SELECT status, is_correction, is_productive, count(*)
 FROM sap_timesheet_staging GROUP BY 1,2,3 ORDER BY 1,2,3;
 
--- Koreksi menunggu dikirim admin
-SELECT bucket_start::date, count(*), round(sum(total_seconds)/60.0,1) AS menit
+-- Corrections waiting for an admin
+SELECT bucket_start::date, count(*), round(sum(total_seconds)/60.0,1) AS minutes
 FROM sap_timesheet_staging WHERE is_correction AND status='PENDING'
 GROUP BY 1 ORDER BY 1;
 
--- Antrian tombol UI
+-- UI button queue
 SELECT id, action, status, requested_at, started_at, finished_at
 FROM sap_ops_request ORDER BY id DESC LIMIT 20;
 
--- Perubahan data yang DITOLAK karena sudah terkirim ke SAP
+-- Data changes REJECTED because the record was already sent to SAP
 SELECT * FROM sap_source_change_blocked ORDER BY blocked_at DESC LIMIT 20;
 ```
 
 ---
 
-## Env
+## Environment
 
 ```text
 DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD     # source (mch_transaction, timesheet)
 PLANT_CODE TIMEZONE TGT_TABLE
 SAP_INBOUND_URL SAP_INBOUND_USERNAME SAP_INBOUND_PASSWORD
 
-SAP_STAGING_DB_HOST SAP_STAGING_DB_PORT ...     # opsional: staging DB terpisah
+SAP_STAGING_DB_HOST SAP_STAGING_DB_PORT ...     # optional: separate staging DB
 SAP_STAGE_INITIAL_FROM_TS SAP_STAGE_CURSOR_OVERLAP_MINUTES SAP_STAGE_SAFETY_DELAY_MINUTES
 
-# interval service compose (opsional)
+# compose service intervals (optional)
 SAP_STAGE_INTERVAL SAP_POST_INTERVAL SAP_POST_LIMIT SAP_POST_WORKERS SAP_OPS_INTERVAL
 ```

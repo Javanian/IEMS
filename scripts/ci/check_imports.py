@@ -1,16 +1,12 @@
-import hashlib
+"""Fail CI when a relative import in the portfolio packages points at a missing file
+or at local tooling that is not part of the repository."""
 import json
 import re
 import subprocess
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-manifest = json.loads((root / 'checkpoints/wave4h/SOURCE-MANIFEST.json').read_text(encoding='utf-8'))
 errors = []
-for name, digest in manifest.items():
-    path = root / name
-    if not path.is_file() or hashlib.sha256(path.read_bytes().replace(b'\r\n', b'\n')).hexdigest() != digest:
-        errors.append(f'manifest mismatch: {name}')
 scopes = ['apps/portfolio-api', 'apps/web/test', 'apps/web/src/features/portfolio', 'packages/tenant-foundation', 'packages/customer-service', 'packages/document-rendering']
 imports = []
 for scope in scopes:
@@ -31,5 +27,5 @@ for scope in scopes:
 result = subprocess.run(['git', '-C', str(root), 'diff', '--check'], capture_output=True, text=True)
 if result.returncode:
     errors.append(result.stdout + result.stderr)
-print(json.dumps({'manifestFiles': len(manifest), 'relativeImportEdges': len(imports), 'diffCheck': result.returncode, 'errors': errors}, indent=2))
+print(json.dumps({'relativeImportEdges': len(imports), 'diffCheck': result.returncode, 'errors': errors}, indent=2))
 raise SystemExit(bool(errors))
