@@ -9,6 +9,7 @@
 [![Version](https://img.shields.io/github/v/release/Javanian/IEMS?label=version&color=2563EB)](https://github.com/Javanian/IEMS/releases)
 [![License](https://img.shields.io/github/license/Javanian/IEMS?color=16A34A)](LICENSE)
 [![CI](https://github.com/Javanian/IEMS/actions/workflows/ci.yml/badge.svg)](https://github.com/Javanian/IEMS/actions/workflows/ci.yml)
+[![Release CD](https://github.com/Javanian/IEMS/actions/workflows/release.yml/badge.svg)](https://github.com/Javanian/IEMS/actions/workflows/release.yml)
 [![Production](https://img.shields.io/badge/production-4%20plant%20sites-0F172A)](#at-a-glance)
 [![Deploy](https://img.shields.io/badge/deploy-Docker%20%7C%20Offline%20LAN-64748B)](#development-setup)
 
@@ -213,15 +214,26 @@ ETL and SAP worker configuration variables are documented in `.env.example`.
 
 ---
 
-## Automated Tests
+## Automated Tests & CI/CD
 
-GitHub Actions executes **4 CI jobs** on every push:
-1. **API unit tests** (`node --test`)
-2. **Web production build** (`vite build` + design-token checks)
-3. **Python unit tests** (ETL, SPC & messaging helpers)
-4. **End-to-end Kafka pipeline test** against live `apache/kafka` and PostgreSQL containers
+### Continuous Integration (`ci.yml`)
+GitHub Actions enforces **5 required CI checks** on every push and pull request:
+1. **Domain contracts & fixtures** (`packages/contracts` & `packages/domain-test-fixtures`)
+2. **API unit tests** (`node --test` in `apps/api`)
+3. **Web production build** (ESLint, CSS design-token lint & `vite build`)
+4. **Python unit tests** (`jobs/messaging` & `jobs/sap_staging`)
+5. **End-to-end Kafka pipeline test** against live `apache/kafka` and `postgres:16` containers
 
-The E2E test replaces SAP CPI with a local mock HTTP server to verify that every confirmation reaches SAP **exactly once** across 3 competing poster replicas, no two confirmations for the same production order are ever in flight concurrently, rows per order arrive strictly in sequence, and replayed/unparsable/in-flight messages post nothing. See [jobs/messaging/README.md](jobs/messaging/README.md#tests) to run it locally.
+Additional acceptance workflows validate the **Customer Service preview** (`customer-service.yml`) and **Portfolio VAT document rendering** (`portfolio-vat.yml`).
+
+The Kafka E2E test replaces SAP CPI with a local mock HTTP server to verify that every confirmation reaches SAP **exactly once** across 3 competing poster replicas, no two confirmations for the same production order are ever in flight concurrently, rows per order arrive strictly in sequence, and replayed/unparsable/in-flight messages post nothing. See [jobs/messaging/README.md](jobs/messaging/README.md#tests) to run it locally.
+
+### Continuous Delivery (`release.yml`)
+Pushing a semantic version tag (`v*`) automatically runs the release pipeline:
+- Builds and publishes multi-stage Docker images to **GitHub Container Registry (GHCR)**:
+  - `ghcr.io/javanian/iems-api:<tag>`
+  - `ghcr.io/javanian/iems-web:<tag>`
+- Generates a verified source archive with `SHA256SUMS.txt` and publishes the GitHub Release with auto-generated release notes.
 
 ---
 
