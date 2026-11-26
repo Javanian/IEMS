@@ -141,7 +141,8 @@ jobs/.pycache_legacy/
 
 # Development tooling
 /tools
-/scripts
+/scripts/*
+!/scripts/ci/
 /aws
 /.github/*
 !/.github/workflows/
@@ -168,12 +169,12 @@ jobs/.pycache_legacy/
 *.markdown
 !README.md
 !design-system/**/MASTER.md
+!/CLAUDE.md
+!/docs/**/*.md
+!/apps/portfolio-api/CONTRACT.md
 !readme.md
 .obsidian/
 
 /apps/api/testantri.js
 
 !/.github/pull_request_template.md
-!/checkpoints/wave4h/PUBLICATION.md
-
-!/checkpoints/wave4h/*.md

@@ -1,12 +1,10 @@
-# SOW Jobs
+# SOW jobs
 
-Domain ini berisi seed helper SOW dan Dockerfile untuk export SOW.
+Seed helpers for SOW (statement of work) data and the Dockerfile for the SOW export.
 
-## Commands
-
-```powershell
+```bash
 node seed_sow.js
 python seed_ph3_order.py
 ```
 
-Default sample CSV/XLSX dibaca dari `samples/excel/`.
+Both read sample CSV or XLSX files from `samples/excel/` by default.

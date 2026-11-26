@@ -1,5 +1,7 @@
 # Development workflow
 
+Most changes are made with AI coding agents. The rules they follow are in [CLAUDE.md](../CLAUDE.md) and the process is described in [docs/ai-assisted-development.md](../docs/ai-assisted-development.md). The rules below apply to everyone.
+
 Keep work in short-lived branches such as `feat/customer-service-preview` or `fix/invoice-rounding`. Open a draft pull request after the first coherent, tested change so implementation and review progress are visible before the entire feature is complete.
 
 ## Commits and review

@@ -1,22 +1,9 @@
-# Migration yang SENGAJA ditahan (belum di-apply)
+# Deferred migrations
 
-`database/migrate.js` hanya memindai `migrations/api/`. File di folder ini **tidak** ikut
-`node database/migrate.js` — ditaruh di sini dengan sengaja sampai di-greenlight.
+`database/migrate.js` scans only `migrations/api/`, so nothing in this folder runs with `node database/migrate.js`. Files sit here on purpose until they are approved. To activate one, move it back to `../api/` and run the runner.
 
-Untuk mengaktifkan salah satu: pindahkan kembali ke `../api/` lalu jalankan runner.
+## `20260722_mch_transaction_no_overlap*.sql`: no-overlap constraint for machine intervals
 
-## Isi
+This is the second layer of machine-interval normalization. The first layer (the `end_effective` column, the ETL recompute, and consumers reading `COALESCE(end_effective, enddatetime)`) has to be stable before this constraint goes on.
 
-### `20260722_mch_transaction_no_overlap*.sql` — Lapis 2 constraint anti-overlap
-
-Bagian dari normalisasi interval jam mesin (lihat
-`docs/concepts/mch-interval-normalization.md`). Lapis 1 (kolom `end_effective` + ETL
-recompute + konsumen `COALESCE(end_effective, enddatetime)`) harus **stabil lebih dulu**;
-constraint ini baru dipasang setelah itu.
-
-Dua file, urut: `no_overlap.sql` (versi awal, NON-deferrable — **jangan** apply sendiri,
-bikin ETL gagal acak) lalu `no_overlap_deferrable.sql` (perbaikan: DROP + ADD ulang
-`DEFERRABLE`). Kalau nanti di-apply, apply **keduanya** berurutan, atau ganti jadi satu
-file DEFERRABLE langsung.
-
-Konteks penuh: `docs/log/2026-07-22-mch-normalisasi-lapis.md`.
+There are two files, in order. `no_overlap.sql` is the first version and is NOT deferrable: do not apply it on its own, because it makes the ETL fail at random. `no_overlap_deferrable.sql` is the fix: it drops the constraint and adds it again as `DEFERRABLE`. When the time comes, apply both in order, or replace them with a single deferrable file.

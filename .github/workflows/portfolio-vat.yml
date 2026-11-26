@@ -7,7 +7,7 @@ on:
       - 'apps/web/**'
       - 'apps/wa-demo-bridge/**'
       - 'packages/**'
-      - 'checkpoints/wave4h/**'
+      - 'scripts/ci/**'
       - '.github/workflows/portfolio-vat.yml'
   pull_request:
     paths:
@@ -15,7 +15,7 @@ on:
       - 'apps/web/**'
       - 'apps/wa-demo-bridge/**'
       - 'packages/**'
-      - 'checkpoints/wave4h/**'
+      - 'scripts/ci/**'
       - '.github/workflows/portfolio-vat.yml'
 
 permissions:
@@ -56,8 +56,8 @@ jobs:
             npm --prefix $package ci --no-audit --no-fund
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Audit publication manifest and imports
-        run: python checkpoints/wave4h/audit-publication.py
+      - name: Check relative imports
+        run: python scripts/ci/check_imports.py
       - name: Validate API syntax
         run: npm --prefix apps/portfolio-api run check
       - name: Check renderer public types

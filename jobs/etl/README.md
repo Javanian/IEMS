@@ -1,53 +1,42 @@
-# ETL Jobs
+# ETL jobs
 
-Folder ini berisi job sinkronisasi PostgreSQL lokal, SQL Server machine data, dan transformasi tabel `mch_transaction`.
+Jobs that move order and machine data between the factory SQL Server, the SAP source database and each plant's PostgreSQL. Every script reads `.env` from the repository root when it exists.
 
-Script aktif membaca `.env` dari root repo jika tersedia.
+## Python scripts
 
-## Script Python
-
-| File | Fungsi Singkat | Contoh |
+| File | What it does | Example |
 |---|---|---|
-| `etl_sync_v2.py` | ETL utama untuk sinkronisasi data order/confirmation dari source PostgreSQL ke satu atau beberapa target PostgreSQL. Mendukung `LISTEN/NOTIFY`, polling berkala, batch processing, retry/backoff, dan update `status_etl`. | `python etl_sync_v2.py` |
-| `sap_orders_producer.py` | Mode Kafka: membaca baris `ph3_order` berstatus `NEW` dari DB sumber SAP (LISTEN `etl_new_row` + polling), publish ke topic `sap.orders.v1` (key = confirmation_number, compacted), lalu tandai `UPDATED` setelah broker mengonfirmasi. Pengganti fan-out `etl_sync_v2.py`. | `python sap_orders_producer.py` |
-| `sap_orders_consumer.py` | Mode Kafka: satu instance per DB plant (consumer group `iems-orders-<plant>`), upsert ke `ph3_order` + `sow` dalam satu transaksi, commit offset setelah DB commit. Pesan rusak ke `sap.orders.dlq.v1`. | `python sap_orders_consumer.py` |
-| `order_sync_core.py` | Logika upsert order + SOW yang dipakai bersama `etl_sync_v2.py` dan `sap_orders_consumer.py`, supaya kedua mode menulis baris yang identik. | (modul) |
-| `etl_order.py` | Versi sederhana/awal untuk sync order confirmation dari `SRC_TABLE` ke `TGT_TABLE`, filter per `PLANT_FILTER`, strip leading zero pada nomor tertentu, lalu update `status_etl` dan isi tabel `sow`. | `python etl_order.py` |
-| `etl_machinehours.py` | Mengambil data machine hours dari SQL Server `PLANT_OEE`, transform hasil validasi machine hour, lalu upsert ke PostgreSQL `public.mch_transaction`. Bisa pakai range tanggal, truncate, batch size, dan dry-run. | `python etl_machinehours.py --dry-run` |
-| `etl_machine_conf.py` | Update `ProductionData.JobID` di SQL Server memakai `confirmation_number` dari PostgreSQL, lalu sync `ProductionData` ke PostgreSQL `public.mch_productiondata`. Versi ini juga punya opsi refresh materialized view. | `python etl_machine_conf.py --from 2026-05-01 --dry-run` |
-| `etl_machine_conf_ver1.py` | Versi lama dari `etl_machine_conf.py`. Fungsinya sama secara garis besar, tetapi default tanggal dan konfigurasi koneksi berbeda. Simpan sebagai referensi/backup bila perlu membandingkan behavior lama. | `python etl_machine_conf_ver1.py --dry-run` |
-| `etl_mch_transaction.py` | Transform incremental dari `public.mch_productiondata` ke `public.mch_transaction`. Mengikuti logic `mv_mch_productiondata_detail` dan memakai lookup timesheet terdekat untuk status tertentu. | `python etl_mch_transaction.py --dry-run` |
-| `etl_mch_transaction_v2.py` | Versi baru transform `mch_transaction`. Tidak memakai nearest-time lookup ke `timesheet_transaction`; operator diambil dari `mch_user`, job dari `ph3_order`, dan field SOW dari tabel `sow`. | `python etl_mch_transaction_v2.py --dry-run` |
+| `etl_sync_v2.py` | Main order and confirmation sync from the source PostgreSQL to one or more plant databases. Uses `LISTEN/NOTIFY` plus polling, batches, retries with backoff and updates `status_etl`. | `python etl_sync_v2.py` |
+| `sap_orders_producer.py` | Kafka mode. Reads `ph3_order` rows with status `NEW` from the SAP source database (`LISTEN etl_new_row` plus polling), publishes them to `sap.orders.v1` (key = confirmation_number, compacted) and marks them `UPDATED` once the broker acknowledges. Replaces the fan-out in `etl_sync_v2.py`. | `python sap_orders_producer.py` |
+| `sap_orders_consumer.py` | Kafka mode. One instance per plant database (consumer group `iems-orders-<plant>`). Upserts `ph3_order` and `sow` in one transaction and commits the offset after the database commit. Bad messages go to `sap.orders.dlq.v1`. | `python sap_orders_consumer.py` |
+| `order_sync_core.py` | Order and SOW upsert logic shared by `etl_sync_v2.py` and `sap_orders_consumer.py`, so both modes write identical rows. | (module) |
+| `etl_order.py` | The first, simpler order sync from `SRC_TABLE` to `TGT_TABLE`, filtered by `PLANT_FILTER`. Strips leading zeros from some numbers, updates `status_etl` and fills `sow`. | `python etl_order.py` |
+| `etl_machinehours.py` | Pulls validated machine hours from the SQL Server `PLANT_OEE` database and upserts them into `public.mch_transaction`. Supports a date range, truncate, batch size and dry run. | `python etl_machinehours.py --dry-run` |
+| `etl_machine_conf.py` | Writes `ProductionData.JobID` in SQL Server from the PostgreSQL `confirmation_number`, then copies `ProductionData` into `public.mch_productiondata`. Can refresh the materialized view afterwards. | `python etl_machine_conf.py --from 2026-05-01 --dry-run` |
+| `etl_mch_transaction_v3.py` | Derives `public.mch_transaction` from `mch_productiondata`: operator from `mch_user`, job from `ph3_order`, SOW fields from `sow`, and admin fixes from `mch_transaction_override`. This is the input to SAP staging. | `python etl_mch_transaction_v3.py --dry-run` |
+| `sync_machine_heartbeat.py` | Copies machine heartbeat rows from SQL Server into PostgreSQL (it creates the target table on first run). The Early Warning dashboard reads them for HMI uptime. | `python sync_machine_heartbeat.py` |
 
-## File SQL
+## SQL
 
-| File | Fungsi Singkat |
+| File | What it does |
 |---|---|
-| `etl_trigger.sql` | Script SQL yang dijalankan sekali di database source untuk membuat function dan trigger `pg_notify`. Trigger mengirim notifikasi ke channel `etl_new_row` saat row `ph3_order` dengan `status_etl = 'NEW'` di-insert/update. |
+| `etl_trigger.sql` | Run once on the source database. Creates the function and trigger that `pg_notify` the `etl_new_row` channel when a `ph3_order` row with `status_etl = 'NEW'` is inserted or updated. |
+| `sql_anomali_mch_productiondata.sql` | Per machine and day, counts segments whose `jobid` has a valid prefix against segments with an unexpected one. Used to find machines where operators enter job numbers wrongly. |
 
-## File Docker dan Dependency
+## Docker and dependencies
 
-| File | Fungsi Singkat |
+| File | What it does |
 |---|---|
-| `Dockerfile.etl` | Image Python 3.11 slim untuk menjalankan ETL container. Default command menjalankan `etl_sync_v2.py`. |
-| `docker-compose.etl.yml` | Compose service `timesheet_sap_etl` yang build dari `Dockerfile.etl`, membaca `.env` root repo, mount folder ETL ke `/app`, dan restart otomatis. |
-| `requirements.txt` | Dependency Python untuk job ETL: `psycopg2-binary`, `python-dotenv`, dan `pyodbc`. |
+| `Dockerfile.etl` | Python 3.11 slim image for the ETL container. Runs `etl_sync_v2.py` by default. |
+| `docker-compose.etl.yml` | The `timesheet_sap_etl` service: builds `Dockerfile.etl`, reads the root `.env`, mounts this folder at `/app`, restarts automatically. |
+| `Dockerfile.heartbeat`, `docker-compose.heartbeat.yml` | Container for the heartbeat sync. |
+| `requirements.txt` | `psycopg2-binary`, `python-dotenv`, `pyodbc`. |
 
-## Dokumentasi Pendukung
+## Quick commands
 
-| File | Isi |
-|---|---|
-| `ETL_SYNC_V2_GUIDE.md` | Panduan detail konfigurasi dan operasional `etl_sync_v2.py`. |
-| `etl_mchtransaction.md` | Catatan/panduan untuk proses transformasi `mch_transaction`. |
-| `etl_sync_v2_analysis.md` | Analisis implementasi `etl_sync_v2.py`. |
-| `task_etl.md` | Catatan task dan requirement historis untuk pekerjaan ETL. |
-
-## Commands Cepat
-
-```powershell
+```bash
 python etl_sync_v2.py
-python etl_mch_transaction.py --dry-run
-python etl_mch_transaction_v2.py --dry-run
+python etl_mch_transaction_v3.py --dry-run
 python etl_machinehours.py --dry-run
 python etl_machine_conf.py --dry-run
 ```
